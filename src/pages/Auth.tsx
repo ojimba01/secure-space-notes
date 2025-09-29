@@ -234,8 +234,8 @@ const Auth = () => {
                 </div>
                 <Alert>
                   <AlertDescription>
-                    Only admin@supportivecm.org can access admin features. 
-                    Other @supportivecm.org emails will be assigned employee role.
+                    <strong>Admin Setup:</strong> Create the admin account first by signing up with admin@supportivecm.org and password "password". 
+                    Only admin@supportivecm.org gets admin access - other @supportivecm.org emails become employees.
                   </AlertDescription>
                 </Alert>
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
