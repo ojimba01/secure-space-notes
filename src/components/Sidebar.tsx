@@ -7,9 +7,11 @@ import {
   Users, 
   Shield, 
   Clock,
-  Stethoscope
+  Stethoscope,
+  LogOut
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useAuth } from '@/components/AuthProvider';
 
 interface SidebarProps {
   activeView: 'clients' | 'notes';
@@ -17,7 +19,6 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
-  const { useAuth } = require('@/components/AuthProvider');
   const { user, signOut } = useAuth();
   const recentNotes = [
     { id: 1, title: "Patient A - Initial Assessment", date: "2024-01-15", type: "assessment" },
