@@ -12,7 +12,12 @@ interface NoteBlock {
   content: any;
 }
 
-export const NoteEditor = () => {
+interface NoteEditorProps {
+  initialContent?: string;
+  readOnly?: boolean;
+}
+
+export const NoteEditor: React.FC<NoteEditorProps> = ({ initialContent = '', readOnly = false }) => {
   const [blocks, setBlocks] = useState<NoteBlock[]>([
     {
       id: "1",

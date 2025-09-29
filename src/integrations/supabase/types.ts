@@ -14,16 +14,267 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      calendar_events: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          description: string | null
+          employee_id: string
+          end_time: string
+          event_type: string | null
+          id: string
+          start_time: string
+          title: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          employee_id: string
+          end_time: string
+          event_type?: string | null
+          id?: string
+          start_time: string
+          title: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          employee_id?: string
+          end_time?: string
+          event_type?: string | null
+          id?: string
+          start_time?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_files: {
+        Row: {
+          client_id: string
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          is_signed: boolean | null
+          signature_data: Json | null
+          uploaded_by: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          is_signed?: boolean | null
+          signature_data?: Json | null
+          uploaded_by: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          is_signed?: boolean | null
+          signature_data?: Json | null
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_files_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_notes: {
+        Row: {
+          client_id: string
+          content: string | null
+          created_at: string | null
+          employee_id: string
+          id: string
+          title: string
+          updated_at: string | null
+          visit_date: string | null
+        }
+        Insert: {
+          client_id: string
+          content?: string | null
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          title: string
+          updated_at?: string | null
+          visit_date?: string | null
+        }
+        Update: {
+          client_id?: string
+          content?: string | null
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          title?: string
+          updated_at?: string | null
+          visit_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_notes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          address: string | null
+          assigned_employee_id: string | null
+          case_number: string | null
+          created_at: string | null
+          date_of_birth: string | null
+          email: string | null
+          first_name: string
+          id: string
+          intake_date: string | null
+          last_name: string
+          notes: string | null
+          phone: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          assigned_employee_id?: string | null
+          case_number?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          intake_date?: string | null
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          assigned_employee_id?: string | null
+          case_number?: string | null
+          created_at?: string | null
+          date_of_birth?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          intake_date?: string | null
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_assigned_employee_id_fkey"
+            columns: ["assigned_employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_profile_id: {
+        Args: { _user_id: string }
+        Returns: string
+      }
+      is_admin: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "admin" | "employee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +401,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["admin", "employee"],
+    },
   },
 } as const
