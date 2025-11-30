@@ -9,7 +9,8 @@ import {
   Shield, 
   ClipboardList,
   Plus,
-  Search
+  Search,
+  Calendar
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from '@/components/AuthProvider';
@@ -18,8 +19,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
 interface SidebarProps {
-  activeView: 'clients' | 'notes';
-  onViewChange: (view: 'clients' | 'notes') => void;
+  activeView: 'clients' | 'notes' | 'calendar';
+  onViewChange: (view: 'clients' | 'notes' | 'calendar') => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
@@ -117,6 +118,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         >
           <FileText className="h-4 w-4" />
           Notes
+        </Button>
+        <Button 
+          variant={activeView === 'calendar' ? 'default' : 'ghost'}
+          className="w-full justify-start gap-2"
+          onClick={() => onViewChange('calendar')}
+        >
+          <Calendar className="h-4 w-4" />
+          Calendar
         </Button>
         {isAdmin && (
           <Button 
