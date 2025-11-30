@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Plus, Table, Type, Calendar, User } from "lucide-react";
+import { Plus, Table, Type, Calendar } from "lucide-react";
 import { DynamicTable } from "./DynamicTable";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface NoteBlock {
   id: string;
@@ -18,13 +21,96 @@ interface NoteEditorProps {
 }
 
 export const NoteEditor: React.FC<NoteEditorProps> = ({ initialContent = '', readOnly = false }) => {
+  const { toast } = useToast();
+  const [clients, setClients] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [selectedVisitType, setSelectedVisitType] = useState<string>("");
   const [blocks, setBlocks] = useState<NoteBlock[]>([
     {
       id: "1",
       type: "header",
-      content: "Client Visit Notes"
+      content: "Presenting Issue / Reason for Visit"
+    },
+    {
+      id: "2",
+      type: "text",
+      content: ""
+    },
+    {
+      id: "3",
+      type: "header",
+      content: "Assessment / Observations"
+    },
+    {
+      id: "4",
+      type: "text",
+      content: ""
+    },
+    {
+      id: "5",
+      type: "header",
+      content: "Interventions / Actions Taken"
+    },
+    {
+      id: "6",
+      type: "text",
+      content: ""
+    },
+    {
+      id: "7",
+      type: "header",
+      content: "Plan / Next Steps"
+    },
+    {
+      id: "8",
+      type: "text",
+      content: ""
+    },
+    {
+      id: "9",
+      type: "header",
+      content: "Follow-up"
+    },
+    {
+      id: "10",
+      type: "text",
+      content: ""
     }
   ]);
+
+  const visitTypes = [
+    "Initial Assessment",
+    "Follow-up Visit",
+    "Crisis Intervention",
+    "Case Review",
+    "Home Visit",
+    "Phone Check-in",
+    "Service Coordination",
+    "Progress Review"
+  ];
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const fetchClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, first_name, last_name')
+        .order('last_name', { ascending: true });
+
+      if (error) throw error;
+      setClients(data || []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load clients",
+        variant: "destructive"
+      });
+    }
+  };
 
   const addBlock = (type: "text" | "table" | "header") => {
     const newBlock: NoteBlock = {
@@ -59,8 +145,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ initialContent = '', rea
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Calendar className="w-4 h-4" />
           <span>{new Date().toLocaleDateString()}</span>
-          <User className="w-4 h-4 ml-4" />
-          <span>Dr. Smith</span>
         </div>
       </div>
 
@@ -69,12 +153,34 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ initialContent = '', rea
         <h2 className="text-lg font-semibold mb-4 text-medical-blue">Client Information</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Client ID</label>
-            <Input placeholder="Enter client ID..." className="mt-1" />
+            <label className="text-sm font-medium text-muted-foreground mb-2 block">Client</label>
+            <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Select a client..." />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.last_name}, {client.first_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Visit Type</label>
-            <Input placeholder="Initial assessment, follow-up..." className="mt-1" />
+            <label className="text-sm font-medium text-muted-foreground mb-2 block">Visit Type</label>
+            <Select value={selectedVisitType} onValueChange={setSelectedVisitType}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Select visit type..." />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                {visitTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </Card>
