@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
 interface SidebarProps {
@@ -70,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
     <div className="w-80 bg-card border-r border-border p-6 space-y-6">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
           <div className="p-2 bg-medical-blue rounded-lg">
             <Stethoscope className="w-5 h-5 text-white" />
           </div>
@@ -78,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             <h2 className="font-semibold text-lg">ClinicalNotes</h2>
             <p className="text-sm text-muted-foreground">HIPAA Compliant</p>
           </div>
-        </div>
+        </Link>
         
         <Button 
           className="w-full gap-2 bg-medical-blue hover:bg-medical-blue/90"
