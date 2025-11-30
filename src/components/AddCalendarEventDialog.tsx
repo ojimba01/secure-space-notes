@@ -194,14 +194,14 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
           <div className="space-y-2">
             <Label htmlFor="client_id">Client (Optional)</Label>
             <Select
-              value={formData.client_id}
-              onValueChange={(value) => setFormData({ ...formData, client_id: value })}
+              value={formData.client_id || "none"}
+              onValueChange={(value) => setFormData({ ...formData, client_id: value === "none" ? "" : value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a client" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {clients.map((client) => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.first_name} {client.last_name}
