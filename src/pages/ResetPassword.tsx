@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Stethoscope } from 'lucide-react';
 
 const resetPasswordSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -76,7 +77,19 @@ const ResetPassword = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
-      <Card className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-6">
+        {/* Logo Header */}
+        <Link to="/" className="flex items-center justify-center gap-3 hover:opacity-80 transition-opacity">
+          <div className="p-2 bg-medical-blue rounded-lg">
+            <Stethoscope className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-lg">ClinicalNotes</h2>
+            <p className="text-xs text-muted-foreground">HIPAA Compliant</p>
+          </div>
+        </Link>
+
+        <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Reset Password</CardTitle>
           <CardDescription>Enter your new password below</CardDescription>
@@ -118,7 +131,8 @@ const ResetPassword = () => {
             </form>
           </Form>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 };

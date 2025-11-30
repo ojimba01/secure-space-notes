@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Stethoscope } from 'lucide-react';
+
+// Set to null to allow any email domain, or specify domain like '@supportivecm.org'
+const ALLOWED_EMAIL_DOMAIN: string | null = '@supportivecm.org';
 
 const Auth = () => {
   const { user, signIn, signUp, loading } = useAuth();
@@ -60,11 +64,11 @@ const Auth = () => {
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
 
-    // Validate email domain
-    if (!email.endsWith('@supportivecm.org')) {
+    // Validate email domain (if configured)
+    if (ALLOWED_EMAIL_DOMAIN && !email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
       toast({
         title: "Invalid Email Domain",
-        description: "Only @supportivecm.org email addresses are allowed to sign up.",
+        description: `Only ${ALLOWED_EMAIL_DOMAIN} email addresses are allowed to sign up.`,
         variant: "destructive",
       });
       setIsSubmitting(false);
@@ -96,7 +100,9 @@ const Auth = () => {
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
     
     if (error) {
       toast({
@@ -117,7 +123,19 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-6">
+        {/* Logo Header */}
+        <Link to="/" className="flex items-center justify-center gap-3 hover:opacity-80 transition-opacity">
+          <div className="p-2 bg-medical-blue rounded-lg">
+            <Stethoscope className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-lg">ClinicalNotes</h2>
+            <p className="text-xs text-muted-foreground">HIPAA Compliant</p>
+          </div>
+        </Link>
+
+        <Card className="w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">SupportiveCM</CardTitle>
           <CardDescription>
@@ -257,7 +275,8 @@ const Auth = () => {
           </Tabs>
           )}
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 };
