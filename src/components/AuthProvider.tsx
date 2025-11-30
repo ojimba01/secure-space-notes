@@ -29,27 +29,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user && event === 'SIGNED_IN') {
-          // Check if user is active
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('active')
-            .eq('user_id', session.user.id)
-            .single();
-
-          if (!profile?.active) {
-            // User is inactive, sign them out
-            await supabase.auth.signOut();
-            setSession(null);
-            setUser(null);
-            setLoading(false);
-            return;
-          }
-        }
-
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Check user active status after state is set
+        if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+          setTimeout(() => {
+            checkUserActive(session.user.id);
+          }, 0);
+        }
+        
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
           setLoading(false);
         }
@@ -57,32 +47,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        // Check if user is active
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('active')
-          .eq('user_id', session.user.id)
-          .single();
-
-        if (!profile?.active) {
-          // User is inactive, sign them out
-          await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-      }
-
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Check user active status after initial load
+      if (session?.user) {
+        setTimeout(() => {
+          checkUserActive(session.user.id);
+        }, 0);
+      }
+      
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Separate function to check if user is active
+  const checkUserActive = async (userId: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('active')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (profile && !profile.active) {
+        // User is inactive, sign them out
+        await supabase.auth.signOut();
+        setSession(null);
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Error checking user active status:', error);
+    }
+  };
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
     const redirectUrl = `${window.location.origin}/`;
