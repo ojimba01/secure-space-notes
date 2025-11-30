@@ -60,6 +60,17 @@ const Auth = () => {
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
 
+    // Validate email domain
+    if (!email.endsWith('@supportivecm.org')) {
+      toast({
+        title: "Invalid Email Domain",
+        description: "Only @supportivecm.org email addresses are allowed to sign up.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     const { error } = await signUp(email, password, firstName, lastName);
     
     if (error) {
@@ -217,7 +228,7 @@ const Auth = () => {
                     id="signup-email"
                     name="email"
                     type="email"
-                    placeholder="Enter your email"
+                    placeholder="yourname@supportivecm.org"
                     required
                   />
                 </div>
