@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, FileText, Calendar, Shield } from 'lucide-react';
+import { Users, FileText, Calendar, Shield, UserX, UserCheck } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 interface Employee {
   id: string;
@@ -14,6 +15,7 @@ interface Employee {
   first_name?: string;
   last_name?: string;
   created_at: string;
+  active: boolean;
   user_roles: Array<{ role: string }>;
 }
 
@@ -104,6 +106,30 @@ const Admin = () => {
     } catch (error: any) {
       toast({
         title: "Error fetching employees",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleUserStatus = async (employee: Employee) => {
+    try {
+      const functionName = employee.active ? 'deactivate_user' : 'activate_user';
+      const { error } = await supabase.rpc(functionName, { 
+        _profile_id: employee.id 
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: employee.active ? "User Deactivated" : "User Activated",
+        description: `${employee.first_name} ${employee.last_name} has been ${employee.active ? 'deactivated' : 'activated'}.`,
+      });
+
+      fetchEmployees();
+    } catch (error: any) {
+      toast({
+        title: "Error updating user status",
         description: error.message,
         variant: "destructive",
       });
@@ -201,21 +227,47 @@ const Admin = () => {
             <div className="space-y-4">
               {employees.map((employee) => (
                 <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">
-                      {employee.first_name} {employee.last_name}
-                    </p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">
+                        {employee.first_name} {employee.last_name}
+                      </p>
+                      {!employee.active && (
+                        <Badge variant="destructive" className="text-xs">
+                          <UserX className="h-3 w-3 mr-1" />
+                          Inactive
+                        </Badge>
+                      )}
+                      {employee.active && (
+                        <Badge variant="outline" className="text-xs">
+                          <UserCheck className="h-3 w-3 mr-1" />
+                          Active
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">{employee.email}</p>
                     <p className="text-xs text-muted-foreground">
                       Joined: {new Date(employee.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {employee.user_roles?.map((ur) => (
-                      <Badge key={ur.role} variant={ur.role === 'admin' ? 'default' : 'secondary'}>
-                        {ur.role}
-                      </Badge>
-                    ))}
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      {employee.user_roles?.map((ur) => (
+                        <Badge key={ur.role} variant={ur.role === 'admin' ? 'default' : 'secondary'}>
+                          {ur.role}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {employee.active ? 'Active' : 'Inactive'}
+                      </span>
+                      <Switch
+                        checked={employee.active}
+                        onCheckedChange={() => handleToggleUserStatus(employee)}
+                        disabled={employee.user_roles?.some(r => r.role === 'admin') && employee.active}
+                      />
+                    </div>
                   </div>
                 </div>
               ))}

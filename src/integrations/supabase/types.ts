@@ -228,6 +228,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active: boolean
           created_at: string | null
           email: string
           first_name: string | null
@@ -237,6 +238,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          active?: boolean
           created_at?: string | null
           email: string
           first_name?: string | null
@@ -246,6 +248,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          active?: boolean
           created_at?: string | null
           email?: string
           first_name?: string | null
@@ -282,6 +285,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_user: { Args: { _profile_id: string }; Returns: undefined }
+      deactivate_user: { Args: { _profile_id: string }; Returns: undefined }
       get_profile_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -291,6 +296,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_user_active: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "employee"
