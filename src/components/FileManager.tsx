@@ -3,9 +3,11 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Upload, FileText, Download, Eye, PenTool } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+// PDF Preview Dialog Component
+const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
 interface ClientFile {
   id: string;
@@ -161,6 +163,10 @@ export const FileManager: React.FC<FileManagerProps> = ({ clientId }) => {
     if (file.file_type?.includes('pdf')) {
       setPreviewFile(file);
     } else {
+      toast({
+        title: "Preview not available",
+        description: "Preview is only available for PDF files. Downloading instead.",
+      });
       handleDownload(file);
     }
   };
@@ -253,25 +259,11 @@ export const FileManager: React.FC<FileManagerProps> = ({ clientId }) => {
       )}
 
       {previewFile && (
-        <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh]">
-            <DialogHeader>
-              <DialogTitle>{previewFile.file_name}</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 bg-gray-100 rounded-lg p-4">
-              <p className="text-center text-muted-foreground">
-                PDF preview functionality will be implemented here.
-                For now, please download the file to view it.
-              </p>
-              <div className="flex justify-center mt-4">
-                <Button onClick={() => handleDownload(previewFile)}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download File
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <PDFPreviewDialog 
+          file={previewFile} 
+          onClose={() => setPreviewFile(null)}
+          onDownload={handleDownload}
+        />
       )}
     </div>
   );
