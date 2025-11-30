@@ -80,7 +80,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           </div>
         </div>
         
-        <Button className="w-full gap-2 bg-medical-blue hover:bg-medical-blue/90">
+        <Button 
+          className="w-full gap-2 bg-medical-blue hover:bg-medical-blue/90"
+          onClick={() => onViewChange('notes')}
+        >
           <Plus className="w-4 h-4" />
           New Note
         </Button>
