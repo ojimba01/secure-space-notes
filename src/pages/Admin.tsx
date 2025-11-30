@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, FileText, Calendar, Shield, UserX, UserCheck } from 'lucide-react';
+import { Users, FileText, Calendar, Shield, UserX, UserCheck, ClipboardList } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
 interface Employee {
@@ -27,6 +27,7 @@ interface Stats {
 }
 
 const Admin = () => {
+  const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -170,9 +171,15 @@ const Admin = () => {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <Shield className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Shield className="h-8 w-8 text-primary" />
+            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          </div>
+          <Button onClick={() => navigate('/audit-logs')} variant="outline">
+            <ClipboardList className="h-4 w-4 mr-2" />
+            View Audit Logs
+          </Button>
         </div>
 
         {/* Stats Cards */}

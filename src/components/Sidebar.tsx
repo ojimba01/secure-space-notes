@@ -1,14 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { 
-  FileText, 
-  Plus, 
-  Search, 
   Users, 
+  FileText, 
+  Clock, 
+  Stethoscope, 
+  LogOut, 
   Shield, 
-  Clock,
-  Stethoscope,
-  LogOut
+  ClipboardList,
+  Plus,
+  Search
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from '@/components/AuthProvider';
@@ -98,18 +99,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
 
       {/* Navigation */}
       <div className="space-y-2">
-        <Button variant="ghost" className="w-full justify-start gap-3">
-          <FileText className="w-4 h-4" />
-          All Notes
+        <Button 
+          variant={activeView === 'clients' ? 'default' : 'ghost'}
+          className="w-full justify-start gap-2"
+          onClick={() => onViewChange('clients')}
+        >
+          <Users className="h-4 w-4" />
+          Clients
         </Button>
-        <Button variant="ghost" className="w-full justify-start gap-3">
-          <Users className="w-4 h-4" />
-          Shared with Me
+        <Button 
+          variant={activeView === 'notes' ? 'default' : 'ghost'}
+          className="w-full justify-start gap-2"
+          onClick={() => onViewChange('notes')}
+        >
+          <FileText className="h-4 w-4" />
+          Notes
         </Button>
-        <Button variant="ghost" className="w-full justify-start gap-3">
-          <Clock className="w-4 h-4" />
-          Recent
-        </Button>
+        {isAdmin && (
+          <Button 
+            variant="ghost"
+            className="w-full justify-start gap-2"
+            onClick={() => navigate('/admin')}
+          >
+            <Shield className="h-4 w-4" />
+            Admin Dashboard
+          </Button>
+        )}
+        {isAdmin && (
+          <Button 
+            variant="ghost"
+            className="w-full justify-start gap-2"
+            onClick={() => navigate('/audit-logs')}
+          >
+            <ClipboardList className="h-4 w-4" />
+            Audit Logs
+          </Button>
+        )}
       </div>
 
       {/* Recent Notes */}
