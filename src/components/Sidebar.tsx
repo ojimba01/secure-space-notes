@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from '@/components/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 interface SidebarProps {
   activeView: 'clients' | 'notes';
@@ -19,12 +22,48 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const recentNotes = [
-    { id: 1, title: "Patient A - Initial Assessment", date: "2024-01-15", type: "assessment" },
-    { id: 2, title: "Patient B - Follow-up Visit", date: "2024-01-14", type: "followup" },
-    { id: 3, title: "Patient C - Treatment Plan", date: "2024-01-13", type: "treatment" },
-  ];
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [recentNotes, setRecentNotes] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
+
+  useEffect(() => {
+    if (user) {
+      checkAdminStatus();
+      fetchRecentNotes();
+    }
+  }, [user]);
+
+  const checkAdminStatus = async () => {
+    if (!user) return;
+    
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .single();
+      
+      setIsAdmin(!!data);
+    } catch (error) {
+      setIsAdmin(false);
+    }
+  };
+
+  const fetchRecentNotes = async () => {
+    try {
+      const { data } = await supabase
+        .from('client_notes')
+        .select('id, title, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      setRecentNotes(data || []);
+    } catch (error) {
+      console.error('Error fetching recent notes:', error);
+    }
+  };
 
   return (
     <div className="w-80 bg-card border-r border-border p-6 space-y-6">
@@ -79,14 +118,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           Recent Notes
         </h3>
         <div className="space-y-2">
-          {recentNotes.map((note) => (
-            <Card key={note.id} className="p-3 hover:bg-muted/50 cursor-pointer transition-colors">
-              <div className="space-y-1">
-                <h4 className="font-medium text-sm line-clamp-2">{note.title}</h4>
-                <p className="text-xs text-muted-foreground">{note.date}</p>
-              </div>
-            </Card>
-          ))}
+          {recentNotes.length > 0 ? (
+            recentNotes.map(note => (
+              <Card key={note.id} className="p-3 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => onViewChange('notes')}>
+                <div className="space-y-1">
+                  <h4 className="font-medium text-sm line-clamp-2">{note.title}</h4>
+                  <p className="text-xs text-muted-foreground">{new Date(note.created_at).toLocaleDateString()}</p>
+                </div>
+              </Card>
+            ))
+          ) : (
+            <p className="text-xs text-muted-foreground px-2 py-2">No recent notes</p>
+          )}
         </div>
       </div>
 
