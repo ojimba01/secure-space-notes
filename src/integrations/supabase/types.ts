@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: Database["public"]["Enums"]["audit_action"]
+          created_at: string
+          id: string
+          ip_address: string | null
+          new_data: Json | null
+          old_data: Json | null
+          profile_id: string | null
+          record_id: string | null
+          table_name: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["audit_action"]
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          profile_id?: string | null
+          record_id?: string | null
+          table_name: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["audit_action"]
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          profile_id?: string | null
+          record_id?: string | null
+          table_name?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           client_id: string | null
@@ -345,6 +395,16 @@ export type Database = {
     }
     Functions: {
       activate_user: { Args: { _profile_id: string }; Returns: undefined }
+      create_audit_log: {
+        Args: {
+          _action: Database["public"]["Enums"]["audit_action"]
+          _new_data?: Json
+          _old_data?: Json
+          _record_id?: string
+          _table_name: string
+        }
+        Returns: undefined
+      }
       deactivate_user: { Args: { _profile_id: string }; Returns: undefined }
       get_profile_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
@@ -363,6 +423,14 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "employee"
+      audit_action:
+        | "SELECT"
+        | "INSERT"
+        | "UPDATE"
+        | "DELETE"
+        | "LOGIN"
+        | "LOGOUT"
+        | "ACCESS"
       user_role: "admin" | "employee"
     }
     CompositeTypes: {
@@ -492,6 +560,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "employee"],
+      audit_action: [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "LOGIN",
+        "LOGOUT",
+        "ACCESS",
+      ],
       user_role: ["admin", "employee"],
     },
   },
