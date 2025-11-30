@@ -65,6 +65,65 @@ export type Database = {
           },
         ]
       }
+      client_assignments_history: {
+        Row: {
+          client_id: string
+          created_at: string
+          from_employee_id: string | null
+          id: string
+          reason: string | null
+          reassigned_by: string
+          to_employee_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          from_employee_id?: string | null
+          id?: string
+          reason?: string | null
+          reassigned_by: string
+          to_employee_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          from_employee_id?: string | null
+          id?: string
+          reason?: string | null
+          reassigned_by?: string
+          to_employee_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_assignments_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_assignments_history_from_employee_id_fkey"
+            columns: ["from_employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_assignments_history_reassigned_by_fkey"
+            columns: ["reassigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_assignments_history_to_employee_id_fkey"
+            columns: ["to_employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_files: {
         Row: {
           client_id: string
@@ -297,6 +356,10 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_user_active: { Args: { _user_id: string }; Returns: boolean }
+      reassign_client: {
+        Args: { _client_id: string; _new_employee_id: string; _reason?: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "employee"

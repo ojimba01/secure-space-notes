@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Calendar, FileText, Upload, Plus, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Upload, Plus, Edit, Trash2, UserCog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileManager } from '@/components/FileManager';
 import { EditClientDialog } from '@/components/EditClientDialog';
+import { ReassignClientDialog } from '@/components/ReassignClientDialog';
+import { AssignmentHistory } from '@/components/AssignmentHistory';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { NotesSection } from '@/components/NotesSection';
 import { CalendarView } from '@/components/CalendarView';
@@ -25,6 +27,7 @@ interface Client {
   intake_date: string;
   date_of_birth?: string;
   notes?: string;
+  assigned_employee_id?: string;
 }
 
 interface ClientDetailsProps {
@@ -38,6 +41,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -107,10 +111,16 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             Edit
           </Button>
           {isAdmin && (
-            <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => setReassignDialogOpen(true)}>
+                <UserCog className="h-4 w-4 mr-2" />
+                Reassign
+              </Button>
+              <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -165,11 +175,12 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -198,6 +209,10 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           <TabsContent value="calendar">
             <CalendarView clientId={client.id} />
           </TabsContent>
+
+          <TabsContent value="history">
+            <AssignmentHistory clientId={client.id} />
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -206,6 +221,15 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         onOpenChange={setEditDialogOpen}
         client={client}
         onClientUpdated={onUpdate}
+      />
+
+      <ReassignClientDialog
+        open={reassignDialogOpen}
+        onOpenChange={setReassignDialogOpen}
+        clientId={client.id}
+        clientName={`${client.first_name} ${client.last_name}`}
+        currentEmployeeId={client.assigned_employee_id}
+        onReassigned={onUpdate}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
