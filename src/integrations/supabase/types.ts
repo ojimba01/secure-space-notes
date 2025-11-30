@@ -264,14 +264,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_profile_id: {
-        Args: { _user_id: string }
-        Returns: string
-      }
-      is_admin: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      get_profile_id: { Args: { _user_id: string }; Returns: string }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       user_role: "admin" | "employee"
