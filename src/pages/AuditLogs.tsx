@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { FileDown, Shield, Search, Calendar, Filter } from 'lucide-react';
+import { FileDown, Shield, Search, Calendar, Filter, Stethoscope } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
@@ -201,6 +201,23 @@ const AuditLogs = () => {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header with Logo */}
+        <div className="flex items-center justify-between border-b pb-4">
+          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="p-2 bg-medical-blue rounded-lg">
+              <Stethoscope className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-lg">ClinicalNotes</h2>
+              <p className="text-xs text-muted-foreground">HIPAA Compliant</p>
+            </div>
+          </Link>
+          <Button onClick={exportToCSV} disabled={filteredLogs.length === 0}>
+            <FileDown className="h-4 w-4 mr-2" />
+            Export to CSV
+          </Button>
+        </div>
+
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Shield className="h-8 w-8 text-primary" />
@@ -209,10 +226,6 @@ const AuditLogs = () => {
               <p className="text-muted-foreground">HIPAA compliance activity tracking</p>
             </div>
           </div>
-          <Button onClick={exportToCSV} disabled={filteredLogs.length === 0}>
-            <FileDown className="h-4 w-4 mr-2" />
-            Export to CSV
-          </Button>
         </div>
 
         {/* Filters */}
