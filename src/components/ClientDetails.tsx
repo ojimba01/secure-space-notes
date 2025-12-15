@@ -45,10 +45,12 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [caseManagerName, setCaseManagerName] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdminStatus();
-  }, [user]);
+    fetchCaseManager();
+  }, [user, client.assigned_employee_id]);
 
   const checkAdminStatus = async () => {
     if (!user) return;
@@ -59,12 +61,37 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         .select('role')
         .eq('user_id', user.id)
         .eq('role', 'admin')
-        .single();
+        .maybeSingle();
       
       setIsAdmin(!!data);
     } catch (error) {
       // User is not admin
       setIsAdmin(false);
+    }
+  };
+
+  const fetchCaseManager = async () => {
+    if (!client.assigned_employee_id) {
+      setCaseManagerName(null);
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, email')
+        .eq('id', client.assigned_employee_id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setCaseManagerName(`${data.first_name || ''} ${data.last_name || ''} (${data.email})`.trim());
+      } else {
+        setCaseManagerName(null);
+      }
+    } catch (error) {
+      setCaseManagerName(null);
     }
   };
 
@@ -171,6 +198,12 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
               <p className="text-sm font-medium text-muted-foreground">Intake Date</p>
               <p>{new Date(client.intake_date).toLocaleDateString()}</p>
             </div>
+            {isAdmin && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Current Case Manager</p>
+                <p>{caseManagerName || 'Unassigned'}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
