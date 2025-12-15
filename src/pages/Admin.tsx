@@ -139,17 +139,18 @@ const Admin = () => {
 
   const fetchStats = async () => {
     try {
-      const [clientsRes, notesRes, eventsRes] = await Promise.all([
+      const [clientsRes, notesRes, eventsRes, employeesRes] = await Promise.all([
         supabase.from('clients').select('id', { count: 'exact', head: true }),
         supabase.from('client_notes').select('id', { count: 'exact', head: true }),
         supabase.from('calendar_events').select('id', { count: 'exact', head: true }),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }),
       ]);
 
       setStats({
         totalClients: clientsRes.count || 0,
         totalNotes: notesRes.count || 0,
         totalEvents: eventsRes.count || 0,
-        totalEmployees: employees.length,
+        totalEmployees: employeesRes.count || 0,
       });
     } catch (error: any) {
       toast({
