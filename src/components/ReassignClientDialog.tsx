@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { UserCog } from 'lucide-react';
+import { useAuth } from '@/components/AuthProvider';
 
 const reassignSchema = z.object({
   new_employee_id: z.string().min(1, 'Please select an employee'),
@@ -44,6 +45,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
   onReassigned,
 }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,22 +62,46 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
     if (open) {
       fetchEmployees();
     }
-  }, [open]);
+  }, [open, user]);
 
   const fetchEmployees = async () => {
+    if (!user) return;
+
+    setLoading(true);
+
     try {
-      const { data, error } = await supabase
+      // Start with all active employees except the current assignee
+      const { data: activeProfiles, error: activeError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, email, active')
+        .select('id, first_name, last_name, email, active, user_id')
         .eq('active', true)
         .order('first_name');
 
-      if (error) throw error;
+      if (activeError) throw activeError;
 
-      // Filter out current employee
-      const availableEmployees = (data || []).filter(
-        emp => emp.id !== currentEmployeeId
+      let availableEmployees: Employee[] = (activeProfiles || []).filter(
+        (emp) => emp.id !== currentEmployeeId
       );
+
+      // Ensure the currently logged-in user (admin) can always assign themselves,
+      // even if their profile is marked inactive
+      const { data: currentProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, active')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
+      }
+
+      if (
+        currentProfile &&
+        currentProfile.id !== currentEmployeeId &&
+        !availableEmployees.some((emp) => emp.id === currentProfile.id)
+      ) {
+        availableEmployees = [...availableEmployees, currentProfile as Employee];
+      }
 
       setEmployees(availableEmployees);
     } catch (error: any) {
@@ -160,7 +186,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Only active case managers are shown
+                    Available case managers in the system
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
