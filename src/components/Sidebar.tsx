@@ -10,7 +10,8 @@ import {
   ClipboardList,
   Plus,
   Search,
-  Calendar
+  Calendar,
+  BookOpen
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from '@/components/AuthProvider';
@@ -147,6 +148,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             Audit Logs
           </Button>
         )}
+        <Button 
+          variant="ghost"
+          className="w-full justify-start gap-2"
+          onClick={() => navigate('/onboarding')}
+        >
+          <BookOpen className="h-4 w-4" />
+          Onboarding Guide
+        </Button>
       </div>
 
       {/* Recent Notes */}

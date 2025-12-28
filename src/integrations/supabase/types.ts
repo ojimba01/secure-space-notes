@@ -335,6 +335,42 @@ export type Database = {
           },
         ]
       }
+      onboarding_content: {
+        Row: {
+          content_type: string
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          role_type: string
+          step_order: number
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content_type: string
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          role_type: string
+          step_order?: number
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content_type?: string
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          role_type?: string
+          step_order?: number
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           active: boolean
@@ -364,6 +400,24 @@ export type Database = {
           id?: string
           last_name?: string | null
           updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_onboarding: {
+        Row: {
+          completed_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          id?: string
           user_id?: string
         }
         Relationships: []
