@@ -137,10 +137,10 @@ const Onboarding = () => {
   const adminContent = getContentByRole('admin');
 
   const renderEditableContent = (steps: OnboardingItem[], features: OnboardingItem[]) => (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       <section>
-        <h2 className="text-2xl font-semibold mb-4">Getting Started</h2>
-        <div className="space-y-4">
+        <h2 className="text-xl md:text-2xl font-semibold mb-3 md:mb-4">Getting Started</h2>
+        <div className="space-y-3 md:space-y-4">
           {steps.map((step, index) => {
             const IconComponent = getIcon(step.icon);
             return (
@@ -153,17 +153,17 @@ const Onboarding = () => {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="flex items-center justify-center w-7 h-7 md:w-8 md:h-8 rounded-full bg-primary text-primary-foreground text-xs md:text-sm font-bold shrink-0">
                       {index + 1}
                     </div>
-                    <IconComponent className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-lg">{step.title}</CardTitle>
+                    <IconComponent className="h-4 w-4 md:h-5 md:w-5 text-primary shrink-0" />
+                    <CardTitle className="text-base md:text-lg">{step.title}</CardTitle>
                   </div>
                 </CardHeader>
-                <CardContent className="pl-14">
-                  <CardDescription className="text-base">{step.description}</CardDescription>
+                <CardContent className="pl-10 md:pl-14 p-3 pt-0 md:p-6 md:pt-0">
+                  <CardDescription className="text-sm md:text-base">{step.description}</CardDescription>
                 </CardContent>
               </Card>
             );
@@ -172,8 +172,8 @@ const Onboarding = () => {
       </section>
 
       <section>
-        <h2 className="text-2xl font-semibold mb-4">Key Features</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <h2 className="text-xl md:text-2xl font-semibold mb-3 md:mb-4">Key Features</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           {features.map((feature) => {
             const IconComponent = getIcon(feature.icon);
             return (
@@ -186,16 +186,16 @@ const Onboarding = () => {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <IconComponent className="h-6 w-6 text-primary" />
+                <CardHeader className="p-3 md:p-6">
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <div className="p-1.5 md:p-2 rounded-lg bg-primary/10 shrink-0">
+                      <IconComponent className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                     </div>
-                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                    <CardTitle className="text-base md:text-lg">{feature.title}</CardTitle>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-base">{feature.description}</CardDescription>
+                <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
+                  <CardDescription className="text-sm md:text-base">{feature.description}</CardDescription>
                 </CardContent>
               </Card>
             );
@@ -206,12 +206,12 @@ const Onboarding = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-3 md:p-6 pt-16 md:pt-6">
       <div className="max-w-4xl mx-auto">
-        <Card className="mb-6">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl">Welcome to Clinical Notes</CardTitle>
-            <CardDescription className="text-lg">
+        <Card className="mb-4 md:mb-6">
+          <CardHeader className="text-center p-4 md:p-6">
+            <CardTitle className="text-xl md:text-3xl">Welcome to Clinical Notes</CardTitle>
+            <CardDescription className="text-sm md:text-lg">
               {isAdmin 
                 ? 'As an administrator, you have access to all features. Review the guides below.'
                 : 'Learn how to use the system effectively with these step-by-step guides.'}
@@ -248,8 +248,8 @@ const Onboarding = () => {
           />
         )}
 
-        <div className="mt-8 flex justify-center">
-          <Button size="lg" onClick={completeOnboarding} className="gap-2">
+        <div className="mt-6 md:mt-8 flex justify-center">
+          <Button size="lg" onClick={completeOnboarding} className="gap-2 w-full md:w-auto">
             <CheckCircle className="h-5 w-5" />
             Get Started
           </Button>
