@@ -404,6 +404,51 @@ export type Database = {
         }
         Relationships: []
       }
+      tutorial_steps: {
+        Row: {
+          action_type: string | null
+          created_at: string | null
+          description: string
+          id: string
+          is_active: boolean | null
+          page_route: string
+          position: string
+          role_type: string
+          step_number: number
+          target_selector: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          action_type?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          is_active?: boolean | null
+          page_route?: string
+          position?: string
+          role_type: string
+          step_number: number
+          target_selector: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          action_type?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          is_active?: boolean | null
+          page_route?: string
+          position?: string
+          role_type?: string
+          step_number?: number
+          target_selector?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_onboarding: {
         Row: {
           completed_at: string | null
@@ -439,6 +484,33 @@ export type Database = {
           created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_tutorial_progress: {
+        Row: {
+          completed: boolean | null
+          completed_at: string | null
+          current_step: number | null
+          id: string
+          started_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          completed_at?: string | null
+          current_step?: number | null
+          id?: string
+          started_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          completed_at?: string | null
+          current_step?: number | null
+          id?: string
+          started_at?: string | null
           user_id?: string
         }
         Relationships: []

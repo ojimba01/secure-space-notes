@@ -11,9 +11,11 @@ import {
   Plus,
   Search,
   Calendar,
-  BookOpen
+  BookOpen,
+  Play
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useTutorial } from '@/components/TutorialProvider';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
@@ -27,6 +29,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { startTutorial } = useTutorial();
   const [isAdmin, setIsAdmin] = useState(false);
   const [recentNotes, setRecentNotes] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
 
@@ -85,6 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         <Button 
           className="w-full gap-2 bg-medical-blue hover:bg-medical-blue/90"
           onClick={() => onViewChange('notes')}
+          data-tutorial="new-note-btn"
         >
           <Plus className="w-4 h-4" />
           New Note
@@ -92,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
       </div>
 
       {/* Search */}
-      <div className="space-y-2">
+      <div className="space-y-2" data-tutorial="search-notes">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
@@ -108,6 +112,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           variant={activeView === 'clients' ? 'default' : 'ghost'}
           className="w-full justify-start gap-2"
           onClick={() => onViewChange('clients')}
+          data-tutorial="clients-nav"
         >
           <Users className="h-4 w-4" />
           Clients
@@ -124,6 +129,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           variant={activeView === 'calendar' ? 'default' : 'ghost'}
           className="w-full justify-start gap-2"
           onClick={() => onViewChange('calendar')}
+          data-tutorial="calendar-nav"
         >
           <Calendar className="h-4 w-4" />
           Calendar
@@ -133,6 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             variant="ghost"
             className="w-full justify-start gap-2"
             onClick={() => navigate('/admin')}
+            data-tutorial="admin-nav"
           >
             <Shield className="h-4 w-4" />
             Admin Dashboard
@@ -143,6 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             variant="ghost"
             className="w-full justify-start gap-2"
             onClick={() => navigate('/audit-logs')}
+            data-tutorial="audit-nav"
           >
             <ClipboardList className="h-4 w-4" />
             Audit Logs
@@ -152,14 +160,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           variant="ghost"
           className="w-full justify-start gap-2"
           onClick={() => navigate('/onboarding')}
+          data-tutorial="onboarding-nav"
         >
           <BookOpen className="h-4 w-4" />
           Onboarding Guide
         </Button>
+        <Button 
+          variant="ghost"
+          className="w-full justify-start gap-2 text-primary"
+          onClick={() => startTutorial()}
+        >
+          <Play className="h-4 w-4" />
+          Start Tutorial
+        </Button>
       </div>
 
       {/* Recent Notes */}
-      <div className="space-y-3">
+      <div className="space-y-3" data-tutorial="recent-notes">
         <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
           Recent Notes
         </h3>

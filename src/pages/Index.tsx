@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from "@/components/Sidebar";
 import { ClientManagement } from "@/components/ClientManagement";
 import { NoteEditor } from "@/components/NoteEditor";
@@ -56,21 +57,23 @@ const Index = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar activeView={activeView} onViewChange={setActiveView} />
-      <main className="flex-1 overflow-y-auto">
-        {activeView === 'clients' ? (
-          <ClientManagement />
-        ) : activeView === 'calendar' ? (
-          <CaseManagerCalendar />
-        ) : (
-          <div className="p-6">
-            <h1 className="text-3xl font-bold mb-6">Note Editor</h1>
-            <NoteEditor />
-          </div>
-        )}
-      </main>
-    </div>
+    <TutorialProvider>
+      <div className="flex min-h-screen bg-background">
+        <Sidebar activeView={activeView} onViewChange={setActiveView} />
+        <main className="flex-1 overflow-y-auto">
+          {activeView === 'clients' ? (
+            <ClientManagement />
+          ) : activeView === 'calendar' ? (
+            <CaseManagerCalendar />
+          ) : (
+            <div className="p-6">
+              <h1 className="text-3xl font-bold mb-6">Note Editor</h1>
+              <NoteEditor />
+            </div>
+          )}
+        </main>
+      </div>
+    </TutorialProvider>
   );
 };
 
