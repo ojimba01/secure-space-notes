@@ -158,6 +158,18 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onComplete, onSkip })
   const currentStep = steps[currentStepIndex];
 
   const getTooltipPosition = () => {
+    const isMobile = window.innerWidth < 768;
+    
+    // On mobile, position at bottom of screen
+    if (isMobile) {
+      return {
+        bottom: 16,
+        left: 12,
+        right: 12,
+        top: 'auto',
+      };
+    }
+
     if (!targetRect) {
       return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
     }
@@ -218,23 +230,23 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onComplete, onSkip })
 
       {/* Tooltip Card */}
       <Card
-        className="absolute w-80 shadow-2xl border-primary/20"
+        className="absolute shadow-2xl border-primary/20 w-[calc(100%-24px)] md:w-80"
         style={tooltipPosition}
       >
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-2 p-3 md:p-6 md:pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">
                 {currentStepIndex + 1}
               </span>
-              <CardTitle className="text-lg">{currentStep.title}</CardTitle>
+              <CardTitle className="text-base md:text-lg">{currentStep.title}</CardTitle>
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleSkip}>
+            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={handleSkip}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 md:space-y-4 p-3 pt-0 md:p-6 md:pt-0">
           <CardDescription className="text-sm">{currentStep.description}</CardDescription>
           
           {/* Progress indicator */}
