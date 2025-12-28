@@ -60,14 +60,14 @@ const Index = () => {
     <TutorialProvider>
       <div className="flex min-h-screen bg-background w-full">
         <Sidebar activeView={activeView} onViewChange={setActiveView} />
-        <main className="flex-1 overflow-y-auto min-w-0 pt-16 md:pt-0">
+        <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
           {activeView === 'clients' ? (
             <ClientManagement />
           ) : activeView === 'calendar' ? (
             <CaseManagerCalendar />
           ) : (
-            <div className="p-4 md:p-6">
-              <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6">Note Editor</h1>
+            <div className="p-3 md:p-6">
+              <h1 className="text-xl md:text-3xl font-bold mb-3 md:mb-6">Notes</h1>
               <NoteEditor />
             </div>
           )}

@@ -88,12 +88,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
     }
   };
 
-  // Mobile toggle button
+  // Mobile toggle button - flush to edge
   const MobileToggle = () => (
     <Button
       variant="ghost"
       size="icon"
-      className="fixed top-4 left-4 z-50 md:hidden bg-card shadow-md"
+      className="fixed top-2 left-2 z-50 md:hidden bg-card/95 backdrop-blur-sm shadow-sm border border-border/50 h-10 w-10"
       onClick={() => setIsOpen(!isOpen)}
     >
       {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -116,14 +116,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
       <MobileToggle />
       <Overlay />
       <div className={cn(
-        "bg-card border-r border-border p-4 md:p-6 space-y-4 md:space-y-6 flex flex-col overflow-y-auto",
+        "bg-card border-r border-border p-3 md:p-6 space-y-3 md:space-y-6 flex flex-col overflow-y-auto",
         "fixed md:relative inset-y-0 left-0 z-40",
-        "w-72 md:w-80",
+        "w-[85vw] max-w-72 md:w-80 md:max-w-none",
         "transform transition-transform duration-300 ease-in-out",
         isMobile && !isOpen ? "-translate-x-full" : "translate-x-0"
       )}>
         {/* Header */}
-        <div className="space-y-4 pt-12 md:pt-0">
+        <div className="space-y-3 pt-10 md:pt-0">
           <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
             <div className="p-2 bg-medical-blue rounded-lg">
               <Stethoscope className="w-5 h-5 text-white" />
