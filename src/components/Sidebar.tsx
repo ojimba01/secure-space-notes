@@ -88,15 +88,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
     }
   };
 
-  // Get current view label for mobile header
-  const getCurrentViewLabel = () => {
-    switch (activeView) {
-      case 'clients': return 'Clients';
-      case 'calendar': return 'Calendar';
-      default: return 'Notes';
-    }
-  };
-
   // Mobile toolbar header
   const MobileToolbar = () => (
     <div className="fixed top-0 left-0 right-0 z-50 md:hidden bg-card/95 backdrop-blur-sm border-b border-border h-14 flex items-center px-3 gap-3">
@@ -112,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         <div className="p-1.5 bg-medical-blue rounded-md">
           <Stethoscope className="w-4 h-4 text-white" />
         </div>
-        <span className="font-semibold truncate">{getCurrentViewLabel()}</span>
+        <span className="font-semibold truncate">ClinicalNotes</span>
       </div>
     </div>
   );
