@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,9 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Plus, Calendar, Edit } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { NoteEditor } from '@/components/NoteEditor';
+import { noteSchema } from '@/lib/validationSchemas';
+import { z } from 'zod';
+
+type NoteFormData = z.infer<typeof noteSchema>;
 
 interface ClientNote {
   id: string;
@@ -34,6 +41,16 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ clientId }) => {
   const [selectedNote, setSelectedNote] = useState<ClientNote | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<NoteFormData>({
+    resolver: zodResolver(noteSchema),
+    defaultValues: {
+      title: '',
+      content: '',
+      visit_date: new Date().toISOString().slice(0, 16),
+    },
+  });
 
   useEffect(() => {
     fetchNotes();
@@ -69,10 +86,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ clientId }) => {
     }
   };
 
-  const handleAddNote = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    const formData = new FormData(e.currentTarget);
+  const handleAddNote = async (data: NoteFormData) => {
+    setIsSubmitting(true);
     
     try {
       // Get current user's profile
@@ -85,9 +100,9 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ clientId }) => {
       const noteData = {
         client_id: clientId,
         employee_id: profile?.id,
-        title: formData.get('title') as string,
-        content: formData.get('content') as string,
-        visit_date: formData.get('visitDate') as string,
+        title: data.title,
+        content: data.content || '',
+        visit_date: data.visit_date || new Date().toISOString(),
       };
 
       const { error } = await supabase
@@ -105,13 +120,19 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ clientId }) => {
 
       fetchNotes();
       setShowAddDialog(false);
-      (e.target as HTMLFormElement).reset();
+      form.reset({
+        title: '',
+        content: '',
+        visit_date: new Date().toISOString().slice(0, 16),
+      });
     } catch (error: any) {
       toast({
         title: "Error adding note",
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -147,32 +168,60 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ clientId }) => {
             <DialogHeader>
               <DialogTitle>Add Client Note</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleAddNote} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="title">Title</label>
-                <Input id="title" name="title" required />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="visitDate">Visit Date</label>
-                <Input 
-                  id="visitDate" 
-                  name="visitDate" 
-                  type="datetime-local" 
-                  defaultValue={new Date().toISOString().slice(0, 16)}
-                  required 
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleAddNote)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Title</FormLabel>
+                      <FormControl>
+                        <Input {...field} maxLength={200} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="content">Content</label>
-                <Textarea id="content" name="content" rows={4} />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Add Note</Button>
-              </div>
-            </form>
+                <FormField
+                  control={form.control}
+                  name="visit_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Visit Date</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="datetime-local" 
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="content"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Content</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} rows={4} maxLength={10000} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? 'Adding...' : 'Add Note'}
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>

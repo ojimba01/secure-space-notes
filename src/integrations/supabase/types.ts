@@ -521,6 +521,10 @@ export type Database = {
     }
     Functions: {
       activate_user: { Args: { _profile_id: string }; Returns: undefined }
+      can_access_client_files: {
+        Args: { _client_id: string; _user_id: string }
+        Returns: boolean
+      }
       create_audit_log: {
         Args: {
           _action: Database["public"]["Enums"]["audit_action"]

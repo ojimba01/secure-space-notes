@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,8 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Calendar, Plus, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { calendarEventSchema } from '@/lib/validationSchemas';
+import { z } from 'zod';
+
+type CalendarEventFormData = z.infer<typeof calendarEventSchema>;
 
 interface CalendarEvent {
   id: string;
@@ -33,6 +40,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<CalendarEventFormData>({
+    resolver: zodResolver(calendarEventSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      start_time: '',
+      end_time: '',
+      event_type: 'client_visit',
+    },
+  });
 
   useEffect(() => {
     fetchEvents();
@@ -68,12 +87,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
     }
   };
 
-  const handleAddEvent = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    const formData = new FormData(e.currentTarget);
+  const handleAddEvent = async (data: CalendarEventFormData) => {
+    setIsSubmitting(true);
     
     try {
+      // Validate that end time is after start time
+      if (new Date(data.end_time) <= new Date(data.start_time)) {
+        toast({
+          title: "Invalid time range",
+          description: "End time must be after start time.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       // Get current user's profile
       const { data: profile } = await supabase
         .from('profiles')
@@ -84,10 +112,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
       const eventData = {
         employee_id: profile?.id,
         client_id: clientId,
-        title: formData.get('title') as string,
-        description: formData.get('description') as string,
-        start_time: formData.get('startTime') as string,
-        end_time: formData.get('endTime') as string,
+        title: data.title,
+        description: data.description || '',
+        start_time: data.start_time,
+        end_time: data.end_time,
         event_type: 'client_visit',
       };
 
@@ -106,13 +134,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
 
       fetchEvents();
       setShowAddDialog(false);
-      (e.target as HTMLFormElement).reset();
+      form.reset({
+        title: '',
+        description: '',
+        start_time: '',
+        end_time: '',
+        event_type: 'client_visit',
+      });
     } catch (error: any) {
       toast({
         title: "Error adding event",
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -131,42 +167,78 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
             <DialogHeader>
               <DialogTitle>Add Calendar Event</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleAddEvent} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="title">Event Title</label>
-                <Input id="title" name="title" required />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="description">Description</label>
-                <Textarea id="description" name="description" rows={3} />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="startTime">Start Time</label>
-                  <Input 
-                    id="startTime" 
-                    name="startTime" 
-                    type="datetime-local" 
-                    required 
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleAddEvent)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Event Title</FormLabel>
+                      <FormControl>
+                        <Input {...field} maxLength={200} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} rows={3} maxLength={1000} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="start_time"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start Time</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="datetime-local" 
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="end_time"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>End Time</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="datetime-local" 
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="endTime">End Time</label>
-                  <Input 
-                    id="endTime" 
-                    name="endTime" 
-                    type="datetime-local" 
-                    required 
-                  />
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? 'Adding...' : 'Add Event'}
+                  </Button>
                 </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Add Event</Button>
-              </div>
-            </form>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
