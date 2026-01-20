@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Plus, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 interface Client {
   id: string;
@@ -26,6 +27,7 @@ interface Client {
 export const ClientManagement: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isAdmin } = useIsAdmin();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -84,10 +86,12 @@ export const ClientManagement: React.FC = () => {
           <h1 className="text-xl md:text-3xl font-bold truncate">Clients</h1>
           <p className="text-sm text-muted-foreground hidden md:block">Manage your client cases and information</p>
         </div>
-        <Button size="sm" className="shrink-0 md:size-default" onClick={() => setShowAddDialog(true)}>
-          <Plus className="h-4 w-4 md:mr-2" />
-          <span className="hidden md:inline">Add Client</span>
-        </Button>
+        {isAdmin && (
+          <Button size="sm" className="shrink-0 md:size-default" onClick={() => setShowAddDialog(true)}>
+            <Plus className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">Add Client</span>
+          </Button>
+        )}
       </div>
 
       <div className="relative">

@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 const clientSchema = z.object({
   first_name: z.string().trim().min(1, 'First name is required').max(100),
@@ -54,6 +55,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
   onClientUpdated,
 }) => {
   const { toast } = useToast();
+  const { isAdmin } = useIsAdmin();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ClientFormData>({
@@ -127,8 +129,11 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                   <FormItem>
                     <FormLabel>First Name *</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={!isAdmin} />
                     </FormControl>
+                    {!isAdmin && (
+                      <p className="text-xs text-muted-foreground">Only admins can edit names</p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -140,8 +145,11 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                   <FormItem>
                     <FormLabel>Last Name *</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} disabled={!isAdmin} />
                     </FormControl>
+                    {!isAdmin && (
+                      <p className="text-xs text-muted-foreground">Only admins can edit names</p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
