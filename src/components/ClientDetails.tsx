@@ -161,7 +161,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                   {client.first_name} {client.last_name}
                 </CardTitle>
                 {client.case_number && (
-                  <p className="text-muted-foreground">Case #{client.case_number}</p>
+                  <p className="text-muted-foreground">Member ID: {client.case_number}</p>
                 )}
               </div>
               <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>

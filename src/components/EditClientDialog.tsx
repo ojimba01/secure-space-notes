@@ -197,7 +197,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                 name="case_number"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Case Number</FormLabel>
+                    <FormLabel>Member ID</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>

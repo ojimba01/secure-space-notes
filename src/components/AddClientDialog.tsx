@@ -188,7 +188,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                 name="case_number"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Case Number</FormLabel>
+                    <FormLabel>Member ID</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
