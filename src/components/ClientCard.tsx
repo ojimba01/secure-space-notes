@@ -34,7 +34,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect }) => {
           </Badge>
         </div>
         {client.case_number && (
-          <p className="text-sm text-muted-foreground">Case #{client.case_number}</p>
+          <p className="text-sm text-muted-foreground">Member ID: {client.case_number}</p>
         )}
       </CardHeader>
       <CardContent className="space-y-2">
