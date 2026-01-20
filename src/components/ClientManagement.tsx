@@ -16,7 +16,7 @@ interface Client {
   email?: string;
   phone?: string;
   address?: string;
-  case_number?: string;
+  member_id?: string;
   status: string;
   intake_date: string;
   date_of_birth?: string;
@@ -63,7 +63,7 @@ export const ClientManagement: React.FC = () => {
 
   const filteredClients = clients.filter(client =>
     `${client.first_name} ${client.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.case_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.member_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -93,7 +93,7 @@ export const ClientManagement: React.FC = () => {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search clients by name, case number, or email..."
+          placeholder="Search clients by name, member ID, or email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"

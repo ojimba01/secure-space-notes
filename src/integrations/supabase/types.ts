@@ -280,7 +280,6 @@ export type Database = {
         Row: {
           address: string | null
           assigned_employee_id: string | null
-          case_number: string | null
           created_at: string | null
           date_of_birth: string | null
           email: string | null
@@ -288,6 +287,7 @@ export type Database = {
           id: string
           intake_date: string | null
           last_name: string
+          member_id: string | null
           notes: string | null
           phone: string | null
           status: string | null
@@ -296,7 +296,6 @@ export type Database = {
         Insert: {
           address?: string | null
           assigned_employee_id?: string | null
-          case_number?: string | null
           created_at?: string | null
           date_of_birth?: string | null
           email?: string | null
@@ -304,6 +303,7 @@ export type Database = {
           id?: string
           intake_date?: string | null
           last_name: string
+          member_id?: string | null
           notes?: string | null
           phone?: string | null
           status?: string | null
@@ -312,7 +312,6 @@ export type Database = {
         Update: {
           address?: string | null
           assigned_employee_id?: string | null
-          case_number?: string | null
           created_at?: string | null
           date_of_birth?: string | null
           email?: string | null
@@ -320,6 +319,7 @@ export type Database = {
           id?: string
           intake_date?: string | null
           last_name?: string
+          member_id?: string | null
           notes?: string | null
           phone?: string | null
           status?: string | null
