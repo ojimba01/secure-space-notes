@@ -18,7 +18,7 @@ const clientSchema = z.object({
   email: z.string().trim().email('Invalid email').max(255).optional().or(z.literal('')),
   phone: z.string().trim().max(20).optional(),
   address: z.string().trim().max(500).optional(),
-  case_number: z.string().trim().max(50).optional(),
+  member_id: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
   status: z.enum(['active', 'inactive']),
   notes: z.string().trim().max(2000).optional(),
@@ -33,7 +33,7 @@ interface Client {
   email?: string;
   phone?: string;
   address?: string;
-  case_number?: string;
+  member_id?: string;
   status: string;
   intake_date: string;
   date_of_birth?: string;
@@ -64,7 +64,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       email: client.email || '',
       phone: client.phone || '',
       address: client.address || '',
-      case_number: client.case_number || '',
+      member_id: client.member_id || '',
       date_of_birth: client.date_of_birth || '',
       status: client.status as 'active' | 'inactive',
       notes: client.notes || '',
@@ -83,7 +83,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           email: data.email || null,
           phone: data.phone || null,
           address: data.address || null,
-          case_number: data.case_number || null,
+          member_id: data.member_id || null,
           date_of_birth: data.date_of_birth || null,
           status: data.status,
           notes: data.notes || null,
@@ -194,7 +194,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField
                 control={form.control}
-                name="case_number"
+                name="member_id"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Member ID</FormLabel>

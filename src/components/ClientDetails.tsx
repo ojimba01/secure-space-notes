@@ -22,7 +22,7 @@ interface Client {
   email?: string;
   phone?: string;
   address?: string;
-  case_number?: string;
+  member_id?: string;
   status: string;
   intake_date: string;
   date_of_birth?: string;
@@ -160,8 +160,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                 <CardTitle className="text-2xl">
                   {client.first_name} {client.last_name}
                 </CardTitle>
-                {client.case_number && (
-                  <p className="text-muted-foreground">Member ID: {client.case_number}</p>
+                {client.member_id && (
+                  <p className="text-muted-foreground">Member ID: {client.member_id}</p>
                 )}
               </div>
               <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>

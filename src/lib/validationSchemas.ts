@@ -18,7 +18,7 @@ export const clientSchema = z.object({
   email: z.string().trim().email('Invalid email').max(255).optional().or(z.literal('')),
   phone: z.string().trim().regex(/^[\d\s\-\+\(\)]*$/, 'Invalid phone format').max(20).optional(),
   address: z.string().trim().max(500).optional(),
-  case_number: z.string().trim().max(50).optional(),
+  member_id: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
   status: z.enum(['active', 'inactive']).optional(),
   notes: z.string().trim().max(2000).optional(),

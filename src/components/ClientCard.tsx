@@ -11,7 +11,7 @@ interface Client {
   email?: string;
   phone?: string;
   address?: string;
-  case_number?: string;
+  member_id?: string;
   status: string;
   intake_date: string;
 }
@@ -33,8 +33,8 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect }) => {
             {client.status}
           </Badge>
         </div>
-        {client.case_number && (
-          <p className="text-sm text-muted-foreground">Member ID: {client.case_number}</p>
+        {client.member_id && (
+          <p className="text-sm text-muted-foreground">Member ID: {client.member_id}</p>
         )}
       </CardHeader>
       <CardContent className="space-y-2">

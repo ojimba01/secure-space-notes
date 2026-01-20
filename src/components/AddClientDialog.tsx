@@ -17,7 +17,7 @@ const clientSchema = z.object({
   email: z.string().trim().email('Invalid email').max(255).optional().or(z.literal('')),
   phone: z.string().trim().max(20).optional(),
   address: z.string().trim().max(500).optional(),
-  case_number: z.string().trim().max(50).optional(),
+  member_id: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
   notes: z.string().trim().max(2000).optional(),
 });
@@ -47,7 +47,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       email: '',
       phone: '',
       address: '',
-      case_number: '',
+      member_id: '',
       date_of_birth: '',
       notes: '',
     },
@@ -70,7 +70,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         email: data.email || null,
         phone: data.phone || null,
         address: data.address || null,
-        case_number: data.case_number || null,
+        member_id: data.member_id || null,
         date_of_birth: data.date_of_birth || null,
         notes: data.notes || null,
         assigned_employee_id: profile?.id,
@@ -185,7 +185,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="case_number"
+                name="member_id"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Member ID</FormLabel>
