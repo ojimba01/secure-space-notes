@@ -178,7 +178,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
                   <Select 
                     onValueChange={field.onChange} 
                     defaultValue={field.value}
-                    disabled={loading || employees.length === 0}
+                    disabled={loading}
                   >
                     <FormControl>
                       <SelectTrigger>
