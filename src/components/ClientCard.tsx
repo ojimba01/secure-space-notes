@@ -15,6 +15,7 @@ interface Client {
   member_id?: string;
   status: string;
   intake_date: string;
+  assigned_employee_id?: string | null;
 }
 
 interface ClientCardProps {
@@ -23,6 +24,8 @@ interface ClientCardProps {
   selectionMode?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
+  showManager?: boolean;
+  assignedManagerName?: string | null;
 }
 
 export const ClientCard: React.FC<ClientCardProps> = ({
@@ -31,6 +34,8 @@ export const ClientCard: React.FC<ClientCardProps> = ({
   selectionMode = false,
   selected = false,
   onToggleSelect,
+  showManager = false,
+  assignedManagerName = null,
 }) => {
   const handleClick = () => {
     if (selectionMode && onToggleSelect) {
