@@ -74,6 +74,17 @@ export const ClientCard: React.FC<ClientCardProps> = ({
         {client.member_id && (
           <p className="text-sm text-muted-foreground">Member ID: {client.member_id}</p>
         )}
+        {showManager && (
+          assignedManagerName ? (
+            <p className="text-sm font-medium text-green-600 dark:text-green-500">
+              Case Manager: {assignedManagerName}
+            </p>
+          ) : (
+            <p className="text-sm font-medium text-red-600 dark:text-red-500">
+              No case manager assigned
+            </p>
+          )
+        )}
       </CardHeader>
       <CardContent className="space-y-2">
         {client.email && (
