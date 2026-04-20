@@ -119,17 +119,25 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.rpc('reassign_client', {
-        _client_id: clientId,
-        _new_employee_id: data.new_employee_id,
-        _reason: data.reason || null,
-      });
-
-      if (error) throw error;
+      if (data.new_employee_id === '__none__') {
+        // Unassign: direct update (admin-only via RLS)
+        const { error: updateError } = await supabase
+          .from('clients')
+          .update({ assigned_employee_id: null })
+          .eq('id', clientId);
+        if (updateError) throw updateError;
+      } else {
+        const { error } = await supabase.rpc('reassign_client', {
+          _client_id: clientId,
+          _new_employee_id: data.new_employee_id,
+          _reason: data.reason || null,
+        });
+        if (error) throw error;
+      }
 
       toast({
-        title: "Client Reassigned",
-        description: `${clientName} has been reassigned successfully.`,
+        title: data.new_employee_id === '__none__' ? 'Client Unassigned' : 'Client Reassigned',
+        description: `${clientName} has been updated successfully.`,
       });
 
       onReassigned();
