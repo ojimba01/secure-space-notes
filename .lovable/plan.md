@@ -1,59 +1,34 @@
 
 
-## Bulk Client Reassignment for Admins
+## Show case manager on client cards + filter active employees on admin dashboard
 
-Add a multi-select mode on the Clients page so admins can pick several clients at once and reassign them all to one case manager in a single action.
+Two changes, both admin-only.
 
-### What you'll see
+### 1. Client cards: show assigned case manager (admin view only)
 
-**On the Clients page (admin only):**
-- A new **"Select"** button next to "Add Client" in the header.
-- Clicking it enters **selection mode**:
-  - Header swaps to show: `X selected` · **Select All** · **Reassign Selected** · **Cancel**
-  - Each client card shows a **checkbox in the top-right corner**.
-  - Clicking a card toggles selection (instead of opening details) while in selection mode.
-- **Reassign Selected** opens a dialog (reusing the existing reassignment flow) with:
-  - Dropdown of active case managers
-  - Optional reason field
-  - Confirms count: "Reassign 5 clients to Jane Doe?"
-- After success: toast shows "5 clients reassigned", list refreshes, selection mode exits.
+On the Clients page, every card gets a new line under the member ID:
+- **Green text** with the case manager's name (e.g. "Case Manager: Jane Doe") when assigned.
+- **Red text** "No case manager assigned" when `assigned_employee_id` is null.
+- Visible only to admins — employees see no change (they only see their own clients anyway).
 
-Non-admins see no change — the Select button and checkboxes are hidden.
+**Implementation:**
+- `ClientManagement.tsx`: when admin, fetch all profiles (id, first_name, last_name) once and build a `Map<profileId, name>`. Pass the lookup into each `ClientCard`.
+- `ClientCard.tsx`: extend the `Client` interface with `assigned_employee_id?: string | null`. Accept optional `assignedManagerName?: string | null` and `showManager?: boolean` props. Render the colored line in `CardHeader` below the member ID.
 
-```text
-┌─────────────────────────────────────────────┐
-│ Clients                    [Select] [+ Add] │  ← normal mode
-├─────────────────────────────────────────────┤
-│ 3 selected  [Select All] [Reassign] [Cancel]│  ← selection mode
-├─────────────────────────────────────────────┤
-│ ┌──────────┐ ┌──────────┐ ┌──────────┐      │
-│ │ ☑  John  │ │ ☐  Mary  │ │ ☑  Alex  │      │
-│ │  details │ │  details │ │  details │      │
-│ └──────────┘ └──────────┘ └──────────┘      │
-└─────────────────────────────────────────────┘
-```
+### 2. Admin dashboard: active-only filter + active count card
 
-### Technical implementation
+On `/admin`:
+- Add a **5th stats card**: "Active Employees" showing count of `profiles` where `active = true`.
+- Above the "All Employees" list, add a **Switch** labeled "Show active only" — defaults to **ON**. When on, the list filters to active employees; when off, shows everyone (current behavior).
+- Update the section title dynamically: "Active Employees" vs "All Employees".
 
-1. **`ClientCard.tsx`** — accept new optional props: `selectionMode: boolean`, `selected: boolean`, `onToggleSelect: (id) => void`. Render a `Checkbox` in the top-right of `CardHeader` when `selectionMode` is true. When in selection mode, card click calls `onToggleSelect` instead of `onSelect`.
+**Implementation:**
+- `Admin.tsx`: add `showActiveOnly` state (default `true`), add `activeEmployees` to the `Stats` interface and the `fetchStats` Promise.all (filter `.eq('active', true)`). Derive `displayedEmployees = showActiveOnly ? employees.filter(e => e.active) : employees`. Render the Switch in the employees Card header.
 
-2. **`ClientManagement.tsx`** — add state:
-   - `selectionMode: boolean`
-   - `selectedIds: Set<string>`
-   - `showReassignDialog: boolean`
-   
-   Add admin-only header controls. "Select All" toggles between selecting all `filteredClients` and clearing. Pass selection props down to `ClientCard`.
+### Files touched
+- `src/components/ClientManagement.tsx` — fetch profiles map, pass to cards
+- `src/components/ClientCard.tsx` — render colored case manager line
+- `src/pages/Admin.tsx` — new stat card, filter switch, derived list
 
-3. **New `BulkReassignDialog.tsx`** — adapted from `ReassignClientDialog.tsx`:
-   - Props: `clientIds: string[]`, `clientCount: number`, plus standard open/onChange/onReassigned.
-   - Loads active employees (same query as existing dialog, no `currentEmployeeId` exclusion).
-   - On submit, loops `clientIds` and calls existing `supabase.rpc('reassign_client', ...)` for each (sequentially to keep audit logs clean). Tracks successes/failures and shows a summary toast.
-   - No DB changes needed — the `reassign_client` RPC already enforces admin-only and writes to `client_assignments_history`.
-
-4. **No migration required** — RLS already restricts reassignment to admins via the RPC.
-
-### Edge cases handled
-- Selecting a client already assigned to the chosen manager: the RPC throws "already assigned to this employee" — we'll catch per-client and report it in the summary toast (e.g. "4 reassigned, 1 skipped").
-- Exiting selection mode clears `selectedIds`.
-- Search filtering works in selection mode; "Select All" only selects currently visible (filtered) clients.
+No database changes — `profiles` is already readable by admins via the existing "Admins can view all profiles" RLS policy, and `clients.assigned_employee_id` is already returned by the `select('*')` query.
 
