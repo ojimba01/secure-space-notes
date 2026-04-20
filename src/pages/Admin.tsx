@@ -24,6 +24,7 @@ interface Stats {
   totalNotes: number;
   totalEvents: number;
   totalEmployees: number;
+  activeEmployees: number;
 }
 
 const Admin = () => {
@@ -33,11 +34,13 @@ const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [stats, setStats] = useState<Stats>({
     totalClients: 0,
     totalNotes: 0,
     totalEvents: 0,
     totalEmployees: 0,
+    activeEmployees: 0,
   });
 
   useEffect(() => {
