@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, FileText, Phone, Mail, MapPin } from 'lucide-react';
 
 interface Client {
@@ -19,19 +20,51 @@ interface Client {
 interface ClientCardProps {
   client: Client;
   onSelect: (client: Client) => void;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect }) => {
+export const ClientCard: React.FC<ClientCardProps> = ({
+  client,
+  onSelect,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
+}) => {
+  const handleClick = () => {
+    if (selectionMode && onToggleSelect) {
+      onToggleSelect(client.id);
+    } else {
+      onSelect(client);
+    }
+  };
+
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onSelect(client)}>
+    <Card
+      className={`hover:shadow-md transition-shadow cursor-pointer ${
+        selected ? 'ring-2 ring-primary' : ''
+      }`}
+      onClick={handleClick}
+    >
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-lg">
             {client.first_name} {client.last_name}
           </CardTitle>
-          <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
-            {client.status}
-          </Badge>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
+              {client.status}
+            </Badge>
+            {selectionMode && (
+              <Checkbox
+                checked={selected}
+                onCheckedChange={() => onToggleSelect?.(client.id)}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Select ${client.first_name} ${client.last_name}`}
+              />
+            )}
+          </div>
         </div>
         {client.member_id && (
           <p className="text-sm text-muted-foreground">Member ID: {client.member_id}</p>
@@ -60,12 +93,14 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onSelect }) => {
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span>Intake: {new Date(client.intake_date).toLocaleDateString()}</span>
         </div>
-        <div className="pt-2">
-          <Button variant="outline" size="sm" className="w-full">
-            <FileText className="h-4 w-4 mr-2" />
-            View Details
-          </Button>
-        </div>
+        {!selectionMode && (
+          <div className="pt-2">
+            <Button variant="outline" size="sm" className="w-full">
+              <FileText className="h-4 w-4 mr-2" />
+              View Details
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

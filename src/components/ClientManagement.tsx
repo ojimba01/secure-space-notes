@@ -5,9 +5,10 @@ import { ClientCard } from '@/components/ClientCard';
 import { ClientDetails } from '@/components/ClientDetails';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, CheckSquare, X, UserCog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
+import { BulkReassignDialog } from '@/components/BulkReassignDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 interface Client {
@@ -33,6 +34,9 @@ export const ClientManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkReassign, setShowBulkReassign] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -47,10 +51,7 @@ export const ClientManagement: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       setClients(data || []);
     } catch (error: any) {
       toast({
@@ -69,6 +70,31 @@ export const ClientManagement: React.FC = () => {
     client.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allFilteredSelected =
+    filteredClients.length > 0 && filteredClients.every((c) => selectedIds.has(c.id));
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredClients.map((c) => c.id)));
+    }
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
   if (selectedClient) {
     return (
       <ClientDetails 
@@ -81,16 +107,42 @@ export const ClientManagement: React.FC = () => {
 
   return (
     <div className="p-3 md:p-6 space-y-4 md:space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h1 className="text-xl md:text-3xl font-bold truncate">Clients</h1>
           <p className="text-sm text-muted-foreground hidden md:block">Manage your client cases and information</p>
         </div>
-        {isAdmin && (
-          <Button size="sm" className="shrink-0 md:size-default" onClick={() => setShowAddDialog(true)}>
-            <Plus className="h-4 w-4 md:mr-2" />
-            <span className="hidden md:inline">Add Client</span>
-          </Button>
+        {isAdmin && !selectionMode && (
+          <div className="flex items-center gap-2 shrink-0">
+            <Button size="sm" variant="outline" onClick={() => setSelectionMode(true)}>
+              <CheckSquare className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Select</span>
+            </Button>
+            <Button size="sm" className="md:size-default" onClick={() => setShowAddDialog(true)}>
+              <Plus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Add Client</span>
+            </Button>
+          </div>
+        )}
+        {isAdmin && selectionMode && (
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <Button size="sm" variant="outline" onClick={toggleSelectAll}>
+              {allFilteredSelected ? 'Clear All' : 'Select All'}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setShowBulkReassign(true)}
+              disabled={selectedIds.size === 0}
+            >
+              <UserCog className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Reassign</span>
+            </Button>
+            <Button size="sm" variant="ghost" onClick={exitSelectionMode}>
+              <X className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Cancel</span>
+            </Button>
+          </div>
         )}
       </div>
 
@@ -113,6 +165,9 @@ export const ClientManagement: React.FC = () => {
               key={client.id}
               client={client}
               onSelect={setSelectedClient}
+              selectionMode={selectionMode}
+              selected={selectedIds.has(client.id)}
+              onToggleSelect={toggleSelect}
             />
           ))}
           {filteredClients.length === 0 && (
@@ -127,6 +182,16 @@ export const ClientManagement: React.FC = () => {
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
         onClientAdded={fetchClients}
+      />
+
+      <BulkReassignDialog
+        open={showBulkReassign}
+        onOpenChange={setShowBulkReassign}
+        clientIds={Array.from(selectedIds)}
+        onReassigned={() => {
+          fetchClients();
+          exitSelectionMode();
+        }}
       />
     </div>
   );
