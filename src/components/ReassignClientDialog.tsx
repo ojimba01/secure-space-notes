@@ -186,6 +186,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="__none__">— No case manager (unassign) —</SelectItem>
                       {employees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.first_name} {employee.last_name} ({employee.email})
@@ -194,7 +195,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Available case managers in the system
+                    Choose a case manager or unassign the client
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
