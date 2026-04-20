@@ -119,17 +119,25 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.rpc('reassign_client', {
-        _client_id: clientId,
-        _new_employee_id: data.new_employee_id,
-        _reason: data.reason || null,
-      });
-
-      if (error) throw error;
+      if (data.new_employee_id === '__none__') {
+        // Unassign: direct update (admin-only via RLS)
+        const { error: updateError } = await supabase
+          .from('clients')
+          .update({ assigned_employee_id: null })
+          .eq('id', clientId);
+        if (updateError) throw updateError;
+      } else {
+        const { error } = await supabase.rpc('reassign_client', {
+          _client_id: clientId,
+          _new_employee_id: data.new_employee_id,
+          _reason: data.reason || null,
+        });
+        if (error) throw error;
+      }
 
       toast({
-        title: "Client Reassigned",
-        description: `${clientName} has been reassigned successfully.`,
+        title: data.new_employee_id === '__none__' ? 'Client Unassigned' : 'Client Reassigned',
+        description: `${clientName} has been updated successfully.`,
       });
 
       onReassigned();
@@ -170,7 +178,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
                   <Select 
                     onValueChange={field.onChange} 
                     defaultValue={field.value}
-                    disabled={loading || employees.length === 0}
+                    disabled={loading}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -178,6 +186,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="__none__">— No case manager (unassign) —</SelectItem>
                       {employees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.first_name} {employee.last_name} ({employee.email})
@@ -186,7 +195,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Available case managers in the system
+                    Choose a case manager or unassign the client
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -225,9 +234,9 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
               </Button>
               <Button 
                 type="submit" 
-                disabled={isSubmitting || loading || employees.length === 0}
+                disabled={isSubmitting || loading}
               >
-                {isSubmitting ? 'Reassigning...' : 'Reassign Client'}
+                {isSubmitting ? 'Saving...' : 'Save'}
               </Button>
             </div>
           </form>
