@@ -178,6 +178,7 @@ export const BulkReassignDialog: React.FC<BulkReassignDialogProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="__none__">— No case manager (unassign) —</SelectItem>
                       {employees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.first_name} {employee.last_name} ({employee.email})
