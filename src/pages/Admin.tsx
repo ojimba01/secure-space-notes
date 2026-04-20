@@ -242,16 +242,30 @@ const Admin = () => {
               <div className="text-2xl font-bold">{stats.totalEmployees}</div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Active Employees</CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.activeEmployees}</div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Employees List */}
         <Card>
-          <CardHeader>
-            <CardTitle>All Employees</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>{showActiveOnly ? 'Active Employees' : 'All Employees'}</CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Show active only</span>
+              <Switch checked={showActiveOnly} onCheckedChange={setShowActiveOnly} />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {employees.map((employee) => (
+              {(showActiveOnly ? employees.filter((e) => e.active) : employees).map((employee) => (
                 <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
