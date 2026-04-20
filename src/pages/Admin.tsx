@@ -311,7 +311,7 @@ const Admin = () => {
                   </div>
                 </div>
               ))}
-              {employees.length === 0 && (
+              {(showActiveOnly ? employees.filter((e) => e.active) : employees).length === 0 && (
                 <p className="text-center text-muted-foreground py-8">No employees found</p>
               )}
             </div>
