@@ -234,9 +234,9 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
               </Button>
               <Button 
                 type="submit" 
-                disabled={isSubmitting || loading || employees.length === 0}
+                disabled={isSubmitting || loading}
               >
-                {isSubmitting ? 'Reassigning...' : 'Reassign Client'}
+                {isSubmitting ? 'Saving...' : 'Save'}
               </Button>
             </div>
           </form>
