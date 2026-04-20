@@ -24,6 +24,7 @@ interface Stats {
   totalNotes: number;
   totalEvents: number;
   totalEmployees: number;
+  activeEmployees: number;
 }
 
 const Admin = () => {
@@ -33,11 +34,13 @@ const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [stats, setStats] = useState<Stats>({
     totalClients: 0,
     totalNotes: 0,
     totalEvents: 0,
     totalEmployees: 0,
+    activeEmployees: 0,
   });
 
   useEffect(() => {
@@ -139,11 +142,12 @@ const Admin = () => {
 
   const fetchStats = async () => {
     try {
-      const [clientsRes, notesRes, eventsRes, employeesRes] = await Promise.all([
+      const [clientsRes, notesRes, eventsRes, employeesRes, activeRes] = await Promise.all([
         supabase.from('clients').select('id', { count: 'exact', head: true }),
         supabase.from('client_notes').select('id', { count: 'exact', head: true }),
         supabase.from('calendar_events').select('id', { count: 'exact', head: true }),
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('active', true),
       ]);
 
       setStats({
@@ -151,6 +155,7 @@ const Admin = () => {
         totalNotes: notesRes.count || 0,
         totalEvents: eventsRes.count || 0,
         totalEmployees: employeesRes.count || 0,
+        activeEmployees: activeRes.count || 0,
       });
     } catch (error: any) {
       toast({
@@ -197,7 +202,7 @@ const Admin = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
@@ -237,16 +242,30 @@ const Admin = () => {
               <div className="text-2xl font-bold">{stats.totalEmployees}</div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Active Employees</CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.activeEmployees}</div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Employees List */}
         <Card>
-          <CardHeader>
-            <CardTitle>All Employees</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>{showActiveOnly ? 'Active Employees' : 'All Employees'}</CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Show active only</span>
+              <Switch checked={showActiveOnly} onCheckedChange={setShowActiveOnly} />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {employees.map((employee) => (
+              {(showActiveOnly ? employees.filter((e) => e.active) : employees).map((employee) => (
                 <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -292,7 +311,7 @@ const Admin = () => {
                   </div>
                 </div>
               ))}
-              {employees.length === 0 && (
+              {(showActiveOnly ? employees.filter((e) => e.active) : employees).length === 0 && (
                 <p className="text-center text-muted-foreground py-8">No employees found</p>
               )}
             </div>
