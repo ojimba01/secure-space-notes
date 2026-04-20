@@ -37,12 +37,30 @@ export const ClientManagement: React.FC = () => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkReassign, setShowBulkReassign] = useState(false);
+  const [managerMap, setManagerMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (user) {
       fetchClients();
     }
   }, [user]);
+
+  useEffect(() => {
+    const fetchManagers = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name');
+      if (data) {
+        const map = new Map<string, string>();
+        data.forEach((p) => {
+          const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
+          if (name) map.set(p.id, name);
+        });
+        setManagerMap(map);
+      }
+    };
+    if (isAdmin) fetchManagers();
+  }, [isAdmin]);
 
   const fetchClients = async () => {
     try {
