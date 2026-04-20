@@ -97,27 +97,39 @@ export const BulkReassignDialog: React.FC<BulkReassignDialogProps> = ({
     let skipped = 0;
     let failed = 0;
 
+    const isUnassign = data.new_employee_id === '__none__';
+
     for (const id of clientIds) {
-      const { error } = await supabase.rpc('reassign_client', {
-        _client_id: id,
-        _new_employee_id: data.new_employee_id,
-        _reason: data.reason || null,
-      });
-      if (!error) {
-        success++;
-      } else if (error.message?.includes('already assigned')) {
-        skipped++;
+      if (isUnassign) {
+        const { error } = await supabase
+          .from('clients')
+          .update({ assigned_employee_id: null })
+          .eq('id', id);
+        if (!error) success++;
+        else failed++;
       } else {
-        failed++;
+        const { error } = await supabase.rpc('reassign_client', {
+          _client_id: id,
+          _new_employee_id: data.new_employee_id,
+          _reason: data.reason || null,
+        });
+        if (!error) {
+          success++;
+        } else if (error.message?.includes('already assigned')) {
+          skipped++;
+        } else {
+          failed++;
+        }
       }
     }
 
-    const parts = [`${success} reassigned`];
+    const verb = isUnassign ? 'unassigned' : 'reassigned';
+    const parts = [`${success} ${verb}`];
     if (skipped) parts.push(`${skipped} skipped`);
     if (failed) parts.push(`${failed} failed`);
 
     toast({
-      title: 'Bulk Reassignment Complete',
+      title: isUnassign ? 'Bulk Unassignment Complete' : 'Bulk Reassignment Complete',
       description: parts.join(', '),
       variant: failed > 0 ? 'destructive' : 'default',
     });
