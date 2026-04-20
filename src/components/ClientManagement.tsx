@@ -23,6 +23,7 @@ interface Client {
   intake_date: string;
   date_of_birth?: string;
   notes?: string;
+  assigned_employee_id?: string | null;
 }
 
 export const ClientManagement: React.FC = () => {
