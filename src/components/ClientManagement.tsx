@@ -186,6 +186,12 @@ export const ClientManagement: React.FC = () => {
               selectionMode={selectionMode}
               selected={selectedIds.has(client.id)}
               onToggleSelect={toggleSelect}
+              showManager={isAdmin}
+              assignedManagerName={
+                client.assigned_employee_id
+                  ? managerMap.get(client.assigned_employee_id) ?? null
+                  : null
+              }
             />
           ))}
           {filteredClients.length === 0 && (
