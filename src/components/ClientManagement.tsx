@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientDetails } from '@/components/ClientDetails';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, CheckSquare, X, UserCog } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
@@ -26,6 +29,12 @@ interface Client {
   assigned_employee_id?: string | null;
 }
 
+interface ManagerOption {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
 export const ClientManagement: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -39,6 +48,10 @@ export const ClientManagement: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkReassign, setShowBulkReassign] = useState(false);
   const [managerMap, setManagerMap] = useState<Map<string, string>>(new Map());
+  const [managerOptions, setManagerOptions] = useState<ManagerOption[]>([]);
+  const [selectedManagerIds, setSelectedManagerIds] = useState<Set<string>>(new Set());
+  const [includeUnassigned, setIncludeUnassigned] = useState(true);
+  const [filterInitialized, setFilterInitialized] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -50,14 +63,25 @@ export const ClientManagement: React.FC = () => {
     const fetchManagers = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name');
+        .select('id, first_name, last_name, active');
       if (data) {
         const map = new Map<string, string>();
+        const options: ManagerOption[] = [];
         data.forEach((p) => {
           const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
-          if (name) map.set(p.id, name);
+          if (name) {
+            map.set(p.id, name);
+            options.push({ id: p.id, name, active: p.active });
+          }
         });
+        options.sort((a, b) => a.name.localeCompare(b.name));
         setManagerMap(map);
+        setManagerOptions(options);
+        if (!filterInitialized) {
+          setSelectedManagerIds(new Set(options.map((o) => o.id)));
+          setIncludeUnassigned(true);
+          setFilterInitialized(true);
+        }
       }
     };
     if (isAdmin) fetchManagers();
@@ -83,11 +107,25 @@ export const ClientManagement: React.FC = () => {
     }
   };
 
-  const filteredClients = clients.filter(client =>
-    `${client.first_name} ${client.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.member_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  const activeManagerOptions = useMemo(
+    () => managerOptions.filter((m) => m.active),
+    [managerOptions],
   );
+
+  const filteredClients = clients.filter((client) => {
+    const matchesSearch =
+      `${client.first_name} ${client.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.member_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.email?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (!isAdmin) return matchesSearch;
+
+    const matchesManager = client.assigned_employee_id
+      ? selectedManagerIds.has(client.assigned_employee_id)
+      : includeUnassigned;
+
+    return matchesSearch && matchesManager;
+  });
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -113,6 +151,43 @@ export const ClientManagement: React.FC = () => {
     setSelectionMode(false);
     setSelectedIds(new Set());
   };
+
+  const totalFilterOptions = activeManagerOptions.length + 1; // +1 for "Unassigned"
+  const selectedCount =
+    activeManagerOptions.filter((o) => selectedManagerIds.has(o.id)).length +
+    (includeUnassigned ? 1 : 0);
+  const allFilterSelected = selectedCount === totalFilterOptions;
+  const noneFilterSelected = selectedCount === 0;
+
+  const toggleAllFilter = () => {
+    if (allFilterSelected) {
+      setSelectedManagerIds(new Set());
+      setIncludeUnassigned(false);
+    } else {
+      setSelectedManagerIds(new Set(activeManagerOptions.map((o) => o.id)));
+      setIncludeUnassigned(true);
+    }
+  };
+
+  const toggleManager = (id: string) => {
+    setSelectedManagerIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const filterButtonLabel = (() => {
+    if (allFilterSelected) return 'All managers';
+    if (noneFilterSelected) return 'None selected';
+    if (selectedCount === 1) {
+      if (includeUnassigned) return 'Unassigned only';
+      const onlyId = Array.from(selectedManagerIds)[0];
+      return managerMap.get(onlyId) ?? '1 manager';
+    }
+    return `${selectedCount} selected`;
+  })();
 
   if (selectedClient) {
     return (
@@ -165,14 +240,61 @@ export const ClientManagement: React.FC = () => {
         )}
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search clients by name, member ID, or email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search clients by name, member ID, or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        {isAdmin && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="shrink-0">
+                <Filter className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">{filterButtonLabel}</span>
+                <ChevronDown className="h-4 w-4 md:ml-1 opacity-60" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-0">
+              <div className="p-3 border-b">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={allFilterSelected}
+                    onCheckedChange={toggleAllFilter}
+                  />
+                  <span className="text-sm font-medium">All</span>
+                </label>
+              </div>
+              <ScrollArea className="max-h-72">
+                <div className="p-3 space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={includeUnassigned}
+                      onCheckedChange={(v) => setIncludeUnassigned(!!v)}
+                    />
+                    <span className="text-sm text-red-600 dark:text-red-500">Unassigned</span>
+                  </label>
+                  {activeManagerOptions.map((opt) => (
+                    <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={selectedManagerIds.has(opt.id)}
+                        onCheckedChange={() => toggleManager(opt.id)}
+                      />
+                      <span className="text-sm">{opt.name}</span>
+                    </label>
+                  ))}
+                  {activeManagerOptions.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No active employees</p>
+                  )}
+                </div>
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
 
       {loading ? (
@@ -197,7 +319,11 @@ export const ClientManagement: React.FC = () => {
           ))}
           {filteredClients.length === 0 && (
             <div className="col-span-full text-center py-8 text-muted-foreground">
-              {searchTerm ? 'No clients found matching your search.' : 'No clients found. Add your first client to get started.'}
+              {isAdmin && noneFilterSelected
+                ? 'No managers selected — pick at least one to see clients.'
+                : searchTerm
+                ? 'No clients found matching your search.'
+                : 'No clients found. Add your first client to get started.'}
             </div>
           )}
         </div>
