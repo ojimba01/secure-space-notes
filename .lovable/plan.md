@@ -1,34 +1,50 @@
 
 
-## Show case manager on client cards + filter active employees on admin dashboard
+## Filter clients by assigned case manager (admin only)
 
-Two changes, both admin-only.
+Add a filter control on the Clients page so admins can narrow the visible client cards by who they're assigned to. Filter applies on top of the existing search.
 
-### 1. Client cards: show assigned case manager (admin view only)
+### What you'll see
 
-On the Clients page, every card gets a new line under the member ID:
-- **Green text** with the case manager's name (e.g. "Case Manager: Jane Doe") when assigned.
-- **Red text** "No case manager assigned" when `assigned_employee_id` is null.
-- Visible only to admins — employees see no change (they only see their own clients anyway).
+A new **"Filter by case manager"** control sits next to the search bar (admin only). It's a multi-select popover button:
 
-**Implementation:**
-- `ClientManagement.tsx`: when admin, fetch all profiles (id, first_name, last_name) once and build a `Map<profileId, name>`. Pass the lookup into each `ClientCard`.
-- `ClientCard.tsx`: extend the `Client` interface with `assigned_employee_id?: string | null`. Accept optional `assignedManagerName?: string | null` and `showManager?: boolean` props. Render the colored line in `CardHeader` below the member ID.
+```text
+┌────────────────────────────────────────────────────────────┐
+│ [🔍 Search clients...]   [Filter: All managers ▾]  [Select] [+ Add] │
+└────────────────────────────────────────────────────────────┘
+```
 
-### 2. Admin dashboard: active-only filter + active count card
+Clicking the filter opens a popover with checkboxes:
+- ☑ **All** (select/clear everything — convenience toggle)
+- ☐ **Unassigned** (clients with no case manager)
+- ☐ Jane Doe
+- ☐ John Smith
+- ☐ … (one row per active employee, alphabetical)
 
-On `/admin`:
-- Add a **5th stats card**: "Active Employees" showing count of `profiles` where `active = true`.
-- Above the "All Employees" list, add a **Switch** labeled "Show active only" — defaults to **ON**. When on, the list filters to active employees; when off, shows everyone (current behavior).
-- Update the section title dynamically: "Active Employees" vs "All Employees".
+Behavior:
+- **Nothing checked** → shows nothing (empty state: "No managers selected — pick at least one to see clients").
+- **Some checked** → shows only clients whose `assigned_employee_id` matches a checked manager, plus unassigned clients if "Unassigned" is checked.
+- **All checked** (default on first load) → shows everything (same as today).
+- Button label reflects state: "All managers", "Unassigned only", "Jane Doe", or "3 managers" when multiple.
+- Filter combines with the search box (AND).
+- Non-admins see no filter button — no change for them.
 
-**Implementation:**
-- `Admin.tsx`: add `showActiveOnly` state (default `true`), add `activeEmployees` to the `Stats` interface and the `fetchStats` Promise.all (filter `.eq('active', true)`). Derive `displayedEmployees = showActiveOnly ? employees.filter(e => e.active) : employees`. Render the Switch in the employees Card header.
+### Technical implementation
 
-### Files touched
-- `src/components/ClientManagement.tsx` — fetch profiles map, pass to cards
-- `src/components/ClientCard.tsx` — render colored case manager line
-- `src/pages/Admin.tsx` — new stat card, filter switch, derived list
+**`src/components/ClientManagement.tsx`** (only file touched):
+1. Reuse the existing `managerMap` (already fetched for admins) to build the list of filter options. Also extend the profile fetch to include `active` so we can list only active employees in the filter (already-assigned inactive managers still match by ID).
+2. Add state:
+   - `selectedManagerIds: Set<string>` — IDs of checked managers
+   - `includeUnassigned: boolean` — whether the "Unassigned" row is checked
+   - Initialize both to "everything selected" once the manager list loads.
+3. Extend `filteredClients` to also apply the manager filter:
+   ```
+   matchesManager =
+     (client.assigned_employee_id && selectedManagerIds.has(client.assigned_employee_id))
+     || (!client.assigned_employee_id && includeUnassigned)
+   ```
+4. Add a `Popover` + `Checkbox` list next to the search input, rendered only when `isAdmin`. Include an "All" master checkbox that toggles every option.
+5. Update the empty-state copy to mention the filter when nothing is checked.
 
-No database changes — `profiles` is already readable by admins via the existing "Admins can view all profiles" RLS policy, and `clients.assigned_employee_id` is already returned by the `select('*')` query.
+No new components, no DB changes, no migration. Uses existing `Popover`, `Checkbox`, and `Button` primitives already in the project.
 
