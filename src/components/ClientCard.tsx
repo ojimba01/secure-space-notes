@@ -13,6 +13,7 @@ interface Client {
   phone?: string;
   address?: string;
   member_id?: string;
+  insurance?: string;
   status: string;
   intake_date: string;
   assigned_employee_id?: string | null;
@@ -73,6 +74,9 @@ export const ClientCard: React.FC<ClientCardProps> = ({
         </div>
         {client.member_id && (
           <p className="text-sm text-muted-foreground">Member ID: {client.member_id}</p>
+        )}
+        {client.insurance && (
+          <p className="text-sm text-muted-foreground">Insurance: <span className="font-medium text-foreground">{client.insurance}</span></p>
         )}
         {showManager && (
           assignedManagerName ? (
