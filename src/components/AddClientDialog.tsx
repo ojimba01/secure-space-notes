@@ -23,6 +23,7 @@ const clientSchema = z.object({
   member_id: z.string().trim().max(50).optional(),
   insurance: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
+  housing_stabilization_plan_date: z.string().optional(),
   notes: z.string().trim().max(2000).optional(),
 });
 
@@ -54,6 +55,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       member_id: '',
       insurance: '',
       date_of_birth: '',
+      housing_stabilization_plan_date: '',
       notes: '',
     },
   });
@@ -78,6 +80,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         member_id: data.member_id || null,
         insurance: data.insurance || null,
         date_of_birth: data.date_of_birth || null,
+        housing_stabilization_plan_date: data.housing_stabilization_plan_date || null,
         notes: data.notes || null,
         assigned_employee_id: profile?.id,
       };
@@ -238,7 +241,22 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                 )}
               />
             </div>
-            
+
+            <FormField
+              control={form.control}
+              name="housing_stabilization_plan_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Housing Stabilization Plan Date</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="date" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+
             <FormField
               control={form.control}
               name="notes"

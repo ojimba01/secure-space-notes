@@ -1,0 +1,1 @@
+ALTER TABLE public.clients ADD COLUMN housing_stabilization_plan_date date;

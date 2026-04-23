@@ -284,6 +284,7 @@ export type Database = {
           date_of_birth: string | null
           email: string | null
           first_name: string
+          housing_stabilization_plan_date: string | null
           id: string
           insurance: string | null
           intake_date: string | null
@@ -301,6 +302,7 @@ export type Database = {
           date_of_birth?: string | null
           email?: string | null
           first_name: string
+          housing_stabilization_plan_date?: string | null
           id?: string
           insurance?: string | null
           intake_date?: string | null
@@ -318,6 +320,7 @@ export type Database = {
           date_of_birth?: string | null
           email?: string | null
           first_name?: string
+          housing_stabilization_plan_date?: string | null
           id?: string
           insurance?: string | null
           intake_date?: string | null

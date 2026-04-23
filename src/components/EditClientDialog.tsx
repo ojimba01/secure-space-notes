@@ -24,6 +24,7 @@ const clientSchema = z.object({
   member_id: z.string().trim().max(50).optional(),
   insurance: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
+  housing_stabilization_plan_date: z.string().optional(),
   status: z.enum(['active', 'inactive']),
   notes: z.string().trim().max(2000).optional(),
 });
@@ -42,6 +43,7 @@ interface Client {
   status: string;
   intake_date: string;
   date_of_birth?: string;
+  housing_stabilization_plan_date?: string;
   notes?: string;
 }
 
@@ -73,6 +75,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       member_id: client.member_id || '',
       insurance: client.insurance || '',
       date_of_birth: client.date_of_birth || '',
+      housing_stabilization_plan_date: client.housing_stabilization_plan_date || '',
       status: client.status as 'active' | 'inactive',
       notes: client.notes || '',
     },
@@ -93,6 +96,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           member_id: data.member_id || null,
           insurance: data.insurance || null,
           date_of_birth: data.date_of_birth || null,
+          housing_stabilization_plan_date: data.housing_stabilization_plan_date || null,
           status: data.status,
           notes: data.notes || null,
         })
@@ -278,7 +282,22 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                 )}
               />
             </div>
-            
+
+            <FormField
+              control={form.control}
+              name="housing_stabilization_plan_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Housing Stabilization Plan Date</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="date" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+
             <FormField
               control={form.control}
               name="notes"
