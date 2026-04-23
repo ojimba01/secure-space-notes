@@ -23,9 +23,11 @@ interface Client {
   phone?: string;
   address?: string;
   member_id?: string;
+  insurance?: string;
   status: string;
   intake_date: string;
   date_of_birth?: string;
+  housing_stabilization_plan_date?: string;
   notes?: string;
   assigned_employee_id?: string;
 }
@@ -198,6 +200,12 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
               <p className="text-sm font-medium text-muted-foreground">Intake Date</p>
               <p>{new Date(client.intake_date).toLocaleDateString()}</p>
             </div>
+            {client.insurance && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Insurance</p>
+                <p>{client.insurance}</p>
+              </div>
+            )}
             {isAdmin && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Current Case Manager</p>
@@ -206,6 +214,47 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             )}
           </CardContent>
         </Card>
+
+        {client.housing_stabilization_plan_date && (() => {
+          const planDate = new Date(client.housing_stabilization_plan_date);
+          const due150 = new Date(planDate);
+          due150.setDate(due150.getDate() + 150);
+          const due180 = new Date(planDate);
+          due180.setDate(due180.getDate() + 180);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const statusFor = (d: Date) => {
+            const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+            if (diff < 0) return { label: `Overdue by ${Math.abs(diff)} days`, variant: 'destructive' as const };
+            if (diff <= 14) return { label: `Due in ${diff} days`, variant: 'default' as const };
+            return { label: `Due in ${diff} days`, variant: 'secondary' as const };
+          };
+          const s150 = statusFor(due150);
+          const s180 = statusFor(due180);
+          return (
+            <Card>
+              <CardHeader>
+                <CardTitle>Housing Stabilization Plan</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Plan Date</p>
+                  <p>{planDate.toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">150-Day Due Date</p>
+                  <p>{due150.toLocaleDateString()}</p>
+                  <Badge variant={s150.variant} className="mt-1">{s150.label}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">180-Day Due Date</p>
+                  <p>{due180.toLocaleDateString()}</p>
+                  <Badge variant={s180.variant} className="mt-1">{s180.label}</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-5">
