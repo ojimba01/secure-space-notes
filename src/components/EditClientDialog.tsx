@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 
+const INSURANCE_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis'] as const;
+
 const clientSchema = z.object({
   first_name: z.string().trim().min(1, 'First name is required').max(100),
   last_name: z.string().trim().min(1, 'Last name is required').max(100),
@@ -20,6 +22,7 @@ const clientSchema = z.object({
   phone: z.string().trim().max(20).optional(),
   address: z.string().trim().max(500).optional(),
   member_id: z.string().trim().max(50).optional(),
+  insurance: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
   status: z.enum(['active', 'inactive']),
   notes: z.string().trim().max(2000).optional(),
@@ -35,6 +38,7 @@ interface Client {
   phone?: string;
   address?: string;
   member_id?: string;
+  insurance?: string;
   status: string;
   intake_date: string;
   date_of_birth?: string;
@@ -67,6 +71,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       phone: client.phone || '',
       address: client.address || '',
       member_id: client.member_id || '',
+      insurance: client.insurance || '',
       date_of_birth: client.date_of_birth || '',
       status: client.status as 'active' | 'inactive',
       notes: client.notes || '',
@@ -86,6 +91,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           phone: data.phone || null,
           address: data.address || null,
           member_id: data.member_id || null,
+          insurance: data.insurance || null,
           date_of_birth: data.date_of_birth || null,
           status: data.status,
           notes: data.notes || null,
@@ -199,7 +205,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               )}
             />
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="member_id"
@@ -213,6 +219,30 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="insurance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Insurance</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select insurance" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {INSURANCE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="date_of_birth"

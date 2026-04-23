@@ -52,6 +52,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       phone: '',
       address: '',
       member_id: '',
+      insurance: '',
       date_of_birth: '',
       notes: '',
     },
@@ -75,6 +76,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         phone: data.phone || null,
         address: data.address || null,
         member_id: data.member_id || null,
+        insurance: data.insurance || null,
         date_of_birth: data.date_of_birth || null,
         notes: data.notes || null,
         assigned_employee_id: profile?.id,
@@ -186,7 +188,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
               )}
             />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="member_id"
@@ -196,6 +198,28 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="insurance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Insurance</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select insurance" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {INSURANCE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
