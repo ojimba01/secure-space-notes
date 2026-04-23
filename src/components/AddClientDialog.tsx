@@ -9,7 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+
+const INSURANCE_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis'] as const;
 
 const clientSchema = z.object({
   first_name: z.string().trim().min(1, 'First name is required').max(100),
@@ -18,6 +21,7 @@ const clientSchema = z.object({
   phone: z.string().trim().max(20).optional(),
   address: z.string().trim().max(500).optional(),
   member_id: z.string().trim().max(50).optional(),
+  insurance: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
   notes: z.string().trim().max(2000).optional(),
 });
