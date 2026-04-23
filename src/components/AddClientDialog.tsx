@@ -241,7 +241,22 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                 )}
               />
             </div>
-            
+
+            <FormField
+              control={form.control}
+              name="housing_stabilization_plan_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Housing Stabilization Plan Date</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="date" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+
             <FormField
               control={form.control}
               name="notes"
