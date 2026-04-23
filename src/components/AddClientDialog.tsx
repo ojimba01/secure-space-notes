@@ -9,7 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+
+const INSURANCE_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis'] as const;
 
 const clientSchema = z.object({
   first_name: z.string().trim().min(1, 'First name is required').max(100),
@@ -18,6 +21,7 @@ const clientSchema = z.object({
   phone: z.string().trim().max(20).optional(),
   address: z.string().trim().max(500).optional(),
   member_id: z.string().trim().max(50).optional(),
+  insurance: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
   notes: z.string().trim().max(2000).optional(),
 });
@@ -48,6 +52,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       phone: '',
       address: '',
       member_id: '',
+      insurance: '',
       date_of_birth: '',
       notes: '',
     },
@@ -71,6 +76,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         phone: data.phone || null,
         address: data.address || null,
         member_id: data.member_id || null,
+        insurance: data.insurance || null,
         date_of_birth: data.date_of_birth || null,
         notes: data.notes || null,
         assigned_employee_id: profile?.id,
@@ -182,7 +188,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
               )}
             />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="member_id"
@@ -192,6 +198,28 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="insurance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Insurance</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select insurance" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {INSURANCE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

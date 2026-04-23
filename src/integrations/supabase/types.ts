@@ -285,6 +285,7 @@ export type Database = {
           email: string | null
           first_name: string
           id: string
+          insurance: string | null
           intake_date: string | null
           last_name: string
           member_id: string | null
@@ -301,6 +302,7 @@ export type Database = {
           email?: string | null
           first_name: string
           id?: string
+          insurance?: string | null
           intake_date?: string | null
           last_name: string
           member_id?: string | null
@@ -317,6 +319,7 @@ export type Database = {
           email?: string | null
           first_name?: string
           id?: string
+          insurance?: string | null
           intake_date?: string | null
           last_name?: string
           member_id?: string | null
