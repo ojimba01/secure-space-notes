@@ -1,50 +1,50 @@
 
 
-## Filter clients by assigned case manager (admin only)
+## Auto-extract insurance from member_id (one-time backfill)
 
-Add a filter control on the Clients page so admins can narrow the visible client cards by who they're assigned to. Filter applies on top of the existing search.
+Goal: scan every client's `member_id`, fuzzy-detect which of the 5 insurance providers is mentioned, copy it into the `insurance` column (capitalized), and strip it out of `member_id`. Also normalize the dropdown values to uppercase.
 
-### What you'll see
+### What you'll get
 
-A new **"Filter by case manager"** control sits next to the search bar (admin only). It's a multi-select popover button:
+A one-time backfill script run against the database, plus a small UI tweak so the dropdown options match the new canonical casing.
 
-```text
-┌────────────────────────────────────────────────────────────┐
-│ [🔍 Search clients...]   [Filter: All managers ▾]  [Select] [+ Add] │
-└────────────────────────────────────────────────────────────┘
-```
+### Matching rules
 
-Clicking the filter opens a popover with checkboxes:
-- ☑ **All** (select/clear everything — convenience toggle)
-- ☐ **Unassigned** (clients with no case manager)
-- ☐ Jane Doe
-- ☐ John Smith
-- ☐ … (one row per active employee, alphabetical)
+For each client where `insurance` is empty and `member_id` is set, search `member_id` (case-insensitive) for any of these patterns:
 
-Behavior:
-- **Nothing checked** → shows nothing (empty state: "No managers selected — pick at least one to see clients").
-- **Some checked** → shows only clients whose `assigned_employee_id` matches a checked manager, plus unassigned clients if "Unassigned" is checked.
-- **All checked** (default on first load) → shows everything (same as today).
-- Button label reflects state: "All managers", "Unassigned only", "Jane Doe", or "3 managers" when multiple.
-- Filter combines with the search box (AND).
-- Non-admins see no filter button — no change for them.
+| Canonical value | Matches (case-insensitive, fuzzy) |
+|---|---|
+| `AETNA` | "aetna", "aet" |
+| `HORIZON` | "horizon", "hor", "hbcbs", "horiz" |
+| `WELLPOINT` | "wellpoint", "wellpt", "wp", "well point" |
+| `UNITED HEALTH` | "united", "uhc", "unitedhealth", "united health", "uh" |
+| `FIDELIS` | "fidelis", "fid" |
 
-### Technical implementation
+To avoid false positives on short tokens ("uh", "wp", "hor", "fid", "aet"), short tokens only match when they appear as a standalone word (surrounded by spaces, punctuation, or string boundaries) — not inside a longer alphanumeric run like a real ID number. Longer tokens ("aetna", "horizon", "wellpoint", "united", "fidelis") match anywhere.
 
-**`src/components/ClientManagement.tsx`** (only file touched):
-1. Reuse the existing `managerMap` (already fetched for admins) to build the list of filter options. Also extend the profile fetch to include `active` so we can list only active employees in the filter (already-assigned inactive managers still match by ID).
-2. Add state:
-   - `selectedManagerIds: Set<string>` — IDs of checked managers
-   - `includeUnassigned: boolean` — whether the "Unassigned" row is checked
-   - Initialize both to "everything selected" once the manager list loads.
-3. Extend `filteredClients` to also apply the manager filter:
-   ```
-   matchesManager =
-     (client.assigned_employee_id && selectedManagerIds.has(client.assigned_employee_id))
-     || (!client.assigned_employee_id && includeUnassigned)
-   ```
-4. Add a `Popover` + `Checkbox` list next to the search input, rendered only when `isAdmin`. Include an "All" master checkbox that toggles every option.
-5. Update the empty-state copy to mention the filter when nothing is checked.
+When a match is found:
+1. Set `insurance = <canonical uppercase value>`.
+2. Remove the matched substring from `member_id`, then collapse extra whitespace, hyphens, and separators left behind (e.g., `"AETNA - 12345"` → `"12345"`).
+3. If `member_id` becomes empty after stripping, set it to `NULL`.
 
-No new components, no DB changes, no migration. Uses existing `Popover`, `Checkbox`, and `Button` primitives already in the project.
+If no match is found, leave the row untouched.
+
+### Plan of action
+
+1. **Preview first** — run a `SELECT` showing `id`, original `member_id`, detected insurance, and proposed cleaned `member_id` for every row that would change. You review the list before any writes.
+2. **Apply backfill** — once you approve, run a single `UPDATE` (via migration) that performs the extraction in SQL using `regexp_match` / `regexp_replace` for each pattern. Only rows where `insurance IS NULL` and a match is found get updated.
+3. **Update dropdown casing** — in `src/components/AddClientDialog.tsx` and `src/components/EditClientDialog.tsx`, change `INSURANCE_OPTIONS` from `['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis']` to `['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS']` so new entries match the backfilled casing.
+4. **Display** — `ClientDetails.tsx` already renders `client.insurance` as-is, so uppercase values will show correctly with no further changes.
+
+### Files touched
+
+- New SQL migration: backfill `clients.insurance` and clean `clients.member_id`.
+- `src/components/AddClientDialog.tsx` — uppercase `INSURANCE_OPTIONS`.
+- `src/components/EditClientDialog.tsx` — uppercase `INSURANCE_OPTIONS`.
+
+### Notes / caveats
+
+- Existing clients who already have `insurance` set will be left alone (no overwrites).
+- Matching is conservative — when in doubt, the row is skipped rather than mis-tagged. The preview step lets you catch anything odd before the write.
+- The `member_id` cleanup uses regex replace, then trims leading/trailing separators (`-`, `_`, `:`, whitespace).
 
