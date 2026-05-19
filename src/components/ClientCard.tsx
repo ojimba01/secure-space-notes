@@ -68,10 +68,16 @@ export const ClientCard: React.FC<ClientCardProps> = ({
           <CardTitle className="text-lg">
             {client.first_name} {client.last_name}
           </CardTitle>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
               {client.status}
             </Badge>
+            {pendingNext && (
+              <Badge variant="destructive" className="gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Pending next action
+              </Badge>
+            )}
             {selectionMode && (
               <Checkbox
                 checked={selected}
