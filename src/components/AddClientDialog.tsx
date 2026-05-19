@@ -244,10 +244,10 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
 
             <FormField
               control={form.control}
-              name="housing_stabilization_plan_date"
+              name="iat_date"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Housing Stabilization Plan Date</FormLabel>
+                  <FormLabel>IAT Start Date</FormLabel>
                   <FormControl>
                     <Input {...field} type="date" />
                   </FormControl>
