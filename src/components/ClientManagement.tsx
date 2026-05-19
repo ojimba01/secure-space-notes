@@ -95,7 +95,12 @@ export const ClientManagement: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setClients(data || []);
+      const list = data || [];
+      setClients(list);
+      // Keep the currently open client detail in sync with the latest data
+      setSelectedClient((current) =>
+        current ? list.find((c) => c.id === current.id) || current : current
+      );
     } catch (error: any) {
       toast({
         title: "Error fetching clients",
