@@ -23,7 +23,7 @@ const clientSchema = z.object({
   member_id: z.string().trim().max(50).optional(),
   insurance: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
-  housing_stabilization_plan_date: z.string().optional(),
+  iat_date: z.string().optional(),
   notes: z.string().trim().max(2000).optional(),
 });
 
