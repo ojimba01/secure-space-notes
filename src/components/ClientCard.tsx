@@ -47,6 +47,15 @@ export const ClientCard: React.FC<ClientCardProps> = ({
     }
   };
 
+  const pendingNext = (() => {
+    if (!client.hsp_180_date) return false;
+    const due = new Date(client.hsp_180_date);
+    due.setDate(due.getDate() + 180);
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t >= due;
+  })();
+
   return (
     <Card
       className={`hover:shadow-md transition-shadow cursor-pointer ${
