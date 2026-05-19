@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, FileText, Phone, Mail, MapPin } from 'lucide-react';
+import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -17,6 +17,7 @@ interface Client {
   status: string;
   intake_date: string;
   assigned_employee_id?: string | null;
+  hsp_180_date?: string | null;
 }
 
 interface ClientCardProps {
@@ -46,6 +47,15 @@ export const ClientCard: React.FC<ClientCardProps> = ({
     }
   };
 
+  const pendingNext = (() => {
+    if (!client.hsp_180_date) return false;
+    const due = new Date(client.hsp_180_date);
+    due.setDate(due.getDate() + 180);
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t >= due;
+  })();
+
   return (
     <Card
       className={`hover:shadow-md transition-shadow cursor-pointer ${
@@ -58,10 +68,16 @@ export const ClientCard: React.FC<ClientCardProps> = ({
           <CardTitle className="text-lg">
             {client.first_name} {client.last_name}
           </CardTitle>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
               {client.status}
             </Badge>
+            {pendingNext && (
+              <Badge variant="destructive" className="gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Pending next action
+              </Badge>
+            )}
             {selectionMode && (
               <Checkbox
                 checked={selected}

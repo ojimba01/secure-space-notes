@@ -24,7 +24,9 @@ const clientSchema = z.object({
   member_id: z.string().trim().max(50).optional(),
   insurance: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
-  housing_stabilization_plan_date: z.string().optional(),
+  iat_date: z.string().optional(),
+  hsp_150_date: z.string().optional(),
+  hsp_180_date: z.string().optional(),
   status: z.enum(['active', 'inactive']),
   notes: z.string().trim().max(2000).optional(),
 });
@@ -43,7 +45,9 @@ interface Client {
   status: string;
   intake_date: string;
   date_of_birth?: string;
-  housing_stabilization_plan_date?: string;
+  iat_date?: string;
+  hsp_150_date?: string;
+  hsp_180_date?: string;
   notes?: string;
 }
 
@@ -75,7 +79,9 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       member_id: client.member_id || '',
       insurance: client.insurance || '',
       date_of_birth: client.date_of_birth || '',
-      housing_stabilization_plan_date: client.housing_stabilization_plan_date || '',
+      iat_date: client.iat_date || '',
+      hsp_150_date: client.hsp_150_date || '',
+      hsp_180_date: client.hsp_180_date || '',
       status: client.status as 'active' | 'inactive',
       notes: client.notes || '',
     },
@@ -96,7 +102,9 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           member_id: data.member_id || null,
           insurance: data.insurance || null,
           date_of_birth: data.date_of_birth || null,
-          housing_stabilization_plan_date: data.housing_stabilization_plan_date || null,
+          iat_date: data.iat_date || null,
+          hsp_150_date: data.hsp_150_date || null,
+          hsp_180_date: data.hsp_180_date || null,
           status: data.status,
           notes: data.notes || null,
         })
@@ -283,19 +291,47 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="housing_stabilization_plan_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Housing Stabilization Plan Date</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="date" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="iat_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>IAT Start Date</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="hsp_150_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>HSP 150-day Start</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="hsp_180_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>HSP 180-day Start</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
 
             <FormField
