@@ -28,6 +28,9 @@ interface Client {
   intake_date: string;
   date_of_birth?: string;
   housing_stabilization_plan_date?: string;
+  iat_date?: string;
+  hsp_150_date?: string;
+  hsp_180_date?: string;
   notes?: string;
   assigned_employee_id?: string;
 }
