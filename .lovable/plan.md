@@ -1,50 +1,59 @@
+## Goal
 
+Replace the single "Housing Stabilization Plan Date" field with a progressive milestone tracker:
 
-## Auto-extract insurance from member_id (one-time backfill)
+1. **IAT (Initial Assessment Tool)** — user picks a start date; system shows a 30-day due date.
+2. Once today ≥ IAT due date, unlock a date picker for the **150-day HSP** milestone.
+3. Once today ≥ 150-day due date, unlock a date picker for the **180-day HSP** milestone.
+4. Once today ≥ 180-day due date, show **"⚠️ WARNING: Patient is now pending next action"** on the client detail page AND the client card.
 
-Goal: scan every client's `member_id`, fuzzy-detect which of the 5 insurance providers is mentioned, copy it into the `insurance` column (capitalized), and strip it out of `member_id`. Also normalize the dropdown values to uppercase.
+Each milestone date is entered manually by the user (no auto-calculation). Earlier-stage fields stay locked/hidden until the previous due date arrives.
 
-### What you'll get
+## Database changes
 
-A one-time backfill script run against the database, plus a small UI tweak so the dropdown options match the new canonical casing.
+Add three nullable date columns on `clients`, keep the existing `housing_stabilization_plan_date` for backward compatibility (will be displayed as IAT date if the new column is empty):
 
-### Matching rules
+- `iat_date` (date) — start date for the 30-day IAT clock
+- `hsp_150_date` (date) — start date for the 150-day HSP milestone
+- `hsp_180_date` (date) — start date for the 180-day HSP milestone
 
-For each client where `insurance` is empty and `member_id` is set, search `member_id` (case-insensitive) for any of these patterns:
+A small one-time backfill: copy any existing `housing_stabilization_plan_date` into the new `iat_date` column so current clients don't lose their date.
 
-| Canonical value | Matches (case-insensitive, fuzzy) |
-|---|---|
-| `AETNA` | "aetna", "aet" |
-| `HORIZON` | "horizon", "hor", "hbcbs", "horiz" |
-| `WELLPOINT` | "wellpoint", "wellpt", "wp", "well point" |
-| `UNITED HEALTH` | "united", "uhc", "unitedhealth", "united health", "uh" |
-| `FIDELIS` | "fidelis", "fid" |
+## UI changes
 
-To avoid false positives on short tokens ("uh", "wp", "hor", "fid", "aet"), short tokens only match when they appear as a standalone word (surrounded by spaces, punctuation, or string boundaries) — not inside a longer alphanumeric run like a real ID number. Longer tokens ("aetna", "horizon", "wellpoint", "united", "fidelis") match anywhere.
+### `AddClientDialog` / `EditClientDialog`
+- Rename the existing "Housing Stabilization Plan Date" field to **"IAT Start Date"**.
+- That's the only milestone field in the create/edit forms — later milestones are added on the client detail page as they unlock.
 
-When a match is found:
-1. Set `insurance = <canonical uppercase value>`.
-2. Remove the matched substring from `member_id`, then collapse extra whitespace, hyphens, and separators left behind (e.g., `"AETNA - 12345"` → `"12345"`).
-3. If `member_id` becomes empty after stripping, set it to `NULL`.
+### `ClientDetails` — replace the current HSP card with a new "IAT & HSP Milestones" card
+The card shows a vertical stepper with three stages:
 
-If no match is found, leave the row untouched.
+```text
+[✓] IAT          Start: 2026-05-01    Due: 2026-05-31    (Due in 12 days)
+[•] HSP 150-day  [ Set start date ▼ ] → unlocks when IAT due date passes
+[ ] HSP 180-day  Locked until 150-day milestone passes
+```
 
-### Plan of action
+Behavior per stage:
+- **IAT**: shows start date + 30-day due date + status badge (Due in N days / Overdue by N).
+- **HSP 150-day**: hidden/locked until `today >= iat_date + 30 days`. Once unlocked, shows a date picker. After saving, displays start date + 150-day due date + status badge.
+- **HSP 180-day**: same pattern, unlocks when `today >= hsp_150_date + 150 days`.
+- **After 180-day due passes**: red alert banner inside the card — `⚠️ WARNING: Patient is now pending next action`.
 
-1. **Preview first** — run a `SELECT` showing `id`, original `member_id`, detected insurance, and proposed cleaned `member_id` for every row that would change. You review the list before any writes.
-2. **Apply backfill** — once you approve, run a single `UPDATE` (via migration) that performs the extraction in SQL using `regexp_match` / `regexp_replace` for each pattern. Only rows where `insurance IS NULL` and a match is found get updated.
-3. **Update dropdown casing** — in `src/components/AddClientDialog.tsx` and `src/components/EditClientDialog.tsx`, change `INSURANCE_OPTIONS` from `['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis']` to `['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS']` so new entries match the backfilled casing.
-4. **Display** — `ClientDetails.tsx` already renders `client.insurance` as-is, so uppercase values will show correctly with no further changes.
+### `ClientCard` (client list)
+- Add the warning badge when the 180-day due date has passed: small red "⚠ Pending next action" pill near the existing insurance/status badges.
 
-### Files touched
+## Files affected
 
-- New SQL migration: backfill `clients.insurance` and clean `clients.member_id`.
-- `src/components/AddClientDialog.tsx` — uppercase `INSURANCE_OPTIONS`.
-- `src/components/EditClientDialog.tsx` — uppercase `INSURANCE_OPTIONS`.
+- `supabase/migrations/<new>.sql` — add 3 columns, backfill `iat_date` from existing `housing_stabilization_plan_date`.
+- `src/components/AddClientDialog.tsx` — rename field label + state key (`iat_date`).
+- `src/components/EditClientDialog.tsx` — same rename, plus continue editing IAT date here.
+- `src/components/ClientDetails.tsx` — replace HSP card with new milestone stepper card; add inline date pickers + save handlers for 150/180.
+- `src/components/ClientCard.tsx` — add overdue warning pill.
+- `src/lib/validationSchemas.ts` — add the three new optional date fields.
 
-### Notes / caveats
+## Notes / caveats
 
-- Existing clients who already have `insurance` set will be left alone (no overwrites).
-- Matching is conservative — when in doubt, the row is skipped rather than mis-tagged. The preview step lets you catch anything odd before the write.
-- The `member_id` cleanup uses regex replace, then trims leading/trailing separators (`-`, `_`, `:`, whitespace).
-
+- Milestones unlock strictly on calendar date comparison (today ≥ due date), no manual "mark complete" step.
+- Once a milestone date is set, it can be edited via the Edit Client dialog (admin) — guards prevent setting a 150-day date before the IAT due date has passed.
+- The existing `housing_stabilization_plan_date` column stays in the DB (read-only) so audit logs and historical data remain intact; new writes go to `iat_date`.

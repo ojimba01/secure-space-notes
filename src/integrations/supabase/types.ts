@@ -285,6 +285,9 @@ export type Database = {
           email: string | null
           first_name: string
           housing_stabilization_plan_date: string | null
+          hsp_150_date: string | null
+          hsp_180_date: string | null
+          iat_date: string | null
           id: string
           insurance: string | null
           intake_date: string | null
@@ -303,6 +306,9 @@ export type Database = {
           email?: string | null
           first_name: string
           housing_stabilization_plan_date?: string | null
+          hsp_150_date?: string | null
+          hsp_180_date?: string | null
+          iat_date?: string | null
           id?: string
           insurance?: string | null
           intake_date?: string | null
@@ -321,6 +327,9 @@ export type Database = {
           email?: string | null
           first_name?: string
           housing_stabilization_plan_date?: string | null
+          hsp_150_date?: string | null
+          hsp_180_date?: string | null
+          iat_date?: string | null
           id?: string
           insurance?: string | null
           intake_date?: string | null
