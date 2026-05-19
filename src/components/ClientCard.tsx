@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, FileText, Phone, Mail, MapPin } from 'lucide-react';
+import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -17,6 +17,7 @@ interface Client {
   status: string;
   intake_date: string;
   assigned_employee_id?: string | null;
+  hsp_180_date?: string | null;
 }
 
 interface ClientCardProps {
