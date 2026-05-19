@@ -134,7 +134,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         {/* Header - hidden on mobile since toolbar shows it */}
         <div className="space-y-3 md:pt-0">
           <div className="hidden md:block">
-            <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
+            <button
+              type="button"
+              onClick={() => handleViewChange('clients')}
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer w-full text-left"
+            >
               <div className="p-2 bg-medical-blue rounded-lg">
                 <Stethoscope className="w-5 h-5 text-white" />
               </div>
@@ -142,7 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
                 <h2 className="font-semibold text-lg">ClinicalNotes</h2>
                 <p className="text-sm text-muted-foreground">HIPAA Compliant</p>
               </div>
-            </Link>
+            </button>
           </div>
             
           <Button 

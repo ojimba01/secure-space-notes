@@ -11,6 +11,15 @@ import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
 const Index = () => {
   const { user, loading } = useAuth();
   const [activeView, setActiveView] = useState<'clients' | 'notes' | 'calendar'>('clients');
+  const [clientsKey, setClientsKey] = useState(0);
+
+  const handleViewChange = (view: 'clients' | 'notes' | 'calendar') => {
+    if (view === 'clients') {
+      // Always reset client management to the list (clear selected client)
+      setClientsKey((k) => k + 1);
+    }
+    setActiveView(view);
+  };
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
@@ -59,10 +68,10 @@ const Index = () => {
   return (
     <TutorialProvider>
       <div className="flex min-h-screen bg-background w-full">
-        <Sidebar activeView={activeView} onViewChange={setActiveView} />
+        <Sidebar activeView={activeView} onViewChange={handleViewChange} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
           {activeView === 'clients' ? (
-            <ClientManagement />
+            <ClientManagement key={clientsKey} />
           ) : activeView === 'calendar' ? (
             <CaseManagerCalendar />
           ) : (
