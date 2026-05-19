@@ -291,47 +291,77 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="iat_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>IAT Start Date</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="date" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="hsp_150_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>HSP 150-day Start</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="date" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="hsp_180_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>HSP 180-day Start</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="date" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            {(() => {
+              const watchedIat = form.watch('iat_date');
+              const watchedHsp150 = form.watch('hsp_150_date');
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const iatDue = watchedIat ? new Date(watchedIat) : null;
+              if (iatDue) iatDue.setDate(iatDue.getDate() + 30);
+              const hsp150Due = watchedHsp150 ? new Date(watchedHsp150) : null;
+              if (hsp150Due) hsp150Due.setDate(hsp150Due.getDate() + 150);
+
+              const lock150 = !iatDue || today < iatDue;
+              const lock180 = !hsp150Due || today < hsp150Due;
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="iat_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>IAT Start Date</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="hsp_150_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>HSP 150-day Start</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" disabled={lock150} />
+                        </FormControl>
+                        {lock150 && (
+                          <p className="text-xs text-muted-foreground">
+                            {iatDue
+                              ? `Unlocks on ${iatDue.toLocaleDateString()} (after IAT 30-day due date)`
+                              : 'Set the IAT start date first'}
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="hsp_180_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>HSP 180-day Start</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" disabled={lock180} />
+                        </FormControl>
+                        {lock180 && (
+                          <p className="text-xs text-muted-foreground">
+                            {hsp150Due
+                              ? `Unlocks on ${hsp150Due.toLocaleDateString()} (after 150-day due date)`
+                              : 'Set the HSP 150-day start first'}
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              );
+            })()}
 
 
             <FormField
