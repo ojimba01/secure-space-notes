@@ -14,6 +14,7 @@ import { AssignmentHistory } from '@/components/AssignmentHistory';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { NotesSection } from '@/components/NotesSection';
 import { CalendarView } from '@/components/CalendarView';
+import { MilestoneTracker } from '@/components/MilestoneTracker';
 
 interface Client {
   id: string;
