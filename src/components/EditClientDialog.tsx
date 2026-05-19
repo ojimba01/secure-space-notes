@@ -291,19 +291,47 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="housing_stabilization_plan_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Housing Stabilization Plan Date</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="date" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="iat_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>IAT Start Date</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="hsp_150_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>HSP 150-day Start</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="hsp_180_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>HSP 180-day Start</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="date" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
 
             <FormField
