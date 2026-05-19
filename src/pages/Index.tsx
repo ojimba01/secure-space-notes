@@ -11,6 +11,15 @@ import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
 const Index = () => {
   const { user, loading } = useAuth();
   const [activeView, setActiveView] = useState<'clients' | 'notes' | 'calendar'>('clients');
+  const [clientsKey, setClientsKey] = useState(0);
+
+  const handleViewChange = (view: 'clients' | 'notes' | 'calendar') => {
+    if (view === 'clients') {
+      // Always reset client management to the list (clear selected client)
+      setClientsKey((k) => k + 1);
+    }
+    setActiveView(view);
+  };
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
