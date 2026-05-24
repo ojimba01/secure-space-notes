@@ -11,8 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Stethoscope } from 'lucide-react';
 
-// Set to null to allow any email domain, or specify domain like '@comprehensive-carenetwork.com'
-const ALLOWED_EMAIL_DOMAIN: string | null = '@comprehensive-carenetwork.com';
+// Set to null to allow any email domain, or specify domain like '@supportivecm.org'
+const ALLOWED_EMAIL_DOMAIN: string | null = '@supportivecm.org';
 
 const Auth = () => {
   const { user, signIn, signUp, loading } = useAuth();
@@ -137,7 +137,7 @@ const Auth = () => {
 
         <Card className="w-full">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Comprehensive Care Network</CardTitle>
+          <CardTitle className="text-2xl font-bold">SupportiveCM</CardTitle>
           <CardDescription>
             HIPAA-Compliant Case Management System
           </CardDescription>
@@ -246,7 +246,7 @@ const Auth = () => {
                     id="signup-email"
                     name="email"
                     type="email"
-                    placeholder="yourname@comprehensive-carenetwork.com"
+                    placeholder="yourname@supportivecm.org"
                     required
                   />
                 </div>
