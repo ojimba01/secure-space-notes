@@ -91,15 +91,20 @@ const Onboarding = () => {
   };
 
   const completeOnboarding = async () => {
-    if (!user) return;
-    
     try {
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !authUser) {
+        toast.error('Your session expired. Please sign in again.');
+        navigate('/auth');
+        return;
+      }
+
       const { error } = await supabase
         .from('user_onboarding')
-        .insert({ user_id: user.id });
+        .insert({ user_id: authUser.id });
 
       if (error && error.code !== '23505') throw error;
-      
+
       toast.success("Welcome! Let's get started.");
       navigate('/');
     } catch (error: any) {
