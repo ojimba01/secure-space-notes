@@ -137,7 +137,7 @@ const Auth = () => {
 
         <Card className="w-full">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">SupportiveCM</CardTitle>
+          <CardTitle className="text-2xl font-bold">Comprehensive Care Network</CardTitle>
           <CardDescription>
             HIPAA-Compliant Case Management System
           </CardDescription>
