@@ -145,6 +145,32 @@ const Admin = () => {
     }
   };
 
+  const handleToggleAdmin = async (employee: Employee) => {
+    const makeAdmin = !employee.user_roles?.some((r) => r.role === 'admin');
+    try {
+      const { error } = await supabase.rpc('set_employee_admin', {
+        _profile_id: employee.id,
+        _make_admin: makeAdmin,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: makeAdmin ? 'Admin granted' : 'Admin removed',
+        description: `${employee.first_name} ${employee.last_name} is ${makeAdmin ? 'now an admin' : 'no longer an admin'}.`,
+      });
+
+      fetchEmployees();
+    } catch (error: any) {
+      toast({
+        title: 'Error updating admin role',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+
   const fetchStats = async () => {
     try {
       const [clientsRes, notesRes, eventsRes, employeesRes, activeRes] = await Promise.all([
