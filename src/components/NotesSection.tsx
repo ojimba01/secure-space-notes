@@ -229,38 +229,63 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ clientId }) => {
       {loading ? (
         <div className="text-center py-8">Loading notes...</div>
       ) : (
-        <div className="space-y-4">
-          {notes.map((note) => (
-            <Card key={note.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{note.title}</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedNote(note)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    {new Date(note.visit_date).toLocaleDateString()}
-                  </div>
-                  {note.profiles && (
-                    <span>
-                      by {note.profiles.first_name} {note.profiles.last_name}
-                    </span>
+        <div className="space-y-6">
+          {Object.entries(
+            notes.reduce((groups, note) => {
+              const dateKey = new Date(note.visit_date).toLocaleDateString(undefined, {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              });
+              (groups[dateKey] = groups[dateKey] || []).push(note);
+              return groups;
+            }, {} as Record<string, ClientNote[]>)
+          ).map(([date, dateNotes]) => (
+            <div key={date} className="space-y-3">
+              <div className="flex items-center gap-2 sticky top-0 bg-background py-1 z-10">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-muted-foreground">{date}</h3>
+                <span className="text-xs text-muted-foreground">
+                  ({dateNotes.length} {dateNotes.length === 1 ? 'note' : 'notes'})
+                </span>
+              </div>
+              {dateNotes.map((note) => (
+                <Card
+                  key={note.id}
+                  className="cursor-pointer hover:shadow-md hover:border-primary/50 transition-all"
+                  onClick={() => setSelectedNote(note)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{note.title}</CardTitle>
+                      <Button variant="ghost" size="sm">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        {new Date(note.visit_date).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </div>
+                      {note.profiles && (
+                        <span>
+                          by {note.profiles.first_name} {note.profiles.last_name}
+                        </span>
+                      )}
+                    </div>
+                  </CardHeader>
+                  {note.content && (
+                    <CardContent>
+                      <p className="text-sm line-clamp-3">{note.content}</p>
+                    </CardContent>
                   )}
-                </div>
-              </CardHeader>
-              {note.content && (
-                <CardContent>
-                  <p className="text-sm line-clamp-3">{note.content}</p>
-                </CardContent>
-              )}
-            </Card>
+                </Card>
+              ))}
+            </div>
           ))}
           {notes.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
