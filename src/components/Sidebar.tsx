@@ -65,10 +65,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .single();
+        .in('role', ['admin', 'superadmin']);
       
-      setIsAdmin(!!data);
+      setIsAdmin(!!data && data.length > 0);
     } catch (error) {
       setIsAdmin(false);
     }
