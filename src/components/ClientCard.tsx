@@ -182,6 +182,26 @@ export const ClientCard: React.FC<ClientCardProps> = ({
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span>Intake: {new Date(client.intake_date).toLocaleDateString()}</span>
         </div>
+        <div className="pt-1 border-t mt-2">
+          <p className="text-xs font-semibold text-muted-foreground mb-1.5">Intake Milestones</p>
+          {milestones.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No milestones set</p>
+          ) : (
+            <div className="space-y-1.5">
+              {milestones.map((m) => (
+                <div key={m.label} className="flex items-center justify-between gap-2">
+                  <div className="text-xs">
+                    <span className="font-medium">{m.label}</span>
+                    <span className="text-muted-foreground"> · {m.due.toLocaleDateString()}</span>
+                  </div>
+                  <Badge className={`${m.status.className} border-transparent text-[10px] px-1.5 py-0 shrink-0`}>
+                    {m.status.label}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         {!selectionMode && (
           <div className="pt-2">
             <Button variant="outline" size="sm" className="w-full">
