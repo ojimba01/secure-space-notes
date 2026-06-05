@@ -32,6 +32,7 @@ const Admin = () => {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
@@ -55,14 +56,18 @@ const Admin = () => {
         .from('user_roles')
         .select('role')
         .eq('user_id', user?.id)
-        .eq('role', 'admin')
-        .single();
+        .in('role', ['admin', 'superadmin']);
 
-      if (error && error.code !== 'PGRST116') throw error;
-      
-      setIsAdmin(!!data);
-      
-      if (data) {
+      if (error) throw error;
+
+      const roles = (data || []).map((r) => r.role);
+      const admin = roles.length > 0;
+      const superadmin = roles.includes('superadmin');
+
+      setIsAdmin(admin);
+      setIsSuperadmin(superadmin);
+
+      if (admin) {
         fetchEmployees();
         fetchStats();
       }
@@ -106,7 +111,12 @@ const Admin = () => {
         };
       });
 
-      setEmployees(employeesWithRoles);
+      // Defense-in-depth: never list hidden super-admin accounts
+      const visibleEmployees = employeesWithRoles.filter(
+        (e) => !e.user_roles?.some((r) => r.role === 'superadmin'),
+      );
+
+      setEmployees(visibleEmployees);
     } catch (error: any) {
       toast({
         title: "Error fetching employees",
@@ -139,6 +149,32 @@ const Admin = () => {
       });
     }
   };
+
+  const handleToggleAdmin = async (employee: Employee) => {
+    const makeAdmin = !employee.user_roles?.some((r) => r.role === 'admin');
+    try {
+      const { error } = await supabase.rpc('set_employee_admin', {
+        _profile_id: employee.id,
+        _make_admin: makeAdmin,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: makeAdmin ? 'Admin granted' : 'Admin removed',
+        description: `${employee.first_name} ${employee.last_name} is ${makeAdmin ? 'now an admin' : 'no longer an admin'}.`,
+      });
+
+      fetchEmployees();
+    } catch (error: any) {
+      toast({
+        title: 'Error updating admin role',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   const fetchStats = async () => {
     try {
@@ -298,16 +334,26 @@ const Admin = () => {
                         </Badge>
                       ))}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        {employee.active ? 'Active' : 'Inactive'}
-                      </span>
-                      <Switch
-                        checked={employee.active}
-                        onCheckedChange={() => handleToggleUserStatus(employee)}
-                        disabled={employee.user_roles?.some(r => r.role === 'admin') && employee.active}
-                      />
-                    </div>
+                    {isSuperadmin && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Admin</span>
+                        <Switch
+                          checked={employee.user_roles?.some((r) => r.role === 'admin')}
+                          onCheckedChange={() => handleToggleAdmin(employee)}
+                        />
+                      </div>
+                    )}
+                    {isSuperadmin && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {employee.active ? 'Active' : 'Inactive'}
+                        </span>
+                        <Switch
+                          checked={employee.active}
+                          onCheckedChange={() => handleToggleUserStatus(employee)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

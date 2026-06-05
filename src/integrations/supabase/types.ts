@@ -570,14 +570,19 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_superadmin: { Args: { _user_id: string }; Returns: boolean }
       is_user_active: { Args: { _user_id: string }; Returns: boolean }
       reassign_client: {
         Args: { _client_id: string; _new_employee_id: string; _reason?: string }
         Returns: undefined
       }
+      set_employee_admin: {
+        Args: { _make_admin: boolean; _profile_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      app_role: "admin" | "employee"
+      app_role: "admin" | "employee" | "superadmin"
       audit_action:
         | "SELECT"
         | "INSERT"
@@ -714,7 +719,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "employee"],
+      app_role: ["admin", "employee", "superadmin"],
       audit_action: [
         "SELECT",
         "INSERT",
