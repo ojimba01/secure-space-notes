@@ -5,6 +5,7 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock } from
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AddCalendarEventDialog } from './AddCalendarEventDialog';
+import { EditCalendarEventDialog } from './EditCalendarEventDialog';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, startOfWeek, endOfWeek } from 'date-fns';
 
 interface CalendarEvent {
@@ -32,7 +33,14 @@ export const CaseManagerCalendar = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { toast } = useToast();
+
+  const openEditDialog = (event: CalendarEvent) => {
+    setEditingEvent(event);
+    setIsEditDialogOpen(true);
+  };
 
   useEffect(() => {
     fetchEvents();
