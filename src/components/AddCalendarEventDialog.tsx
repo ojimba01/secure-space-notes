@@ -35,6 +35,7 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
+  const [clientNotes, setClientNotes] = useState<{ id: string; title: string; visit_date: string }[]>([]);
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
 
@@ -45,7 +46,21 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
     event_type: 'client_visit',
     start_time: '',
     end_time: '',
+    note_id: '',
   });
+
+  useEffect(() => {
+    if (!formData.client_id) {
+      setClientNotes([]);
+      return;
+    }
+    supabase
+      .from('client_notes')
+      .select('id, title, visit_date')
+      .eq('client_id', formData.client_id)
+      .order('visit_date', { ascending: false })
+      .then(({ data }) => setClientNotes(data || []));
+  }, [formData.client_id]);
 
   useEffect(() => {
     if (open) {
