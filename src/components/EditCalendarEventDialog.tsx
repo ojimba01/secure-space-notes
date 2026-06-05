@@ -33,12 +33,19 @@ interface CalendarEvent {
   event_type: string;
   client_id?: string | null;
   employee_id?: string;
+  note_id?: string | null;
 }
 
 interface Client {
   id: string;
   first_name: string;
   last_name: string;
+}
+
+interface ClientNote {
+  id: string;
+  title: string;
+  visit_date: string;
 }
 
 interface EditCalendarEventDialogProps {
