@@ -170,6 +170,7 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
           event_type: formData.event_type,
           start_time: startDateTime.toISOString(),
           end_time: endDateTime.toISOString(),
+          note_id: formData.note_id || null,
         })
         .eq('id', event.id);
 
