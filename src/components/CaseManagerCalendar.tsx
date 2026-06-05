@@ -290,6 +290,13 @@ export const CaseManagerCalendar = () => {
         onOpenChange={setIsAddDialogOpen}
         onEventAdded={fetchEvents}
       />
+
+      <EditCalendarEventDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        event={editingEvent}
+        onEventUpdated={fetchEvents}
+      />
     </div>
   );
 };
