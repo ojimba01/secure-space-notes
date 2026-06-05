@@ -17,6 +17,7 @@ interface CalendarEvent {
   event_type: string;
   client_id: string | null;
   employee_id: string;
+  note_id?: string | null;
   profiles?: {
     first_name: string | null;
     last_name: string | null;
@@ -25,6 +26,9 @@ interface CalendarEvent {
     first_name: string;
     last_name: string;
   };
+  client_notes?: {
+    title: string;
+  } | null;
 }
 
 export const CaseManagerCalendar = () => {
