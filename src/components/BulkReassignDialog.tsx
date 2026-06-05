@@ -67,7 +67,13 @@ export const BulkReassignDialog: React.FC<BulkReassignDialogProps> = ({
 
       if (error) throw error;
 
-      let avail: Employee[] = activeProfiles || [];
+      const { data: superRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'superadmin');
+      const superIds = new Set((superRoles || []).map((r) => r.user_id));
+
+      let avail: Employee[] = (activeProfiles || []).filter((p) => !superIds.has(p.user_id));
 
       const { data: currentProfile } = await supabase
         .from('profiles')
