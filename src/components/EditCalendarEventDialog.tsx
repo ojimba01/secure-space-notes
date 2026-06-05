@@ -276,6 +276,30 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
             </Select>
           </div>
 
+          {formData.client_id && (
+            <div className="space-y-2">
+              <Label htmlFor="edit-note_id">Linked Note (Optional)</Label>
+              <Select
+                value={formData.note_id || 'none'}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, note_id: value === 'none' ? '' : value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Link a client note" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {clientNotes.map((note) => (
+                    <SelectItem key={note.id} value={note.id}>
+                      {note.title} ({new Date(note.visit_date).toLocaleDateString()})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Start Date *</Label>
