@@ -27,6 +27,9 @@ interface Stats {
   activeEmployees: number;
 }
 
+const getErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : 'An unexpected error occurred';
+
 const Admin = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
@@ -71,10 +74,10 @@ const Admin = () => {
         fetchEmployees();
         fetchStats();
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error checking permissions",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -117,10 +120,10 @@ const Admin = () => {
       );
 
       setEmployees(visibleEmployees);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error fetching employees",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -141,10 +144,11 @@ const Admin = () => {
       });
 
       fetchEmployees();
-    } catch (error: any) {
+      fetchStats();
+    } catch (error) {
       toast({
         title: "Error updating user status",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -166,10 +170,10 @@ const Admin = () => {
       });
 
       fetchEmployees();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error updating admin role',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -178,25 +182,37 @@ const Admin = () => {
 
   const fetchStats = async () => {
     try {
-      const [clientsRes, notesRes, eventsRes, employeesRes, activeRes] = await Promise.all([
+      const [clientsRes, notesRes, eventsRes, profilesRes, rolesRes] = await Promise.all([
         supabase.from('clients').select('id', { count: 'exact', head: true }),
         supabase.from('client_notes').select('id', { count: 'exact', head: true }),
         supabase.from('calendar_events').select('id', { count: 'exact', head: true }),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('active', true),
+        supabase.from('profiles').select('id, user_id, active'),
+        supabase.from('user_roles').select('user_id, role'),
       ]);
+
+      if (profilesRes.error) throw profilesRes.error;
+      if (rolesRes.error) throw rolesRes.error;
+
+      const superadminUserIds = new Set(
+        (rolesRes.data || [])
+          .filter((role) => role.role === 'superadmin')
+          .map((role) => role.user_id),
+      );
+      const employeeProfiles = (profilesRes.data || []).filter(
+        (profile) => !superadminUserIds.has(profile.user_id),
+      );
 
       setStats({
         totalClients: clientsRes.count || 0,
         totalNotes: notesRes.count || 0,
         totalEvents: eventsRes.count || 0,
-        totalEmployees: employeesRes.count || 0,
-        activeEmployees: activeRes.count || 0,
+        totalEmployees: employeeProfiles.length,
+        activeEmployees: employeeProfiles.filter((profile) => profile.active).length,
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error fetching stats",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
