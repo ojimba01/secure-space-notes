@@ -17,8 +17,50 @@ interface Client {
   status: string;
   intake_date: string;
   assigned_employee_id?: string | null;
+  iat_date?: string | null;
+  hsp_150_date?: string | null;
   hsp_180_date?: string | null;
 }
+
+const addDays = (dateStr: string, days: number) => {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+const today = () => {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return t;
+};
+
+type MilestoneStatus = {
+  label: string;
+  className: string;
+};
+
+const milestoneStatus = (dueDate: Date): MilestoneStatus => {
+  const diff = Math.ceil((dueDate.getTime() - today().getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) {
+    return {
+      label: `Overdue by ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'}`,
+      className: 'bg-destructive text-destructive-foreground',
+    };
+  }
+  if (diff === 0) {
+    return { label: 'Due today', className: 'bg-destructive text-destructive-foreground' };
+  }
+  if (diff <= 14) {
+    return {
+      label: `Due in ${diff} day${diff === 1 ? '' : 's'}`,
+      className: 'bg-amber-500 text-white dark:bg-amber-600',
+    };
+  }
+  return {
+    label: `Due in ${diff} days`,
+    className: 'bg-muted text-muted-foreground',
+  };
+};
 
 interface ClientCardProps {
   client: Client;
@@ -55,6 +97,17 @@ export const ClientCard: React.FC<ClientCardProps> = ({
     t.setHours(0, 0, 0, 0);
     return t >= due;
   })();
+
+  const milestones = [
+    { label: 'IAT (30-day)', start: client.iat_date, offset: 30 },
+    { label: 'HSP 150-day', start: client.hsp_150_date, offset: 150 },
+    { label: 'HSP 180-day', start: client.hsp_180_date, offset: 180 },
+  ]
+    .filter((m) => !!m.start)
+    .map((m) => {
+      const due = addDays(m.start as string, m.offset);
+      return { label: m.label, due, status: milestoneStatus(due) };
+    });
 
   return (
     <Card
@@ -128,6 +181,26 @@ export const ClientCard: React.FC<ClientCardProps> = ({
         <div className="flex items-center gap-2 text-sm">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span>Intake: {new Date(client.intake_date).toLocaleDateString()}</span>
+        </div>
+        <div className="pt-1 border-t mt-2">
+          <p className="text-xs font-semibold text-muted-foreground mb-1.5">Intake Milestones</p>
+          {milestones.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No milestones set</p>
+          ) : (
+            <div className="space-y-1.5">
+              {milestones.map((m) => (
+                <div key={m.label} className="flex items-center justify-between gap-2">
+                  <div className="text-xs">
+                    <span className="font-medium">{m.label}</span>
+                    <span className="text-muted-foreground"> · {m.due.toLocaleDateString()}</span>
+                  </div>
+                  <Badge className={`${m.status.className} border-transparent text-[10px] px-1.5 py-0 shrink-0`}>
+                    {m.status.label}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         {!selectionMode && (
           <div className="pt-2">
