@@ -79,8 +79,14 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
 
       if (activeError) throw activeError;
 
+      const { data: superRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'superadmin');
+      const superIds = new Set((superRoles || []).map((r) => r.user_id));
+
       let availableEmployees: Employee[] = (activeProfiles || []).filter(
-        (emp) => emp.id !== currentEmployeeId
+        (emp) => emp.id !== currentEmployeeId && !superIds.has((emp as any).user_id)
       );
 
       // Ensure the currently logged-in user (admin) can always assign themselves,
