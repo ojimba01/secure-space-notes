@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Calendar, Plus, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { calendarEventSchema } from '@/lib/validationSchemas';
+import { EditCalendarEventDialog } from '@/components/EditCalendarEventDialog';
 import { z } from 'zod';
 
 type CalendarEventFormData = z.infer<typeof calendarEventSchema>;
@@ -24,6 +25,8 @@ interface CalendarEvent {
   end_time: string;
   event_type: string;
   created_at: string;
+  client_id?: string | null;
+  employee_id?: string;
   profiles?: {
     first_name: string;
     last_name: string;
@@ -41,6 +44,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const form = useForm<CalendarEventFormData>({
     resolver: zodResolver(calendarEventSchema),
