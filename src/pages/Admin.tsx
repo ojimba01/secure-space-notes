@@ -111,7 +111,12 @@ const Admin = () => {
         };
       });
 
-      setEmployees(employeesWithRoles);
+      // Defense-in-depth: never list hidden super-admin accounts
+      const visibleEmployees = employeesWithRoles.filter(
+        (e) => !e.user_roles?.some((r) => r.role === 'superadmin'),
+      );
+
+      setEmployees(visibleEmployees);
     } catch (error: any) {
       toast({
         title: "Error fetching employees",
