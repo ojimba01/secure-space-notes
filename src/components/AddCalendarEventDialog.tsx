@@ -128,6 +128,7 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
         start_time: startDateTime.toISOString(),
         end_time: endDateTime.toISOString(),
         employee_id: profile.id,
+        note_id: formData.note_id || null,
       };
 
       const { error } = await supabase
@@ -152,6 +153,7 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
         event_type: 'client_visit',
         start_time: '',
         end_time: '',
+        note_id: '',
       });
       setStartDate(undefined);
       setEndDate(undefined);
