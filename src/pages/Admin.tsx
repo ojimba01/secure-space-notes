@@ -27,6 +27,9 @@ interface Stats {
   activeEmployees: number;
 }
 
+const getErrorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : 'An unexpected error occurred';
+
 const Admin = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
@@ -71,10 +74,10 @@ const Admin = () => {
         fetchEmployees();
         fetchStats();
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error checking permissions",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } finally {
@@ -117,10 +120,10 @@ const Admin = () => {
       );
 
       setEmployees(visibleEmployees);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error fetching employees",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
