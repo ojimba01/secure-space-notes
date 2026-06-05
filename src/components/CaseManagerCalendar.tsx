@@ -225,13 +225,17 @@ export const CaseManagerCalendar = () => {
             <div className="space-y-2">
               {todayEvents.length > 0 ? (
                 todayEvents.map(event => (
-                  <div key={event.id} className="p-2 rounded-lg bg-muted/50 space-y-1">
+                  <button
+                    key={event.id}
+                    onClick={() => openEditDialog(event)}
+                    className="w-full text-left p-2 rounded-lg bg-muted/50 space-y-1 hover:bg-muted transition-colors"
+                  >
                     <div className={`w-2 h-2 rounded-full inline-block mr-2 ${eventTypeColors[event.event_type]}`} />
                     <span className="text-sm font-medium">{event.title}</span>
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(event.start_time), 'h:mm a')} - {format(new Date(event.end_time), 'h:mm a')}
                     </p>
-                  </div>
+                  </button>
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground">No events today</p>
@@ -247,7 +251,11 @@ export const CaseManagerCalendar = () => {
             <div className="space-y-3">
               {selectedDayEvents.length > 0 ? (
                 selectedDayEvents.map(event => (
-                  <div key={event.id} className="p-3 rounded-lg border space-y-2">
+                  <button
+                    key={event.id}
+                    onClick={() => openEditDialog(event)}
+                    className="w-full text-left p-3 rounded-lg border space-y-2 hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                  >
                     <div className="flex items-start justify-between">
                       <div className="space-y-1 flex-1">
                         <div className="flex items-center gap-2">
@@ -267,7 +275,7 @@ export const CaseManagerCalendar = () => {
                         )}
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground">No events scheduled</p>
