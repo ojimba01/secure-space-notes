@@ -32,6 +32,7 @@ const Admin = () => {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
