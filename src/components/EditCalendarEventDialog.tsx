@@ -68,6 +68,8 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
 
+  const [clientNotes, setClientNotes] = useState<ClientNote[]>([]);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -75,6 +77,7 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
     event_type: 'client_visit',
     start_time: '',
     end_time: '',
+    note_id: '',
   });
 
   useEffect(() => {
@@ -96,9 +99,23 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
         event_type: event.event_type || 'client_visit',
         start_time: format(start, 'HH:mm'),
         end_time: format(end, 'HH:mm'),
+        note_id: event.note_id || '',
       });
     }
   }, [event]);
+
+  useEffect(() => {
+    if (!formData.client_id) {
+      setClientNotes([]);
+      return;
+    }
+    supabase
+      .from('client_notes')
+      .select('id, title, visit_date')
+      .eq('client_id', formData.client_id)
+      .order('visit_date', { ascending: false })
+      .then(({ data }) => setClientNotes(data || []));
+  }, [formData.client_id]);
 
   const fetchClients = async () => {
     try {
