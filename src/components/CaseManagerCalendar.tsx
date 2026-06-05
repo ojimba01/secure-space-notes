@@ -275,6 +275,11 @@ export const CaseManagerCalendar = () => {
                             Client: {event.clients.first_name} {event.clients.last_name}
                           </p>
                         )}
+                        {event.client_notes && (
+                          <p className="text-xs text-primary mt-1">
+                            📝 Linked note: {event.client_notes.title}
+                          </p>
+                        )}
                         {event.description && (
                           <p className="text-xs text-muted-foreground mt-1">{event.description}</p>
                         )}
