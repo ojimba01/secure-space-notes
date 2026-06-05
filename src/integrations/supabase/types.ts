@@ -73,6 +73,7 @@ export type Database = {
           end_time: string
           event_type: string | null
           id: string
+          note_id: string | null
           start_time: string
           title: string
         }
@@ -84,6 +85,7 @@ export type Database = {
           end_time: string
           event_type?: string | null
           id?: string
+          note_id?: string | null
           start_time: string
           title: string
         }
@@ -95,6 +97,7 @@ export type Database = {
           end_time?: string
           event_type?: string | null
           id?: string
+          note_id?: string | null
           start_time?: string
           title?: string
         }
@@ -111,6 +114,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "client_notes"
             referencedColumns: ["id"]
           },
         ]
