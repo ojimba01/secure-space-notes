@@ -61,7 +61,8 @@ export const CaseManagerCalendar = () => {
         .select(`
           *,
           profiles:employee_id (first_name, last_name),
-          clients:client_id (first_name, last_name)
+          clients:client_id (first_name, last_name),
+          client_notes:note_id (title)
         `)
         .gte('start_time', monthStart.toISOString())
         .lte('start_time', monthEnd.toISOString())
