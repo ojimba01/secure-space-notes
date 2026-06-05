@@ -329,16 +329,26 @@ const Admin = () => {
                         </Badge>
                       ))}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        {employee.active ? 'Active' : 'Inactive'}
-                      </span>
-                      <Switch
-                        checked={employee.active}
-                        onCheckedChange={() => handleToggleUserStatus(employee)}
-                        disabled={employee.user_roles?.some(r => r.role === 'admin') && employee.active}
-                      />
-                    </div>
+                    {isSuperadmin && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Admin</span>
+                        <Switch
+                          checked={employee.user_roles?.some((r) => r.role === 'admin')}
+                          onCheckedChange={() => handleToggleAdmin(employee)}
+                        />
+                      </div>
+                    )}
+                    {isSuperadmin && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {employee.active ? 'Active' : 'Inactive'}
+                        </span>
+                        <Switch
+                          checked={employee.active}
+                          onCheckedChange={() => handleToggleUserStatus(employee)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
