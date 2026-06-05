@@ -17,8 +17,50 @@ interface Client {
   status: string;
   intake_date: string;
   assigned_employee_id?: string | null;
+  iat_date?: string | null;
+  hsp_150_date?: string | null;
   hsp_180_date?: string | null;
 }
+
+const addDays = (dateStr: string, days: number) => {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+const today = () => {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return t;
+};
+
+type MilestoneStatus = {
+  label: string;
+  className: string;
+};
+
+const milestoneStatus = (dueDate: Date): MilestoneStatus => {
+  const diff = Math.ceil((dueDate.getTime() - today().getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) {
+    return {
+      label: `Overdue by ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'}`,
+      className: 'bg-destructive text-destructive-foreground',
+    };
+  }
+  if (diff === 0) {
+    return { label: 'Due today', className: 'bg-destructive text-destructive-foreground' };
+  }
+  if (diff <= 14) {
+    return {
+      label: `Due in ${diff} day${diff === 1 ? '' : 's'}`,
+      className: 'bg-amber-500 text-white dark:bg-amber-600',
+    };
+  }
+  return {
+    label: `Due in ${diff} days`,
+    className: 'bg-muted text-muted-foreground',
+  };
+};
 
 interface ClientCardProps {
   client: Client;
