@@ -145,10 +145,10 @@ const Admin = () => {
 
       fetchEmployees();
       fetchStats();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error updating user status",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
@@ -170,10 +170,10 @@ const Admin = () => {
       });
 
       fetchEmployees();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error updating admin role',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -209,10 +209,10 @@ const Admin = () => {
         totalEmployees: employeeProfiles.length,
         activeEmployees: employeeProfiles.filter((profile) => profile.active).length,
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error fetching stats",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     }
