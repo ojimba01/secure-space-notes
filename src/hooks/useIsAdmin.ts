@@ -20,10 +20,9 @@ export const useIsAdmin = () => {
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
-          .eq('role', 'admin')
-          .maybeSingle();
+          .in('role', ['admin', 'superadmin']);
 
-        setIsAdmin(!!data);
+        setIsAdmin(!!data && data.length > 0);
       } catch (error) {
         console.error('Error checking admin status:', error);
         setIsAdmin(false);
