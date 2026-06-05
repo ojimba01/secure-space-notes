@@ -56,14 +56,18 @@ const Admin = () => {
         .from('user_roles')
         .select('role')
         .eq('user_id', user?.id)
-        .eq('role', 'admin')
-        .single();
+        .in('role', ['admin', 'superadmin']);
 
-      if (error && error.code !== 'PGRST116') throw error;
-      
-      setIsAdmin(!!data);
-      
-      if (data) {
+      if (error) throw error;
+
+      const roles = (data || []).map((r) => r.role);
+      const admin = roles.length > 0;
+      const superadmin = roles.includes('superadmin');
+
+      setIsAdmin(admin);
+      setIsSuperadmin(superadmin);
+
+      if (admin) {
         fetchEmployees();
         fetchStats();
       }
