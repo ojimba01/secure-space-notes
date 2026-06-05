@@ -253,7 +253,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
       ) : (
         <div className="space-y-4">
           {events.map((event) => (
-            <Card key={event.id}>
+            <Card
+              key={event.id}
+              className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all"
+              onClick={() => {
+                setEditingEvent(event);
+                setIsEditDialogOpen(true);
+              }}
+            >
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
@@ -285,6 +292,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
           )}
         </div>
       )}
+
+      <EditCalendarEventDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        event={editingEvent ? { ...editingEvent, client_id: editingEvent.client_id ?? clientId, employee_id: editingEvent.employee_id ?? '' } : null}
+        onEventUpdated={fetchEvents}
+      />
     </div>
   );
 };
