@@ -141,6 +141,7 @@ const Admin = () => {
       });
 
       fetchEmployees();
+      fetchStats();
     } catch (error: any) {
       toast({
         title: "Error updating user status",
@@ -178,20 +179,32 @@ const Admin = () => {
 
   const fetchStats = async () => {
     try {
-      const [clientsRes, notesRes, eventsRes, employeesRes, activeRes] = await Promise.all([
+      const [clientsRes, notesRes, eventsRes, profilesRes, rolesRes] = await Promise.all([
         supabase.from('clients').select('id', { count: 'exact', head: true }),
         supabase.from('client_notes').select('id', { count: 'exact', head: true }),
         supabase.from('calendar_events').select('id', { count: 'exact', head: true }),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('active', true),
+        supabase.from('profiles').select('id, user_id, active'),
+        supabase.from('user_roles').select('user_id, role'),
       ]);
+
+      if (profilesRes.error) throw profilesRes.error;
+      if (rolesRes.error) throw rolesRes.error;
+
+      const superadminUserIds = new Set(
+        (rolesRes.data || [])
+          .filter((role) => role.role === 'superadmin')
+          .map((role) => role.user_id),
+      );
+      const employeeProfiles = (profilesRes.data || []).filter(
+        (profile) => !superadminUserIds.has(profile.user_id),
+      );
 
       setStats({
         totalClients: clientsRes.count || 0,
         totalNotes: notesRes.count || 0,
         totalEvents: eventsRes.count || 0,
-        totalEmployees: employeesRes.count || 0,
-        activeEmployees: activeRes.count || 0,
+        totalEmployees: employeeProfiles.length,
+        activeEmployees: employeeProfiles.filter((profile) => profile.active).length,
       });
     } catch (error: any) {
       toast({
