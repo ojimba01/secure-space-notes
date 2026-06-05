@@ -27,12 +27,12 @@ import { cn } from '@/lib/utils';
 interface CalendarEvent {
   id: string;
   title: string;
-  description: string | null;
+  description?: string | null;
   start_time: string;
   end_time: string;
   event_type: string;
-  client_id: string | null;
-  employee_id: string;
+  client_id?: string | null;
+  employee_id?: string;
 }
 
 interface Client {
