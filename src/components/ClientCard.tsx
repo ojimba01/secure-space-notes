@@ -98,6 +98,17 @@ export const ClientCard: React.FC<ClientCardProps> = ({
     return t >= due;
   })();
 
+  const milestones = [
+    { label: 'IAT (30-day)', start: client.iat_date, offset: 30 },
+    { label: 'HSP 150-day', start: client.hsp_150_date, offset: 150 },
+    { label: 'HSP 180-day', start: client.hsp_180_date, offset: 180 },
+  ]
+    .filter((m) => !!m.start)
+    .map((m) => {
+      const due = addDays(m.start as string, m.offset);
+      return { label: m.label, due, status: milestoneStatus(due) };
+    });
+
   return (
     <Card
       className={`hover:shadow-md transition-shadow cursor-pointer ${
