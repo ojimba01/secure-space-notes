@@ -181,6 +181,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
         <CardTitle>IAT & HSP Milestones</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {adminPanel}
         {hsp180Passed && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
