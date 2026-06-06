@@ -5,8 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, Lock, CheckCircle2, Circle } from 'lucide-react';
+import { AlertTriangle, Lock, CheckCircle2, Circle, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 interface MilestoneTrackerProps {
   clientId: string;
@@ -44,9 +45,15 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
   onUpdate,
 }) => {
   const { toast } = useToast();
+  const { isAdmin } = useIsAdmin();
   const [draft150, setDraft150] = useState('');
   const [draft180, setDraft180] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const [adminEditing, setAdminEditing] = useState(false);
+  const [adminIat, setAdminIat] = useState(iatDate ?? '');
+  const [adminHsp150, setAdminHsp150] = useState(hsp150Date ?? '');
+  const [adminHsp180, setAdminHsp180] = useState(hsp180Date ?? '');
 
   const iatDue = iatDate ? addDays(iatDate, 30) : null;
   const iatPassed = iatDue ? today() >= iatDue : false;
@@ -77,16 +84,88 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
     onUpdate();
   };
 
+  const saveAdminDates = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from('clients')
+      .update({
+        iat_date: adminIat || null,
+        hsp_150_date: adminHsp150 || null,
+        hsp_180_date: adminHsp180 || null,
+      })
+      .eq('id', clientId);
+    setSaving(false);
+
+    if (error) {
+      toast({ title: 'Error saving dates', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Milestone dates updated' });
+    setAdminEditing(false);
+    onUpdate();
+  };
+
+  const adminPanel = isAdmin ? (
+    <div className="rounded-md border border-dashed p-3 space-y-3 bg-muted/30">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold flex items-center gap-2">
+          <Pencil className="h-4 w-4" /> Admin: Edit Milestone Dates
+        </p>
+        {!adminEditing && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setAdminIat(iatDate ?? '');
+              setAdminHsp150(hsp150Date ?? '');
+              setAdminHsp180(hsp180Date ?? '');
+              setAdminEditing(true);
+            }}
+          >
+            Edit dates
+          </Button>
+        )}
+      </div>
+      {adminEditing && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground">IAT Start Date</label>
+              <Input type="date" value={adminIat} onChange={(e) => setAdminIat(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">HSP 150 Start Date</label>
+              <Input type="date" value={adminHsp150} onChange={(e) => setAdminHsp150(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">HSP 180 Start Date</label>
+              <Input type="date" value={adminHsp180} onChange={(e) => setAdminHsp180(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" disabled={saving} onClick={saveAdminDates}>
+              {saving ? 'Saving...' : 'Save dates'}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setAdminEditing(false)}>
+              Cancel
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  ) : null;
+
   if (!iatDate) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>IAT & HSP Milestones</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             No IAT start date set. Edit this client to add one.
           </p>
+          {adminPanel}
         </CardContent>
       </Card>
     );
@@ -102,6 +181,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
         <CardTitle>IAT & HSP Milestones</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {adminPanel}
         {hsp180Passed && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
