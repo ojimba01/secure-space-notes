@@ -161,10 +161,11 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
         <CardHeader>
           <CardTitle>IAT & HSP Milestones</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             No IAT start date set. Edit this client to add one.
           </p>
+          {adminPanel}
         </CardContent>
       </Card>
     );
