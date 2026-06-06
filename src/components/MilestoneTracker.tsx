@@ -5,8 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, Lock, CheckCircle2, Circle } from 'lucide-react';
+import { AlertTriangle, Lock, CheckCircle2, Circle, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 interface MilestoneTrackerProps {
   clientId: string;
