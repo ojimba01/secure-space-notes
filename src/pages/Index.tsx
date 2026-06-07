@@ -67,7 +67,7 @@ const Index = () => {
 
   return (
     <TutorialProvider>
-      <div className="flex min-h-screen bg-background w-full">
+      <div className="flex h-screen bg-background w-full overflow-hidden">
         <Sidebar activeView={activeView} onViewChange={handleViewChange} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
           {activeView === 'clients' ? (
