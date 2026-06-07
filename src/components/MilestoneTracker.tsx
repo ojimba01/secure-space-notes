@@ -29,7 +29,7 @@ const today = () => {
   return t;
 };
 
-const statusBadge = (dueDate: Date) => {
+const statusBadge = (dueDate: Date): { label: string; variant: 'destructive' | 'default' | 'secondary'; className?: string } => {
   const diff = Math.ceil((dueDate.getTime() - today().getTime()) / (1000 * 60 * 60 * 24));
   if (diff < 0) return { label: `Overdue by ${Math.abs(diff)} days`, variant: 'destructive' as const };
   if (diff === 0) return { label: 'Due today', variant: 'destructive' as const };
@@ -171,7 +171,11 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
     );
   }
 
-  const finishedBadge = { label: 'Finished', variant: 'secondary' as const };
+  const finishedBadge = {
+    label: 'Finished',
+    variant: 'secondary' as const,
+    className: 'bg-green-600 text-white border-transparent hover:bg-green-600 dark:bg-green-700',
+  };
 
   // A milestone is considered finished once the next milestone's date is entered
   const iatStatus = hsp150Date ? finishedBadge : iatDue ? statusBadge(iatDue) : null;
@@ -212,7 +216,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
             <div>
               <p className="text-xs text-muted-foreground">Due Date</p>
               <p className="text-sm">{iatDue!.toLocaleDateString()}</p>
-              {iatStatus && <Badge variant={iatStatus.variant} className="mt-1">{iatStatus.label}</Badge>}
+              {iatStatus && <Badge variant={iatStatus.variant} className={`mt-1 ${iatStatus.className ?? ''}`}>{iatStatus.label}</Badge>}
             </div>
           </div>
         </div>
@@ -265,7 +269,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
                 <div>
                   <p className="text-xs text-muted-foreground">Due Date (+150)</p>
                   <p className="text-sm">{hsp150Due!.toLocaleDateString()}</p>
-                  {hsp150Status && <Badge variant={hsp150Status.variant} className="mt-1">{hsp150Status.label}</Badge>}
+                  {hsp150Status && <Badge variant={hsp150Status.variant} className={`mt-1 ${hsp150Status.className ?? ''}`}>{hsp150Status.label}</Badge>}
                 </div>
               </div>
             )}
