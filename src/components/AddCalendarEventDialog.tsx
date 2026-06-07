@@ -277,13 +277,12 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="start_time">Start Time *</Label>
+              <Label htmlFor="start_time">Start Time</Label>
               <Input
                 id="start_time"
                 type="time"
                 value={formData.start_time}
                 onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                required
               />
             </div>
           </div>
