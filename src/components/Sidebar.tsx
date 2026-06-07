@@ -28,9 +28,10 @@ import { cn } from '@/lib/utils';
 interface SidebarProps {
   activeView: 'clients' | 'notes' | 'calendar';
   onViewChange: (view: 'clients' | 'notes' | 'calendar') => void;
+  onOpenNote?: (noteId: string) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOpenNote }) => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { startTutorial } = useTutorial();
