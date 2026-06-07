@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown } from 'lucide-react';
+import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
