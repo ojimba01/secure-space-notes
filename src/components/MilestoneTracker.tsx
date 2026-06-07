@@ -171,7 +171,11 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
     );
   }
 
-  const finishedBadge = { label: 'Finished', variant: 'secondary' as const };
+  const finishedBadge = {
+    label: 'Finished',
+    variant: 'secondary' as const,
+    className: 'bg-green-600 text-white border-transparent hover:bg-green-600 dark:bg-green-700',
+  };
 
   // A milestone is considered finished once the next milestone's date is entered
   const iatStatus = hsp150Date ? finishedBadge : iatDue ? statusBadge(iatDue) : null;
