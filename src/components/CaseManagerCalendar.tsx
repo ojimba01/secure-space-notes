@@ -190,11 +190,16 @@ export const CaseManagerCalendar = () => {
                 const isTodayDate = isToday(day);
 
                 return (
-                  <button
+                  <div
                     key={idx}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedDate(day)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') setSelectedDate(day);
+                    }}
                     className={`
-                      aspect-square p-2 rounded-lg border transition-all relative
+                      min-h-[5rem] sm:aspect-square p-1.5 rounded-lg border transition-all relative flex flex-col gap-1 text-left cursor-pointer
                       ${isCurrentMonth ? 'bg-background' : 'bg-muted/30 text-muted-foreground'}
                       ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border'}
                       ${isTodayDate ? 'bg-primary/10 font-semibold' : ''}
@@ -202,17 +207,28 @@ export const CaseManagerCalendar = () => {
                     `}
                   >
                     <span className="text-sm">{format(day, 'd')}</span>
-                    {dayEvents.length > 0 && (
-                      <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
-                        {dayEvents.slice(0, 3).map((event, i) => (
-                          <div
-                            key={i}
-                            className={`w-1.5 h-1.5 rounded-full ${eventTypeColors[event.event_type] || 'bg-gray-500'}`}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </button>
+                    <div className="flex flex-col gap-0.5 overflow-hidden">
+                      {dayEvents.slice(0, 2).map((event) => (
+                        <button
+                          key={event.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditDialog(event);
+                          }}
+                          className="flex items-center gap-1 w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight hover:bg-muted transition-colors"
+                          title={event.title}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${eventTypeColors[event.event_type] || 'bg-gray-500'}`} />
+                          <span className="truncate">{event.title}</span>
+                        </button>
+                      ))}
+                      {dayEvents.length > 2 && (
+                        <span className="text-[10px] text-muted-foreground px-1">
+                          +{dayEvents.length - 2} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
             </div>
