@@ -27,6 +27,9 @@ interface Client {
   date_of_birth?: string;
   notes?: string;
   assigned_employee_id?: string | null;
+  iat_date?: string | null;
+  hsp_150_date?: string | null;
+  hsp_180_date?: string | null;
 }
 
 interface ManagerOption {
@@ -34,6 +37,53 @@ interface ManagerOption {
   name: string;
   active: boolean;
 }
+
+type MilestoneStatusKey = 'overdue' | 'due_soon' | 'on_track' | 'finished' | 'none';
+
+const MILESTONE_STATUS_OPTIONS: { key: MilestoneStatusKey; label: string }[] = [
+  { key: 'overdue', label: 'Overdue' },
+  { key: 'due_soon', label: 'Due soon (≤14 days)' },
+  { key: 'on_track', label: 'On track' },
+  { key: 'finished', label: 'Finished' },
+  { key: 'none', label: 'No milestone' },
+];
+
+const addDaysTo = (dateStr: string, days: number) => {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+const startOfToday = () => {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return t;
+};
+
+// Returns the milestone status bucket for a client, mirroring ClientCard/MilestoneTracker logic.
+const getMilestoneStatus = (client: Client): MilestoneStatusKey => {
+  const milestones = [
+    { start: client.iat_date, offset: 30, finished: !!client.hsp_150_date },
+    { start: client.hsp_150_date, offset: 150, finished: !!client.hsp_180_date },
+    { start: client.hsp_180_date, offset: 180, finished: false },
+  ].filter((m) => !!m.start);
+
+  if (milestones.length === 0) return 'none';
+
+  // Active = not finished milestones
+  const active = milestones.filter((m) => !m.finished);
+  if (active.length === 0) return 'finished';
+
+  const today = startOfToday().getTime();
+  let due_soon = false;
+  for (const m of active) {
+    const due = addDaysTo(m.start as string, m.offset).getTime();
+    const diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return 'overdue';
+    if (diffDays <= 14) due_soon = true;
+  }
+  return due_soon ? 'due_soon' : 'on_track';
+};
 
 export const ClientManagement: React.FC = () => {
   const { user } = useAuth();
