@@ -269,7 +269,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
                 <div>
                   <p className="text-xs text-muted-foreground">Due Date (+150)</p>
                   <p className="text-sm">{hsp150Due!.toLocaleDateString()}</p>
-                  {hsp150Status && <Badge variant={hsp150Status.variant} className="mt-1">{hsp150Status.label}</Badge>}
+                  {hsp150Status && <Badge variant={hsp150Status.variant} className={`mt-1 ${hsp150Status.className ?? ''}`}>{hsp150Status.label}</Badge>}
                 </div>
               </div>
             )}
