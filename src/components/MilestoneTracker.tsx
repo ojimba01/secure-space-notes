@@ -216,7 +216,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
             <div>
               <p className="text-xs text-muted-foreground">Due Date</p>
               <p className="text-sm">{iatDue!.toLocaleDateString()}</p>
-              {iatStatus && <Badge variant={iatStatus.variant} className="mt-1">{iatStatus.label}</Badge>}
+              {iatStatus && <Badge variant={iatStatus.variant} className={`mt-1 ${iatStatus.className ?? ''}`}>{iatStatus.label}</Badge>}
             </div>
           </div>
         </div>
