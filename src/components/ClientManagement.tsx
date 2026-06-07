@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown } from 'lucide-react';
+import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
@@ -27,6 +27,9 @@ interface Client {
   date_of_birth?: string;
   notes?: string;
   assigned_employee_id?: string | null;
+  iat_date?: string | null;
+  hsp_150_date?: string | null;
+  hsp_180_date?: string | null;
 }
 
 interface ManagerOption {
@@ -34,6 +37,53 @@ interface ManagerOption {
   name: string;
   active: boolean;
 }
+
+type MilestoneStatusKey = 'overdue' | 'due_soon' | 'on_track' | 'finished' | 'none';
+
+const MILESTONE_STATUS_OPTIONS: { key: MilestoneStatusKey; label: string }[] = [
+  { key: 'overdue', label: 'Overdue' },
+  { key: 'due_soon', label: 'Due soon (≤14 days)' },
+  { key: 'on_track', label: 'On track' },
+  { key: 'finished', label: 'Finished' },
+  { key: 'none', label: 'No milestone' },
+];
+
+const addDaysTo = (dateStr: string, days: number) => {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
+const startOfToday = () => {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return t;
+};
+
+// Returns the milestone status bucket for a client, mirroring ClientCard/MilestoneTracker logic.
+const getMilestoneStatus = (client: Client): MilestoneStatusKey => {
+  const milestones = [
+    { start: client.iat_date, offset: 30, finished: !!client.hsp_150_date },
+    { start: client.hsp_150_date, offset: 150, finished: !!client.hsp_180_date },
+    { start: client.hsp_180_date, offset: 180, finished: false },
+  ].filter((m) => !!m.start);
+
+  if (milestones.length === 0) return 'none';
+
+  // Active = not finished milestones
+  const active = milestones.filter((m) => !m.finished);
+  if (active.length === 0) return 'finished';
+
+  const today = startOfToday().getTime();
+  let due_soon = false;
+  for (const m of active) {
+    const due = addDaysTo(m.start as string, m.offset).getTime();
+    const diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return 'overdue';
+    if (diffDays <= 14) due_soon = true;
+  }
+  return due_soon ? 'due_soon' : 'on_track';
+};
 
 export const ClientManagement: React.FC = () => {
   const { user } = useAuth();
@@ -52,6 +102,10 @@ export const ClientManagement: React.FC = () => {
   const [selectedManagerIds, setSelectedManagerIds] = useState<Set<string>>(new Set());
   const [includeUnassigned, setIncludeUnassigned] = useState(true);
   const [filterInitialized, setFilterInitialized] = useState(false);
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<MilestoneStatusKey>>(
+    new Set(MILESTONE_STATUS_OPTIONS.map((o) => o.key)),
+  );
+
 
   useEffect(() => {
     if (user) {
@@ -123,14 +177,47 @@ export const ClientManagement: React.FC = () => {
       client.member_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       client.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    if (!isAdmin) return matchesSearch;
+    const matchesStatus = selectedStatuses.has(getMilestoneStatus(client));
+
+    if (!isAdmin) return matchesSearch && matchesStatus;
 
     const matchesManager = client.assigned_employee_id
       ? selectedManagerIds.has(client.assigned_employee_id)
       : includeUnassigned;
 
-    return matchesSearch && matchesManager;
+    return matchesSearch && matchesManager && matchesStatus;
   });
+
+  const allStatusesSelected = selectedStatuses.size === MILESTONE_STATUS_OPTIONS.length;
+  const noStatusSelected = selectedStatuses.size === 0;
+
+  const toggleStatus = (key: MilestoneStatusKey) => {
+    setSelectedStatuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleAllStatuses = () => {
+    setSelectedStatuses((prev) =>
+      prev.size === MILESTONE_STATUS_OPTIONS.length
+        ? new Set()
+        : new Set(MILESTONE_STATUS_OPTIONS.map((o) => o.key)),
+    );
+  };
+
+  const statusButtonLabel = (() => {
+    if (allStatusesSelected) return 'All statuses';
+    if (noStatusSelected) return 'No status';
+    if (selectedStatuses.size === 1) {
+      const key = Array.from(selectedStatuses)[0];
+      return MILESTONE_STATUS_OPTIONS.find((o) => o.key === key)?.label ?? '1 status';
+    }
+    return `${selectedStatuses.size} statuses`;
+  })();
+
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -300,7 +387,39 @@ export const ClientManagement: React.FC = () => {
             </PopoverContent>
           </Popover>
         )}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="shrink-0">
+              <Flag className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">{statusButtonLabel}</span>
+              <ChevronDown className="h-4 w-4 md:ml-1 opacity-60" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-64 p-0">
+            <div className="p-3 border-b">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={allStatusesSelected}
+                  onCheckedChange={toggleAllStatuses}
+                />
+                <span className="text-sm font-medium">All statuses</span>
+              </label>
+            </div>
+            <div className="p-3 space-y-2">
+              {MILESTONE_STATUS_OPTIONS.map((opt) => (
+                <label key={opt.key} className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={selectedStatuses.has(opt.key)}
+                    onCheckedChange={() => toggleStatus(opt.key)}
+                  />
+                  <span className="text-sm">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
+
 
       {loading ? (
         <div className="text-center py-8">Loading clients...</div>
@@ -326,9 +445,11 @@ export const ClientManagement: React.FC = () => {
             <div className="col-span-full text-center py-8 text-muted-foreground">
               {isAdmin && noneFilterSelected
                 ? 'No managers selected — pick at least one to see clients.'
+                : noStatusSelected
+                ? 'No milestone statuses selected — pick at least one to see clients.'
                 : searchTerm
                 ? 'No clients found matching your search.'
-                : 'No clients found. Add your first client to get started.'}
+                : 'No clients found matching the selected filters.'}
             </div>
           )}
         </div>
