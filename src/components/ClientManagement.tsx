@@ -387,7 +387,39 @@ export const ClientManagement: React.FC = () => {
             </PopoverContent>
           </Popover>
         )}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="shrink-0">
+              <Flag className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">{statusButtonLabel}</span>
+              <ChevronDown className="h-4 w-4 md:ml-1 opacity-60" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-64 p-0">
+            <div className="p-3 border-b">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={allStatusesSelected}
+                  onCheckedChange={toggleAllStatuses}
+                />
+                <span className="text-sm font-medium">All statuses</span>
+              </label>
+            </div>
+            <div className="p-3 space-y-2">
+              {MILESTONE_STATUS_OPTIONS.map((opt) => (
+                <label key={opt.key} className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={selectedStatuses.has(opt.key)}
+                    onCheckedChange={() => toggleStatus(opt.key)}
+                  />
+                  <span className="text-sm">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
+
 
       {loading ? (
         <div className="text-center py-8">Loading clients...</div>
