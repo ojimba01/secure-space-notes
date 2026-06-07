@@ -74,17 +74,17 @@ const Index = () => {
   return (
     <TutorialProvider>
       <div className="flex h-screen bg-background w-full overflow-hidden">
-        <Sidebar activeView={activeView} onViewChange={handleViewChange} />
+        <Sidebar activeView={activeView} onViewChange={handleViewChange} onOpenNote={handleOpenNote} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
           {activeView === 'clients' ? (
             <ClientManagement key={clientsKey} />
           ) : activeView === 'calendar' ? (
             <CaseManagerCalendar />
           ) : (
-            <div className="p-3 md:p-6">
-              <h1 className="text-xl md:text-3xl font-bold mb-3 md:mb-6">Notes</h1>
-              <NoteEditor />
-            </div>
+            <NotesHub
+              selectedNoteId={selectedNoteId}
+              onClearSelected={() => setSelectedNoteId(null)}
+            />
           )}
         </main>
       </div>
