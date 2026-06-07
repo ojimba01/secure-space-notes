@@ -115,19 +115,27 @@ export const ClientManagement: React.FC = () => {
 
   useEffect(() => {
     const fetchManagers = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, active');
+      const [{ data }, { data: roleRows }] = await Promise.all([
+        supabase.from('profiles').select('id, user_id, first_name, last_name, active'),
+        supabase.from('user_roles').select('user_id, role'),
+      ]);
       if (data) {
+        const superAdminUserIds = new Set(
+          (roleRows ?? [])
+            .filter((r) => r.role === 'superadmin')
+            .map((r) => r.user_id),
+        );
         const map = new Map<string, string>();
         const options: ManagerOption[] = [];
-        data.forEach((p) => {
-          const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
-          if (name) {
-            map.set(p.id, name);
-            options.push({ id: p.id, name, active: p.active });
-          }
-        });
+        data
+          .filter((p) => !superAdminUserIds.has(p.user_id))
+          .forEach((p) => {
+            const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
+            if (name) {
+              map.set(p.id, name);
+              options.push({ id: p.id, name, active: p.active });
+            }
+          });
         options.sort((a, b) => a.name.localeCompare(b.name));
         setManagerMap(map);
         setManagerOptions(options);
@@ -138,6 +146,7 @@ export const ClientManagement: React.FC = () => {
         }
       }
     };
+
     if (isAdmin) fetchManagers();
   }, [isAdmin]);
 
