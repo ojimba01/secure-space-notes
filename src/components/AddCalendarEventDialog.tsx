@@ -97,14 +97,12 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
 
       if (!profile) throw new Error('Profile not found');
 
-      // Construct start and end times
-      if (!startDate || !formData.start_time) {
-        throw new Error('Please select a start date and time');
+      // Construct start time (defaults to now if not provided)
+      const startDateTime = startDate ? new Date(startDate) : new Date();
+      if (formData.start_time) {
+        const [startHour, startMinute] = formData.start_time.split(':');
+        startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0, 0);
       }
-
-      const [startHour, startMinute] = formData.start_time.split(':');
-      const startDateTime = new Date(startDate);
-      startDateTime.setHours(parseInt(startHour), parseInt(startMinute));
 
       let endDateTime: Date;
       if (endDate && formData.end_time) {
@@ -113,12 +111,13 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
         endDateTime.setHours(parseInt(endHour), parseInt(endMinute));
       } else if (formData.end_time) {
         const [endHour, endMinute] = formData.end_time.split(':');
-        endDateTime = new Date(startDate);
+        endDateTime = new Date(startDateTime);
         endDateTime.setHours(parseInt(endHour), parseInt(endMinute));
       } else {
         // Default to 1 hour after start
         endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
       }
+
 
       const eventData = {
         title: formData.title,
