@@ -124,11 +124,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
       <Overlay />
       <div className={cn(
         "bg-card border-r border-border p-3 md:p-6 space-y-3 md:space-y-6 flex flex-col overflow-y-auto",
-        "fixed md:relative inset-y-0 left-0 z-40",
+        "fixed md:sticky md:top-0 inset-y-0 left-0 z-40",
         "w-[85vw] max-w-72 md:w-80 md:max-w-none",
         "transform transition-transform duration-300 ease-in-out",
         isMobile && !isOpen ? "-translate-x-full" : "translate-x-0",
-        isMobile ? "top-14" : "top-0" // Account for mobile toolbar
+        isMobile ? "top-14" : "top-0", // Account for mobile toolbar
+        "md:h-screen"
       )}>
         {/* Header - hidden on mobile since toolbar shows it */}
         <div className="space-y-3 md:pt-0">
