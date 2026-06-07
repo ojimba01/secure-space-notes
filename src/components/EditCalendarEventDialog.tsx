@@ -97,8 +97,8 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
         description: event.description || '',
         client_id: event.client_id || '',
         event_type: event.event_type || 'client_visit',
-        start_time: format(start, 'HH:mm'),
-        end_time: format(end, 'HH:mm'),
+        start_time: '',
+        end_time: '',
         note_id: event.note_id || '',
       });
     }
@@ -136,13 +136,15 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
 
     setLoading(true);
     try {
-      if (!startDate || !formData.start_time) {
-        throw new Error('Please select a start date and time');
+      if (!startDate) {
+        throw new Error('Please select a start date');
       }
 
-      const [startHour, startMinute] = formData.start_time.split(':');
       const startDateTime = new Date(startDate);
-      startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0, 0);
+      if (formData.start_time) {
+        const [startHour, startMinute] = formData.start_time.split(':');
+        startDateTime.setHours(parseInt(startHour), parseInt(startMinute), 0, 0);
+      }
 
       let endDateTime: Date;
       if (endDate && formData.end_time) {
@@ -302,7 +304,7 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Start Date *</Label>
+              <Label>Start Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -323,13 +325,12 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-start_time">Start Time *</Label>
+              <Label htmlFor="edit-start_time">Start Time</Label>
               <Input
                 id="edit-start_time"
                 type="time"
                 value={formData.start_time}
                 onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                required
               />
             </div>
           </div>
