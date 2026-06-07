@@ -177,14 +177,47 @@ export const ClientManagement: React.FC = () => {
       client.member_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       client.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    if (!isAdmin) return matchesSearch;
+    const matchesStatus = selectedStatuses.has(getMilestoneStatus(client));
+
+    if (!isAdmin) return matchesSearch && matchesStatus;
 
     const matchesManager = client.assigned_employee_id
       ? selectedManagerIds.has(client.assigned_employee_id)
       : includeUnassigned;
 
-    return matchesSearch && matchesManager;
+    return matchesSearch && matchesManager && matchesStatus;
   });
+
+  const allStatusesSelected = selectedStatuses.size === MILESTONE_STATUS_OPTIONS.length;
+  const noStatusSelected = selectedStatuses.size === 0;
+
+  const toggleStatus = (key: MilestoneStatusKey) => {
+    setSelectedStatuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleAllStatuses = () => {
+    setSelectedStatuses((prev) =>
+      prev.size === MILESTONE_STATUS_OPTIONS.length
+        ? new Set()
+        : new Set(MILESTONE_STATUS_OPTIONS.map((o) => o.key)),
+    );
+  };
+
+  const statusButtonLabel = (() => {
+    if (allStatusesSelected) return 'All statuses';
+    if (noStatusSelected) return 'No status';
+    if (selectedStatuses.size === 1) {
+      const key = Array.from(selectedStatuses)[0];
+      return MILESTONE_STATUS_OPTIONS.find((o) => o.key === key)?.label ?? '1 status';
+    }
+    return `${selectedStatuses.size} statuses`;
+  })();
+
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
