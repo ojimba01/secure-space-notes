@@ -28,9 +28,10 @@ import { cn } from '@/lib/utils';
 interface SidebarProps {
   activeView: 'clients' | 'notes' | 'calendar';
   onViewChange: (view: 'clients' | 'notes' | 'calendar') => void;
+  onOpenNote?: (noteId: string) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOpenNote }) => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { startTutorial } = useTutorial();
@@ -247,7 +248,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           <div className="space-y-2">
             {recentNotes.length > 0 ? (
               recentNotes.map(note => (
-                <Card key={note.id} className="p-3 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => handleViewChange('notes')}>
+                <Card key={note.id} className="p-3 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => {
+                  if (onOpenNote) {
+                    onOpenNote(note.id);
+                    if (isMobile) setIsOpen(false);
+                  } else {
+                    handleViewChange('notes');
+                  }
+                }}>
                   <div className="space-y-1">
                     <h4 className="font-medium text-sm line-clamp-2">{note.title}</h4>
                     <p className="text-xs text-muted-foreground">{new Date(note.created_at).toLocaleDateString()}</p>

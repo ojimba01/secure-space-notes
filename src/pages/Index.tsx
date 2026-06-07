@@ -5,13 +5,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from "@/components/Sidebar";
 import { ClientManagement } from "@/components/ClientManagement";
-import { NoteEditor } from "@/components/NoteEditor";
+import { NotesHub } from "@/components/NotesHub";
 import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
 
 const Index = () => {
   const { user, loading } = useAuth();
   const [activeView, setActiveView] = useState<'clients' | 'notes' | 'calendar'>('clients');
   const [clientsKey, setClientsKey] = useState(0);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
   const handleViewChange = (view: 'clients' | 'notes' | 'calendar') => {
     if (view === 'clients') {
@@ -19,6 +20,11 @@ const Index = () => {
       setClientsKey((k) => k + 1);
     }
     setActiveView(view);
+  };
+
+  const handleOpenNote = (noteId: string) => {
+    setSelectedNoteId(noteId);
+    setActiveView('notes');
   };
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -68,17 +74,17 @@ const Index = () => {
   return (
     <TutorialProvider>
       <div className="flex h-screen bg-background w-full overflow-hidden">
-        <Sidebar activeView={activeView} onViewChange={handleViewChange} />
+        <Sidebar activeView={activeView} onViewChange={handleViewChange} onOpenNote={handleOpenNote} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
           {activeView === 'clients' ? (
             <ClientManagement key={clientsKey} />
           ) : activeView === 'calendar' ? (
             <CaseManagerCalendar />
           ) : (
-            <div className="p-3 md:p-6">
-              <h1 className="text-xl md:text-3xl font-bold mb-3 md:mb-6">Notes</h1>
-              <NoteEditor />
-            </div>
+            <NotesHub
+              selectedNoteId={selectedNoteId}
+              onClearSelected={() => setSelectedNoteId(null)}
+            />
           )}
         </main>
       </div>
