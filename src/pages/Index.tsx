@@ -5,13 +5,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from "@/components/Sidebar";
 import { ClientManagement } from "@/components/ClientManagement";
-import { NoteEditor } from "@/components/NoteEditor";
+import { NotesHub } from "@/components/NotesHub";
 import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
 
 const Index = () => {
   const { user, loading } = useAuth();
   const [activeView, setActiveView] = useState<'clients' | 'notes' | 'calendar'>('clients');
   const [clientsKey, setClientsKey] = useState(0);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
   const handleViewChange = (view: 'clients' | 'notes' | 'calendar') => {
     if (view === 'clients') {
@@ -19,6 +20,11 @@ const Index = () => {
       setClientsKey((k) => k + 1);
     }
     setActiveView(view);
+  };
+
+  const handleOpenNote = (noteId: string) => {
+    setSelectedNoteId(noteId);
+    setActiveView('notes');
   };
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
