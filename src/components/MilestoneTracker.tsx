@@ -29,7 +29,7 @@ const today = () => {
   return t;
 };
 
-const statusBadge = (dueDate: Date) => {
+const statusBadge = (dueDate: Date): { label: string; variant: 'destructive' | 'default' | 'secondary'; className?: string } => {
   const diff = Math.ceil((dueDate.getTime() - today().getTime()) / (1000 * 60 * 60 * 24));
   if (diff < 0) return { label: `Overdue by ${Math.abs(diff)} days`, variant: 'destructive' as const };
   if (diff === 0) return { label: 'Due today', variant: 'destructive' as const };
