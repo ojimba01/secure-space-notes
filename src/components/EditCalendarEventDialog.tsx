@@ -257,7 +257,7 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-client_id">Client (Optional)</Label>
+            <Label htmlFor="edit-client_id">Client</Label>
             <Select
               value={formData.client_id || 'none'}
               onValueChange={(value) =>
