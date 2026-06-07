@@ -445,9 +445,11 @@ export const ClientManagement: React.FC = () => {
             <div className="col-span-full text-center py-8 text-muted-foreground">
               {isAdmin && noneFilterSelected
                 ? 'No managers selected — pick at least one to see clients.'
+                : noStatusSelected
+                ? 'No milestone statuses selected — pick at least one to see clients.'
                 : searchTerm
                 ? 'No clients found matching your search.'
-                : 'No clients found. Add your first client to get started.'}
+                : 'No clients found matching the selected filters.'}
             </div>
           )}
         </div>
