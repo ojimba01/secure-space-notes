@@ -15,6 +15,15 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
 
+const LON_OPTIONS = ['Low Level', 'High Level'] as const;
+
+const NJ_COUNTIES = [
+  'ATLANTIC', 'BERGEN', 'BURLINGTON', 'CAMDEN', 'CAPE MAY', 'CUMBERLAND',
+  'ESSEX', 'GLOUCESTER', 'HUDSON', 'HUNTERDON', 'MERCER', 'MIDDLESEX',
+  'MONMOUTH', 'MORRIS', 'OCEAN', 'PASSAIC', 'SALEM', 'SOMERSET',
+  'SUSSEX', 'UNION', 'WARREN',
+] as const;
+
 const clientSchema = z.object({
   first_name: z.string().trim().min(1, 'First name is required').max(100),
   last_name: z.string().trim().min(1, 'Last name is required').max(100),
@@ -23,6 +32,8 @@ const clientSchema = z.object({
   address: z.string().trim().max(500).optional(),
   member_id: z.string().trim().max(50).optional(),
   insurance: z.string().trim().max(50).optional(),
+  level_of_need: z.string().trim().max(50).optional(),
+  county: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
   iat_date: z.string().optional(),
   hsp_150_date: z.string().optional(),
