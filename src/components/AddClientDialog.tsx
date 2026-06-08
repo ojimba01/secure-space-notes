@@ -333,6 +333,11 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                 </FormItem>
               )}
             />
+
+            <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
+              You can set scheduled visit availability date ranges after creating the client, by editing their record.
+            </p>
+
             
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
