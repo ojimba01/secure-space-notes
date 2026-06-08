@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { NotesSection } from '@/components/NotesSection';
 import { CalendarView } from '@/components/CalendarView';
 import { MilestoneTracker } from '@/components/MilestoneTracker';
+import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 
 interface Client {
   id: string;
