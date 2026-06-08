@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { NotesSection } from '@/components/NotesSection';
 import { CalendarView } from '@/components/CalendarView';
 import { MilestoneTracker } from '@/components/MilestoneTracker';
+import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 
 interface Client {
   id: string;
@@ -242,11 +243,12 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
+            <TabsTrigger value="availability">Availability</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
 
@@ -276,6 +278,11 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           <TabsContent value="calendar">
             <CalendarView clientId={client.id} />
           </TabsContent>
+
+          <TabsContent value="availability">
+            <VisitAvailabilitySection clientId={client.id} />
+          </TabsContent>
+
 
           <TabsContent value="history">
             <AssignmentHistory clientId={client.id} />
