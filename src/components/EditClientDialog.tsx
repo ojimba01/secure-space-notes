@@ -116,6 +116,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           address: data.address || null,
           member_id: data.member_id || null,
           insurance: data.insurance || null,
+          level_of_need: data.level_of_need || null,
+          county: data.county || null,
           date_of_birth: data.date_of_birth || null,
           iat_date: data.iat_date || null,
           hsp_150_date: data.hsp_150_date || null,
