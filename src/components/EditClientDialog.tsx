@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 
 const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
 
@@ -451,6 +452,11 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
             </div>
           </form>
         </Form>
+
+        <div className="pt-2">
+          <VisitAvailabilitySection clientId={client.id} />
+        </div>
+
       </DialogContent>
     </Dialog>
   );
