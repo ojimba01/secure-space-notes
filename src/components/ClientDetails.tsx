@@ -212,6 +212,18 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                 <p>{client.insurance}</p>
               </div>
             )}
+            {client.level_of_need && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Level of Need (LoN)</p>
+                <p>{client.level_of_need}</p>
+              </div>
+            )}
+            {client.county && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">County</p>
+                <p>{client.county}</p>
+              </div>
+            )}
             {isAdmin && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Current Case Manager</p>
