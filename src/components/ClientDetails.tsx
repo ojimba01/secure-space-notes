@@ -25,6 +25,8 @@ interface Client {
   address?: string;
   member_id?: string;
   insurance?: string;
+  level_of_need?: string;
+  county?: string;
   status: string;
   intake_date: string;
   date_of_birth?: string;
@@ -208,6 +210,18 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Insurance</p>
                 <p>{client.insurance}</p>
+              </div>
+            )}
+            {client.level_of_need && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Level of Need (LoN)</p>
+                <p>{client.level_of_need}</p>
+              </div>
+            )}
+            {client.county && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">County</p>
+                <p>{client.county}</p>
               </div>
             )}
             {isAdmin && (

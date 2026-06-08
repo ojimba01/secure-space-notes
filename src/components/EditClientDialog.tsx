@@ -15,6 +15,15 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
 
+const LON_OPTIONS = ['Low Level', 'High Level'] as const;
+
+const NJ_COUNTIES = [
+  'ATLANTIC', 'BERGEN', 'BURLINGTON', 'CAMDEN', 'CAPE MAY', 'CUMBERLAND',
+  'ESSEX', 'GLOUCESTER', 'HUDSON', 'HUNTERDON', 'MERCER', 'MIDDLESEX',
+  'MONMOUTH', 'MORRIS', 'OCEAN', 'PASSAIC', 'SALEM', 'SOMERSET',
+  'SUSSEX', 'UNION', 'WARREN',
+] as const;
+
 const clientSchema = z.object({
   first_name: z.string().trim().min(1, 'First name is required').max(100),
   last_name: z.string().trim().min(1, 'Last name is required').max(100),
@@ -23,6 +32,8 @@ const clientSchema = z.object({
   address: z.string().trim().max(500).optional(),
   member_id: z.string().trim().max(50).optional(),
   insurance: z.string().trim().max(50).optional(),
+  level_of_need: z.string().trim().max(50).optional(),
+  county: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
   iat_date: z.string().optional(),
   hsp_150_date: z.string().optional(),
@@ -42,6 +53,8 @@ interface Client {
   address?: string;
   member_id?: string;
   insurance?: string;
+  level_of_need?: string;
+  county?: string;
   status: string;
   intake_date: string;
   date_of_birth?: string;
@@ -78,6 +91,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       address: client.address || '',
       member_id: client.member_id || '',
       insurance: client.insurance || '',
+      level_of_need: client.level_of_need || '',
+      county: client.county || '',
       date_of_birth: client.date_of_birth || '',
       iat_date: client.iat_date || '',
       hsp_150_date: client.hsp_150_date || '',
@@ -101,6 +116,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           address: data.address || null,
           member_id: data.member_id || null,
           insurance: data.insurance || null,
+          level_of_need: data.level_of_need || null,
+          county: data.county || null,
           date_of_birth: data.date_of_birth || null,
           iat_date: data.iat_date || null,
           hsp_150_date: data.hsp_150_date || null,
@@ -245,6 +262,52 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                       </FormControl>
                       <SelectContent>
                         {INSURANCE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="level_of_need"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Level of Need (LoN)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select level of need" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {LON_OPTIONS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="county"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>County</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select county" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {NJ_COUNTIES.map((opt) => (
                           <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                         ))}
                       </SelectContent>
