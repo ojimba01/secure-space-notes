@@ -258,6 +258,53 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
               />
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="level_of_need"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Level of Need (LoN)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select level of need" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {LON_OPTIONS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="county"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>County</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select county" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {NJ_COUNTIES.map((opt) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
               name="iat_date"
