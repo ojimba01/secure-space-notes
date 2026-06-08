@@ -53,6 +53,8 @@ interface Client {
   address?: string;
   member_id?: string;
   insurance?: string;
+  level_of_need?: string;
+  county?: string;
   status: string;
   intake_date: string;
   date_of_birth?: string;
