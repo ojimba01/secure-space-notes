@@ -452,6 +452,11 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
             </div>
           </form>
         </Form>
+
+        <div className="pt-2">
+          <VisitAvailabilitySection clientId={client.id} />
+        </div>
+
       </DialogContent>
     </Dialog>
   );
