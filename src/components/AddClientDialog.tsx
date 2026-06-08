@@ -65,7 +65,10 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       address: '',
       member_id: '',
       insurance: '',
+      level_of_need: '',
+      county: '',
       date_of_birth: '',
+
       iat_date: '',
       notes: '',
     },
