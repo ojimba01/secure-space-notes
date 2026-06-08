@@ -279,6 +279,11 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             <CalendarView clientId={client.id} />
           </TabsContent>
 
+          <TabsContent value="availability">
+            <VisitAvailabilitySection clientId={client.id} />
+          </TabsContent>
+
+
           <TabsContent value="history">
             <AssignmentHistory clientId={client.id} />
           </TabsContent>
