@@ -290,6 +290,7 @@ export type Database = {
         Row: {
           address: string | null
           assigned_employee_id: string | null
+          county: string | null
           created_at: string | null
           date_of_birth: string | null
           email: string | null
@@ -302,6 +303,7 @@ export type Database = {
           insurance: string | null
           intake_date: string | null
           last_name: string
+          level_of_need: string | null
           member_id: string | null
           notes: string | null
           phone: string | null
@@ -311,6 +313,7 @@ export type Database = {
         Insert: {
           address?: string | null
           assigned_employee_id?: string | null
+          county?: string | null
           created_at?: string | null
           date_of_birth?: string | null
           email?: string | null
@@ -323,6 +326,7 @@ export type Database = {
           insurance?: string | null
           intake_date?: string | null
           last_name: string
+          level_of_need?: string | null
           member_id?: string | null
           notes?: string | null
           phone?: string | null
@@ -332,6 +336,7 @@ export type Database = {
         Update: {
           address?: string | null
           assigned_employee_id?: string | null
+          county?: string | null
           created_at?: string | null
           date_of_birth?: string | null
           email?: string | null
@@ -344,6 +349,7 @@ export type Database = {
           insurance?: string | null
           intake_date?: string | null
           last_name?: string
+          level_of_need?: string | null
           member_id?: string | null
           notes?: string | null
           phone?: string | null
