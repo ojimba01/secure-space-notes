@@ -411,6 +411,55 @@ const Admin = () => {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog
+        open={!!pendingDeactivation}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDeactivation(null);
+            setConfirmText('');
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate employee?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to deactivate{' '}
+              <span className="font-semibold">
+                {pendingDeactivation?.first_name} {pendingDeactivation?.last_name}
+              </span>
+              . All clients currently assigned to them will become unassigned and
+              will need to be reassigned. This preserves their records but removes
+              their access. Type <span className="font-semibold">Confirm</span> to
+              proceed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="confirm-deactivate">Type "Confirm"</Label>
+            <Input
+              id="confirm-deactivate"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="Confirm"
+              autoComplete="off"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={confirmText !== 'Confirm'}
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDeactivation();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
