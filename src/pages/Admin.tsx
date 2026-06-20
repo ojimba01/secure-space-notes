@@ -184,6 +184,8 @@ const Admin = () => {
     setPendingDeactivation(null);
     setConfirmText('');
   };
+
+  const handleToggleAdmin = async (employee: Employee) => {
     const makeAdmin = !employee.user_roles?.some((r) => r.role === 'admin');
     try {
       const { error } = await supabase.rpc('set_employee_admin', {
