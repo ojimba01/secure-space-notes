@@ -168,7 +168,22 @@ const Admin = () => {
     }
   };
 
-  const handleToggleAdmin = async (employee: Employee) => {
+  const handleStatusSwitch = (employee: Employee) => {
+    if (employee.active) {
+      // Deactivating is destructive — require typed confirmation
+      setConfirmText('');
+      setPendingDeactivation(employee);
+    } else {
+      handleToggleUserStatus(employee);
+    }
+  };
+
+  const confirmDeactivation = async () => {
+    if (!pendingDeactivation) return;
+    await handleToggleUserStatus(pendingDeactivation);
+    setPendingDeactivation(null);
+    setConfirmText('');
+  };
     const makeAdmin = !employee.user_roles?.some((r) => r.role === 'admin');
     try {
       const { error } = await supabase.rpc('set_employee_admin', {
