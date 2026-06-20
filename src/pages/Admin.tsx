@@ -397,7 +397,7 @@ const Admin = () => {
                         </span>
                         <Switch
                           checked={employee.active}
-                          onCheckedChange={() => handleToggleUserStatus(employee)}
+                          onCheckedChange={() => handleStatusSwitch(employee)}
                         />
                       </div>
                     )}
