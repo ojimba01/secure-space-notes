@@ -1,28 +1,46 @@
 ## Goal
-Add a "Milestone status" filter to the Clients page so users can quickly see who is overdue, who has an upcoming milestone, who is finished, and who has no milestone set. Works alongside the existing search and manager filters.
 
-## Milestone status categories
-Each client is evaluated against its IAT / HSP-150 / HSP-180 dates using the same logic already used in `ClientCard` and `MilestoneTracker`. A client is bucketed into one or more of these statuses:
+Two related fixes around employee offboarding:
 
-- **Overdue** — has an active (not-yet-finished) milestone whose due date is in the past.
-- **Due soon** — has an active milestone due within the next 14 days (not overdue).
-- **On track** — has an active milestone due more than 14 days out.
-- **Finished** — its latest applicable milestone is complete (next date entered / HSP-180 reached) with nothing currently overdue.
-- **No milestone** — no IAT/HSP dates set at all.
+1. **DB cleanup + ongoing safeguard** — make sure no client is silently assigned to an inactive (deactivated) employee, now and in the future.
+2. **Deactivation confirmation** — require an admin to type the word `Confirm` before an employee is actually deactivated.
 
-"Finished" reuses the rule we just added: a milestone counts as finished once the next milestone's date is entered.
+Current data note: right now the three inactive employees happen to have 0 assigned clients, so the live database is already clean. The real risk is *future* deactivations. This plan adds an automatic unassign on deactivation so it never breaks again, plus a one-time sweep for any stragglers.
 
-## UX
-- Add a second dropdown next to the existing manager filter (a `Popover` + `Button`, matching the current styling), labeled by the active selection (e.g. "All statuses", "Overdue", "2 selected").
-- Multi-select via checkboxes with an "All" toggle, mirroring the existing manager-filter pattern. Default = all statuses selected (no filtering).
-- Visible to everyone (employees and admins), since both see client cards. The manager filter stays admin-only.
-- Empty-state message updates to mention status filtering when a status filter hides everything.
+## Part 1 — Unassign clients when an employee is deactivated
 
-## Technical changes (single file: `src/components/ClientManagement.tsx`)
-- Extend the local `Client` interface with `iat_date`, `hsp_150_date`, `hsp_180_date` (already returned by `select('*')`).
-- Add a helper `getMilestoneStatus(client)` returning the set of status keys for a client, using `addDays` + a 14-day threshold (same constants as `ClientCard`).
-- Add `selectedStatuses` state (Set of status keys) plus toggle/all helpers like the manager filter.
-- Fold a `matchesStatus` check into the existing `filteredClients` filter.
-- Render the new status `Popover` dropdown in the filter row and a status button label.
+Update the `deactivate_user` database function so that, in addition to setting the profile inactive, it clears `assigned_employee_id` on every client currently assigned to that employee (sets them to NULL / unassigned). This guarantees a deactivated staff member can never remain silently attached to cases. Those clients then surface in the existing "Unassigned" filter on the Clients page, ready for an admin to bulk-reassign.
 
-No backend, schema, or RLS changes — all logic is client-side on data already fetched.
+The unassignment is logged via the existing audit trigger on the `clients` table, preserving the audit trail (the employee profile itself is never deleted, per project rules).
+
+A one-time corrective sweep is included in the same migration: any client whose `assigned_employee_id` points to an inactive profile is set to NULL.
+
+```text
+deactivate_user(_profile_id):
+  - require superadmin (unchanged)
+  - block self-deactivation (unchanged)
+  - UPDATE clients SET assigned_employee_id = NULL
+      WHERE assigned_employee_id = _profile_id
+  - UPDATE profiles SET active = false WHERE id = _profile_id
+```
+
+## Part 2 — "Confirm" type-to-confirm safeguard
+
+In `src/pages/Admin.tsx`, deactivating currently happens instantly when the admin flips the Active switch. Add an `AlertDialog` that opens when an admin tries to **deactivate** an active employee (activating stays one click).
+
+The dialog will:
+- Warn that the employee will be deactivated and **all their assigned clients will become unassigned**, showing the employee's name.
+- Contain a text input. The destructive "Deactivate" button stays disabled until the admin types `Confirm` exactly.
+- On confirm, run the existing `deactivate_user` RPC and refresh the list.
+
+No confirmation is required for re-activating someone.
+
+## Technical details
+
+- **Migration**: `CREATE OR REPLACE FUNCTION public.deactivate_user` with the added client-unassign step, plus a one-time `UPDATE clients SET assigned_employee_id = NULL` for clients assigned to any inactive profile.
+- **`src/pages/Admin.tsx`**: add `AlertDialog` (already available in `src/components/ui/alert-dialog.tsx`) state (`pendingDeactivation`, `confirmText`), gate the Switch's `onCheckedChange` so deactivation opens the dialog instead of calling the RPC directly, and only call `handleToggleUserStatus` after the typed confirmation matches.
+
+## Out of scope
+
+- No changes to how clients are reassigned (existing BulkReassign/Reassign dialogs already handle that).
+- No deletion of employee records (project rule: deactivate only).
