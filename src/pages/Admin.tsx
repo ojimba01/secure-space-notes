@@ -51,6 +51,8 @@ const Admin = () => {
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
+  const [pendingDeactivation, setPendingDeactivation] = useState<Employee | null>(null);
+  const [confirmText, setConfirmText] = useState('');
   const [stats, setStats] = useState<Stats>({
     totalClients: 0,
     totalNotes: 0,
