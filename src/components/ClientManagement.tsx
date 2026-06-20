@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag } from 'lucide-react';
+import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
@@ -434,6 +434,18 @@ export const ClientManagement: React.FC = () => {
         </Popover>
       </div>
 
+      <div className="flex items-center gap-3">
+        <div className="inline-flex items-center gap-2 bg-secondary/40 border rounded-full px-4 py-1.5 text-sm font-medium">
+          <Users className="h-4 w-4 text-primary" />
+          <span>
+            {filteredClients.length} patient{filteredClients.length !== 1 ? 's' : ''}
+            {searchTerm || !allFilterSelected || !allStatusesSelected ? ' matched' : ' total'}
+          </span>
+        </div>
+        {filteredClients.length === 0 && !loading && (
+          <span className="text-xs text-muted-foreground">Adjust your filters or search to see results</span>
+        )}
+      </div>
 
       {loading ? (
         <div className="text-center py-8">Loading clients...</div>
