@@ -190,8 +190,13 @@ export const ClientManagement: React.FC = () => {
 
     if (!isAdmin) return matchesSearch && matchesStatus;
 
-    const matchesManager = client.assigned_employee_id
-      ? selectedManagerIds.has(client.assigned_employee_id)
+    // A client counts as "assigned" only if its manager is a valid, selectable
+    // manager option. Clients assigned to removed/superadmin accounts (e.g. the
+    // old admin) are treated as unassigned so they remain filterable & visible.
+    const hasValidManager =
+      !!client.assigned_employee_id && managerMap.has(client.assigned_employee_id);
+    const matchesManager = hasValidManager
+      ? selectedManagerIds.has(client.assigned_employee_id as string)
       : includeUnassigned;
 
     return matchesSearch && matchesManager && matchesStatus;
