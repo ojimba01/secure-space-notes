@@ -16,6 +16,7 @@ import { NotesSection } from '@/components/NotesSection';
 import { CalendarView } from '@/components/CalendarView';
 import { MilestoneTracker } from '@/components/MilestoneTracker';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 interface Client {
   id: string;
