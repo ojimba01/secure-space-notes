@@ -289,8 +289,10 @@ export const ClientManagement: React.FC = () => {
     if (noneFilterSelected) return 'None selected';
     if (selectedCount === 1) {
       if (includeUnassigned) return 'Unassigned only';
-      const onlyId = Array.from(selectedManagerIds)[0];
-      return managerMap.get(onlyId) ?? '1 manager';
+      const onlyId = activeManagerOptions
+        .map((o) => o.id)
+        .find((id) => selectedManagerIds.has(id));
+      return (onlyId && managerMap.get(onlyId)) ?? '1 manager';
     }
     return `${selectedCount} selected`;
   })();
