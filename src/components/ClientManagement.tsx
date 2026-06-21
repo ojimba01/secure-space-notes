@@ -140,7 +140,7 @@ export const ClientManagement: React.FC = () => {
         setManagerMap(map);
         setManagerOptions(options);
         if (!filterInitialized) {
-          setSelectedManagerIds(new Set(options.map((o) => o.id)));
+          setSelectedManagerIds(new Set(options.filter((o) => o.active).map((o) => o.id)));
           setIncludeUnassigned(true);
           setFilterInitialized(true);
         }
