@@ -54,31 +54,13 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { isAdmin } = useIsAdmin();
   const [caseManagerName, setCaseManagerName] = useState<string | null>(null);
 
   useEffect(() => {
-    checkAdminStatus();
     fetchCaseManager();
   }, [user, client.assigned_employee_id]);
 
-  const checkAdminStatus = async () => {
-    if (!user) return;
-    
-    try {
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-      
-      setIsAdmin(!!data);
-    } catch (error) {
-      // User is not admin
-      setIsAdmin(false);
-    }
-  };
 
   const fetchCaseManager = async () => {
     if (!client.assigned_employee_id) {
