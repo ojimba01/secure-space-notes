@@ -337,7 +337,13 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               <CheckSquare className="h-4 w-4 md:mr-2" />
               <span className="hidden md:inline">Select</span>
             </Button>
-            <Button size="sm" className="md:size-default" onClick={() => setShowAddDialog(true)}>
+            <Button
+              size="sm"
+              className="md:size-default"
+              onClick={() => setShowAddDialog(true)}
+              disabled={!isAdmin && behindCount >= 5}
+              title={!isAdmin && behindCount >= 5 ? "You're behind on 5+ clients. Complete those touch-points to drop below 5 before adding new clients." : undefined}
+            >
               <Plus className="h-4 w-4 md:mr-2" />
               <span className="hidden md:inline">Add Client</span>
             </Button>
