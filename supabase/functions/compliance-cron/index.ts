@@ -178,6 +178,8 @@ async function dailyRecompute() {
     else if (r.is_new_client && daysBetween(r.month, today) < 7) status = 'on_track';
     else status = isFeasible(req, contacts, today) ? 'on_track' : 'behind';
     await supabase.from('client_month_compliance').update({ status, plan_dates: plan }).eq('id', r.id);
+    const { data: cl } = await supabase.from('clients').select('first_name, last_name').eq('id', r.client_id).maybeSingle();
+    await syncSuggested(r.client_id, r.employee_id, plan, contacts, `${cl?.first_name ?? ''} ${cl?.last_name ?? ''}`.trim());
     updated++;
   }
   return { updated };
