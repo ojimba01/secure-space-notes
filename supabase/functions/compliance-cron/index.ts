@@ -79,7 +79,7 @@ function isFeasible(req: any, contacts: any[], today: string) {
 async function activeClients() {
   const { data } = await supabase
     .from('clients')
-    .select('id, level_of_need, assigned_employee_id, created_at, status')
+    .select('id, first_name, last_name, level_of_need, assigned_employee_id, created_at, status')
     .eq('status', 'active');
   return data ?? [];
 }
