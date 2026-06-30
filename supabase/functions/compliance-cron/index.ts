@@ -141,12 +141,14 @@ async function monthlyGenerate() {
     if (existing) continue;
     const isNew = !!c.created_at && daysBetween('2026-07-01', c.created_at.slice(0, 10)) >= 0 &&
       firstOfMonth(c.created_at.slice(0, 10)) === month;
+    const plan = generatePlanDates(tier, month);
     await supabase.from('client_month_compliance').insert({
       client_id: c.id, employee_id: c.assigned_employee_id, month, lon_tier: tier,
       required_contacts: req.requiredContacts, required_in_person: req.requiredInPerson,
       required_activities: req.requiredActivities, is_new_client: isNew,
-      plan_dates: generatePlanDates(tier, month),
+      plan_dates: plan,
     });
+    await syncSuggested(c.id, c.assigned_employee_id, plan, [], `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim());
     created++;
   }
   return { created };
