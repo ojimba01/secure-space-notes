@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useMyCompliance } from '@/hooks/useMyCompliance';
 
 interface Client {
   id: string;
