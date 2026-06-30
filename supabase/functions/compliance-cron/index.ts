@@ -107,6 +107,27 @@ async function sendEmail(subject: string, html: string) {
 }
 
 // ---- jobs ----
+// keep lighter "suggested" touch-point calendar entries in sync with plan_dates
+async function syncSuggested(clientId: string, employeeId: string | null, plan: any[], contacts: any[], clientName: string) {
+  if (!employeeId) return;
+  await supabase.from('calendar_events').delete().eq('client_id', clientId).eq('event_type', 'touchpoint_suggested');
+  const today = todayAgency();
+  const rows = (plan ?? [])
+    .filter((p) => p.date && daysBetween(today, p.date) >= 0 && !contacts.some((c) => c.contact_date === p.date))
+    .map((p) => {
+      const iso = `${p.date}T12:00:00.000Z`;
+      return {
+        title: `Suggested ${p.modality === 'in_person' ? 'in-person' : p.modality} touch-point — ${clientName}`,
+        event_type: 'touchpoint_suggested',
+        employee_id: employeeId,
+        client_id: clientId,
+        start_time: iso,
+        end_time: iso,
+      };
+    });
+  if (rows.length) await supabase.from('calendar_events').insert(rows);
+}
+
 async function monthlyGenerate() {
   const today = todayAgency();
   const month = firstOfMonth(today);
