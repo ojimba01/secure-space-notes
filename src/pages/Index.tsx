@@ -7,16 +7,30 @@ import { Sidebar } from "@/components/Sidebar";
 import { ClientManagement } from "@/components/ClientManagement";
 import { NotesHub } from "@/components/NotesHub";
 import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
+import { MyMonth } from "@/components/MyMonth";
+import { useIsAdmin } from '@/hooks/useIsAdmin';
+
+type View = 'compliance' | 'clients' | 'notes' | 'calendar';
 
 const Index = () => {
   const { user, loading } = useAuth();
-  const [activeView, setActiveView] = useState<'clients' | 'notes' | 'calendar'>('clients');
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const [activeView, setActiveView] = useState<View>('compliance');
   const [clientsKey, setClientsKey] = useState(0);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [initialClientId, setInitialClientId] = useState<string | null>(null);
+  const [defaultApplied, setDefaultApplied] = useState(false);
 
-  const handleViewChange = (view: 'clients' | 'notes' | 'calendar') => {
+  // Non-admins land on My Month; admins keep the Clients list as their landing here.
+  useEffect(() => {
+    if (!adminLoading && !defaultApplied) {
+      setActiveView(isAdmin ? 'clients' : 'compliance');
+      setDefaultApplied(true);
+    }
+  }, [adminLoading, isAdmin, defaultApplied]);
+
+  const handleViewChange = (view: View) => {
     if (view === 'clients') {
-      // Always reset client management to the list (clear selected client)
       setClientsKey((k) => k + 1);
     }
     setActiveView(view);
@@ -26,6 +40,12 @@ const Index = () => {
     setSelectedNoteId(noteId);
     setActiveView('notes');
   };
+
+  const handleOpenClient = (clientId: string) => {
+    setInitialClientId(clientId);
+    setActiveView('clients');
+  };
+
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
@@ -39,7 +59,7 @@ const Index = () => {
 
   const checkOnboardingStatus = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('user_onboarding')
@@ -48,8 +68,6 @@ const Index = () => {
         .maybeSingle();
 
       if (error) throw error;
-      
-      // If no record exists, user needs onboarding
       setNeedsOnboarding(!data);
     } catch (error) {
       console.error('Error checking onboarding status:', error);
@@ -76,8 +94,14 @@ const Index = () => {
       <div className="flex h-screen bg-background w-full overflow-hidden">
         <Sidebar activeView={activeView} onViewChange={handleViewChange} onOpenNote={handleOpenNote} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
-          {activeView === 'clients' ? (
-            <ClientManagement key={clientsKey} />
+          {activeView === 'compliance' ? (
+            <MyMonth onOpenClient={handleOpenClient} />
+          ) : activeView === 'clients' ? (
+            <ClientManagement
+              key={clientsKey}
+              initialClientId={initialClientId}
+              onConsumeInitialClient={() => setInitialClientId(null)}
+            />
           ) : activeView === 'calendar' ? (
             <CaseManagerCalendar />
           ) : (
