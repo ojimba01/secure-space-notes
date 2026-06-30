@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { NotesSection } from '@/components/NotesSection';
 import { CalendarView } from '@/components/CalendarView';
 import { MilestoneTracker } from '@/components/MilestoneTracker';
+import { ComplianceCard } from '@/components/ComplianceCard';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 
