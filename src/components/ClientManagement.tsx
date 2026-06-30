@@ -85,10 +85,16 @@ const getMilestoneStatus = (client: Client): MilestoneStatusKey => {
   return due_soon ? 'due_soon' : 'on_track';
 };
 
-export const ClientManagement: React.FC = () => {
+interface ClientManagementProps {
+  initialClientId?: string | null;
+  onConsumeInitialClient?: () => void;
+}
+
+export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClientId, onConsumeInitialClient }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
+  const { behindCount } = useMyCompliance();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
