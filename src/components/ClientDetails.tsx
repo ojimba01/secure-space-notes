@@ -225,6 +225,17 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           onUpdate={onUpdate}
         />
 
+        {client.status === 'active' && (
+          <ComplianceCard
+            clientId={client.id}
+            clientName={`${client.first_name} ${client.last_name}`}
+            levelOfNeed={client.level_of_need}
+            assignedEmployeeId={client.assigned_employee_id}
+            clientCreatedAt={(client as any).created_at}
+            onChanged={onUpdate}
+          />
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
