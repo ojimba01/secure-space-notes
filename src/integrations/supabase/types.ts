@@ -184,6 +184,54 @@ export type Database = {
           },
         ]
       }
+      client_contacts: {
+        Row: {
+          calendar_event_id: string | null
+          client_id: string
+          contact_date: string
+          created_at: string
+          employee_id: string
+          id: string
+          modality: string
+          notes: string | null
+        }
+        Insert: {
+          calendar_event_id?: string | null
+          client_id: string
+          contact_date?: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          modality: string
+          notes?: string | null
+        }
+        Update: {
+          calendar_event_id?: string | null
+          client_id?: string
+          contact_date?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          modality?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_contacts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_files: {
         Row: {
           client_id: string
@@ -232,6 +280,75 @@ export type Database = {
           {
             foreignKeyName: "client_files_uploaded_by_fkey"
             columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_month_compliance: {
+        Row: {
+          activities_done: Json
+          client_id: string
+          created_at: string
+          employee_id: string | null
+          id: string
+          is_new_client: boolean
+          lon_tier: string
+          month: string
+          plan_dates: Json
+          required_activities: number
+          required_contacts: number
+          required_in_person: number
+          status: string
+          summary_note: string | null
+          updated_at: string
+        }
+        Insert: {
+          activities_done?: Json
+          client_id: string
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          is_new_client?: boolean
+          lon_tier: string
+          month: string
+          plan_dates?: Json
+          required_activities?: number
+          required_contacts?: number
+          required_in_person?: number
+          status?: string
+          summary_note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activities_done?: Json
+          client_id?: string
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          is_new_client?: boolean
+          lon_tier?: string
+          month?: string
+          plan_dates?: Json
+          required_activities?: number
+          required_contacts?: number
+          required_in_person?: number
+          status?: string
+          summary_note?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_month_compliance_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_month_compliance_employee_id_fkey"
+            columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -403,6 +520,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      compliance_escalations: {
+        Row: {
+          claimed_complete: Json
+          client_id: string | null
+          created_at: string
+          employee_id: string | null
+          id: string
+          kind: string
+          outstanding: Json
+          period: string
+          status: string
+        }
+        Insert: {
+          claimed_complete?: Json
+          client_id?: string | null
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          kind: string
+          outstanding?: Json
+          period: string
+          status?: string
+        }
+        Update: {
+          claimed_complete?: Json
+          client_id?: string | null
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          kind?: string
+          outstanding?: Json
+          period?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_escalations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_escalations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compliance_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
       }
       onboarding_content: {
         Row: {
@@ -614,6 +803,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_assigned_to_client: {
+        Args: { _client_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
       is_user_active: { Args: { _user_id: string }; Returns: boolean }
       reassign_client: {
