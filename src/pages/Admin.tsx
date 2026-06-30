@@ -337,6 +337,9 @@ const Admin = () => {
           </Card>
         </div>
 
+        {/* Compliance escalations */}
+        <ComplianceEscalations />
+
         {/* Employees List */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
