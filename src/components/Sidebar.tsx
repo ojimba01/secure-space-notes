@@ -26,8 +26,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
-  activeView: 'clients' | 'notes' | 'calendar';
-  onViewChange: (view: 'clients' | 'notes' | 'calendar') => void;
+  activeView: 'compliance' | 'clients' | 'notes' | 'calendar';
+  onViewChange: (view: 'compliance' | 'clients' | 'notes' | 'calendar') => void;
   onOpenNote?: (noteId: string) => void;
 }
 
@@ -48,7 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
   }, [user]);
 
   // Close sidebar when view changes on mobile
-  const handleViewChange = (view: 'clients' | 'notes' | 'calendar') => {
+  const handleViewChange = (view: 'compliance' | 'clients' | 'notes' | 'calendar') => {
     onViewChange(view);
     if (isMobile) setIsOpen(false);
   };
