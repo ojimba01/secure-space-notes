@@ -121,6 +121,16 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   }, [user]);
 
   useEffect(() => {
+    if (initialClientId && clients.length) {
+      const match = clients.find((c) => c.id === initialClientId);
+      if (match) {
+        setSelectedClient(match);
+        onConsumeInitialClient?.();
+      }
+    }
+  }, [initialClientId, clients]);
+
+  useEffect(() => {
     const fetchManagers = async () => {
       const [{ data }, { data: roleRows }] = await Promise.all([
         supabase.from('profiles').select('id, user_id, first_name, last_name, active'),
