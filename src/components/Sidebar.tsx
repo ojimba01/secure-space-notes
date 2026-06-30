@@ -26,8 +26,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
-  activeView: 'clients' | 'notes' | 'calendar';
-  onViewChange: (view: 'clients' | 'notes' | 'calendar') => void;
+  activeView: 'compliance' | 'clients' | 'notes' | 'calendar';
+  onViewChange: (view: 'compliance' | 'clients' | 'notes' | 'calendar') => void;
   onOpenNote?: (noteId: string) => void;
 }
 
@@ -48,7 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
   }, [user]);
 
   // Close sidebar when view changes on mobile
-  const handleViewChange = (view: 'clients' | 'notes' | 'calendar') => {
+  const handleViewChange = (view: 'compliance' | 'clients' | 'notes' | 'calendar') => {
     onViewChange(view);
     if (isMobile) setIsOpen(false);
   };
@@ -173,6 +173,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
 
         {/* Navigation */}
         <div className="space-y-1 md:space-y-2">
+          <Button
+            variant={activeView === 'compliance' ? 'default' : 'ghost'}
+            className="w-full justify-start gap-2"
+            onClick={() => handleViewChange('compliance')}
+          >
+            <ClipboardList className="h-4 w-4" />
+            My Month
+          </Button>
           <Button 
             variant={activeView === 'clients' ? 'default' : 'ghost'}
             className="w-full justify-start gap-2"

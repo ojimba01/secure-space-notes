@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useMyCompliance } from '@/hooks/useMyCompliance';
 
 interface Client {
   id: string;
@@ -85,10 +86,16 @@ const getMilestoneStatus = (client: Client): MilestoneStatusKey => {
   return due_soon ? 'due_soon' : 'on_track';
 };
 
-export const ClientManagement: React.FC = () => {
+interface ClientManagementProps {
+  initialClientId?: string | null;
+  onConsumeInitialClient?: () => void;
+}
+
+export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClientId, onConsumeInitialClient }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
+  const { behindCount } = useMyCompliance();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -112,6 +119,16 @@ export const ClientManagement: React.FC = () => {
       fetchClients();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (initialClientId && clients.length) {
+      const match = clients.find((c) => c.id === initialClientId);
+      if (match) {
+        setSelectedClient(match);
+        onConsumeInitialClient?.();
+      }
+    }
+  }, [initialClientId, clients]);
 
   useEffect(() => {
     const fetchManagers = async () => {
@@ -320,7 +337,13 @@ export const ClientManagement: React.FC = () => {
               <CheckSquare className="h-4 w-4 md:mr-2" />
               <span className="hidden md:inline">Select</span>
             </Button>
-            <Button size="sm" className="md:size-default" onClick={() => setShowAddDialog(true)}>
+            <Button
+              size="sm"
+              className="md:size-default"
+              onClick={() => setShowAddDialog(true)}
+              disabled={!isAdmin && behindCount >= 5}
+              title={!isAdmin && behindCount >= 5 ? "You're behind on 5+ clients. Complete those touch-points to drop below 5 before adding new clients." : undefined}
+            >
               <Plus className="h-4 w-4 md:mr-2" />
               <span className="hidden md:inline">Add Client</span>
             </Button>

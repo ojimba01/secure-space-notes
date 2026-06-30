@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ComplianceEscalations } from '@/components/ComplianceEscalations';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -336,6 +337,9 @@ const Admin = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Compliance escalations */}
+        <ComplianceEscalations />
 
         {/* Employees List */}
         <Card>

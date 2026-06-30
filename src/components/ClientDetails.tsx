@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { NotesSection } from '@/components/NotesSection';
 import { CalendarView } from '@/components/CalendarView';
 import { MilestoneTracker } from '@/components/MilestoneTracker';
+import { ComplianceCard } from '@/components/ComplianceCard';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 
@@ -224,6 +225,17 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           hsp180Date={client.hsp_180_date}
           onUpdate={onUpdate}
         />
+
+        {client.status === 'active' && (
+          <ComplianceCard
+            clientId={client.id}
+            clientName={`${client.first_name} ${client.last_name}`}
+            levelOfNeed={client.level_of_need}
+            assignedEmployeeId={client.assigned_employee_id}
+            clientCreatedAt={(client as any).created_at}
+            onChanged={onUpdate}
+          />
+        )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-6">
