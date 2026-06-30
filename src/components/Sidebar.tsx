@@ -173,6 +173,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
 
         {/* Navigation */}
         <div className="space-y-1 md:space-y-2">
+          <Button
+            variant={activeView === 'compliance' ? 'default' : 'ghost'}
+            className="w-full justify-start gap-2"
+            onClick={() => handleViewChange('compliance')}
+          >
+            <ClipboardList className="h-4 w-4" />
+            My Month
+          </Button>
           <Button 
             variant={activeView === 'clients' ? 'default' : 'ghost'}
             className="w-full justify-start gap-2"
