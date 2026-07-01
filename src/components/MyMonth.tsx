@@ -108,6 +108,31 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
       </div>
 
       <Card>
+        <CardHeader><CardTitle className="text-lg">Scheduled touch-points this week</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {upcoming.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No touch-points scheduled this week.</p>
+          ) : (
+            upcoming.map((e) => (
+              <button
+                key={e.id}
+                onClick={() => e.client_id && onOpenClient(e.client_id)}
+                className="w-full flex items-center justify-between rounded-md border p-3 text-left hover:bg-accent transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-teal-500" />
+                  <span className="font-medium text-sm">{e.title}</span>
+                </div>
+                <span className="text-xs text-muted-foreground">{format(new Date(e.start_time), 'EEE, MMM d')}</span>
+              </button>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+
+
+      <Card>
         <CardHeader><CardTitle className="text-lg">Due for a touch point this week</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           {data.dueClients.length === 0 ? (
