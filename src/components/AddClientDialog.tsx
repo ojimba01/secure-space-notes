@@ -60,6 +60,13 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [caseManagers, setCaseManagers] = useState<CaseManagerOption[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      fetchActiveCaseManagers().then(setCaseManagers).catch(() => setCaseManagers([]));
+    }
+  }, [open]);
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -76,6 +83,11 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       date_of_birth: '',
 
       iat_date: '',
+      auth_150_start: '',
+      auth_150_end: '',
+      auth_180_start: '',
+      auth_180_end: '',
+      assigned_employee_id: '',
       notes: '',
     },
   });
@@ -84,12 +96,19 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
     setIsSubmitting(true);
     
     try {
-      // Get current user's profile to assign as employee
+      // Default to current user's profile if no case manager selected
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', user?.id)
         .single();
+
+      const assignedId =
+        data.assigned_employee_id && data.assigned_employee_id !== '__none__'
+          ? data.assigned_employee_id
+          : data.assigned_employee_id === '__none__'
+            ? null
+            : profile?.id ?? null;
 
       const clientData = {
         first_name: data.first_name,
@@ -103,15 +122,32 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         county: data.county || null,
         date_of_birth: data.date_of_birth || null,
         iat_date: data.iat_date || null,
+        auth_150_start: data.auth_150_start || null,
+        auth_150_end: data.auth_150_end || null,
+        auth_180_start: data.auth_180_start || null,
+        auth_180_end: data.auth_180_end || null,
         notes: data.notes || null,
-        assigned_employee_id: profile?.id,
+        assigned_employee_id: assignedId,
       };
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('clients')
-        .insert([clientData]);
+        .insert([clientData])
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Auto-generate billing cycles right away if there's a 150-day start.
+      if (inserted?.id && clientData.auth_150_start) {
+        try {
+          await regenerateClientCycles(inserted.id);
+        } catch {
+          /* non-fatal */
+        }
+      }
+
+
 
       toast({
         title: "Client Added",
