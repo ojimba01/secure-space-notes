@@ -157,7 +157,10 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
 
 
       <Card>
-        <CardHeader><CardTitle className="text-lg">Due this week</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-lg">Due this week</CardTitle>
+          <p className="text-sm text-muted-foreground">Clients whose next required touchpoint falls within this week.</p>
+        </CardHeader>
         <CardContent className="space-y-2">
           {data.dueClients.length === 0 ? (
             <p className="text-sm text-muted-foreground">No touchpoints due this week.</p>
@@ -169,7 +172,10 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
 
       {data.caseload > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-lg text-red-600">Needs attention</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-lg text-red-600">Clients that need attention</CardTitle>
+            <p className="text-sm text-muted-foreground">Clients who are behind on their required contacts for this month.</p>
+          </CardHeader>
           <CardContent className="space-y-2">
             {data.behindClients.length === 0 ? (
               <p className="text-sm text-muted-foreground">No clients need attention.</p>
