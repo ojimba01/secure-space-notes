@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -338,16 +338,17 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
 
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Stat label="Expected revenue" value={stats.expected} hint="Total of billed amounts across all billing cycles matching the current filters — a projection across the whole window, not a single month." />
-        <Stat label="Billed to date" value={stats.billed} hint="Cycles that have actually been billed/submitted to the MCO (billing status = Submitted)." />
-        <Stat label="Collected" value={stats.collected} cls="text-green-600" hint="Money actually received (paid amount). This is paid, distinct from billed." />
-        <Stat label="Outstanding" value={stats.outstanding} cls="text-amber-600" hint="Billed to date minus Collected." />
-        <Stat label="Billed this month" value={stats.thisMonthRev} hint="Billed amount for cycles whose cycle end falls in the current calendar month." />
+        <Stat label="Expected revenue" value={stats.expected} hint="The total you expect to earn from every billing cycle shown here, added up across all months — whether or not it's been billed yet." />
+        <Stat label="Billed to date" value={stats.billed} hint="How much you've actually submitted to the insurance companies (MCOs) for payment so far." />
+        <Stat label="Collected" value={stats.collected} cls="text-green-600" hint="How much money has actually been paid to you so far." />
+        <Stat label="Outstanding" value={stats.outstanding} cls="text-amber-600" hint="Money you've billed but haven't been paid yet — it's Billed to date minus Collected." />
+        <Stat label="Billed this month" value={stats.thisMonthRev} hint="The revenue from billing cycles whose 30-day period ends in the current calendar month." />
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Monthly Revenue</CardTitle>
+          <CardDescription className="text-xs">The total revenue billed in each month, so you can track the trend over time and compare months side by side.</CardDescription>
         </CardHeader>
         <CardContent className="h-72 flex flex-col pt-2">
           {monthMeta.janBoundary && !monthMeta.singleYear && (
@@ -389,13 +390,13 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card><CardHeader><CardTitle className="text-base">Revenue by MCO</CardTitle></CardHeader><CardContent className="h-64">
+        <Card><CardHeader><CardTitle className="text-base">Revenue by MCO</CardTitle><CardDescription className="text-xs">How your revenue splits across the insurance companies (MCOs) — which payers make up the biggest share.</CardDescription></CardHeader><CardContent className="h-64">
           <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={byMco} dataKey="value" nameKey="name" outerRadius={80} label={(entry: { name: string; value: number }) => formatMoney(entry.value)}>{byMco.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip formatter={(v: number) => formatMoney(v)} /><Legend /></PieChart></ResponsiveContainer>
         </CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-base">Collected vs. Outstanding</CardTitle></CardHeader><CardContent className="h-64">
+        <Card><CardHeader><CardTitle className="text-base">Collected vs. Outstanding</CardTitle><CardDescription className="text-xs">Of the money you've billed, how much has been paid (Collected) versus how much is still owed to you (Outstanding).</CardDescription></CardHeader><CardContent className="h-64">
           <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={paidSplit} dataKey="value" nameKey="name" outerRadius={80} label><Cell fill="#16a34a" /><Cell fill="#f59e0b" /></Pie><Tooltip formatter={(v: number) => formatMoney(v)} /><Legend /></PieChart></ResponsiveContainer>
         </CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-base"># of cycles by billing status</CardTitle></CardHeader><CardContent className="h-64">
+        <Card><CardHeader><CardTitle className="text-base"># of cycles by billing status</CardTitle><CardDescription className="text-xs">How many billing cycles are sitting in each stage — Not Billed, Ready to Bill, Submitted, or Denied — so you can see what still needs action.</CardDescription></CardHeader><CardContent className="h-64">
           <ResponsiveContainer width="100%" height="100%"><BarChart data={byBillingStatus}><XAxis dataKey="status" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip labelFormatter={(l) => l} formatter={(v: number) => [`${v} cycles`, 'Count']} /><Bar dataKey="count" fill="#7c3aed" /></BarChart></ResponsiveContainer>
         </CardContent></Card>
       </div>
