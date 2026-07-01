@@ -92,12 +92,12 @@ export const UpcomingDeadlines: React.FC<Props> = ({ clients, cycles, refresh, o
                     <TableRow>
                       <TableHead>Client</TableHead>
                       <TableHead>Due date</TableHead>
-                      <TableHead>Mark Submitted</TableHead>
+                      <TableHead>Submitted?</TableHead>
                       <TableHead>Assigned Staff</TableHead>
                       <TableHead>MCO</TableHead>
                       <TableHead>Phase</TableHead>
-                      <TableHead>#</TableHead>
-                      <TableHead>Billed</TableHead>
+                      <TableHead>Cycle #</TableHead>
+                      <TableHead>Amount</TableHead>
                       <TableHead>Remaining</TableHead>
                     </TableRow>
                   </TableHeader>
