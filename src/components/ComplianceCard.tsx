@@ -202,6 +202,7 @@ export const ComplianceCard: React.FC<Props> = ({
   };
 
   const toggleActivity = async (key: string, checked: boolean) => {
+    if (guardWrite()) return;
     const next = checked ? [...new Set([...activities, key])] : activities.filter((a) => a !== key);
     setActivities(next);
     if (complianceId) {
