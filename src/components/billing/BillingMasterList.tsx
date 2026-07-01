@@ -444,7 +444,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients: approvedClients, c
                 {clientRows.map((cl) => {
                   const x = ctxFor(cl);
                   const denied = cl.approval_status === 'Denied';
-                  const nameCell = <TableCell className={`font-medium whitespace-nowrap ${frozenCell} ${denied && view === 'pending' ? 'text-red-600' : ''}`}>{cl.first_name} {cl.last_name}</TableCell>;
+                  const nameCell = <TableCell className={`font-medium ${view === 'master' ? 'w-40 min-w-40 max-w-40 whitespace-normal break-words' : 'whitespace-nowrap'} ${frozenCell} ${denied && view === 'pending' ? 'text-red-600' : ''}`}>{cl.first_name} {cl.last_name}</TableCell>;
                   const dudCell = (
                     <TableCell className={x.overdue ? 'text-red-600 font-medium' : ''}>{x.dud ?? '—'}</TableCell>
                   );
