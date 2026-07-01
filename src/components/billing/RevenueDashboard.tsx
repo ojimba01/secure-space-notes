@@ -198,7 +198,7 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
         <Collapsible open={weekOpen} onOpenChange={setWeekOpen}>
           <Card className={dueThisWeek.length > 0 ? 'border-amber-300' : ''}>
             <CollapsibleTrigger asChild>
-              <CardHeader className="flex flex-row items-center justify-between pb-2 cursor-pointer select-none hover:bg-muted/50">
+              <CardHeader className="flex flex-row items-start justify-between p-3 cursor-pointer select-none hover:bg-muted/50">
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-base">Due for billing this week</CardTitle>
                   <Badge variant="secondary">{dueThisWeek.length}</Badge>
@@ -272,7 +272,7 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
         <Collapsible open={overdueOpen} onOpenChange={setOverdueOpen}>
           <Card className={overdue.length > 0 ? 'border-red-300' : ''}>
             <CollapsibleTrigger asChild>
-              <CardHeader className="flex flex-row items-center justify-between pb-2 cursor-pointer select-none hover:bg-muted/50">
+              <CardHeader className="flex flex-row items-start justify-between p-3 cursor-pointer select-none hover:bg-muted/50">
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-base">Overdue</CardTitle>
                   <Badge variant="secondary">{overdue.length}</Badge>
