@@ -352,17 +352,25 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
           <CardTitle className="text-base">Monthly Revenue</CardTitle>
         </CardHeader>
         <CardContent className="h-72 flex flex-col pt-2">
-          {!monthMeta.singleYear && (
+          {monthMeta.janBoundary && !monthMeta.singleYear && (
             <div className="relative h-5 w-full">
               <span
                 className="absolute text-xs font-medium text-muted-foreground"
-                style={{ left: '60px', top: '50%', transform: 'translateY(-50%)' }}
+                style={{
+                  left: `calc(60px + (${monthMeta.janIndex + 0.5} / ${byMonth.length}) * (100% - 60px))`,
+                  top: '50%',
+                  transform: 'translate(calc(-100% - 0.25rem), -50%)',
+                }}
               >
                 {monthMeta.firstYear}
               </span>
               <span
                 className="absolute text-xs font-medium text-muted-foreground"
-                style={{ right: '0', top: '50%', transform: 'translateY(-50%)' }}
+                style={{
+                  left: `calc(60px + (${monthMeta.janIndex + 0.5} / ${byMonth.length}) * (100% - 60px))`,
+                  top: '50%',
+                  transform: 'translate(0.25rem, -50%)',
+                }}
               >
                 {monthMeta.lastYear}
               </span>
