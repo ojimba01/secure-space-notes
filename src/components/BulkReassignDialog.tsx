@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { UserCog } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
+import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 
 const schema = z.object({
   new_employee_id: z.string().min(1, 'Please select an employee'),
