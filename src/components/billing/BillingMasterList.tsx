@@ -424,7 +424,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients: approvedClients, c
             <Table>
               <TableHeader>
                 <TableRow>
-                  {th('Client', frozenHead)}
+                  {th('Client', `${frozenHead}${view === 'master' ? ' w-40 min-w-40 max-w-40' : ''}`)}
                   {view === 'master' && <>
                     {th('MCO')}{th('Member ID')}{th('Phone')}{th('Intake Date')}{th('Assessment Due')}{th('Assigned Staff')}{th('MCO Housing Mgr')}
                     {th('30-Day Auth #')}{th('30-Day Start')}{th('30-Day End')}{th('HSP Due')}{th('Approval')}{th('150-Day Auth #')}{th('150-Day Start')}
