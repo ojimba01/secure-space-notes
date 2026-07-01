@@ -515,13 +515,19 @@ export type Database = {
       clients: {
         Row: {
           address: string | null
+          approval_status: string | null
+          assessment_due_date: string | null
           assigned_employee_id: string | null
           auth_150_end: string | null
+          auth_150_number: string | null
           auth_150_start: string | null
           auth_180_end: string | null
+          auth_180_number: string | null
           auth_180_start: string | null
           auth_30_end: string | null
+          auth_30_number: string | null
           auth_30_start: string | null
+          closed_date: string | null
           county: string | null
           created_at: string | null
           date_of_birth: string | null
@@ -530,27 +536,37 @@ export type Database = {
           housing_stabilization_plan_date: string | null
           hsp_150_date: string | null
           hsp_180_date: string | null
+          hsp_due_date: string | null
           iat_date: string | null
           id: string
           insurance: string | null
           intake_date: string | null
           last_name: string
           level_of_need: string | null
+          mco_housing_manager: string | null
           member_id: string | null
+          next_action_due_date: string | null
           notes: string | null
           phone: string | null
+          reason_closed: string | null
           status: string | null
           updated_at: string | null
         }
         Insert: {
           address?: string | null
+          approval_status?: string | null
+          assessment_due_date?: string | null
           assigned_employee_id?: string | null
           auth_150_end?: string | null
+          auth_150_number?: string | null
           auth_150_start?: string | null
           auth_180_end?: string | null
+          auth_180_number?: string | null
           auth_180_start?: string | null
           auth_30_end?: string | null
+          auth_30_number?: string | null
           auth_30_start?: string | null
+          closed_date?: string | null
           county?: string | null
           created_at?: string | null
           date_of_birth?: string | null
@@ -559,27 +575,37 @@ export type Database = {
           housing_stabilization_plan_date?: string | null
           hsp_150_date?: string | null
           hsp_180_date?: string | null
+          hsp_due_date?: string | null
           iat_date?: string | null
           id?: string
           insurance?: string | null
           intake_date?: string | null
           last_name: string
           level_of_need?: string | null
+          mco_housing_manager?: string | null
           member_id?: string | null
+          next_action_due_date?: string | null
           notes?: string | null
           phone?: string | null
+          reason_closed?: string | null
           status?: string | null
           updated_at?: string | null
         }
         Update: {
           address?: string | null
+          approval_status?: string | null
+          assessment_due_date?: string | null
           assigned_employee_id?: string | null
           auth_150_end?: string | null
+          auth_150_number?: string | null
           auth_150_start?: string | null
           auth_180_end?: string | null
+          auth_180_number?: string | null
           auth_180_start?: string | null
           auth_30_end?: string | null
+          auth_30_number?: string | null
           auth_30_start?: string | null
+          closed_date?: string | null
           county?: string | null
           created_at?: string | null
           date_of_birth?: string | null
@@ -588,15 +614,19 @@ export type Database = {
           housing_stabilization_plan_date?: string | null
           hsp_150_date?: string | null
           hsp_180_date?: string | null
+          hsp_due_date?: string | null
           iat_date?: string | null
           id?: string
           insurance?: string | null
           intake_date?: string | null
           last_name?: string
           level_of_need?: string | null
+          mco_housing_manager?: string | null
           member_id?: string | null
+          next_action_due_date?: string | null
           notes?: string | null
           phone?: string | null
+          reason_closed?: string | null
           status?: string | null
           updated_at?: string | null
         }

@@ -21,6 +21,13 @@ const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FI
 
 const LON_OPTIONS = ['Low Level', 'High Level'] as const;
 
+const APPROVAL_STATUS_OPTIONS = ['Not Submitted', 'Submitted', 'Approved', 'Denied'] as const;
+
+const REASON_CLOSED_OPTIONS = [
+  'Housed', 'Moved', 'Lost Contact', 'Deceased',
+  'Transferred to Other Agency', 'Medicaid Expired', 'Other',
+] as const;
+
 const NJ_COUNTIES = [
   'ATLANTIC', 'BERGEN', 'BURLINGTON', 'CAMDEN', 'CAPE MAY', 'CUMBERLAND',
   'ESSEX', 'GLOUCESTER', 'HUDSON', 'HUNTERDON', 'MERCER', 'MIDDLESEX',
@@ -38,10 +45,21 @@ const clientSchema = z.object({
   insurance: z.string().trim().max(50).optional(),
   level_of_need: z.string().trim().max(50).optional(),
   county: z.string().trim().max(50).optional(),
+  mco_housing_manager: z.string().trim().max(200).optional(),
+  approval_status: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
+  intake_date: z.string().optional(),
+  assessment_due_date: z.string().optional(),
   iat_date: z.string().optional(),
   hsp_150_date: z.string().optional(),
   hsp_180_date: z.string().optional(),
+  hsp_due_date: z.string().optional(),
+  next_action_due_date: z.string().optional(),
+  closed_date: z.string().optional(),
+  reason_closed: z.string().trim().max(100).optional(),
+  auth_30_number: z.string().trim().max(100).optional(),
+  auth_150_number: z.string().trim().max(100).optional(),
+  auth_180_number: z.string().trim().max(100).optional(),
   auth_150_start: z.string().optional(),
   auth_150_end: z.string().optional(),
   auth_180_start: z.string().optional(),
@@ -73,6 +91,16 @@ interface Client {
   auth_150_end?: string;
   auth_180_start?: string;
   auth_180_end?: string;
+  mco_housing_manager?: string;
+  approval_status?: string;
+  assessment_due_date?: string;
+  hsp_due_date?: string;
+  next_action_due_date?: string;
+  closed_date?: string;
+  reason_closed?: string;
+  auth_30_number?: string;
+  auth_150_number?: string;
+  auth_180_number?: string;
   notes?: string;
 }
 
@@ -106,10 +134,21 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       insurance: client.insurance || '',
       level_of_need: client.level_of_need || '',
       county: client.county || '',
+      mco_housing_manager: client.mco_housing_manager || '',
+      approval_status: client.approval_status || 'Not Submitted',
       date_of_birth: client.date_of_birth || '',
+      intake_date: client.intake_date || '',
+      assessment_due_date: client.assessment_due_date || '',
       iat_date: client.iat_date || '',
       hsp_150_date: client.hsp_150_date || '',
       hsp_180_date: client.hsp_180_date || '',
+      hsp_due_date: client.hsp_due_date || '',
+      next_action_due_date: client.next_action_due_date || '',
+      closed_date: client.closed_date || '',
+      reason_closed: client.reason_closed || '',
+      auth_30_number: client.auth_30_number || '',
+      auth_150_number: client.auth_150_number || '',
+      auth_180_number: client.auth_180_number || '',
       auth_150_start: client.auth_150_start || '',
       auth_150_end: client.auth_150_end || '',
       auth_180_start: client.auth_180_start || '',
@@ -141,10 +180,21 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           insurance: data.insurance || null,
           level_of_need: data.level_of_need || null,
           county: data.county || null,
+          mco_housing_manager: data.mco_housing_manager || null,
+          approval_status: data.approval_status || null,
           date_of_birth: data.date_of_birth || null,
+          intake_date: data.intake_date || null,
+          assessment_due_date: data.assessment_due_date || null,
           iat_date: data.iat_date || null,
           hsp_150_date: data.hsp_150_date || null,
           hsp_180_date: data.hsp_180_date || null,
+          hsp_due_date: data.hsp_due_date || null,
+          next_action_due_date: data.next_action_due_date || null,
+          closed_date: data.closed_date || null,
+          reason_closed: data.reason_closed || null,
+          auth_30_number: data.auth_30_number || null,
+          auth_150_number: data.auth_150_number || null,
+          auth_180_number: data.auth_180_number || null,
           auth_150_start: data.auth_150_start || null,
           auth_150_end: data.auth_150_end || null,
           auth_180_start: data.auth_180_start || null,
@@ -408,6 +458,38 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               />
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="mco_housing_manager" render={({ field }) => (
+                <FormItem><FormLabel>MCO Housing Manager</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="approval_status" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Approval Status</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
+                    <SelectContent>{APPROVAL_STATUS_OPTIONS.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField control={form.control} name="intake_date" render={({ field }) => (
+                <FormItem><FormLabel>Intake Date (Assessment Start)</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="assessment_due_date" render={({ field }) => (
+                <FormItem><FormLabel>Assessment Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="hsp_due_date" render={({ field }) => (
+                <FormItem><FormLabel>HSP Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="next_action_due_date" render={({ field }) => (
+                <FormItem><FormLabel>Next Action Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+              )} />
+            </div>
+
+
             {(() => {
               const watchedIat = form.watch('iat_date');
               const watchedHsp150 = form.watch('hsp_150_date');
@@ -487,7 +569,19 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                   Drives the billing section. Distinct from HSP milestone dates above. All optional.
                 </p>
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField control={form.control} name="auth_30_number" render={({ field }) => (
+                  <FormItem><FormLabel>30-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="auth_150_number" render={({ field }) => (
+                  <FormItem><FormLabel>150-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="auth_180_number" render={({ field }) => (
+                  <FormItem><FormLabel>180-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
                 <FormField
                   control={form.control}
                   name="auth_150_start"
@@ -542,6 +636,27 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                 />
               </div>
             </div>
+
+            <div className="rounded-md border p-4 space-y-4">
+              <h4 className="text-sm font-semibold">Closure</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="closed_date" render={({ field }) => (
+                  <FormItem><FormLabel>Closed Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="reason_closed" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Reason Closed</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger></FormControl>
+                      <SelectContent>{REASON_CLOSED_OPTIONS.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+            </div>
+
+
 
 
 
