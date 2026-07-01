@@ -17,7 +17,7 @@ import { regenerateClientCycles } from '@/lib/billingSync';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 import { useViewAs } from '@/components/ViewAsProvider';
 
-const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
+const INSURANCE_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis'] as const;
 
 const LON_OPTIONS = ['Low Level', 'High Level'] as const;
 
