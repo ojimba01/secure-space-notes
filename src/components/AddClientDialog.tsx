@@ -155,15 +155,29 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         insurance: data.insurance || null,
         level_of_need: data.level_of_need || null,
         county: data.county || null,
+        mco_housing_manager: data.mco_housing_manager || null,
+        approval_status: data.approval_status || null,
         date_of_birth: data.date_of_birth || null,
+        intake_date: data.intake_date || undefined,
+        assessment_due_date: data.assessment_due_date || null,
         iat_date: data.iat_date || null,
+        hsp_due_date: data.hsp_due_date || null,
+        auth_30_number: data.auth_30_number || null,
+        auth_30_start: data.auth_30_start || null,
+        auth_30_end: data.auth_30_end || null,
+        auth_150_number: data.auth_150_number || null,
         auth_150_start: data.auth_150_start || null,
         auth_150_end: data.auth_150_end || null,
+        auth_180_number: data.auth_180_number || null,
         auth_180_start: data.auth_180_start || null,
         auth_180_end: data.auth_180_end || null,
+        next_action_due_date: data.next_action_due_date || null,
+        closed_date: data.closed_date || null,
+        reason_closed: data.reason_closed || null,
         notes: data.notes || null,
         assigned_employee_id: assignedId,
       };
+
 
       const { data: inserted, error } = await supabase
         .from('clients')
