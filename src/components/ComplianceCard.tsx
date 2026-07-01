@@ -277,7 +277,7 @@ export const ComplianceCard: React.FC<Props> = ({
 
             <Dialog open={logOpen} onOpenChange={setLogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline" disabled={isViewingAs}><Plus className="h-4 w-4 mr-1" /> Log contact</Button>
+                <Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1" /> Log contact</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Log a contact</DialogTitle></DialogHeader>
