@@ -14,6 +14,7 @@ export interface BillingClient {
   member_id: string | null;
   level_of_need: string | null;
   status: string;
+  approval_status: string | null;
   auth_150_start: string | null;
   auth_150_end: string | null;
   auth_180_start: string | null;
@@ -43,7 +44,7 @@ export function useBilling(): BillingData {
     const { data: cls } = await supabase
       .from('clients')
       .select(
-        'id, first_name, last_name, insurance, member_id, level_of_need, status, auth_150_start, auth_150_end, auth_180_start, auth_180_end, assigned_employee_id',
+        'id, first_name, last_name, insurance, member_id, level_of_need, status, approval_status, auth_150_start, auth_150_end, auth_180_start, auth_180_end, assigned_employee_id',
       )
       .order('last_name');
     const { data: profs } = await supabase
@@ -56,10 +57,12 @@ export function useBilling(): BillingData {
       }),
     );
     const { data: cyc } = await supabase.from('billing_cycles').select('*').order('cycle_number');
-    const mapped = ((cls as Array<Omit<BillingClient, 'assigned_staff_name'>>) ?? []).map((c) => ({
-      ...c,
-      assigned_staff_name: c.assigned_employee_id ? nameById.get(c.assigned_employee_id) ?? null : null,
-    }));
+    const mapped = ((cls as Array<Omit<BillingClient, 'assigned_staff_name'>>) ?? [])
+      .filter((c) => c.approval_status === 'Approved')
+      .map((c) => ({
+        ...c,
+        assigned_staff_name: c.assigned_employee_id ? nameById.get(c.assigned_employee_id) ?? null : null,
+      }));
     setClients(mapped as BillingClient[]);
     setCycles((cyc as BillingCycle[]) ?? []);
     setLoading(false);

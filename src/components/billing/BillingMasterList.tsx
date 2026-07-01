@@ -144,7 +144,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
                 <TableHead>#</TableHead>
                 <TableHead>Start</TableHead>
                 <TableHead>End</TableHead>
-                <TableHead>Billed</TableHead>
+                <TableHead>Amount</TableHead>
                 <TableHead>Paid</TableHead>
                 <TableHead>Billing</TableHead>
                 <TableHead>Payment</TableHead>

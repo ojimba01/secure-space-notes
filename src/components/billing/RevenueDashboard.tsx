@@ -163,7 +163,9 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
   const byMco = useMemo(() => {
     const map = new Map<string, number>();
     filtered.forEach((c) => { const m = clientMap.get(c.client_id)?.insurance ?? 'Unknown'; map.set(m, (map.get(m) ?? 0) + Number(c.billed_amount ?? 0)); });
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+    return Array.from(map.entries())
+      .filter(([, value]) => value > 0)
+      .map(([name, value]) => ({ name, value }));
   }, [filtered, clientMap]);
 
   const paidSplit = useMemo(() => [
@@ -231,10 +233,10 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
                         <TableHead>Assigned Staff</TableHead>
                         <TableHead>MCO</TableHead>
                         <TableHead>#</TableHead>
-                        <TableHead>Billed</TableHead>
+                        <TableHead>Amount</TableHead>
                         <TableHead>Due date</TableHead>
                         <TableHead>Remaining</TableHead>
-                        <TableHead></TableHead>
+                        <TableHead>Submitted?</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -253,7 +255,7 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
                           </TableCell>
                           <TableCell>
                             <Button variant="outline" size="sm" className="h-8 gap-1" disabled={submitting === c.id} onClick={() => handleSubmit(c)}>
-                              <CheckCircle2 className="h-4 w-4" />Mark Submitted
+                              <CheckCircle2 className="h-4 w-4" />Submitted
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -290,10 +292,10 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
                         <TableHead>Assigned Staff</TableHead>
                         <TableHead>MCO</TableHead>
                         <TableHead>#</TableHead>
-                        <TableHead>Billed</TableHead>
+                        <TableHead>Amount</TableHead>
                         <TableHead>Due date</TableHead>
                         <TableHead>Remaining</TableHead>
-                        <TableHead></TableHead>
+                        <TableHead>Submitted?</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -312,7 +314,7 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
                           </TableCell>
                           <TableCell>
                             <Button variant="outline" size="sm" className="h-8 gap-1" disabled={submitting === c.id} onClick={() => handleSubmit(c)}>
-                              <CheckCircle2 className="h-4 w-4" />Mark Submitted
+                              <CheckCircle2 className="h-4 w-4" />Submitted
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -348,28 +350,19 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Monthly Revenue</CardTitle>
-          <CardDescription className="text-xs">The total revenue billed in each month, so you can track the trend over time and compare months side by side.</CardDescription>
         </CardHeader>
         <CardContent className="h-72 flex flex-col pt-2">
-          {monthMeta.janBoundary && !monthMeta.singleYear && (
+          {!monthMeta.singleYear && (
             <div className="relative h-5 w-full">
               <span
                 className="absolute text-xs font-medium text-muted-foreground"
-                style={{
-                  left: `calc(60px + (${monthMeta.janIndex + 0.5} / ${byMonth.length}) * (100% - 60px))`,
-                  top: '50%',
-                  transform: 'translate(calc(-100% - 0.25rem), -50%)',
-                }}
+                style={{ left: '60px', top: '50%', transform: 'translateY(-50%)' }}
               >
                 {monthMeta.firstYear}
               </span>
               <span
                 className="absolute text-xs font-medium text-muted-foreground"
-                style={{
-                  left: `calc(60px + (${monthMeta.janIndex + 0.5} / ${byMonth.length}) * (100% - 60px))`,
-                  top: '50%',
-                  transform: 'translate(0.25rem, -50%)',
-                }}
+                style={{ right: '0', top: '50%', transform: 'translateY(-50%)' }}
               >
                 {monthMeta.lastYear}
               </span>
@@ -391,7 +384,7 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card><CardHeader><CardTitle className="text-base">Revenue by MCO</CardTitle><CardDescription className="text-xs">How your revenue splits across the insurance companies (MCOs) — which payers make up the biggest share.</CardDescription></CardHeader><CardContent className="h-64">
-          <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={byMco} dataKey="value" nameKey="name" outerRadius={80} label={(entry: { name: string; value: number }) => formatMoney(entry.value)}>{byMco.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip formatter={(v: number) => formatMoney(v)} /><Legend /></PieChart></ResponsiveContainer>
+          <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={byMco} dataKey="value" nameKey="name" outerRadius={80} label={(p: { x: number; y: number; textAnchor: string; value: number }) => <text x={p.x} y={p.y} textAnchor={p.textAnchor} dominantBaseline="central" fontSize={11} fill="#334155">{formatMoney(p.value)}</text>}>{byMco.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip formatter={(v: number) => formatMoney(v)} /><Legend /></PieChart></ResponsiveContainer>
         </CardContent></Card>
         <Card><CardHeader><CardTitle className="text-base">Collected vs. Outstanding</CardTitle><CardDescription className="text-xs">Of the money you've billed, how much has been paid (Collected) versus how much is still owed to you (Outstanding).</CardDescription></CardHeader><CardContent className="h-64">
           <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={paidSplit} dataKey="value" nameKey="name" outerRadius={80} label><Cell fill="#16a34a" /><Cell fill="#f59e0b" /></Pie><Tooltip formatter={(v: number) => formatMoney(v)} /><Legend /></PieChart></ResponsiveContainer>

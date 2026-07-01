@@ -92,12 +92,12 @@ export const UpcomingDeadlines: React.FC<Props> = ({ clients, cycles, refresh, o
                     <TableRow>
                       <TableHead>Client</TableHead>
                       <TableHead>Due date</TableHead>
-                      <TableHead>Mark Submitted</TableHead>
+                      <TableHead>Submitted?</TableHead>
                       <TableHead>Assigned Staff</TableHead>
                       <TableHead>MCO</TableHead>
                       <TableHead>Phase</TableHead>
-                      <TableHead>#</TableHead>
-                      <TableHead>Billed</TableHead>
+                      <TableHead>Cycle #</TableHead>
+                      <TableHead>Amount</TableHead>
                       <TableHead>Remaining</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -113,7 +113,7 @@ export const UpcomingDeadlines: React.FC<Props> = ({ clients, cycles, refresh, o
                         <TableCell className="whitespace-nowrap">
                           <Button variant="outline" size="sm" className="h-8 gap-1" disabled={submitting === c.id}
                             onClick={(e) => { e.stopPropagation(); handleSubmit(c); }}>
-                            <CheckCircle2 className="h-4 w-4" />Mark Submitted
+                            <CheckCircle2 className="h-4 w-4" />Submitted
                           </Button>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
