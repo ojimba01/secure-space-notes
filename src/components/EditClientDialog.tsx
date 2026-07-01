@@ -136,12 +136,31 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           iat_date: data.iat_date || null,
           hsp_150_date: data.hsp_150_date || null,
           hsp_180_date: data.hsp_180_date || null,
+          auth_150_start: data.auth_150_start || null,
+          auth_150_end: data.auth_150_end || null,
+          auth_180_start: data.auth_180_start || null,
+          auth_180_end: data.auth_180_end || null,
           status: data.status,
           notes: data.notes || null,
         })
         .eq('id', client.id);
 
       if (error) throw error;
+
+      // Refresh billing cycles if auth dates or level of need changed.
+      const billingChanged =
+        (data.auth_150_start || '') !== (client.auth_150_start || '') ||
+        (data.auth_150_end || '') !== (client.auth_150_end || '') ||
+        (data.auth_180_start || '') !== (client.auth_180_start || '') ||
+        (data.auth_180_end || '') !== (client.auth_180_end || '') ||
+        (data.level_of_need || '') !== (client.level_of_need || '');
+      if (billingChanged) {
+        try {
+          await regenerateClientCycles(client.id);
+        } catch {
+          /* non-fatal */
+        }
+      }
 
       toast({
         title: "Client Updated",
