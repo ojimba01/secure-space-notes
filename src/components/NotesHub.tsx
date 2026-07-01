@@ -242,10 +242,12 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
     <div className="p-3 md:p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-2xl md:text-3xl font-bold">Clinical Notes</h1>
-        <Button onClick={() => setShowAddDialog(true)} className="gap-2 bg-medical-blue hover:bg-medical-blue/90">
-          <Plus className="h-4 w-4" />
-          New Note
-        </Button>
+        {!isViewingAs && (
+          <Button onClick={() => setShowAddDialog(true)} className="gap-2 bg-medical-blue hover:bg-medical-blue/90">
+            <Plus className="h-4 w-4" />
+            New Note
+          </Button>
+        )}
       </div>
       <p className="text-muted-foreground mb-6">Browse all notes grouped by client</p>
 
