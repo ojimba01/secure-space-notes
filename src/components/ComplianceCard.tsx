@@ -19,6 +19,7 @@ import { Plus, Phone, Video, MapPin, Trash2 } from 'lucide-react';
 import { InfoHint } from '@/components/InfoHint';
 import { useComplianceTooltips } from '@/hooks/useComplianceTooltips';
 import { useMyProfileId } from '@/hooks/useMyProfileId';
+import { useViewAs } from '@/components/ViewAsProvider';
 import {
   Modality, MODALITY_LABELS, SUPPORT_ACTIVITIES, ComplianceStatus,
   requirementsForTier, computeProgress, deriveStatus, generatePlanDates,
