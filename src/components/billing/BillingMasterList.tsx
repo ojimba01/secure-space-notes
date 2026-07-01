@@ -157,6 +157,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
                 return (
                   <TableRow key={c.id} className={pastDue ? 'outline outline-1 outline-red-500' : ''}>
                     <TableCell className="font-medium whitespace-nowrap">{cl.first_name} {cl.last_name}</TableCell>
+                    <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
                     <TableCell>{cl.insurance ?? '—'}</TableCell>
                     <TableCell>{cl.member_id ?? '—'}</TableCell>
                     <TableCell><Badge variant="outline">{c.phase}</Badge></TableCell>
