@@ -73,7 +73,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
         return true;
       })
       .map((c) => ({ cycle: c, client: clientMap.get(c.client_id)! }));
-  }, [cycles, clientMap, search, mco, phase, billing, payment, due, thisMonth]);
+  }, [cycles, clientMap, search, mco, phase, billing, payment, due, staff, thisMonth]);
 
   const updateField = async (id: string, patch: Partial<BillingCycle>) => {
     const { error } = await supabase
