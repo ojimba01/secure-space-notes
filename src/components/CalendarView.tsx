@@ -160,7 +160,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Client Calendar</h2>
+        <h2 className="text-xl font-semibold">Client calendar</h2>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
             <Button>
@@ -170,7 +170,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Calendar Event</DialogTitle>
+              <DialogTitle>Add event</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleAddEvent)} className="space-y-4">
@@ -179,7 +179,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Event Title</FormLabel>
+                      <FormLabel>Event title</FormLabel>
                       <FormControl>
                         <Input {...field} maxLength={200} />
                       </FormControl>
@@ -287,7 +287,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
           ))}
           {events.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
-              No events scheduled. Add your first event to get started.
+              No events are scheduled.
             </div>
           )}
         </div>

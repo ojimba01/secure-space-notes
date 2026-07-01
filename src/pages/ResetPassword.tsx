@@ -40,7 +40,7 @@ const ResetPassword = () => {
       if (!session) {
         toast({
           title: "Invalid or expired reset link",
-          description: "Please request a new password reset link.",
+          description: "Request a new password reset link to continue.",
           variant: "destructive",
         });
         navigate('/auth');
@@ -59,7 +59,7 @@ const ResetPassword = () => {
       if (error) throw error;
 
       toast({
-        title: "Password Updated",
+        title: "Password updated",
         description: "Your password has been successfully updated.",
       });
 
@@ -84,15 +84,15 @@ const ResetPassword = () => {
             <Stethoscope className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="font-semibold text-lg">ClinicalNotes</h2>
-            <p className="text-xs text-muted-foreground">HIPAA Compliant</p>
+            <h2 className="font-semibold text-lg">SupportiveCM</h2>
+            <p className="text-xs text-muted-foreground">HIPAA compliant</p>
           </div>
         </Link>
 
         <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Reset Password</CardTitle>
-          <CardDescription>Enter your new password below</CardDescription>
+          <CardTitle>Reset password</CardTitle>
+          <CardDescription>Enter and confirm your new password.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -102,7 +102,7 @@ const ResetPassword = () => {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>New Password</FormLabel>
+                    <FormLabel>New password</FormLabel>
                     <FormControl>
                       <Input {...field} type="password" />
                     </FormControl>
@@ -116,7 +116,7 @@ const ResetPassword = () => {
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
+                    <FormLabel>Confirm password</FormLabel>
                     <FormControl>
                       <Input {...field} type="password" />
                     </FormControl>
@@ -126,7 +126,7 @@ const ResetPassword = () => {
               />
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? 'Updating...' : 'Update Password'}
+                {isSubmitting ? 'Updating...' : 'Update password'}
               </Button>
             </form>
           </Form>

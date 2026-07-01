@@ -43,12 +43,12 @@ type ViewKey =
   | 'cycles';
 
 const VIEWS: { key: ViewKey; label: string }[] = [
-  { key: 'master', label: 'Master Case Tracker' },
-  { key: 'pending', label: 'Pending Approval' },
-  { key: 'approved', label: 'Approved Cases' },
-  { key: 'closed', label: 'Closed Cases' },
-  { key: 'tracker', label: 'Billing Tracker' },
-  { key: 'cycles', label: 'Billing (by cycle)' },
+  { key: 'master', label: 'Case tracker' },
+  { key: 'pending', label: 'Pending approval' },
+  { key: 'approved', label: 'Approved / active' },
+  { key: 'closed', label: 'Closed' },
+  { key: 'tracker', label: 'Billing tracker' },
+  { key: 'cycles', label: 'Billing cycles' },
 ];
 
 const isClosed = (c: BillingClient) => c.status !== 'active';
@@ -333,7 +333,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients: approvedClients, c
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2 items-center">
-        <Input placeholder="Search client or member ID…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-56" />
+        <Input placeholder="Search by name or member ID" value={search} onChange={(e) => setSearch(e.target.value)} className="w-56" />
         <Select value={mco} onValueChange={setMco}><SelectTrigger className="w-40"><SelectValue placeholder="MCO" /></SelectTrigger><SelectContent><SelectItem value="all">All MCOs</SelectItem>{MCO_OPTIONS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select>
         <Select value={staff} onValueChange={setStaff}><SelectTrigger className="w-44"><SelectValue placeholder="Staff" /></SelectTrigger><SelectContent><SelectItem value="all">All staff</SelectItem><SelectItem value="__unassigned__">Unassigned</SelectItem>{staffOptions.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}</SelectContent></Select>
         {view === 'cycles' && (
@@ -363,7 +363,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients: approvedClients, c
               <TableHeader>
                 <TableRow>
                   {th('Client', frozenHead)}
-                  <TableHead>Assigned Staff</TableHead><TableHead>MCO</TableHead><TableHead>Member ID</TableHead>
+                  <TableHead>Case manager</TableHead><TableHead>MCO</TableHead><TableHead>Member ID</TableHead>
                   <TableHead>Phase</TableHead><TableHead>#</TableHead><TableHead>Start</TableHead><TableHead>End</TableHead>
                   <TableHead>Amount</TableHead><TableHead>Paid</TableHead><TableHead>Billing</TableHead><TableHead>Payment</TableHead><TableHead></TableHead>
                 </TableRow>
@@ -426,20 +426,20 @@ export const BillingMasterList: React.FC<Props> = ({ clients: approvedClients, c
                 <TableRow>
                   {th('Client', `${frozenHead}${view === 'master' || view === 'pending' || view === 'tracker' ? ' w-40 min-w-40 max-w-40' : ''}`)}
                   {view === 'master' && <>
-                    {th('MCO')}{th('Member ID')}{th('Phone')}{th('Intake Date')}{th('Assessment Due')}{th('Assigned Staff')}{th('MCO Housing Mgr')}
+                    {th('MCO')}{th('Member ID')}{th('Phone')}{th('Intake date')}{th('Assessment due')}{th('Case manager')}{th('MCO housing manager')}
                     {th('30-Day Auth #')}{th('30-Day Start')}{th('30-Day End')}{th('HSP Due')}{th('Approval')}{th('150-Day Auth #')}{th('150-Day Start')}
-                    {th('150-Day End')}{th('180-Day Auth #')}{th('180-Day Start')}{th('180-Day End')}{th('Next Action Due')}{th('Days Until Due')}
-                    {th('Overdue?')}{th('Billing')}{th('Payment')}{th('Closed Date')}{th('Reason Closed')}{th('Notes')}
+                    {th('150-Day End')}{th('180-Day Auth #')}{th('180-Day Start')}{th('180-Day End')}{th('Next action due')}{th('Days until due')}
+                    {th('Overdue')}{th('Billing')}{th('Payment')}{th('Closed date')}{th('Reason closed')}{th('Notes')}
                   </>}
-                  {view === 'pending' && <>{th('MCO')}{th('Member ID')}{th('Phone')}{th('Intake Date')}{th('Assessment Due')}{th('Assigned Staff')}{th('MCO Housing Mgr')}{th('Approval')}{th('Notes')}</>}
-                  {view === 'approved' && <>{th('MCO')}{th('Member ID')}{th('Phone')}{th('30-Day End')}{th('HSP Due')}{th('Approval')}{th('150-Day End')}{th('180-Day Start')}{th('180-Day End')}{th('Next Action Due')}{th('Days Until Due')}{th('Overdue?')}{th('Billing')}{th('Payment')}</>}
-                  {view === 'closed' && <>{th('MCO')}{th('Member ID')}{th('Closed Date')}{th('Reason Closed')}{th('Billing')}{th('Payment')}{th('Notes')}</>}
-                  {view === 'tracker' && <>{th('MCO')}{th('Member ID')}{th('Current Phase')}{th('Next Bill Due')}{Array.from({ length: MAX_CYCLES }, (_, i) => <React.Fragment key={i}>{th(`${i + 1} Start`)}{th(`${i + 1} End`)}</React.Fragment>)}</>}
+                  {view === 'pending' && <>{th('MCO')}{th('Member ID')}{th('Phone')}{th('Intake date')}{th('Assessment due')}{th('Case manager')}{th('MCO housing manager')}{th('Approval')}{th('Notes')}</>}
+                  {view === 'approved' && <>{th('MCO')}{th('Member ID')}{th('Phone')}{th('30-Day End')}{th('HSP Due')}{th('Approval')}{th('150-Day End')}{th('180-Day Start')}{th('180-Day End')}{th('Next action due')}{th('Days until due')}{th('Overdue')}{th('Billing')}{th('Payment')}</>}
+                  {view === 'closed' && <>{th('MCO')}{th('Member ID')}{th('Closed date')}{th('Reason closed')}{th('Billing')}{th('Payment')}{th('Notes')}</>}
+                  {view === 'tracker' && <>{th('MCO')}{th('Member ID')}{th('Current phase')}{th('Next bill due')}{Array.from({ length: MAX_CYCLES }, (_, i) => <React.Fragment key={i}>{th(`${i + 1} Start`)}{th(`${i + 1} End`)}</React.Fragment>)}</>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {clientRows.length === 0 && (
-                  <TableRow><TableCell colSpan={30} className="text-center text-muted-foreground py-8">No clients match these filters.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={30} className="text-center text-muted-foreground py-8">No records match these filters.</TableCell></TableRow>
                 )}
                 {clientRows.map((cl) => {
                   const x = ctxFor(cl);

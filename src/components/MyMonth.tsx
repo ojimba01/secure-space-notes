@@ -46,7 +46,7 @@ const clientRow = (c: ClientCompliance, onOpen: (id: string) => void) => (
       </div>
     </div>
     <div className="flex items-center gap-2">
-      {c.status === 'behind' && <Badge className="bg-red-600 text-white hover:bg-red-600">Behind</Badge>}
+      {c.status === 'behind' && <Badge className="bg-red-600 text-white hover:bg-red-600">Needs attention</Badge>}
       {c.status === 'complete' && <Badge className="bg-green-600 text-white hover:bg-green-600">Complete</Badge>}
       <ChevronRight className="h-4 w-4 text-muted-foreground" />
     </div>
@@ -78,40 +78,40 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Monthly Touchpoints</h1>
-        <p className="text-muted-foreground">Your monthly touch-point compliance at a glance.</p>
+        <h1 className="text-2xl font-bold">Monthly touchpoints</h1>
+        <p className="text-muted-foreground">Track required client contacts for the current month.</p>
       </div>
 
       {data.behindCount >= 5 ? (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>You're behind on {data.behindCount} clients</AlertTitle>
+          <AlertTitle>{data.behindCount} clients need attention</AlertTitle>
           <AlertDescription>
-            You can't add new clients until you complete those touch-points and drop back below 5 behind.
+            You cannot add new clients until those touchpoints are completed and your count drops below 5.
           </AlertDescription>
         </Alert>
       ) : data.behindCount >= 3 ? (
         <Alert>
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>You're behind on {data.behindCount} clients</AlertTitle>
+          <AlertTitle>{data.behindCount} clients need attention</AlertTitle>
           <AlertDescription>
-            Catch up soon. If you reach 5, you won't be able to add new clients until those touch-points are completed.
+            Catch up soon. If you reach 5, you will not be able to add new clients until those touchpoints are completed.
           </AlertDescription>
         </Alert>
       ) : null}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat icon={<Target className="h-5 w-5" />} label="Weekly client target" value={data.weeklyTarget} />
-        <Stat icon={<CalendarClock className="h-5 w-5" />} label="Touch-points due this week" value={data.touchpointsDueThisWeek} />
-        <Stat icon={<CheckCircle2 className="h-5 w-5" />} label="On track this month" value={`${data.onTrackCount} / ${data.caseload}`} />
-        <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Behind clients" value={data.behindCount} />
+        <Stat icon={<Target className="h-5 w-5" />} label="Weekly target" value={data.weeklyTarget} />
+        <Stat icon={<CalendarClock className="h-5 w-5" />} label="Due this week" value={data.touchpointsDueThisWeek} />
+        <Stat icon={<CheckCircle2 className="h-5 w-5" />} label="On track" value={data.caseload > 0 ? `${data.onTrackCount} of ${data.caseload}` : '—'} />
+        <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Needs attention" value={data.behindCount} />
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-lg">Scheduled touch-points this week</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg">Scheduled this week</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           {upcoming.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No touch-points scheduled this week.</p>
+            <p className="text-sm text-muted-foreground">No touchpoints scheduled this week.</p>
           ) : (
             upcoming.map((e) => (
               <button
@@ -133,21 +133,25 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
 
 
       <Card>
-        <CardHeader><CardTitle className="text-lg">Due for a touch point this week</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg">Due this week</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           {data.dueClients.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing due this week. Nice work.</p>
+            <p className="text-sm text-muted-foreground">No touchpoints due this week.</p>
           ) : (
             data.dueClients.map((c) => clientRow(c, onOpenClient))
           )}
         </CardContent>
       </Card>
 
-      {data.behindClients.length > 0 && (
+      {data.caseload > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-lg text-red-600">Behind clients</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg text-red-600">Needs attention</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {data.behindClients.map((c) => clientRow(c, onOpenClient))}
+            {data.behindClients.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No clients need attention.</p>
+            ) : (
+              data.behindClients.map((c) => clientRow(c, onOpenClient))
+            )}
           </CardContent>
         </Card>
       )}

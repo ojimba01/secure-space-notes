@@ -40,7 +40,7 @@ export const ViewAsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const guardWrite = useCallback(() => {
     if (viewAsEmployeeId) {
-      toast(`Sandbox preview — not saved. You're viewing as ${viewAsName}.`);
+      toast(`Previewing as ${viewAsName}. Changes will not be saved.`);
       return true;
     }
     return false;

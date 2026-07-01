@@ -38,7 +38,6 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
   const [open, setOpen] = useState(false);
 
   const load = useCallback(async () => {
-    // Ensure all cycles exist (older clients may only have one cycle stored).
     await regenerateClientCycles(clientId);
     const { data: c } = await supabase
       .from('clients')
@@ -68,25 +67,25 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Billing Details</CardTitle>
+        <CardTitle className="text-lg">Billing details</CardTitle>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground pt-1">
           <span>MCO: <b className="text-foreground">{client.insurance ?? '—'}</b></span>
           <span>Member ID: <b className="text-foreground">{client.member_id ?? '—'}</b></span>
           <span>LoN: <b className="text-foreground">{client.level_of_need ?? '—'}</b>{rate ? ` (${formatMoney(rate)}/cycle)` : ''}</span>
-          <span>Current phase: <b className="text-foreground">{currentPhase}</b></span>
-          <span>Next bill due: <b className="text-foreground">{nextBillDue(cycles, client.auth_150_start) ?? '—'}</b></span>
+          <span>Phase: <b className="text-foreground">{currentPhase}</b></span>
+          <span>Next due: <b className="text-foreground">{nextBillDue(cycles, client.auth_150_start) ?? '—'}</b></span>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
           <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Expected</div><div className="font-semibold">{formatMoney(totals.expected)}</div></div>
-          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Billed</div><div className="font-semibold">{formatMoney(totals.billed)}</div></div>
+          <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Submitted</div><div className="font-semibold">{formatMoney(totals.billed)}</div></div>
           <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Collected</div><div className="font-semibold text-green-600">{formatMoney(totals.collected)}</div></div>
           <div className="rounded-md border p-2"><div className="text-xs text-muted-foreground">Outstanding</div><div className="font-semibold text-amber-600">{formatMoney(totals.outstanding)}</div></div>
         </div>
 
         {cycles.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No billing cycles yet. Set the 150-Day start date and regenerate.</p>
+          <p className="text-sm text-muted-foreground">No billing cycles are available. Add the 150-day authorization start date to generate cycles.</p>
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-2">
             {cycles.map((c) => {

@@ -65,6 +65,37 @@ export const ComplianceEscalations: React.FC = () => {
     toast({ title: checked ? 'Weekly audit enabled' : 'Weekly audit turned off' });
   };
 
+
+  const formatOutstanding = (outstanding: any): string => {
+    if (!outstanding) return 'None.';
+    if (Array.isArray(outstanding) && outstanding.length === 0) return 'None.';
+    if (!Array.isArray(outstanding) && typeof outstanding === 'object') {
+      const parts: string[] = [];
+      if ((outstanding.touchpoints ?? 0) > 0)
+        parts.push(`${outstanding.touchpoints} touchpoint${outstanding.touchpoints !== 1 ? 's' : ''} remaining`);
+      if ((outstanding.in_person ?? 0) > 0)
+        parts.push(`${outstanding.in_person} in-person visit${outstanding.in_person !== 1 ? 's' : ''} remaining`);
+      if (outstanding.summary_note)
+        parts.push('Monthly summary note missing');
+      return parts.length ? parts.join(', ') + '.' : 'None.';
+    }
+    if (Array.isArray(outstanding) && outstanding.length > 0) {
+      const parts: string[] = [];
+      outstanding.forEach((item: any) => {
+        if (typeof item === 'object') {
+          if ((item.touchpoints ?? 0) > 0)
+            parts.push(`${item.touchpoints} touchpoint${item.touchpoints !== 1 ? 's' : ''} remaining`);
+          if ((item.in_person ?? 0) > 0)
+            parts.push(`${item.in_person} in-person visit${item.in_person !== 1 ? 's' : ''} remaining`);
+          if (item.summary_note)
+            parts.push('Monthly summary note missing');
+        }
+      });
+      return parts.length ? parts.join(', ') + '.' : 'None.';
+    }
+    return 'None.';
+  };
+
   const emergencies = escalations.filter((e) => e.kind === 'emergency_incomplete');
   const audits = escalations.filter((e) => e.kind === 'weekly_audit');
 
@@ -74,7 +105,7 @@ export const ComplianceEscalations: React.FC = () => {
         <Card className="border-red-500">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" /> Emergency — months ended incomplete ({emergencies.length})
+              <AlertTriangle className="h-5 w-5" /> Month-end compliance issues ({emergencies.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -82,13 +113,13 @@ export const ComplianceEscalations: React.FC = () => {
               <div key={e.id} className="rounded-md border border-red-200 bg-red-50 p-3 flex items-start justify-between gap-3">
                 <div className="text-sm">
                   <div className="font-medium">
-                    {names[e.client_id ?? ''] || 'Client'} · CM: {names[e.employee_id ?? ''] || 'Unassigned'}
+                    {names[e.client_id ?? ''] || 'Client'} · Case manager: {names[e.employee_id ?? ''] || 'Unassigned'}
                   </div>
-                  <div className="text-muted-foreground">Period {String(e.period).slice(0, 7)}</div>
-                  <div className="text-xs mt-1">Outstanding: {JSON.stringify(e.outstanding)}</div>
+                  <div className="text-muted-foreground">{(() => { try { const [y,m] = String(e.period).slice(0,7).split('-'); return new Date(Number(y), Number(m)-1, 1).toLocaleString('default', {month:'long', year:'numeric'}); } catch { return String(e.period).slice(0,7); } })()}</div>
+                  <div className="text-xs mt-1">Outstanding: {formatOutstanding(e.outstanding)}</div>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => resolve(e.id)}>
-                  <CheckCircle2 className="h-4 w-4 mr-1" /> Resolve
+                  <CheckCircle2 className="h-4 w-4 mr-1" /> Mark resolved
                 </Button>
               </div>
             ))}
@@ -107,7 +138,7 @@ export const ComplianceEscalations: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {!auditEnabled && <p className="text-sm text-muted-foreground">Weekly audit is off. Month-end emergency escalations still run.</p>}
+          {!auditEnabled && <p className="text-sm text-muted-foreground">Weekly audits are off. Month-end compliance escalations will still run.</p>}
           {audits.length === 0 ? (
             <p className="text-sm text-muted-foreground">No open audits.</p>
           ) : (
@@ -118,17 +149,17 @@ export const ComplianceEscalations: React.FC = () => {
                   <Badge variant="secondary">Week of {String(e.period).slice(0, 10)}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Log into HMIS and confirm the claimed-complete records were really entered.
+                  Review HMIS to confirm that records marked complete were entered correctly.
                 </p>
                 <div className="text-xs">
-                  <span className="font-medium">Claimed complete:</span> {Array.isArray(e.claimed_complete) && e.claimed_complete.length
+                  <span className="font-medium">Marked complete:</span> {Array.isArray(e.claimed_complete) && e.claimed_complete.length
                     ? e.claimed_complete.map((c: any) => `${names[c.client_id] || 'Client'} (${c.contacts})`).join(', ')
-                    : 'none'}
+                    : 'None'}
                 </div>
                 <div className="text-xs">
                   <span className="font-medium">Outstanding:</span> {Array.isArray(e.outstanding) && e.outstanding.length
                     ? e.outstanding.map((c: any) => `${names[c.client_id] || 'Client'} (${c.contacts})`).join(', ')
-                    : 'none'}
+                    : 'None.'}
                 </div>
                 <Button size="sm" variant="outline" onClick={() => resolve(e.id)}>
                   <CheckCircle2 className="h-4 w-4 mr-1" /> Mark reviewed

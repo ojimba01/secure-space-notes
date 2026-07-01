@@ -41,7 +41,7 @@ const statusChip = (status: ComplianceStatus) => {
       return <Badge className="bg-green-600 hover:bg-green-600 text-white">Complete</Badge>;
     case 'behind':
     case 'incomplete_escalated':
-      return <Badge className="bg-red-600 hover:bg-red-600 text-white">Behind</Badge>;
+      return <Badge className="bg-red-600 hover:bg-red-600 text-white">Needs attention</Badge>;
     default:
       return <Badge variant="secondary">On track</Badge>;
   }
@@ -245,17 +245,17 @@ export const ComplianceCard: React.FC<Props> = ({
     <TooltipProvider>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-lg">This month — {month.slice(0, 7)}</CardTitle>
+          <CardTitle className="text-lg">{new Date(month + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</CardTitle>
           {statusChip(status)}
         </CardHeader>
         <CardContent className="space-y-5">
           {/* contacts progress */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
-              Contacts: {progress.contactDays} of {req.requiredContacts}
+              Contacts completed: {progress.contactDays} of {req.requiredContacts}
               {req.requiredInPerson > 0 && (
                 <span className="text-muted-foreground">
-                  · In-Person {progress.inPersonSpaced} of {req.requiredInPerson} required
+                  · In-person visits: {progress.inPersonSpaced} of {req.requiredInPerson}
                 </span>
               )}
               <InfoHint text={tooltips.contact || undefined} items={!tooltips.contact ? contactHintItems : undefined} />
@@ -315,7 +315,7 @@ export const ComplianceCard: React.FC<Props> = ({
           {isHigh && (
             <div className="space-y-3 border-t pt-4">
               <div className="text-sm font-medium">
-                Support activities: {progress.activitiesDone} of {req.requiredActivities} required
+                Support activities: {progress.activitiesDone} of {req.requiredActivities}
               </div>
               <div className="space-y-2">
                 {SUPPORT_ACTIVITIES.map((a) => (
@@ -332,12 +332,12 @@ export const ComplianceCard: React.FC<Props> = ({
                 ))}
               </div>
               <div className="space-y-2">
-                <Label className="text-sm">Monthly narrative note</Label>
+                <Label className="text-sm">Monthly summary note</Label>
                 <Textarea
                   value={summaryNote}
                   onChange={(e) => setSummaryNote(e.target.value)}
                   rows={3}
-                  placeholder="Describe coordination with supportive housing programs, warm handoffs, etc."
+                  placeholder="Summarize housing coordination, referrals, handoffs, and other support provided this month."
                 />
                 <Button size="sm" variant="outline" onClick={saveNote} disabled={savingNote}>Save note</Button>
               </div>

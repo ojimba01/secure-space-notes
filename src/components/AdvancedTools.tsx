@@ -70,9 +70,9 @@ export const AdvancedTools: React.FC = () => {
         </Button>
       </PopoverTrigger>
       <PopoverContent side="top" align="start" className="w-72 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium"><Eye className="h-4 w-4" /> View as Employee</div>
-        <p className="text-xs text-muted-foreground">Preview the app as a case manager sees it (read-only).</p>
-        <Input placeholder="Search case managers…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="flex items-center gap-2 text-sm font-medium"><Eye className="h-4 w-4" /> Preview as case manager</div>
+        <p className="text-xs text-muted-foreground">Preview the case manager experience. Changes are not saved.</p>
+        <Input placeholder="Search case managers." value={search} onChange={(e) => setSearch(e.target.value)} />
         <div className="max-h-56 overflow-y-auto space-y-1">
           {filtered.length === 0 ? (
             <p className="text-xs text-muted-foreground px-1">No active case managers.</p>

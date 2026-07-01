@@ -44,9 +44,9 @@ type MilestoneStatusKey = 'overdue' | 'due_soon' | 'on_track' | 'finished' | 'no
 
 const MILESTONE_STATUS_OPTIONS: { key: MilestoneStatusKey; label: string }[] = [
   { key: 'overdue', label: 'Overdue' },
-  { key: 'due_soon', label: 'Due soon (≤14 days)' },
+  { key: 'due_soon', label: 'Due soon' },
   { key: 'on_track', label: 'On track' },
-  { key: 'finished', label: 'Finished' },
+  { key: 'finished', label: 'Complete' },
   { key: 'none', label: 'No milestone' },
 ];
 
@@ -309,7 +309,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   };
 
   const filterButtonLabel = (() => {
-    if (allFilterSelected) return 'All managers';
+    if (allFilterSelected) return 'All case managers';
     if (noneFilterSelected) return 'None selected';
     if (selectedCount === 1) {
       if (includeUnassigned) return 'Unassigned only';
@@ -336,7 +336,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h1 className="text-xl md:text-3xl font-bold truncate">Clients</h1>
-          <p className="text-sm text-muted-foreground hidden md:block">Manage your client cases and information</p>
+          <p className="text-sm text-muted-foreground hidden md:block">View client records, assignments, milestones, and documentation.</p>
         </div>
         {isAdmin && !selectionMode && !isViewingAs && (
           <div className="flex items-center gap-2 shrink-0">
@@ -349,7 +349,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               className="md:size-default"
               onClick={() => setShowAddDialog(true)}
               disabled={!isAdmin && behindCount >= 5}
-              title={!isAdmin && behindCount >= 5 ? "You're behind on 5+ clients. Complete those touch-points to drop below 5 before adding new clients." : undefined}
+              title={!isAdmin && behindCount >= 5 ? "You have 5 or more clients needing attention. Complete those touchpoints to drop below 5 before adding new clients." : undefined}
             >
               <Plus className="h-4 w-4 md:mr-2" />
               <span className="hidden md:inline">Add Client</span>
@@ -382,7 +382,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search clients by name, member ID, or email..."
+            placeholder="Search by name, member ID, or email."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -426,7 +426,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
                     </label>
                   ))}
                   {activeManagerOptions.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No active employees</p>
+                    <p className="text-xs text-muted-foreground">No active case managers</p>
                   )}
                 </div>
               </ScrollArea>
@@ -470,7 +470,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         <div className="inline-flex items-center gap-2 bg-secondary/40 border rounded-full px-4 py-1.5 text-sm font-medium">
           <Users className="h-4 w-4 text-primary" />
           <span>
-            {filteredClients.length} patient{filteredClients.length !== 1 ? 's' : ''}
+            {filteredClients.length} client{filteredClients.length !== 1 ? 's' : ''}
             {searchTerm || !allFilterSelected || !allStatusesSelected ? ' matched' : ' total'}
           </span>
         </div>
@@ -502,11 +502,11 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           {filteredClients.length === 0 && (
             <div className="col-span-full text-center py-8 text-muted-foreground">
               {isAdmin && noneFilterSelected
-                ? 'No managers selected — pick at least one to see clients.'
+                ? 'Select at least one case manager to view results.'
                 : noStatusSelected
                 ? 'No milestone statuses selected — pick at least one to see clients.'
                 : searchTerm
-                ? 'No clients found matching your search.'
+                ? 'No results match your search.'
                 : 'No clients found matching the selected filters.'}
             </div>
           )}

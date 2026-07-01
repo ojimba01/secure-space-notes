@@ -26,7 +26,7 @@ interface Props {
 const ORDER: DeadlineBucket[] = ['overdue', 'week', 'month', 'later'];
 
 const daysLabel = (d: number) =>
-  d < 0 ? `${Math.abs(d)}d overdue` : d === 0 ? 'due today' : `${d}d left`;
+  d < 0 ? `${Math.abs(d)} days overdue` : d === 0 ? 'Due today' : `${d} days left`;
 
 export const UpcomingDeadlines: React.FC<Props> = ({ clients, cycles, refresh, onOpenTimeline }) => {
   const [submitting, setSubmitting] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export const UpcomingDeadlines: React.FC<Props> = ({ clients, cycles, refresh, o
     return (
       <Card>
         <CardContent className="p-8 text-center text-muted-foreground">
-          No billing cycles yet. Add a client's 150-Day authorization start date (or run the backfill), and cycles appear automatically.
+          No billing cycles are available yet. Add a 150-day authorization start date to generate cycles.
         </CardContent>
       </Card>
     );
@@ -67,7 +67,7 @@ export const UpcomingDeadlines: React.FC<Props> = ({ clients, cycles, refresh, o
     return (
       <Card>
         <CardContent className="p-8 text-center text-muted-foreground">
-          Nothing due — you're all caught up. 🎉
+          No billing deadlines are currently due.
         </CardContent>
       </Card>
     );
@@ -92,11 +92,11 @@ export const UpcomingDeadlines: React.FC<Props> = ({ clients, cycles, refresh, o
                     <TableRow>
                       <TableHead>Client</TableHead>
                       <TableHead>Due date</TableHead>
-                      <TableHead>Submitted?</TableHead>
-                      <TableHead>Assigned Staff</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Case manager</TableHead>
                       <TableHead>MCO</TableHead>
                       <TableHead>Phase</TableHead>
-                      <TableHead>Cycle #</TableHead>
+                      <TableHead>Cycle</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Remaining</TableHead>
                     </TableRow>
@@ -113,7 +113,7 @@ export const UpcomingDeadlines: React.FC<Props> = ({ clients, cycles, refresh, o
                         <TableCell className="whitespace-nowrap">
                           <Button variant="outline" size="sm" className="h-8 gap-1" disabled={submitting === c.id}
                             onClick={(e) => { e.stopPropagation(); handleSubmit(c); }}>
-                            <CheckCircle2 className="h-4 w-4" />Submitted
+                            <CheckCircle2 className="h-4 w-4" />Mark submitted
                           </Button>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
@@ -126,7 +126,6 @@ export const UpcomingDeadlines: React.FC<Props> = ({ clients, cycles, refresh, o
                     ))}
                   </TableBody>
                 </Table>
-
               </CardContent>
             </Card>
           </div>

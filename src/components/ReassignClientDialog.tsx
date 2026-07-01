@@ -177,10 +177,10 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
         <DialogHeader>
           <div className="flex items-center gap-2">
             <UserCog className="h-5 w-5 text-primary" />
-            <DialogTitle>Reassign Client</DialogTitle>
+            <DialogTitle>Reassign</DialogTitle>
           </div>
           <DialogDescription>
-            Reassign {clientName} to a different case manager. This action will be logged in the assignment history.
+            Assign {clientName} to a different case manager. This change will be saved in assignment history.
           </DialogDescription>
         </DialogHeader>
         
@@ -191,7 +191,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
               name="new_employee_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New Case Manager *</FormLabel>
+                  <FormLabel>New case manager</FormLabel>
                   <Select 
                     onValueChange={field.onChange} 
                     defaultValue={field.value}
@@ -199,11 +199,11 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder={loading ? "Loading..." : "Select case manager"} />
+                        <SelectValue placeholder={loading ? "Loading..." : "Select a case manager"} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="__none__">— No case manager (unassign) —</SelectItem>
+                      <SelectItem value="__none__">Unassigned</SelectItem>
                       {employees.map((employee) => (
                         <SelectItem key={employee.id} value={employee.id}>
                           {employee.first_name} {employee.last_name} ({employee.email})
@@ -211,9 +211,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    Choose a case manager or unassign the client
-                  </FormDescription>
+
                   <FormMessage />
                 </FormItem>
               )}
@@ -224,16 +222,16 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
               name="reason"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Reason (Optional)</FormLabel>
+                  <FormLabel>Reason optional</FormLabel>
                   <FormControl>
                     <Textarea 
                       {...field} 
                       rows={3} 
-                      placeholder="Document why this reassignment is happening..."
+                      placeholder="Add the reason for this reassignment"
                     />
                   </FormControl>
                   <FormDescription>
-                    This will be recorded in the assignment history
+                    This will appear in assignment history.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -253,7 +251,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
                 type="submit" 
                 disabled={isSubmitting || loading}
               >
-                {isSubmitting ? 'Saving...' : 'Save'}
+                {isSubmitting ? 'Saving...' : 'Reassign'}
               </Button>
             </div>
           </form>

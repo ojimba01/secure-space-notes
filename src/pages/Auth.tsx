@@ -40,7 +40,7 @@ const Auth = () => {
     
     if (error) {
       toast({
-        title: "Sign In Failed",
+        title: "Sign-in failed.",
         description: error.message,
         variant: "destructive",
       });
@@ -67,7 +67,7 @@ const Auth = () => {
     // Validate email domain (if configured)
     if (ALLOWED_EMAIL_DOMAIN && !email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
       toast({
-        title: "Invalid Email Domain",
+        title: "Invalid email domain",
         description: `Only ${ALLOWED_EMAIL_DOMAIN} email addresses are allowed to sign up.`,
         variant: "destructive",
       });
@@ -79,13 +79,13 @@ const Auth = () => {
     
     if (error) {
       toast({
-        title: "Sign Up Failed",
+        title: "Sign-up failed.",
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Account Created!",
+        title: "Account created.",
         description: "Your account has been created successfully. You can now sign in.",
       });
     }
@@ -112,7 +112,7 @@ const Auth = () => {
       });
     } else {
       toast({
-        title: "Password Reset Sent",
+        title: "Reset instructions sent",
         description: "Check your email for password reset instructions.",
       });
       setShowForgotPassword(false);
@@ -130,8 +130,8 @@ const Auth = () => {
             <Stethoscope className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="font-semibold text-lg">ClinicalNotes</h2>
-            <p className="text-xs text-muted-foreground">HIPAA Compliant</p>
+            <h2 className="font-semibold text-lg">SupportiveCM</h2>
+            <p className="text-xs text-muted-foreground">HIPAA compliant</p>
           </div>
         </Link>
 
@@ -139,30 +139,30 @@ const Auth = () => {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">SupportiveCM</CardTitle>
           <CardDescription>
-            HIPAA-Compliant Case Management System
+            Secure case management platform
           </CardDescription>
         </CardHeader>
         <CardContent>
           {showForgotPassword ? (
             <div className="space-y-6">
               <div className="text-center">
-                <h3 className="text-lg font-semibold">Reset Password</h3>
+                <h3 className="text-lg font-semibold">Reset password</h3>
                 <p className="text-muted-foreground">Enter your email to receive reset instructions</p>
               </div>
               <form onSubmit={handleForgotPassword} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="reset-email">Email</Label>
+                  <Label htmlFor="reset-email">Email address</Label>
                   <Input
                     id="reset-email"
                     name="email"
                     type="email"
-                    placeholder="Enter your email"
+                    placeholder="Enter your email address"
                     required
                   />
                 </div>
                 <div className="space-y-2">
                   <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? 'Sending...' : 'Send Reset Instructions'}
+                    {isSubmitting ? 'Sending...' : 'Send reset instructions'}
                   </Button>
                   <Button
                     type="button"
@@ -170,7 +170,7 @@ const Auth = () => {
                     className="w-full"
                     onClick={() => setShowForgotPassword(false)}
                   >
-                    Back to Sign In
+                    Back to sign in
                   </Button>
                 </div>
               </form>
@@ -178,19 +178,19 @@ const Auth = () => {
           ) : (
             <Tabs defaultValue="signin" className="space-y-6">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                <TabsTrigger value="signin">Sign in</TabsTrigger>
+                <TabsTrigger value="signup">Create account</TabsTrigger>
               </TabsList>
               
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">Email address</Label>
                     <Input
                       id="email"
                       name="email"
                       type="email"
-                      placeholder="Enter your email"
+                      placeholder="Enter your email address"
                       required
                     />
                   </div>
@@ -205,7 +205,7 @@ const Auth = () => {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? 'Signing In...' : 'Sign In'}
+                    {isSubmitting ? 'Signing in...' : 'Sign in'}
                   </Button>
                   <Button
                     type="button"
@@ -213,7 +213,7 @@ const Auth = () => {
                     className="w-full"
                     onClick={() => setShowForgotPassword(true)}
                   >
-                    Forgot Password?
+                    Forgot password?
                   </Button>
                 </form>
               </TabsContent>
@@ -222,7 +222,7 @@ const Auth = () => {
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="firstName">First name</Label>
                     <Input
                       id="firstName"
                       name="firstName"
@@ -231,7 +231,7 @@ const Auth = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="lastName">Last name</Label>
                     <Input
                       id="lastName"
                       name="lastName"
@@ -241,7 +241,7 @@ const Auth = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
+                  <Label htmlFor="signup-email">Email address</Label>
                   <Input
                     id="signup-email"
                     name="email"
@@ -262,7 +262,7 @@ const Auth = () => {
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating Account...' : 'Create Account'}
+                  {isSubmitting ? 'Creating account...' : 'Create account'}
                 </Button>
               </form>
             </TabsContent>

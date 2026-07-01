@@ -221,12 +221,12 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Calendar Event</DialogTitle>
+          <DialogTitle>Edit event</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="edit-title">Event Title *</Label>
+            <Label htmlFor="edit-title">Event title</Label>
             <Input
               id="edit-title"
               value={formData.title}

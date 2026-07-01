@@ -153,11 +153,11 @@ export const VisitAvailabilitySection: React.FC<VisitAvailabilityProps> = ({ cli
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <CalendarRange className="h-5 w-5" />
-            Scheduled Visit Availability
+            Visit availability
           </CardTitle>
           <Button size="sm" onClick={openAdd}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Date Range
+            Add date range
           </Button>
         </div>
       </CardHeader>
@@ -166,7 +166,7 @@ export const VisitAvailabilitySection: React.FC<VisitAvailabilityProps> = ({ cli
           <p className="text-muted-foreground">Loading...</p>
         ) : ranges.length === 0 ? (
           <p className="text-muted-foreground">
-            No availability windows set. Add a date range to indicate when visits can happen.
+            No visit availability has been added.
           </p>
         ) : (
           <div className="space-y-3">
@@ -200,7 +200,7 @@ export const VisitAvailabilitySection: React.FC<VisitAvailabilityProps> = ({ cli
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? 'Edit Date Range' : 'Add Date Range'}</DialogTitle>
+            <DialogTitle>{editing ? 'Edit date range' : 'Add date range'}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -239,7 +239,7 @@ export const VisitAvailabilitySection: React.FC<VisitAvailabilityProps> = ({ cli
                   <FormItem>
                     <FormLabel>Notes (optional)</FormLabel>
                     <FormControl>
-                      <Textarea {...field} rows={3} placeholder="e.g. mornings only, weekdays preferred" />
+                      <Textarea {...field} rows={3} placeholder="Example: mornings only, weekdays preferred." />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

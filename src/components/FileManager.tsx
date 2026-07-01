@@ -164,8 +164,8 @@ export const FileManager: React.FC<FileManagerProps> = ({ clientId }) => {
       setPreviewFile(file);
     } else {
       toast({
-        title: "Preview not available",
-        description: "Preview is only available for PDF files. Downloading instead.",
+        title: "Preview unavailable",
+        description: "Only PDF files can be previewed. Download the file to view it.",
       });
       handleDownload(file);
     }
@@ -182,7 +182,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ clientId }) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">File Management</h2>
+        <h2 className="text-xl font-semibold">Client files</h2>
         <div>
           <input
             type="file"
@@ -252,7 +252,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ clientId }) => {
           ))}
           {files.length === 0 && (
             <div className="col-span-full text-center py-8 text-muted-foreground">
-              No files uploaded. Upload your first file to get started.
+              No files have been uploaded.
             </div>
           )}
         </div>

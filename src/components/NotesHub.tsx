@@ -241,20 +241,20 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
   return (
     <div className="p-3 md:p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-2xl md:text-3xl font-bold">Clinical Notes</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">Clinical notes</h1>
         {!isViewingAs && (
           <Button onClick={() => setShowAddDialog(true)} className="gap-2 bg-medical-blue hover:bg-medical-blue/90">
             <Plus className="h-4 w-4" />
-            New Note
+            New note
           </Button>
         )}
       </div>
-      <p className="text-muted-foreground mb-6">Browse all notes grouped by client</p>
+      <p className="text-muted-foreground mb-6">Review notes grouped by client.</p>
 
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search by client, title, or content..."
+          placeholder="Search by client, title, or note content."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-10"
@@ -334,7 +334,7 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New Note</DialogTitle>
+            <DialogTitle>New note</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleAddNote)} className="space-y-4">
@@ -358,7 +358,7 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Title</FormLabel>
+                    <FormLabel>Note title</FormLabel>
                     <FormControl>
                       <Input {...field} maxLength={200} />
                     </FormControl>
@@ -371,7 +371,7 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
                 name="visit_date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Visit Date</FormLabel>
+                    <FormLabel>Visit date</FormLabel>
                     <FormControl>
                       <Input type="datetime-local" {...field} />
                     </FormControl>
@@ -384,7 +384,7 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
                 name="content"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Content</FormLabel>
+                    <FormLabel>Note content</FormLabel>
                     <FormControl>
                       <Textarea {...field} rows={5} maxLength={10000} />
                     </FormControl>
@@ -510,7 +510,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSav
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Title</FormLabel>
+                    <FormLabel>Note title</FormLabel>
                     <FormControl>
                       <Input {...field} maxLength={200} />
                     </FormControl>
@@ -523,7 +523,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSav
                 name="visit_date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Visit Date</FormLabel>
+                    <FormLabel>Visit date</FormLabel>
                     <FormControl>
                       <Input type="datetime-local" {...field} />
                     </FormControl>
@@ -536,7 +536,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSav
                 name="content"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Content</FormLabel>
+                    <FormLabel>Note content</FormLabel>
                     <FormControl>
                       <Textarea {...field} rows={12} maxLength={10000} />
                     </FormControl>
