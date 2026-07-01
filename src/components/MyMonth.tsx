@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, Target, CalendarClock, CheckCircle2, ChevronRight } from 'lucide-react';
+import { InfoHint } from '@/components/InfoHint';
 import { useMyCompliance, ClientCompliance } from '@/hooks/useMyCompliance';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,13 +21,16 @@ interface UpcomingTouchpoint {
   client_id: string | null;
 }
 
-const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
+const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode; hint?: string }> = ({ icon, label, value, hint }) => (
   <Card>
     <CardContent className="p-4 flex items-center gap-3">
       <div className="rounded-full bg-primary/10 p-2 text-primary">{icon}</div>
       <div>
         <div className="text-2xl font-bold leading-none">{value}</div>
-        <div className="text-xs text-muted-foreground mt-1">{label}</div>
+        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+          {label}
+          {hint && <InfoHint text={hint} />}
+        </div>
       </div>
     </CardContent>
   </Card>
@@ -101,10 +105,30 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
       ) : null}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat icon={<Target className="h-5 w-5" />} label="Weekly target" value={data.weeklyTarget} />
-        <Stat icon={<CalendarClock className="h-5 w-5" />} label="Due this week" value={data.touchpointsDueThisWeek} />
-        <Stat icon={<CheckCircle2 className="h-5 w-5" />} label="On track" value={data.caseload > 0 ? `${data.onTrackCount} of ${data.caseload}` : '—'} />
-        <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Needs attention" value={data.behindCount} />
+        <Stat
+          icon={<Target className="h-5 w-5" />}
+          label="Weekly target"
+          value={data.weeklyTarget}
+          hint="The number of client touchpoints you should complete each week to stay on pace across all your clients this month."
+        />
+        <Stat
+          icon={<CalendarClock className="h-5 w-5" />}
+          label="Due this week"
+          value={data.touchpointsDueThisWeek}
+          hint="Clients whose next required touchpoint falls within this week (Monday–Sunday)."
+        />
+        <Stat
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          label="On track"
+          value={data.caseload > 0 ? `${data.onTrackCount} of ${data.caseload}` : '—'}
+          hint="Clients who have met their required contacts so far this month, out of your total caseload."
+        />
+        <Stat
+          icon={<AlertTriangle className="h-5 w-5" />}
+          label="Needs attention"
+          value={data.behindCount}
+          hint="Clients who are behind on their required contacts for this month."
+        />
       </div>
 
       <Card>
@@ -133,7 +157,10 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
 
 
       <Card>
-        <CardHeader><CardTitle className="text-lg">Due this week</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-lg">Due this week</CardTitle>
+          <p className="text-sm text-muted-foreground">Clients whose next required touchpoint falls within this week.</p>
+        </CardHeader>
         <CardContent className="space-y-2">
           {data.dueClients.length === 0 ? (
             <p className="text-sm text-muted-foreground">No touchpoints due this week.</p>
@@ -145,7 +172,10 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
 
       {data.caseload > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-lg text-red-600">Needs attention</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-lg text-red-600">Clients that need attention</CardTitle>
+            <p className="text-sm text-muted-foreground">Clients who are behind on their required contacts for this month.</p>
+          </CardHeader>
           <CardContent className="space-y-2">
             {data.behindClients.length === 0 ? (
               <p className="text-sm text-muted-foreground">No clients need attention.</p>
