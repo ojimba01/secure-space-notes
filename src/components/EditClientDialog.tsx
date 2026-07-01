@@ -21,6 +21,13 @@ const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FI
 
 const LON_OPTIONS = ['Low Level', 'High Level'] as const;
 
+const APPROVAL_STATUS_OPTIONS = ['Not Submitted', 'Submitted', 'Approved', 'Denied'] as const;
+
+const REASON_CLOSED_OPTIONS = [
+  'Housed', 'Moved', 'Lost Contact', 'Deceased',
+  'Transferred to Other Agency', 'Medicaid Expired', 'Other',
+] as const;
+
 const NJ_COUNTIES = [
   'ATLANTIC', 'BERGEN', 'BURLINGTON', 'CAMDEN', 'CAPE MAY', 'CUMBERLAND',
   'ESSEX', 'GLOUCESTER', 'HUDSON', 'HUNTERDON', 'MERCER', 'MIDDLESEX',
