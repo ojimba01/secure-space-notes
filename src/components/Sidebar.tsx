@@ -44,6 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   const { isSuperadmin } = useIsSuperadmin();
+  const { isViewingAs } = useViewAs();
 
   useEffect(() => {
     if (user) {
