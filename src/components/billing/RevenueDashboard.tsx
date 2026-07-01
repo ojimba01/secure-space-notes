@@ -255,7 +255,7 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
                           </TableCell>
                           <TableCell>
                             <Button variant="outline" size="sm" className="h-8 gap-1" disabled={submitting === c.id} onClick={() => handleSubmit(c)}>
-                              <CheckCircle2 className="h-4 w-4" />Mark Submitted
+                              <CheckCircle2 className="h-4 w-4" />Submitted
                             </Button>
                           </TableCell>
                         </TableRow>
