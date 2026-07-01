@@ -147,7 +147,7 @@ export const CaseManagerCalendar = () => {
     'touch_point': 'bg-teal-500',
   };
   const eventTypeLabels: Record<string, string> = {
-    'touch_point': 'Touch-point',
+    'touch_point': 'Touchpoint',
   };
 
   return (
@@ -276,7 +276,7 @@ export const CaseManagerCalendar = () => {
                   </button>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No events today</p>
+                <p className="text-sm text-muted-foreground">No events today.</p>
               )}
             </div>
           </Card>
@@ -326,7 +326,7 @@ export const CaseManagerCalendar = () => {
                   </button>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No events scheduled</p>
+                <p className="text-sm text-muted-foreground">No events are scheduled.</p>
               )}
             </div>
           </Card>

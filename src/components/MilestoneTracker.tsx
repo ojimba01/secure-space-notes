@@ -109,7 +109,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
     <div className="rounded-md border border-dashed p-3 space-y-3 bg-muted/30">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold flex items-center gap-2">
-          <Pencil className="h-4 w-4" /> Admin: Edit Milestone Dates
+          <Pencil className="h-4 w-4" /> Edit milestone dates
         </p>
         {!adminEditing && (
           <Button
@@ -159,7 +159,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>IAT & HSP Milestones</CardTitle>
+          <CardTitle>Assessment and HSP milestones</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
@@ -172,7 +172,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
   }
 
   const finishedBadge = {
-    label: 'Finished',
+    label: 'Complete',
     variant: 'secondary' as const,
     className: 'bg-green-600 text-white border-transparent hover:bg-green-600 dark:bg-green-700',
   };
@@ -185,7 +185,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>IAT & HSP Milestones</CardTitle>
+        <CardTitle>Assessment and HSP milestones</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {adminPanel}
@@ -193,7 +193,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Warning</AlertTitle>
-            <AlertDescription>Patient is now pending next action.</AlertDescription>
+            <AlertDescription>Next required action is due.</AlertDescription>
           </Alert>
         )}
 
@@ -236,7 +236,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
 
             {!iatPassed && (
               <p className="text-xs text-muted-foreground">
-                Unlocks on {iatDue!.toLocaleDateString()} (after IAT due date)
+                Available on {iatDue!.toLocaleDateString()}.
               </p>
             )}
 
@@ -267,7 +267,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
                   <p className="text-sm">{new Date(hsp150Date).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Due Date (+150)</p>
+                  <p className="text-xs text-muted-foreground">Due date — 150 days</p>
                   <p className="text-sm">{hsp150Due!.toLocaleDateString()}</p>
                   {hsp150Status && <Badge variant={hsp150Status.variant} className={`mt-1 ${hsp150Status.className ?? ''}`}>{hsp150Status.label}</Badge>}
                 </div>
@@ -292,8 +292,8 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
             {!hsp150Passed && (
               <p className="text-xs text-muted-foreground">
                 {hsp150Due
-                  ? `Unlocks on ${hsp150Due.toLocaleDateString()} (after 150-day due date)`
-                  : 'Locked until 150-day milestone is set and passes'}
+                  ? `Available on ${hsp150Due.toLocaleDateString()}.`
+                  : 'Available after the prior milestone is completed.'}
               </p>
             )}
 
@@ -324,7 +324,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
                   <p className="text-sm">{new Date(hsp180Date).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Due Date (+180)</p>
+                  <p className="text-xs text-muted-foreground">Due date — 180 days</p>
                   <p className="text-sm">{hsp180Due!.toLocaleDateString()}</p>
                   {hsp180Status && <Badge variant={hsp180Status.variant} className="mt-1">{hsp180Status.label}</Badge>}
                 </div>

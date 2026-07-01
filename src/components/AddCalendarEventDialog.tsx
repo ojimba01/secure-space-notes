@@ -172,12 +172,12 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Calendar Event</DialogTitle>
+          <DialogTitle>Add event</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Event Title *</Label>
+            <Label htmlFor="title">Event title</Label>
             <Input
               id="title"
               value={formData.title}

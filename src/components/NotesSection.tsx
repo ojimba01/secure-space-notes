@@ -166,7 +166,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ clientId }) => {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Client Note</DialogTitle>
+              <DialogTitle>Add note</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleAddNote)} className="space-y-4">
@@ -188,7 +188,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ clientId }) => {
                   name="visit_date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Visit Date</FormLabel>
+                      <FormLabel>Visit date</FormLabel>
                       <FormControl>
                         <Input 
                           type="datetime-local" 
@@ -289,7 +289,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ clientId }) => {
           ))}
           {notes.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
-              No notes found. Add your first note to get started.
+              No notes have been added yet.
             </div>
           )}
         </div>
