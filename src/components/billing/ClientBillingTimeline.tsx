@@ -15,6 +15,7 @@ import {
   rateForLevel,
 } from '@/lib/billing';
 import { BillingCycleDialog } from '@/components/billing/BillingCycleDialog';
+import { regenerateClientCycles } from '@/lib/billingSync';
 import { RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -37,6 +38,8 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
   const [open, setOpen] = useState(false);
 
   const load = useCallback(async () => {
+    // Ensure all cycles exist (older clients may only have one cycle stored).
+    await regenerateClientCycles(clientId);
     const { data: c } = await supabase
       .from('clients')
       .select('first_name, last_name, insurance, member_id, level_of_need, auth_150_start')
@@ -65,7 +68,7 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Billing timeline</CardTitle>
+        <CardTitle className="text-lg">Billing Details</CardTitle>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground pt-1">
           <span>MCO: <b className="text-foreground">{client.insurance ?? '—'}</b></span>
           <span>Member ID: <b className="text-foreground">{client.member_id ?? '—'}</b></span>
