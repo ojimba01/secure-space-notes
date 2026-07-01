@@ -459,6 +459,71 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               );
             })()}
 
+            <div className="rounded-md border p-4 space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold">Billing Authorization Period</h4>
+                <p className="text-xs text-muted-foreground">
+                  Drives the billing section. Distinct from HSP milestone dates above. All optional.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="auth_150_start"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>150-Day Start</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="auth_150_end"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>150-Day End</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="auth_180_start"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>180-Day Start</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="auth_180_end"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>180-Day End</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+
+
 
             <FormField
               control={form.control}
