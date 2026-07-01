@@ -237,299 +237,186 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="first_name"
-                render={({ field }) => (
+            {/* Section: Client info */}
+            <div className="rounded-md border p-4 space-y-4">
+              <h4 className="text-sm font-semibold">Client Info</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="first_name" render={({ field }) => (
+                  <FormItem><FormLabel>First Name *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="last_name" render={({ field }) => (
+                  <FormItem><FormLabel>Last Name *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="insurance" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>First Name *</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="last_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name *</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="email" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="tel" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="member_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Member ID</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="insurance"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Insurance</FormLabel>
+                    <FormLabel>MCO (Insurance)</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || ''}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select insurance" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {INSURANCE_OPTIONS.map((opt) => (
-                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                        ))}
-                      </SelectContent>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select MCO" /></SelectTrigger></FormControl>
+                      <SelectContent>{INSURANCE_OPTIONS.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="date_of_birth"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date of Birth</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="date" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="level_of_need"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Level of Need (LoN)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select level of need" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {LON_OPTIONS.map((opt) => (
-                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="county"
-                render={({ field }) => (
+                )} />
+                <FormField control={form.control} name="member_id" render={({ field }) => (
+                  <FormItem><FormLabel>Member ID</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="phone" render={({ field }) => (
+                  <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} type="tel" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} type="email" /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="date_of_birth" render={({ field }) => (
+                  <FormItem><FormLabel>Date of Birth</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="county" render={({ field }) => (
                   <FormItem>
                     <FormLabel>County</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || ''}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select county" />
-                        </SelectTrigger>
-                      </FormControl>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select county" /></SelectTrigger></FormControl>
+                      <SelectContent>{NJ_COUNTIES.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <FormField control={form.control} name="address" render={({ field }) => (
+                <FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="assigned_employee_id" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assigned Staff</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Assign to me (default)" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {NJ_COUNTIES.map((opt) => (
-                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                        ))}
+                        <SelectItem value="__none__">— Unassigned —</SelectItem>
+                        {caseManagers.map((cm) => (<SelectItem key={cm.id} value={cm.id}>{caseManagerName(cm)}</SelectItem>))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
-                )}
-              />
+                )} />
+                <FormField control={form.control} name="mco_housing_manager" render={({ field }) => (
+                  <FormItem><FormLabel>MCO Housing Manager</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
             </div>
 
-            <FormField
-              control={form.control}
-              name="iat_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>IAT Start Date</FormLabel>
-                  <FormControl>
-                    <Input {...field} type="date" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="assigned_employee_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Assigned Staff</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ''}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Assign to me (default)" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="__none__">— Unassigned —</SelectItem>
-                      {caseManagers.map((cm) => (
-                        <SelectItem key={cm.id} value={cm.id}>
-                          {caseManagerName(cm)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+            {/* Section: Status */}
             <div className="rounded-md border p-4 space-y-4">
-              <div>
-                <h4 className="text-sm font-semibold">Billing Authorization Period</h4>
-                <p className="text-xs text-muted-foreground">
-                  Drives the billing section. Distinct from HSP milestone dates. All optional.
-                </p>
-              </div>
+              <h4 className="text-sm font-semibold">Status</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="auth_150_start"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>150-Day Start</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="auth_150_end"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>150-Day End</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="auth_180_start"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>180-Day Start</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="auth_180_end"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>180-Day End</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormField control={form.control} name="approval_status" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Approval Status</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
+                      <SelectContent>{APPROVAL_STATUS_OPTIONS.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="level_of_need" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Level of Need (LoN)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select level of need" /></SelectTrigger></FormControl>
+                      <SelectContent>{LON_OPTIONS.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               </div>
             </div>
 
+            {/* Section: Dates & authorizations */}
+            <div className="rounded-md border p-4 space-y-4">
+              <h4 className="text-sm font-semibold">Dates &amp; Authorizations</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="intake_date" render={({ field }) => (
+                  <FormItem><FormLabel>Intake Date (Assessment Start)</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="assessment_due_date" render={({ field }) => (
+                  <FormItem><FormLabel>Assessment Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="iat_date" render={({ field }) => (
+                  <FormItem><FormLabel>IAT Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="hsp_due_date" render={({ field }) => (
+                  <FormItem><FormLabel>HSP Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
 
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">30-Day Authorization</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="auth_30_number" render={({ field }) => (
+                    <FormItem><FormLabel>30-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="auth_30_start" render={({ field }) => (
+                    <FormItem><FormLabel>30-Day Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="auth_30_end" render={({ field }) => (
+                    <FormItem><FormLabel>30-Day End Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+              </div>
 
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">150-Day Authorization (drives billing)</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="auth_150_number" render={({ field }) => (
+                    <FormItem><FormLabel>150-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="auth_150_start" render={({ field }) => (
+                    <FormItem><FormLabel>150-Day Start</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="auth_150_end" render={({ field }) => (
+                    <FormItem><FormLabel>150-Day End</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+              </div>
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Initial Notes</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} rows={3} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">180-Day Authorization</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField control={form.control} name="auth_180_number" render={({ field }) => (
+                    <FormItem><FormLabel>180-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="auth_180_start" render={({ field }) => (
+                    <FormItem><FormLabel>180-Day Start</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="auth_180_end" render={({ field }) => (
+                    <FormItem><FormLabel>180-Day End</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  )} />
+                </div>
+              </div>
+            </div>
+
+            {/* Section: Follow-up */}
+            <div className="rounded-md border p-4 space-y-4">
+              <h4 className="text-sm font-semibold">Follow-up</h4>
+              <FormField control={form.control} name="next_action_due_date" render={({ field }) => (
+                <FormItem><FormLabel>Next Action Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+              )} />
+            </div>
+
+            {/* Section: Notes */}
+            <FormField control={form.control} name="notes" render={({ field }) => (
+              <FormItem><FormLabel>Initial Notes</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
+            )} />
 
             <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
               You can set scheduled visit availability date ranges after creating the client, by editing their record.
             </p>
+
 
             
             <div className="flex justify-end gap-2 pt-4">
