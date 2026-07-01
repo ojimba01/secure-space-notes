@@ -192,7 +192,7 @@ export const MilestoneTracker: React.FC<MilestoneTrackerProps> = ({
         {hsp180Passed && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>WARNING</AlertTitle>
+            <AlertTitle>Warning</AlertTitle>
             <AlertDescription>Patient is now pending next action.</AlertDescription>
           </Alert>
         )}
