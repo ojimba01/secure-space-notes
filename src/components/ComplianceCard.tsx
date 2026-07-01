@@ -258,7 +258,7 @@ export const ComplianceCard: React.FC<Props> = ({
                   · In-Person {progress.inPersonSpaced} of {req.requiredInPerson} required
                 </span>
               )}
-              <InfoHint text={tooltips.contact} />
+              <InfoHint text={tooltips.contact || undefined} items={!tooltips.contact ? contactHintItems : undefined} />
             </div>
             {isNewClientFirstWeek && (
               <p className="text-xs text-muted-foreground">New client — first week grace; contacts spaced ≥2 weeks apart.</p>
