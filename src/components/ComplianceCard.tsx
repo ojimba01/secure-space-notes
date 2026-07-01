@@ -326,7 +326,7 @@ export const ComplianceCard: React.FC<Props> = ({
                       onCheckedChange={(c) => toggleActivity(a.key, !!c)}
                     />
                     <Label htmlFor={`act-${a.key}`} className="text-sm font-normal flex items-center gap-1">
-                      {a.label} <InfoHint text={tooltips[a.tooltipKey]} />
+                      {a.label} <InfoHint text={tooltips[a.tooltipKey] || a.label} />
                     </Label>
                   </div>
                 ))}
