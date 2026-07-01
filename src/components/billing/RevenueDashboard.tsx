@@ -163,7 +163,9 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
   const byMco = useMemo(() => {
     const map = new Map<string, number>();
     filtered.forEach((c) => { const m = clientMap.get(c.client_id)?.insurance ?? 'Unknown'; map.set(m, (map.get(m) ?? 0) + Number(c.billed_amount ?? 0)); });
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+    return Array.from(map.entries())
+      .filter(([, value]) => value > 0)
+      .map(([name, value]) => ({ name, value }));
   }, [filtered, clientMap]);
 
   const paidSplit = useMemo(() => [
