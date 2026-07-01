@@ -15,6 +15,7 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { regenerateClientCycles } from '@/lib/billingSync';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
+import { useViewAs } from '@/components/ViewAsProvider';
 
 const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
 
