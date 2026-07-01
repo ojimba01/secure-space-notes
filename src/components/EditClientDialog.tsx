@@ -637,6 +637,27 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               </div>
             </div>
 
+            <div className="rounded-md border p-4 space-y-4">
+              <h4 className="text-sm font-semibold">Closure</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="closed_date" render={({ field }) => (
+                  <FormItem><FormLabel>Closed Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="reason_closed" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Reason Closed</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select reason" /></SelectTrigger></FormControl>
+                      <SelectContent>{REASON_CLOSED_OPTIONS.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+            </div>
+
+
+
 
 
 
