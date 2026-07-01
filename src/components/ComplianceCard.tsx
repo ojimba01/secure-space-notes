@@ -54,7 +54,7 @@ export const ComplianceCard: React.FC<Props> = ({
   clientId, clientName, levelOfNeed, assignedEmployeeId, clientCreatedAt, onChanged,
 }) => {
   const { toast } = useToast();
-  const { guardWrite, isViewingAs } = useViewAs();
+  const { guardWrite } = useViewAs();
   const tooltips = useComplianceTooltips();
   const myProfileId = useMyProfileId();
   const [contacts, setContacts] = useState<ContactRow[]>([]);
