@@ -58,7 +58,7 @@ export const CaseManagerCalendar = () => {
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('calendar_events')
         .select(`
           *,
@@ -69,6 +69,12 @@ export const CaseManagerCalendar = () => {
         .gte('start_time', monthStart.toISOString())
         .lte('start_time', monthEnd.toISOString())
         .order('start_time', { ascending: true });
+
+      if (isViewingAs && viewAsEmployeeId) {
+        query = query.eq('employee_id', viewAsEmployeeId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setEvents(data || []);
