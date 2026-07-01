@@ -288,7 +288,7 @@ export const ComplianceCard: React.FC<Props> = ({
                   </div>
                   <div className="space-y-2">
                     <Label className="flex items-center gap-1">
-                      Modality <InfoHint text={tooltips[logModality]} />
+                      Modality <InfoHint text={tooltips[logModality] || modalityHint} />
                     </Label>
                     <Select value={logModality} onValueChange={(v) => setLogModality(v as Modality)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
