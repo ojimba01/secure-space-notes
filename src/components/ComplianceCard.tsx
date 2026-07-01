@@ -144,23 +144,36 @@ export const ComplianceCard: React.FC<Props> = ({
   }, [complianceId, status, progress.isComplete, loading]);
 
   const handleLog = async () => {
+    // Update local UI first so the change is visible (incl. view-as sandbox).
+    const date = logDate;
+    const modality = logModality;
+    const notes = logNotes;
+    setContacts((prev) =>
+      [...prev, { id: `local-${crypto.randomUUID()}`, contact_date: date, modality }]
+        .sort((a, b) => a.contact_date.localeCompare(b.contact_date)),
+    );
+    setLogOpen(false);
+    setLogNotes('');
+    setLogDate(today);
+    setLogModality('phone');
+
     if (guardWrite()) return;
     if (!myProfileId) {
       toast({ title: 'Could not identify your profile', variant: 'destructive' });
       return;
     }
     // create calendar event
-    const startIso = new Date(`${logDate}T12:00:00`).toISOString();
+    const startIso = new Date(`${date}T12:00:00`).toISOString();
     const { data: ev } = await supabase
       .from('calendar_events')
       .insert({
-        title: `${MODALITY_LABELS[logModality]} contact — ${clientName}`,
+        title: `${MODALITY_LABELS[modality]} contact — ${clientName}`,
         event_type: 'touchpoint',
         employee_id: myProfileId,
         client_id: clientId,
         start_time: startIso,
         end_time: startIso,
-        description: logNotes || null,
+        description: notes || null,
       })
       .select('id')
       .maybeSingle();
@@ -168,9 +181,9 @@ export const ComplianceCard: React.FC<Props> = ({
     const { error } = await supabase.from('client_contacts').insert({
       client_id: clientId,
       employee_id: myProfileId,
-      contact_date: logDate,
-      modality: logModality,
-      notes: logNotes || null,
+      contact_date: date,
+      modality,
+      notes: notes || null,
       calendar_event_id: ev?.id ?? null,
     });
     if (error) {
@@ -178,15 +191,14 @@ export const ComplianceCard: React.FC<Props> = ({
       return;
     }
     toast({ title: 'Contact logged' });
-    setLogOpen(false);
-    setLogNotes('');
-    setLogDate(today);
-    setLogModality('phone');
     await load();
     onChanged?.();
   };
 
   const deleteContact = async (c: ContactRow) => {
+    // Local removal first (visible in view-as sandbox).
+    setContacts((prev) => prev.filter((x) => x.id !== c.id));
+
     if (guardWrite()) return;
     const { data: full } = await supabase
       .from('client_contacts')
@@ -202,15 +214,18 @@ export const ComplianceCard: React.FC<Props> = ({
   };
 
   const toggleActivity = async (key: string, checked: boolean) => {
-    if (guardWrite()) return;
+    // Local toggle first (visible in view-as sandbox).
     const next = checked ? [...new Set([...activities, key])] : activities.filter((a) => a !== key);
     setActivities(next);
+
+    if (guardWrite()) return;
     if (complianceId) {
       await supabase.from('client_month_compliance').update({ activities_done: next as any }).eq('id', complianceId);
     }
   };
 
   const saveNote = async () => {
+    // Note text is already reflected in local state (summaryNote).
     if (guardWrite()) return;
     if (!complianceId) return;
     setSavingNote(true);
@@ -218,6 +233,13 @@ export const ComplianceCard: React.FC<Props> = ({
     setSavingNote(false);
     toast({ title: 'Note saved' });
   };
+
+  // Built-in fallback guidance so info buttons are never blank when DB tooltips are empty.
+  const contactHintItems = isHigh
+    ? ['Log **4 contacts** this month, including **2 in-person visits at least 7 days apart**. Also complete the required **support activities** in the checklist below.']
+    : ['Log **2 contacts** this month. Phone, virtual, or in-person all count. Each must be on a different day.'];
+  const modalityHint = 'How the contact happened: Phone, Virtual (video), or In-Person (face-to-face visit).';
+
 
   return (
     <TooltipProvider>
