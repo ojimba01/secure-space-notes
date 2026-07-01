@@ -16,7 +16,7 @@ const Billing = () => {
   const { isSuperadmin, loading } = useIsSuperadmin();
   const navigate = useNavigate();
   const { loading: dataLoading, clients, cycles, refresh, regenerate } = useBilling();
-  const [tab, setTab] = useState('deadlines');
+  const [tab, setTab] = useState('dashboard');
   const [timelineClientId, setTimelineClientId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
 
