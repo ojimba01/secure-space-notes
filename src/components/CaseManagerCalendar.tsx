@@ -44,6 +44,7 @@ export const CaseManagerCalendar = () => {
   const { isViewingAs, viewAsEmployeeId } = useViewAs();
 
   const openEditDialog = (event: CalendarEvent) => {
+    if (isViewingAs) return;
     setEditingEvent(event);
     setIsEditDialogOpen(true);
   };
