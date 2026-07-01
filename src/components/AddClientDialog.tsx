@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { regenerateClientCycles, fetchActiveCaseManagers, caseManagerName, CaseManagerOption } from '@/lib/billingSync';
 import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 
-const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
+const INSURANCE_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis'] as const;
 
 const LON_OPTIONS = ['Low Level', 'High Level'] as const;
 
