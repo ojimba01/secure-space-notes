@@ -68,7 +68,7 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Billing timeline</CardTitle>
+        <CardTitle className="text-lg">Billing Details</CardTitle>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground pt-1">
           <span>MCO: <b className="text-foreground">{client.insurance ?? '—'}</b></span>
           <span>Member ID: <b className="text-foreground">{client.member_id ?? '—'}</b></span>
