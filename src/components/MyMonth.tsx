@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, Target, CalendarClock, CheckCircle2, ChevronRight } from 'lucide-react';
+import { InfoHint } from '@/components/InfoHint';
 import { useMyCompliance, ClientCompliance } from '@/hooks/useMyCompliance';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { supabase } from '@/integrations/supabase/client';
