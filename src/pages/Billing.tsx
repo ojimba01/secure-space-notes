@@ -7,6 +7,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { RevenueDashboard } from '@/components/billing/RevenueDashboard';
 import { BillingMasterList } from '@/components/billing/BillingMasterList';
 import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
+import { UpcomingDeadlines } from '@/components/billing/UpcomingDeadlines';
+import { BillingByStaff } from '@/components/billing/BillingByStaff';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,7 +16,7 @@ const Billing = () => {
   const { isSuperadmin, loading } = useIsSuperadmin();
   const navigate = useNavigate();
   const { loading: dataLoading, clients, cycles, refresh, regenerate } = useBilling();
-  const [tab, setTab] = useState('dashboard');
+  const [tab, setTab] = useState('deadlines');
   const [timelineClientId, setTimelineClientId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
 
@@ -52,20 +54,29 @@ const Billing = () => {
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
+              <TabsTrigger value="deadlines">Upcoming Deadlines</TabsTrigger>
               <TabsTrigger value="dashboard">Revenue Dashboard</TabsTrigger>
               <TabsTrigger value="master">Master List</TabsTrigger>
+              <TabsTrigger value="staff">By Staff</TabsTrigger>
               <TabsTrigger value="timeline" disabled={!timelineClientId}>Client Timeline</TabsTrigger>
             </TabsList>
+            <TabsContent value="deadlines" className="mt-4">
+              <UpcomingDeadlines clients={clients} cycles={cycles} refresh={refresh} onOpenTimeline={openTimeline} />
+            </TabsContent>
             <TabsContent value="dashboard" className="mt-4">
-              <RevenueDashboard clients={clients} cycles={cycles} />
+              <RevenueDashboard clients={clients} cycles={cycles} refresh={refresh} onOpenDeadlines={() => setTab('deadlines')} />
             </TabsContent>
             <TabsContent value="master" className="mt-4">
               <BillingMasterList clients={clients} cycles={cycles} refresh={refresh} onOpenTimeline={openTimeline} />
+            </TabsContent>
+            <TabsContent value="staff" className="mt-4">
+              <BillingByStaff clients={clients} cycles={cycles} onOpenTimeline={openTimeline} />
             </TabsContent>
             <TabsContent value="timeline" className="mt-4">
               {timelineClientId && <ClientBillingTimeline clientId={timelineClientId} />}
             </TabsContent>
           </Tabs>
+
         )}
       </div>
     </div>

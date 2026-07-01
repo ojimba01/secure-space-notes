@@ -38,8 +38,17 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
   const [billing, setBilling] = useState('all');
   const [payment, setPayment] = useState('all');
   const [due, setDue] = useState('all');
+  const [staff, setStaff] = useState('all');
   const [editing, setEditing] = useState<BillingCycle | null>(null);
   const [open, setOpen] = useState(false);
+
+  const staffOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    clients.forEach((c) => {
+      if (c.assigned_employee_id && c.assigned_staff_name) map.set(c.assigned_employee_id, c.assigned_staff_name);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [clients]);
 
   const thisMonth = monthKey(todayAgency());
 
@@ -56,12 +65,15 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
         if (phase !== 'all' && c.phase !== phase) return false;
         if (billing !== 'all' && c.billing_status !== billing) return false;
         if (payment !== 'all' && c.payment_status !== payment) return false;
+        if (staff !== 'all') {
+          if (staff === '__unassigned__' ? !!cl.assigned_employee_id : cl.assigned_employee_id !== staff) return false;
+        }
         if (due === 'this_month' && monthKey(c.cycle_end) !== thisMonth) return false;
         if (due === 'overdue' && !isPastDue(c)) return false;
         return true;
       })
       .map((c) => ({ cycle: c, client: clientMap.get(c.client_id)! }));
-  }, [cycles, clientMap, search, mco, phase, billing, payment, due, thisMonth]);
+  }, [cycles, clientMap, search, mco, phase, billing, payment, due, staff, thisMonth]);
 
   const updateField = async (id: string, patch: Partial<BillingCycle>) => {
     const { error } = await supabase
@@ -113,6 +125,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
         <Select value={phase} onValueChange={setPhase}><SelectTrigger className="w-32"><SelectValue placeholder="Phase" /></SelectTrigger><SelectContent><SelectItem value="all">All phases</SelectItem><SelectItem value="150-Day">150-Day</SelectItem><SelectItem value="180-Day">180-Day</SelectItem></SelectContent></Select>
         <Select value={billing} onValueChange={setBilling}><SelectTrigger className="w-40"><SelectValue placeholder="Billing" /></SelectTrigger><SelectContent><SelectItem value="all">All billing</SelectItem>{BILLING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
         <Select value={payment} onValueChange={setPayment}><SelectTrigger className="w-36"><SelectValue placeholder="Payment" /></SelectTrigger><SelectContent><SelectItem value="all">All payment</SelectItem>{PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+        <Select value={staff} onValueChange={setStaff}><SelectTrigger className="w-44"><SelectValue placeholder="Staff" /></SelectTrigger><SelectContent><SelectItem value="all">All staff</SelectItem><SelectItem value="__unassigned__">Unassigned</SelectItem>{staffOptions.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}</SelectContent></Select>
         <Select value={due} onValueChange={setDue}><SelectTrigger className="w-40"><SelectValue placeholder="Due" /></SelectTrigger><SelectContent><SelectItem value="all">Any due date</SelectItem><SelectItem value="this_month">Due this month</SelectItem><SelectItem value="overdue">Overdue</SelectItem></SelectContent></Select>
         <Button variant="outline" onClick={exportCsv} className="gap-2"><Download className="h-4 w-4" />Export CSV</Button>
         <span className="text-sm text-muted-foreground ml-auto">{rows.length} rows</span>
@@ -124,6 +137,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
             <TableHeader>
               <TableRow>
                 <TableHead>Client</TableHead>
+                <TableHead>Assigned Staff</TableHead>
                 <TableHead>MCO</TableHead>
                 <TableHead>Member ID</TableHead>
                 <TableHead>Phase</TableHead>
@@ -138,11 +152,21 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
               </TableRow>
             </TableHeader>
             <TableBody>
+              {rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
+                    {cycles.length === 0
+                      ? "No billing cycles yet. Add a client's 150-Day authorization start date (or run the backfill), and cycles appear automatically."
+                      : 'No cycles match these filters.'}
+                  </TableCell>
+                </TableRow>
+              )}
               {rows.map(({ cycle: c, client: cl }) => {
                 const pastDue = isPastDue(c);
                 return (
                   <TableRow key={c.id} className={pastDue ? 'outline outline-1 outline-red-500' : ''}>
                     <TableCell className="font-medium whitespace-nowrap">{cl.first_name} {cl.last_name}</TableCell>
+                    <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
                     <TableCell>{cl.insurance ?? '—'}</TableCell>
                     <TableCell>{cl.member_id ?? '—'}</TableCell>
                     <TableCell><Badge variant="outline">{c.phase}</Badge></TableCell>

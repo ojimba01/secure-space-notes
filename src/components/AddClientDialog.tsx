@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { regenerateClientCycles, fetchActiveCaseManagers, caseManagerName, CaseManagerOption } from '@/lib/billingSync';
 
 const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
 
@@ -35,6 +36,11 @@ const clientSchema = z.object({
   county: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
   iat_date: z.string().optional(),
+  auth_150_start: z.string().optional(),
+  auth_150_end: z.string().optional(),
+  auth_180_start: z.string().optional(),
+  auth_180_end: z.string().optional(),
+  assigned_employee_id: z.string().optional(),
   notes: z.string().trim().max(2000).optional(),
 });
 
@@ -54,6 +60,13 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [caseManagers, setCaseManagers] = useState<CaseManagerOption[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      fetchActiveCaseManagers().then(setCaseManagers).catch(() => setCaseManagers([]));
+    }
+  }, [open]);
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -70,6 +83,11 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       date_of_birth: '',
 
       iat_date: '',
+      auth_150_start: '',
+      auth_150_end: '',
+      auth_180_start: '',
+      auth_180_end: '',
+      assigned_employee_id: '',
       notes: '',
     },
   });
@@ -78,12 +96,19 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
     setIsSubmitting(true);
     
     try {
-      // Get current user's profile to assign as employee
+      // Default to current user's profile if no case manager selected
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
         .eq('user_id', user?.id)
         .single();
+
+      const assignedId =
+        data.assigned_employee_id && data.assigned_employee_id !== '__none__'
+          ? data.assigned_employee_id
+          : data.assigned_employee_id === '__none__'
+            ? null
+            : profile?.id ?? null;
 
       const clientData = {
         first_name: data.first_name,
@@ -97,15 +122,32 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         county: data.county || null,
         date_of_birth: data.date_of_birth || null,
         iat_date: data.iat_date || null,
+        auth_150_start: data.auth_150_start || null,
+        auth_150_end: data.auth_150_end || null,
+        auth_180_start: data.auth_180_start || null,
+        auth_180_end: data.auth_180_end || null,
         notes: data.notes || null,
-        assigned_employee_id: profile?.id,
+        assigned_employee_id: assignedId,
       };
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('clients')
-        .insert([clientData]);
+        .insert([clientData])
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Auto-generate billing cycles right away if there's a 150-day start.
+      if (inserted?.id && clientData.auth_150_start) {
+        try {
+          await regenerateClientCycles(inserted.id);
+        } catch {
+          /* non-fatal */
+        }
+      }
+
+
 
       toast({
         title: "Client Added",
@@ -318,6 +360,97 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="assigned_employee_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Assigned Staff</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Assign to me (default)" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Unassigned —</SelectItem>
+                      {caseManagers.map((cm) => (
+                        <SelectItem key={cm.id} value={cm.id}>
+                          {caseManagerName(cm)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="rounded-md border p-4 space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold">Billing Authorization Period</h4>
+                <p className="text-xs text-muted-foreground">
+                  Drives the billing section. Distinct from HSP milestone dates. All optional.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="auth_150_start"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>150-Day Start</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="auth_150_end"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>150-Day End</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="auth_180_start"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>180-Day Start</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="auth_180_end"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>180-Day End</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+
 
 
             <FormField

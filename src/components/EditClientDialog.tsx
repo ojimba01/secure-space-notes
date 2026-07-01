@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
+import { regenerateClientCycles } from '@/lib/billingSync';
 
 const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
 
@@ -39,6 +40,10 @@ const clientSchema = z.object({
   iat_date: z.string().optional(),
   hsp_150_date: z.string().optional(),
   hsp_180_date: z.string().optional(),
+  auth_150_start: z.string().optional(),
+  auth_150_end: z.string().optional(),
+  auth_180_start: z.string().optional(),
+  auth_180_end: z.string().optional(),
   status: z.enum(['active', 'inactive']),
   notes: z.string().trim().max(2000).optional(),
 });
@@ -62,6 +67,10 @@ interface Client {
   iat_date?: string;
   hsp_150_date?: string;
   hsp_180_date?: string;
+  auth_150_start?: string;
+  auth_150_end?: string;
+  auth_180_start?: string;
+  auth_180_end?: string;
   notes?: string;
 }
 
@@ -98,6 +107,10 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       iat_date: client.iat_date || '',
       hsp_150_date: client.hsp_150_date || '',
       hsp_180_date: client.hsp_180_date || '',
+      auth_150_start: client.auth_150_start || '',
+      auth_150_end: client.auth_150_end || '',
+      auth_180_start: client.auth_180_start || '',
+      auth_180_end: client.auth_180_end || '',
       status: client.status as 'active' | 'inactive',
       notes: client.notes || '',
     },
@@ -123,12 +136,31 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           iat_date: data.iat_date || null,
           hsp_150_date: data.hsp_150_date || null,
           hsp_180_date: data.hsp_180_date || null,
+          auth_150_start: data.auth_150_start || null,
+          auth_150_end: data.auth_150_end || null,
+          auth_180_start: data.auth_180_start || null,
+          auth_180_end: data.auth_180_end || null,
           status: data.status,
           notes: data.notes || null,
         })
         .eq('id', client.id);
 
       if (error) throw error;
+
+      // Refresh billing cycles if auth dates or level of need changed.
+      const billingChanged =
+        (data.auth_150_start || '') !== (client.auth_150_start || '') ||
+        (data.auth_150_end || '') !== (client.auth_150_end || '') ||
+        (data.auth_180_start || '') !== (client.auth_180_start || '') ||
+        (data.auth_180_end || '') !== (client.auth_180_end || '') ||
+        (data.level_of_need || '') !== (client.level_of_need || '');
+      if (billingChanged) {
+        try {
+          await regenerateClientCycles(client.id);
+        } catch {
+          /* non-fatal */
+        }
+      }
 
       toast({
         title: "Client Updated",
@@ -426,6 +458,71 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                 </div>
               );
             })()}
+
+            <div className="rounded-md border p-4 space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold">Billing Authorization Period</h4>
+                <p className="text-xs text-muted-foreground">
+                  Drives the billing section. Distinct from HSP milestone dates above. All optional.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="auth_150_start"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>150-Day Start</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="auth_150_end"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>150-Day End</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="auth_180_start"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>180-Day Start</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="auth_180_end"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>180-Day End</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+
 
 
             <FormField
