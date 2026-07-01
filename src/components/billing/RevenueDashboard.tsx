@@ -151,11 +151,12 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
 
   // Year labels + Dec→Jan divider for the Monthly Revenue chart.
   const monthMeta = useMemo(() => {
-    if (byMonth.length === 0) return { firstYear: '', lastYear: '', singleYear: true, janBoundary: null as string | null };
+    if (byMonth.length === 0) return { firstYear: '', lastYear: '', singleYear: true, janBoundary: null, janIndex: -1 };
     const firstYear = byMonth[0].month.slice(0, 4);
     const lastYear = byMonth[byMonth.length - 1].month.slice(0, 4);
     const janBoundary = byMonth.find((d, i) => i > 0 && d.month.endsWith('-01'))?.month ?? null;
-    return { firstYear, lastYear, singleYear: firstYear === lastYear, janBoundary };
+    const janIndex = janBoundary ? byMonth.findIndex((d) => d.month === janBoundary) : -1;
+    return { firstYear, lastYear, singleYear: firstYear === lastYear, janBoundary, janIndex };
   }, [byMonth]);
 
 
