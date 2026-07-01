@@ -43,11 +43,24 @@ export function useBilling(): BillingData {
     const { data: cls } = await supabase
       .from('clients')
       .select(
-        'id, first_name, last_name, insurance, member_id, level_of_need, status, auth_150_start, auth_150_end, auth_180_start, auth_180_end',
+        'id, first_name, last_name, insurance, member_id, level_of_need, status, auth_150_start, auth_150_end, auth_180_start, auth_180_end, assigned_employee_id',
       )
       .order('last_name');
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name, email');
+    const nameById = new Map(
+      (profs ?? []).map((p) => {
+        const full = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
+        return [p.id, full || p.email] as const;
+      }),
+    );
     const { data: cyc } = await supabase.from('billing_cycles').select('*').order('cycle_number');
-    setClients((cls as BillingClient[]) ?? []);
+    const mapped = ((cls as Array<Omit<BillingClient, 'assigned_staff_name'>>) ?? []).map((c) => ({
+      ...c,
+      assigned_staff_name: c.assigned_employee_id ? nameById.get(c.assigned_employee_id) ?? null : null,
+    }));
+    setClients(mapped as BillingClient[]);
     setCycles((cyc as BillingCycle[]) ?? []);
     setLoading(false);
   }, []);
