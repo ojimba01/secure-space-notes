@@ -44,7 +44,7 @@ export function useBilling(): BillingData {
     const { data: cls } = await supabase
       .from('clients')
       .select(
-        'id, first_name, last_name, insurance, member_id, level_of_need, status, auth_150_start, auth_150_end, auth_180_start, auth_180_end, assigned_employee_id',
+        'id, first_name, last_name, insurance, member_id, level_of_need, status, approval_status, auth_150_start, auth_150_end, auth_180_start, auth_180_end, assigned_employee_id',
       )
       .order('last_name');
     const { data: profs } = await supabase
