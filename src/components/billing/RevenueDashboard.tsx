@@ -167,8 +167,8 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
   }, [filtered]);
 
 
-  const Stat = ({ label, value, cls }: { label: string; value: number; cls?: string }) => (
-    <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">{label}</div><div className={`text-2xl font-bold ${cls ?? ''}`}>{formatMoney(value)}</div></CardContent></Card>
+  const Stat = ({ label, value, cls, hint }: { label: string; value: number; cls?: string; hint?: string }) => (
+    <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground flex items-center gap-1">{label}{hint && <InfoHint text={hint} />}</div><div className={`text-2xl font-bold ${cls ?? ''}`}>{formatMoney(value)}</div></CardContent></Card>
   );
 
   if (cycles.length === 0) {
