@@ -141,6 +141,7 @@ export type Database = {
           end_time: string
           event_type: string | null
           id: string
+          is_auto_generated: boolean
           note_id: string | null
           start_time: string
           title: string
@@ -153,6 +154,7 @@ export type Database = {
           end_time: string
           event_type?: string | null
           id?: string
+          is_auto_generated?: boolean
           note_id?: string | null
           start_time: string
           title: string
@@ -165,6 +167,7 @@ export type Database = {
           end_time?: string
           event_type?: string | null
           id?: string
+          is_auto_generated?: boolean
           note_id?: string | null
           start_time?: string
           title?: string
