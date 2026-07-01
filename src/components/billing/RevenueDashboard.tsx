@@ -233,10 +233,10 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
                         <TableHead>Assigned Staff</TableHead>
                         <TableHead>MCO</TableHead>
                         <TableHead>#</TableHead>
-                        <TableHead>Billed</TableHead>
+                        <TableHead>Amount</TableHead>
                         <TableHead>Due date</TableHead>
                         <TableHead>Remaining</TableHead>
-                        <TableHead></TableHead>
+                        <TableHead>Submitted?</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
