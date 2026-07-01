@@ -164,7 +164,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
               {rows.map(({ cycle: c, client: cl }) => {
                 const pastDue = isPastDue(c);
                 return (
-                  <TableRow key={c.id} className={pastDue ? 'outline outline-1 outline-red-500' : ''}>
+                  <TableRow key={c.id} onClick={() => onOpenTimeline(c.client_id)} className={`cursor-pointer ${pastDue ? 'outline outline-1 outline-red-500' : ''}`}>
                     <TableCell className="font-medium whitespace-nowrap">{cl.first_name} {cl.last_name}</TableCell>
                     <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
                     <TableCell>{cl.insurance ?? '—'}</TableCell>
