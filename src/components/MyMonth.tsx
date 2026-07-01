@@ -101,7 +101,7 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
       ) : null}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat icon={<Target className="h-5 w-5" />} label="Weekly client target (caseload ÷ 4)" value={data.weeklyTarget} />
+        <Stat icon={<Target className="h-5 w-5" />} label="Weekly client target" value={data.weeklyTarget} />
         <Stat icon={<CalendarClock className="h-5 w-5" />} label="Touch-points due this week" value={data.touchpointsDueThisWeek} />
         <Stat icon={<CheckCircle2 className="h-5 w-5" />} label="On track this month" value={`${data.onTrackCount} / ${data.caseload}`} />
         <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Behind clients" value={data.behindCount} />
