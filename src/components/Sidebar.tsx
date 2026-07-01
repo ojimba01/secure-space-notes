@@ -179,42 +179,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
 
         {/* Navigation */}
         <div className="space-y-1 md:space-y-2">
-          <Button
-            variant={activeView === 'compliance' ? 'default' : 'ghost'}
-            className="w-full justify-start gap-2"
-            onClick={() => handleViewChange('compliance')}
-          >
-            <ClipboardList className="h-4 w-4" />
-            Monthly Touchpoints
-          </Button>
-          <Button 
-            variant={activeView === 'clients' ? 'default' : 'ghost'}
-            className="w-full justify-start gap-2"
-            onClick={() => handleViewChange('clients')}
-            data-tutorial="clients-nav"
-          >
-            <Users className="h-4 w-4" />
-            Clients
-          </Button>
-          <Button 
-            variant={activeView === 'calendar' ? 'default' : 'ghost'}
-            className="w-full justify-start gap-2"
-            onClick={() => handleViewChange('calendar')}
-            data-tutorial="calendar-nav"
-          >
-            <Calendar className="h-4 w-4" />
-            Calendar
-          </Button>
-          <Button 
-            variant={activeView === 'notes' ? 'default' : 'ghost'}
-            className="w-full justify-start gap-2"
-            onClick={() => handleViewChange('notes')}
-          >
-            <FileText className="h-4 w-4" />
-            Notes
-          </Button>
           {isAdmin && !isViewingAs && (
-            <Button 
+            <Button
               variant="ghost"
               className="w-full justify-start gap-2"
               onClick={() => handleNavigate('/admin')}
@@ -225,7 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             </Button>
           )}
           {isSuperadmin && !isViewingAs && (
-            <Button 
+            <Button
               variant="ghost"
               className="w-full justify-start gap-2"
               onClick={() => handleNavigate('/billing')}
@@ -234,8 +200,42 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
               Billing &amp; Revenue
             </Button>
           )}
+          <Button
+            variant={activeView === 'compliance' ? 'default' : 'ghost'}
+            className="w-full justify-start gap-2"
+            onClick={() => handleViewChange('compliance')}
+          >
+            <ClipboardList className="h-4 w-4" />
+            Monthly Touchpoints
+          </Button>
+          <Button
+            variant={activeView === 'clients' ? 'default' : 'ghost'}
+            className="w-full justify-start gap-2"
+            onClick={() => handleViewChange('clients')}
+            data-tutorial="clients-nav"
+          >
+            <Users className="h-4 w-4" />
+            Clients
+          </Button>
+          <Button
+            variant={activeView === 'calendar' ? 'default' : 'ghost'}
+            className="w-full justify-start gap-2"
+            onClick={() => handleViewChange('calendar')}
+            data-tutorial="calendar-nav"
+          >
+            <Calendar className="h-4 w-4" />
+            Calendar
+          </Button>
+          <Button
+            variant={activeView === 'notes' ? 'default' : 'ghost'}
+            className="w-full justify-start gap-2"
+            onClick={() => handleViewChange('notes')}
+          >
+            <FileText className="h-4 w-4" />
+            Notes
+          </Button>
           {isAdmin && !isViewingAs && (
-            <Button 
+            <Button
               variant="ghost"
               className="w-full justify-start gap-2"
               onClick={() => handleNavigate('/audit-logs')}
@@ -245,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
               Audit Logs
             </Button>
           )}
-          <Button 
+          <Button
             variant="ghost"
             className="w-full justify-start gap-2"
             onClick={() => handleNavigate('/onboarding')}
@@ -254,7 +254,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             <BookOpen className="h-4 w-4" />
             Onboarding Guide
           </Button>
-          <Button 
+          <Button
             variant="ghost"
             className="w-full justify-start gap-2 text-primary"
             onClick={() => startTutorial()}
