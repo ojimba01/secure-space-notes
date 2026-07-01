@@ -211,6 +211,7 @@ export const ComplianceCard: React.FC<Props> = ({
   };
 
   const saveNote = async () => {
+    if (guardWrite()) return;
     if (!complianceId) return;
     setSavingNote(true);
     await supabase.from('client_month_compliance').update({ summary_note: summaryNote }).eq('id', complianceId);
