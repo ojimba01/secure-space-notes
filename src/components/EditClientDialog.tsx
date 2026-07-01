@@ -569,7 +569,19 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                   Drives the billing section. Distinct from HSP milestone dates above. All optional.
                 </p>
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField control={form.control} name="auth_30_number" render={({ field }) => (
+                  <FormItem><FormLabel>30-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="auth_150_number" render={({ field }) => (
+                  <FormItem><FormLabel>150-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="auth_180_number" render={({ field }) => (
+                  <FormItem><FormLabel>180-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
                 <FormField
                   control={form.control}
                   name="auth_150_start"
