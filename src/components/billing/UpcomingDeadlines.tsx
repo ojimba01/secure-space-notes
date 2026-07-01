@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CheckCircle2, Eye } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BillingCycle, formatMoney } from '@/lib/billing';
 import { BillingClient } from '@/hooks/useBilling';
@@ -91,40 +91,42 @@ export const UpcomingDeadlines: React.FC<Props> = ({ clients, cycles, refresh, o
                   <TableHeader>
                     <TableRow>
                       <TableHead>Client</TableHead>
+                      <TableHead>Due date</TableHead>
+                      <TableHead>Mark Submitted</TableHead>
                       <TableHead>Assigned Staff</TableHead>
                       <TableHead>MCO</TableHead>
                       <TableHead>Phase</TableHead>
                       <TableHead>#</TableHead>
                       <TableHead>Billed</TableHead>
-                      <TableHead>Due date</TableHead>
                       <TableHead>Remaining</TableHead>
-                      <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {rows.map(({ cycle: c, client: cl, dueDate, daysRemaining }) => (
-                      <TableRow key={c.id}>
+                      <TableRow
+                        key={c.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => onOpenTimeline(c.client_id)}
+                      >
                         <TableCell className="font-medium whitespace-nowrap">{cl.first_name} {cl.last_name}</TableCell>
-                        <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
-                        <TableCell>{cl.insurance ?? '—'}</TableCell>
-                        <TableCell><Badge variant="outline">{c.phase}</Badge></TableCell>
-                        <TableCell>{c.cycle_number}</TableCell>
-                        <TableCell>{formatMoney(c.billed_amount)}</TableCell>
                         <TableCell className="whitespace-nowrap">{dueDate}</TableCell>
-                        <TableCell className={`whitespace-nowrap font-medium ${meta.rowClass}`}>{daysLabel(daysRemaining)}</TableCell>
                         <TableCell className="whitespace-nowrap">
                           <Button variant="outline" size="sm" className="h-8 gap-1" disabled={submitting === c.id}
-                            onClick={() => handleSubmit(c)}>
+                            onClick={(e) => { e.stopPropagation(); handleSubmit(c); }}>
                             <CheckCircle2 className="h-4 w-4" />Mark Submitted
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenTimeline(c.client_id)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
                         </TableCell>
+                        <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
+                        <TableCell>{cl.insurance ?? '—'}</TableCell>
+                        <TableCell><Badge variant="outline" className="whitespace-nowrap">{c.phase}</Badge></TableCell>
+                        <TableCell>{c.cycle_number}</TableCell>
+                        <TableCell>{formatMoney(c.billed_amount)}</TableCell>
+                        <TableCell className={`whitespace-nowrap font-medium ${meta.rowClass}`}>{daysLabel(daysRemaining)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+
               </CardContent>
             </Card>
           </div>

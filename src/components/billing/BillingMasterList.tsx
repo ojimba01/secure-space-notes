@@ -179,17 +179,29 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
                         onBlur={(e) => { const v = Number(e.target.value); if (v !== c.paid_amount) updateField(c.id, { paid_amount: v }); }} />
                     </TableCell>
                     <TableCell>
-                      <Select value={c.billing_status} onValueChange={(v) => updateField(c.id, { billing_status: v as BillingCycle['billing_status'] })}>
+                      <Select value={c.billing_status} onValueChange={(v) => {
+                        const patch: Partial<BillingCycle> = { billing_status: v as BillingCycle['billing_status'] };
+                        if (v === 'Submitted' && !c.submitted_date) patch.submitted_date = todayAgency();
+                        updateField(c.id, patch);
+                      }}>
                         <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
                         <SelectContent>{BILLING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                       </Select>
                     </TableCell>
                     <TableCell>
-                      <Select value={c.payment_status} onValueChange={(v) => updateField(c.id, { payment_status: v as BillingCycle['payment_status'] })}>
+                      <Select value={c.payment_status} onValueChange={(v) => {
+                        const patch: Partial<BillingCycle> = { payment_status: v as BillingCycle['payment_status'] };
+                        if (v === 'Paid') {
+                          if (!c.paid_amount) patch.paid_amount = c.billed_amount ?? 0;
+                          if (!c.paid_date) patch.paid_date = todayAgency();
+                        }
+                        updateField(c.id, patch);
+                      }}>
                         <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
                         <SelectContent>{PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                       </Select>
                     </TableCell>
+
                     <TableCell className="whitespace-nowrap">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditing(c); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenTimeline(c.client_id)}><Eye className="h-4 w-4" /></Button>

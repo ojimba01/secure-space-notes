@@ -57,8 +57,9 @@ const Billing = () => {
               <TabsTrigger value="dashboard">Revenue Dashboard</TabsTrigger>
               <TabsTrigger value="deadlines">Upcoming Deadlines</TabsTrigger>
               <TabsTrigger value="master">Master List</TabsTrigger>
-              <TabsTrigger value="staff">By Staff</TabsTrigger>
-              <TabsTrigger value="timeline" disabled={!timelineClientId}>Client Timeline</TabsTrigger>
+              <TabsTrigger value="staff">Staff Level</TabsTrigger>
+              <TabsTrigger value="timeline" disabled={!timelineClientId}>Client Level</TabsTrigger>
+
             </TabsList>
             <TabsContent value="dashboard" className="mt-4">
               <RevenueDashboard clients={clients} cycles={cycles} refresh={refresh} onOpenDeadlines={() => setTab('deadlines')} />
