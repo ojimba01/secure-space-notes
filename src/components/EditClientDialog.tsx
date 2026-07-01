@@ -162,6 +162,18 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
         }
       }
 
+      // Regenerate touch-points if the HSP 150-day date or level of need changed.
+      const touchpointsChanged =
+        (data.hsp_150_date || '') !== (client.hsp_150_date || '') ||
+        (data.level_of_need || '') !== (client.level_of_need || '');
+      if (touchpointsChanged) {
+        try {
+          await regenerateTouchpointsForClient(client.id);
+        } catch {
+          /* non-fatal */
+        }
+      }
+
       toast({
         title: "Client Updated",
         description: "Client information has been updated successfully.",
