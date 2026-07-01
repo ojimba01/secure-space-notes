@@ -153,10 +153,12 @@ export const CaseManagerCalendar = () => {
           <h1 className="text-3xl font-bold">Calendar</h1>
           <p className="text-muted-foreground">Manage your appointments and events</p>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Add Event
-        </Button>
+        {!isViewingAs && (
+          <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Add Event
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
