@@ -40,6 +40,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useViewAs } from '@/components/ViewAsProvider';
 import { noteSchema } from '@/lib/validationSchemas';
 import { z } from 'zod';
 import {
@@ -87,6 +88,7 @@ interface NotesHubProps {
 export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelected }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isViewingAs, viewAsEmployeeId, guardWrite } = useViewAs();
   const [notes, setNotes] = useState<HubNote[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +106,7 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [isViewingAs, viewAsEmployeeId]);
 
   useEffect(() => {
     if (selectedNoteId && notes.length > 0) {
@@ -133,8 +135,13 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
       if (notesRes.error) throw notesRes.error;
       if (clientsRes.error) throw clientsRes.error;
 
-      setNotes((notesRes.data as HubNote[]) || []);
-      setClients((clientsRes.data as ClientRow[]) || []);
+      let notesData = (notesRes.data as HubNote[]) || [];
+      let clientsData = (clientsRes.data as ClientRow[]) || [];
+      if (isViewingAs && viewAsEmployeeId) {
+        notesData = notesData.filter((n) => n.employee_id === viewAsEmployeeId);
+      }
+      setNotes(notesData);
+      setClients(clientsData);
     } catch (error: any) {
       toast({ title: 'Error loading notes', description: error.message, variant: 'destructive' });
     } finally {
@@ -181,6 +188,7 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
     setExpanded((prev) => ({ ...prev, [clientId]: !prev[clientId] }));
 
   const handleAddNote = async (data: NoteFormData) => {
+    if (guardWrite()) return;
     if (!addClientId) {
       toast({ title: 'Select a client', description: 'Please choose a client for this note.', variant: 'destructive' });
       return;
@@ -234,10 +242,12 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
     <div className="p-3 md:p-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-2xl md:text-3xl font-bold">Clinical Notes</h1>
-        <Button onClick={() => setShowAddDialog(true)} className="gap-2 bg-medical-blue hover:bg-medical-blue/90">
-          <Plus className="h-4 w-4" />
-          New Note
-        </Button>
+        {!isViewingAs && (
+          <Button onClick={() => setShowAddDialog(true)} className="gap-2 bg-medical-blue hover:bg-medical-blue/90">
+            <Plus className="h-4 w-4" />
+            New Note
+          </Button>
+        )}
       </div>
       <p className="text-muted-foreground mb-6">Browse all notes grouped by client</p>
 
@@ -421,6 +431,7 @@ interface NoteDetailProps {
 
 const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSaved }) => {
   const { toast } = useToast();
+  const { isViewingAs, guardWrite } = useViewAs();
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -434,6 +445,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSav
   });
 
   const handleSave = async (data: NoteFormData) => {
+    if (guardWrite()) return;
     setIsSaving(true);
     try {
       const { error } = await supabase
@@ -455,6 +467,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSav
   };
 
   const handleDelete = async () => {
+    if (guardWrite()) return;
     setIsDeleting(true);
     try {
       const { error } = await supabase.from('client_notes').delete().eq('id', note.id);
@@ -531,6 +544,11 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSav
                   </FormItem>
                 )}
               />
+              {isViewingAs ? (
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" onClick={onBack}>Back</Button>
+                </div>
+              ) : (
               <div className="flex items-center justify-between gap-2">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -568,6 +586,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSav
                   </Button>
                 </div>
               </div>
+              )}
             </form>
           </Form>
         </CardContent>

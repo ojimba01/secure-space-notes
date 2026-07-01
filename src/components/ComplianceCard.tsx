@@ -19,6 +19,7 @@ import { Plus, Phone, Video, MapPin, Trash2 } from 'lucide-react';
 import { InfoHint } from '@/components/InfoHint';
 import { useComplianceTooltips } from '@/hooks/useComplianceTooltips';
 import { useMyProfileId } from '@/hooks/useMyProfileId';
+import { useViewAs } from '@/components/ViewAsProvider';
 import {
   Modality, MODALITY_LABELS, SUPPORT_ACTIVITIES, ComplianceStatus,
   requirementsForTier, computeProgress, deriveStatus, generatePlanDates,
@@ -53,6 +54,7 @@ export const ComplianceCard: React.FC<Props> = ({
   clientId, clientName, levelOfNeed, assignedEmployeeId, clientCreatedAt, onChanged,
 }) => {
   const { toast } = useToast();
+  const { guardWrite, isViewingAs } = useViewAs();
   const tooltips = useComplianceTooltips();
   const myProfileId = useMyProfileId();
   const [contacts, setContacts] = useState<ContactRow[]>([]);
@@ -142,6 +144,7 @@ export const ComplianceCard: React.FC<Props> = ({
   }, [complianceId, status, progress.isComplete, loading]);
 
   const handleLog = async () => {
+    if (guardWrite()) return;
     if (!myProfileId) {
       toast({ title: 'Could not identify your profile', variant: 'destructive' });
       return;
@@ -184,6 +187,7 @@ export const ComplianceCard: React.FC<Props> = ({
   };
 
   const deleteContact = async (c: ContactRow) => {
+    if (guardWrite()) return;
     const { data: full } = await supabase
       .from('client_contacts')
       .select('calendar_event_id')
@@ -198,6 +202,7 @@ export const ComplianceCard: React.FC<Props> = ({
   };
 
   const toggleActivity = async (key: string, checked: boolean) => {
+    if (guardWrite()) return;
     const next = checked ? [...new Set([...activities, key])] : activities.filter((a) => a !== key);
     setActivities(next);
     if (complianceId) {
@@ -206,6 +211,7 @@ export const ComplianceCard: React.FC<Props> = ({
   };
 
   const saveNote = async () => {
+    if (guardWrite()) return;
     if (!complianceId) return;
     setSavingNote(true);
     await supabase.from('client_month_compliance').update({ summary_note: summaryNote }).eq('id', complianceId);
@@ -249,7 +255,7 @@ export const ComplianceCard: React.FC<Props> = ({
 
             <Dialog open={logOpen} onOpenChange={setLogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1" /> Log contact</Button>
+                <Button size="sm" variant="outline" disabled={isViewingAs}><Plus className="h-4 w-4 mr-1" /> Log contact</Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Log a contact</DialogTitle></DialogHeader>

@@ -9,17 +9,20 @@ import { NotesHub } from "@/components/NotesHub";
 import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
 import { MyMonth } from "@/components/MyMonth";
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useViewAs } from '@/components/ViewAsProvider';
 
 type View = 'compliance' | 'clients' | 'notes' | 'calendar';
 
 const Index = () => {
   const { user, loading } = useAuth();
   const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const { isViewingAs } = useViewAs();
   const [activeView, setActiveView] = useState<View>('compliance');
   const [clientsKey, setClientsKey] = useState(0);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [initialClientId, setInitialClientId] = useState<string | null>(null);
   const [defaultApplied, setDefaultApplied] = useState(false);
+  const [wasViewingAs, setWasViewingAs] = useState(false);
 
   // Non-admins land on My Month; admins keep the Clients list as their landing here.
   useEffect(() => {
@@ -28,6 +31,17 @@ const Index = () => {
       setDefaultApplied(true);
     }
   }, [adminLoading, isAdmin, defaultApplied]);
+
+  // Entering view-as lands on the employee's My Month; exiting returns to Clients.
+  useEffect(() => {
+    if (isViewingAs && !wasViewingAs) {
+      setActiveView('compliance');
+      setWasViewingAs(true);
+    } else if (!isViewingAs && wasViewingAs) {
+      setActiveView('clients');
+      setWasViewingAs(false);
+    }
+  }, [isViewingAs, wasViewingAs]);
 
   const handleViewChange = (view: View) => {
     if (view === 'clients') {
@@ -91,7 +105,7 @@ const Index = () => {
 
   return (
     <TutorialProvider>
-      <div className="flex h-screen bg-background w-full overflow-hidden">
+      <div className={`flex h-screen bg-background w-full overflow-hidden ${isViewingAs ? 'pt-9' : ''}`}>
         <Sidebar activeView={activeView} onViewChange={handleViewChange} onOpenNote={handleOpenNote} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
           {activeView === 'compliance' ? (

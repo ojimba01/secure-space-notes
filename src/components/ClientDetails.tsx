@@ -18,6 +18,9 @@ import { MilestoneTracker } from '@/components/MilestoneTracker';
 import { ComplianceCard } from '@/components/ComplianceCard';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
+import { useViewAs } from '@/components/ViewAsProvider';
 
 interface Client {
   id: string;
@@ -56,6 +59,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { isAdmin } = useIsAdmin();
+  const { isViewingAs } = useViewAs();
+  const { isSuperadmin } = useIsSuperadmin();
   const [caseManagerName, setCaseManagerName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -126,11 +131,13 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </Button>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-          {isAdmin && (
+          {!isViewingAs && (
+            <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          )}
+          {isAdmin && !isViewingAs && (
             <>
               <Button variant="outline" onClick={() => setReassignDialogOpen(true)}>
                 <UserCog className="h-4 w-4 mr-2" />
@@ -238,13 +245,14 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className={`grid w-full ${isSuperadmin ? 'grid-cols-7' : 'grid-cols-6'}`}>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
             <TabsTrigger value="availability">Availability</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
+            {isSuperadmin && <TabsTrigger value="billing">Billing</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -282,6 +290,12 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           <TabsContent value="history">
             <AssignmentHistory clientId={client.id} />
           </TabsContent>
+
+          {isSuperadmin && (
+            <TabsContent value="billing">
+              <ClientBillingTimeline clientId={client.id} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 

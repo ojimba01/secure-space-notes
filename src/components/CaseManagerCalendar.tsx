@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AddCalendarEventDialog } from './AddCalendarEventDialog';
 import { EditCalendarEventDialog } from './EditCalendarEventDialog';
+import { useViewAs } from '@/components/ViewAsProvider';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, startOfWeek, endOfWeek } from 'date-fns';
 
 interface CalendarEvent {
@@ -40,15 +41,17 @@ export const CaseManagerCalendar = () => {
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { isViewingAs, viewAsEmployeeId } = useViewAs();
 
   const openEditDialog = (event: CalendarEvent) => {
+    if (isViewingAs) return;
     setEditingEvent(event);
     setIsEditDialogOpen(true);
   };
 
   useEffect(() => {
     fetchEvents();
-  }, [currentDate]);
+  }, [currentDate, isViewingAs, viewAsEmployeeId]);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -56,7 +59,7 @@ export const CaseManagerCalendar = () => {
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('calendar_events')
         .select(`
           *,
@@ -67,6 +70,12 @@ export const CaseManagerCalendar = () => {
         .gte('start_time', monthStart.toISOString())
         .lte('start_time', monthEnd.toISOString())
         .order('start_time', { ascending: true });
+
+      if (isViewingAs && viewAsEmployeeId) {
+        query = query.eq('employee_id', viewAsEmployeeId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setEvents(data || []);
@@ -145,10 +154,12 @@ export const CaseManagerCalendar = () => {
           <h1 className="text-3xl font-bold">Calendar</h1>
           <p className="text-muted-foreground">Manage your appointments and events</p>
         </div>
-        <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Add Event
-        </Button>
+        {!isViewingAs && (
+          <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Add Event
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
