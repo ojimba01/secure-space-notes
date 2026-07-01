@@ -137,6 +137,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
             <TableHeader>
               <TableRow>
                 <TableHead>Client</TableHead>
+                <TableHead>Assigned Staff</TableHead>
                 <TableHead>MCO</TableHead>
                 <TableHead>Member ID</TableHead>
                 <TableHead>Phase</TableHead>
