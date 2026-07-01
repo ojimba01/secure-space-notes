@@ -102,17 +102,30 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       insurance: '',
       level_of_need: '',
       county: '',
+      mco_housing_manager: '',
+      approval_status: 'Not Submitted',
       date_of_birth: '',
-
+      intake_date: '',
+      assessment_due_date: '',
       iat_date: '',
+      hsp_due_date: '',
+      auth_30_number: '',
+      auth_30_start: '',
+      auth_30_end: '',
+      auth_150_number: '',
       auth_150_start: '',
       auth_150_end: '',
+      auth_180_number: '',
       auth_180_start: '',
       auth_180_end: '',
+      next_action_due_date: '',
+      closed_date: '',
+      reason_closed: '',
       assigned_employee_id: '',
       notes: '',
     },
   });
+
 
   const handleSubmit = async (data: ClientFormData) => {
     setIsSubmitting(true);
