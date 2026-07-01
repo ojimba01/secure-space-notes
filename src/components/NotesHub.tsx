@@ -188,6 +188,7 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
     setExpanded((prev) => ({ ...prev, [clientId]: !prev[clientId] }));
 
   const handleAddNote = async (data: NoteFormData) => {
+    if (guardWrite()) return;
     if (!addClientId) {
       toast({ title: 'Select a client', description: 'Please choose a client for this note.', variant: 'destructive' });
       return;
