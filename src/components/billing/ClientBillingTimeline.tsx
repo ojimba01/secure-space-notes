@@ -38,6 +38,8 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
   const [open, setOpen] = useState(false);
 
   const load = useCallback(async () => {
+    // Ensure all cycles exist (older clients may only have one cycle stored).
+    await regenerateClientCycles(clientId);
     const { data: c } = await supabase
       .from('clients')
       .select('first_name, last_name, insurance, member_id, level_of_need, auth_150_start')
