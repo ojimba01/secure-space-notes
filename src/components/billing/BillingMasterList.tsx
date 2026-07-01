@@ -174,11 +174,11 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
                     <TableCell className="whitespace-nowrap">{c.cycle_start}</TableCell>
                     <TableCell className="whitespace-nowrap">{c.cycle_end}{pastDue && <span className="text-red-600 text-xs ml-1">⚠</span>}</TableCell>
                     <TableCell>{formatMoney(c.billed_amount)}</TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Input type="number" className="h-8 w-20" defaultValue={c.paid_amount}
                         onBlur={(e) => { const v = Number(e.target.value); if (v !== c.paid_amount) updateField(c.id, { paid_amount: v }); }} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select value={c.billing_status} onValueChange={(v) => {
                         const patch: Partial<BillingCycle> = { billing_status: v as BillingCycle['billing_status'] };
                         if (v === 'Submitted' && !c.submitted_date) patch.submitted_date = todayAgency();
@@ -188,7 +188,7 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
                         <SelectContent>{BILLING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select value={c.payment_status} onValueChange={(v) => {
                         const patch: Partial<BillingCycle> = { payment_status: v as BillingCycle['payment_status'] };
                         if (v === 'Paid') {
@@ -202,9 +202,8 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
                       </Select>
                     </TableCell>
 
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditing(c); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenTimeline(c.client_id)}><Eye className="h-4 w-4" /></Button>
                     </TableCell>
                   </TableRow>
                 );
