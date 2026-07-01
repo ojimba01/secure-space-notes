@@ -144,6 +144,7 @@ export const ComplianceCard: React.FC<Props> = ({
   }, [complianceId, status, progress.isComplete, loading]);
 
   const handleLog = async () => {
+    if (guardWrite()) return;
     if (!myProfileId) {
       toast({ title: 'Could not identify your profile', variant: 'destructive' });
       return;
