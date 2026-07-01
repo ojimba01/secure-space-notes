@@ -45,11 +45,50 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
   const [to, setTo] = useState('');
   const [submitting, setSubmitting] = useState<string | null>(null);
 
-  // "Due for billing this week" = current/past-due cycles due within 7 days or overdue.
-  const dueSoon = useMemo(() => {
-    return buildDeadlineRows(clients, cycles)
-      .filter((r) => bucketFor(r.daysRemaining) === 'overdue' || bucketFor(r.daysRemaining) === 'week');
-  }, [clients, cycles]);
+  // Split current-cycle deadlines into "due this week" and "overdue".
+  const [weekOpen, setWeekOpen] = useState(false);
+  const [overdueOpen, setOverdueOpen] = useState(false);
+  const openActiveClients = useMemo(() => clients.filter((c) => c.status === 'active'), [clients]);
+
+  function endOfWeekSunday(s: string): string {
+    const d = toDate(s);
+    const day = d.getUTCDay(); // 0 = Sunday
+    const add = (7 - day) % 7;
+    d.setUTCDate(d.getUTCDate() + add);
+    return fmt(d);
+  }
+
+  const { dueThisWeek, overdue } = useMemo(() => {
+    const byClient = new Map<string, BillingCycle[]>();
+    for (const c of cycles) {
+      const arr = byClient.get(c.client_id) ?? [];
+      arr.push(c);
+      byClient.set(c.client_id, arr);
+    }
+
+    const today = todayAgency();
+    const sunday = endOfWeekSunday(today);
+    const week: { cycle: BillingCycle; client: BillingClient; dueDate: string; daysRemaining: number }[] = [];
+    const past: { cycle: BillingCycle; client: BillingClient; dueDate: string; daysRemaining: number }[] = [];
+
+    for (const cl of openActiveClients) {
+      const list = byClient.get(cl.id);
+      if (!list) continue;
+      const dueDate = nextBillDue(list, cl.auth_150_start);
+      if (!dueDate) continue;
+      const cycle = list.find((c) => c.cycle_end === dueDate) ?? list[list.length - 1];
+      if (!cycle) continue;
+
+      if (isPastDue(cycle, today)) {
+        past.push({ cycle, client: cl, dueDate, daysRemaining: daysBetween(today, dueDate) });
+      } else if (dueDate >= today && dueDate <= sunday) {
+        week.push({ cycle, client: cl, dueDate, daysRemaining: daysBetween(today, dueDate) });
+      }
+    }
+
+    const sort = (a: { dueDate: string }, b: { dueDate: string }) => a.dueDate.localeCompare(b.dueDate);
+    return { dueThisWeek: week.sort(sort), overdue: past.sort(sort) };
+  }, [cycles, openActiveClients]);
 
   const handleSubmit = async (cycle: BillingCycle) => {
     setSubmitting(cycle.id);
