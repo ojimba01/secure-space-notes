@@ -58,7 +58,7 @@ export function useBilling(): BillingData {
     const { data: cls } = await supabase
       .from('clients')
       .select(
-        'id, first_name, last_name, insurance, member_id, level_of_need, status, approval_status, auth_150_start, auth_150_end, auth_180_start, auth_180_end, assigned_employee_id',
+        'id, first_name, last_name, insurance, member_id, level_of_need, status, approval_status, auth_150_start, auth_150_end, auth_180_start, auth_180_end, assigned_employee_id, phone, intake_date, assessment_due_date, mco_housing_manager, auth_30_number, auth_30_start, auth_30_end, hsp_due_date, auth_150_number, auth_180_number, next_action_due_date, closed_date, reason_closed, notes',
       )
       .order('last_name');
     const { data: profs } = await supabase
