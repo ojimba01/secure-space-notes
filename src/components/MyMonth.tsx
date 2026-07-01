@@ -105,10 +105,30 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
       ) : null}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat icon={<Target className="h-5 w-5" />} label="Weekly target" value={data.weeklyTarget} />
-        <Stat icon={<CalendarClock className="h-5 w-5" />} label="Due this week" value={data.touchpointsDueThisWeek} />
-        <Stat icon={<CheckCircle2 className="h-5 w-5" />} label="On track" value={data.caseload > 0 ? `${data.onTrackCount} of ${data.caseload}` : '—'} />
-        <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Needs attention" value={data.behindCount} />
+        <Stat
+          icon={<Target className="h-5 w-5" />}
+          label="Weekly target"
+          value={data.weeklyTarget}
+          hint="The number of client touchpoints you should complete each week to stay on pace across all your clients this month."
+        />
+        <Stat
+          icon={<CalendarClock className="h-5 w-5" />}
+          label="Due this week"
+          value={data.touchpointsDueThisWeek}
+          hint="Clients whose next required touchpoint falls within this week (Monday–Sunday)."
+        />
+        <Stat
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          label="On track"
+          value={data.caseload > 0 ? `${data.onTrackCount} of ${data.caseload}` : '—'}
+          hint="Clients who have met their required contacts so far this month, out of your total caseload."
+        />
+        <Stat
+          icon={<AlertTriangle className="h-5 w-5" />}
+          label="Needs attention"
+          value={data.behindCount}
+          hint="Clients who are behind on their required contacts for this month."
+        />
       </div>
 
       <Card>
