@@ -8,7 +8,7 @@ export const MAX_CYCLES = 12;
 export const RATE_LOW = 320;
 export const RATE_HIGH = 640;
 
-export const MCO_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
+export const MCO_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis'] as const;
 
 export const BILLING_STATUSES = ['Not Billed', 'Ready to Bill', 'Submitted', 'Denied'] as const;
 export const PAYMENT_STATUSES = ['Unpaid', 'Partial', 'Paid'] as const;
