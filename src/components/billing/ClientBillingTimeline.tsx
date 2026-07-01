@@ -15,6 +15,7 @@ import {
   rateForLevel,
 } from '@/lib/billing';
 import { BillingCycleDialog } from '@/components/billing/BillingCycleDialog';
+import { regenerateClientCycles } from '@/lib/billingSync';
 import { RefreshCw } from 'lucide-react';
 
 interface Props {
