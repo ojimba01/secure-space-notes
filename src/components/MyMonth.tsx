@@ -21,13 +21,16 @@ interface UpcomingTouchpoint {
   client_id: string | null;
 }
 
-const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
+const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode; hint?: string }> = ({ icon, label, value, hint }) => (
   <Card>
     <CardContent className="p-4 flex items-center gap-3">
       <div className="rounded-full bg-primary/10 p-2 text-primary">{icon}</div>
       <div>
         <div className="text-2xl font-bold leading-none">{value}</div>
-        <div className="text-xs text-muted-foreground mt-1">{label}</div>
+        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+          {label}
+          {hint && <InfoHint text={hint} />}
+        </div>
       </div>
     </CardContent>
   </Card>
