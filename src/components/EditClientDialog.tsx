@@ -118,7 +118,13 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
   });
 
   const handleSubmit = async (data: ClientFormData) => {
+    // Sandbox (view-as): show the change happened, but skip the DB write.
+    if (guardWrite()) {
+      onOpenChange(false);
+      return;
+    }
     setIsSubmitting(true);
+
 
     try {
       const { error } = await supabase
