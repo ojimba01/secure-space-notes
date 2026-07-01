@@ -38,8 +38,17 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
   const [billing, setBilling] = useState('all');
   const [payment, setPayment] = useState('all');
   const [due, setDue] = useState('all');
+  const [staff, setStaff] = useState('all');
   const [editing, setEditing] = useState<BillingCycle | null>(null);
   const [open, setOpen] = useState(false);
+
+  const staffOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    clients.forEach((c) => {
+      if (c.assigned_employee_id && c.assigned_staff_name) map.set(c.assigned_employee_id, c.assigned_staff_name);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [clients]);
 
   const thisMonth = monthKey(todayAgency());
 
