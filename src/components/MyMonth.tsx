@@ -56,11 +56,29 @@ const clientRow = (c: ClientCompliance, onOpen: (id: string) => void) => (
 export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
   const effectiveProfileId = useEffectiveProfileId();
   const data = useMyCompliance(effectiveProfileId);
+  const [upcoming, setUpcoming] = useState<UpcomingTouchpoint[]>([]);
+
+  useEffect(() => {
+    if (!effectiveProfileId) return;
+    const from = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const to = endOfWeek(new Date(), { weekStartsOn: 1 });
+    (async () => {
+      const { data: rows } = await supabase
+        .from('calendar_events')
+        .select('id, title, start_time, client_id')
+        .eq('employee_id', effectiveProfileId)
+        .eq('event_type', 'touch_point')
+        .gte('start_time', from.toISOString())
+        .lte('start_time', to.toISOString())
+        .order('start_time', { ascending: true });
+      setUpcoming((rows as UpcomingTouchpoint[]) ?? []);
+    })();
+  }, [effectiveProfileId]);
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">My Month</h1>
+        <h1 className="text-2xl font-bold">Monthly Touchpoints</h1>
         <p className="text-muted-foreground">Your monthly touch-point compliance at a glance.</p>
       </div>
 
