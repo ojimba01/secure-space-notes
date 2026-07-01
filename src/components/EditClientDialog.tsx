@@ -67,6 +67,10 @@ interface Client {
   iat_date?: string;
   hsp_150_date?: string;
   hsp_180_date?: string;
+  auth_150_start?: string;
+  auth_150_end?: string;
+  auth_180_start?: string;
+  auth_180_end?: string;
   notes?: string;
 }
 
