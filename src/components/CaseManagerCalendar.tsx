@@ -299,6 +299,11 @@ export const CaseManagerCalendar = () => {
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${eventTypeColors[event.event_type]}`} />
                           <h4 className="font-medium text-sm">{event.title}</h4>
+                          {eventTypeLabels[event.event_type] && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">
+                              {eventTypeLabels[event.event_type]}
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(event.start_time), 'h:mm a')} - {format(new Date(event.end_time), 'h:mm a')}
