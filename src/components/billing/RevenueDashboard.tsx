@@ -1,6 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
@@ -15,10 +20,13 @@ import {
   isBilled,
 } from '@/lib/billing';
 import { BillingClient } from '@/hooks/useBilling';
+import { buildDeadlineRows, bucketFor, markCycleSubmitted } from '@/lib/billingDeadlines';
 
 interface Props {
   clients: BillingClient[];
   cycles: BillingCycle[];
+  refresh?: () => void;
+  onOpenDeadlines?: () => void;
 }
 
 const COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#0891b2'];
