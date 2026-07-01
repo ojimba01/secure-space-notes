@@ -7,6 +7,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { RevenueDashboard } from '@/components/billing/RevenueDashboard';
 import { BillingMasterList } from '@/components/billing/BillingMasterList';
 import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
+import { UpcomingDeadlines } from '@/components/billing/UpcomingDeadlines';
+import { BillingByStaff } from '@/components/billing/BillingByStaff';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,7 +16,7 @@ const Billing = () => {
   const { isSuperadmin, loading } = useIsSuperadmin();
   const navigate = useNavigate();
   const { loading: dataLoading, clients, cycles, refresh, regenerate } = useBilling();
-  const [tab, setTab] = useState('dashboard');
+  const [tab, setTab] = useState('deadlines');
   const [timelineClientId, setTimelineClientId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
 
