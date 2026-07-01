@@ -88,7 +88,10 @@ export const BillingCycleDialog: React.FC<Props> = ({ cycle, open, onOpenChange,
           </div>
           <div className="space-y-1">
             <Label>Billing status</Label>
-            <Select value={form.billing_status} onValueChange={(v) => set('billing_status', v)}>
+            <Select value={form.billing_status} onValueChange={(v) => {
+              set('billing_status', v);
+              if (v === 'Submitted' && !form.submitted_date) set('submitted_date', todayAgency());
+            }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {BILLING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -97,13 +100,20 @@ export const BillingCycleDialog: React.FC<Props> = ({ cycle, open, onOpenChange,
           </div>
           <div className="space-y-1">
             <Label>Payment status</Label>
-            <Select value={form.payment_status} onValueChange={(v) => set('payment_status', v)}>
+            <Select value={form.payment_status} onValueChange={(v) => {
+              set('payment_status', v);
+              if (v === 'Paid') {
+                if (!form.paid_amount) set('paid_amount', form.billed_amount ?? 0);
+                if (!form.paid_date) set('paid_date', todayAgency());
+              }
+            }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
+
           <div className="space-y-1">
             <Label>Paid amount ($)</Label>
             <Input type="number" value={form.paid_amount ?? 0} onChange={(e) => set('paid_amount', e.target.value)} />
