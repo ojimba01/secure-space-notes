@@ -431,6 +431,7 @@ interface NoteDetailProps {
 
 const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSaved }) => {
   const { toast } = useToast();
+  const { isViewingAs, guardWrite } = useViewAs();
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
