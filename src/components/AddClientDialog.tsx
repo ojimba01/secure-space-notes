@@ -18,6 +18,13 @@ const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FI
 
 const LON_OPTIONS = ['Low Level', 'High Level'] as const;
 
+const APPROVAL_STATUS_OPTIONS = ['Not Submitted', 'Submitted', 'Approved', 'Denied'] as const;
+
+const REASON_CLOSED_OPTIONS = [
+  'Housed', 'Moved', 'Lost Contact', 'Deceased',
+  'Transferred to Other Agency', 'Medicaid Expired', 'Other',
+] as const;
+
 const NJ_COUNTIES = [
   'ATLANTIC', 'BERGEN', 'BURLINGTON', 'CAMDEN', 'CAPE MAY', 'CUMBERLAND',
   'ESSEX', 'GLOUCESTER', 'HUDSON', 'HUNTERDON', 'MERCER', 'MIDDLESEX',
@@ -29,21 +36,35 @@ const clientSchema = z.object({
   first_name: z.string().trim().min(1, 'First name is required').max(100),
   last_name: z.string().trim().min(1, 'Last name is required').max(100),
   email: z.string().trim().email('Invalid email').max(255).optional().or(z.literal('')),
-  phone: z.string().trim().max(20).optional(),
+  phone: z.string().trim().max(100).optional(),
   address: z.string().trim().max(500).optional(),
   member_id: z.string().trim().max(50).optional(),
   insurance: z.string().trim().max(50).optional(),
   level_of_need: z.string().trim().max(50).optional(),
   county: z.string().trim().max(50).optional(),
+  mco_housing_manager: z.string().trim().max(200).optional(),
+  approval_status: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
+  intake_date: z.string().optional(),
+  assessment_due_date: z.string().optional(),
   iat_date: z.string().optional(),
+  hsp_due_date: z.string().optional(),
+  auth_30_number: z.string().trim().max(100).optional(),
+  auth_30_start: z.string().optional(),
+  auth_30_end: z.string().optional(),
+  auth_150_number: z.string().trim().max(100).optional(),
   auth_150_start: z.string().optional(),
   auth_150_end: z.string().optional(),
+  auth_180_number: z.string().trim().max(100).optional(),
   auth_180_start: z.string().optional(),
   auth_180_end: z.string().optional(),
+  next_action_due_date: z.string().optional(),
+  closed_date: z.string().optional(),
+  reason_closed: z.string().trim().max(100).optional(),
   assigned_employee_id: z.string().optional(),
   notes: z.string().trim().max(2000).optional(),
 });
+
 
 type ClientFormData = z.infer<typeof clientSchema>;
 
