@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -6,9 +6,18 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, Target, CalendarClock, CheckCircle2, ChevronRight } from 'lucide-react';
 import { useMyCompliance, ClientCompliance } from '@/hooks/useMyCompliance';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
+import { supabase } from '@/integrations/supabase/client';
+import { startOfWeek, endOfWeek, format } from 'date-fns';
 
 interface Props {
   onOpenClient: (clientId: string) => void;
+}
+
+interface UpcomingTouchpoint {
+  id: string;
+  title: string;
+  start_time: string;
+  client_id: string | null;
 }
 
 const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
