@@ -129,6 +129,18 @@ export const BulkReassignDialog: React.FC<BulkReassignDialogProps> = ({
       }
     }
 
+    // Regenerate touch-points for each moved client, then rebalance the target staff caseload.
+    try {
+      for (const id of clientIds) {
+        await regenerateTouchpointsForClient(id);
+      }
+      if (!isUnassign) await regenerateTouchpointsForStaff(data.new_employee_id);
+    } catch {
+      /* non-fatal */
+    }
+
+
+
     const verb = isUnassign ? 'unassigned' : 'reassigned';
     const parts = [`${success} ${verb}`];
     if (skipped) parts.push(`${skipped} skipped`);
