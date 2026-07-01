@@ -89,6 +89,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
   onClientUpdated,
 }) => {
   const { toast } = useToast();
+  const { guardWrite } = useViewAs();
   const { isAdmin } = useIsAdmin();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
