@@ -137,12 +137,10 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
   );
   const [deniedOpen, setDeniedOpen] = useState(false);
 
-  // Month label helper: show short month name, plus the year at the January boundary.
   const monthTick = (key: string): string => {
-    const [y, m] = key.split('-');
+    const [, m] = key.split('-');
     const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const label = names[Number(m) - 1] ?? key;
-    return m === '01' ? `${label} ${y}` : label;
+    return names[Number(m) - 1] ?? key;
   };
 
   const byMonth = useMemo(() => {
@@ -153,11 +151,12 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
 
   // Year labels + Dec→Jan divider for the Monthly Revenue chart.
   const monthMeta = useMemo(() => {
-    if (byMonth.length === 0) return { firstYear: '', lastYear: '', singleYear: true, janBoundary: null as string | null };
+    if (byMonth.length === 0) return { firstYear: '', lastYear: '', singleYear: true, janBoundary: null, janIndex: -1 };
     const firstYear = byMonth[0].month.slice(0, 4);
     const lastYear = byMonth[byMonth.length - 1].month.slice(0, 4);
     const janBoundary = byMonth.find((d, i) => i > 0 && d.month.endsWith('-01'))?.month ?? null;
-    return { firstYear, lastYear, singleYear: firstYear === lastYear, janBoundary };
+    const janIndex = janBoundary ? byMonth.findIndex((d) => d.month === janBoundary) : -1;
+    return { firstYear, lastYear, singleYear: firstYear === lastYear, janBoundary, janIndex };
   }, [byMonth]);
 
 
@@ -346,11 +345,48 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
         <Stat label="Billed this month" value={stats.thisMonthRev} hint="Billed amount for cycles whose cycle end falls in the current calendar month." />
       </div>
 
-      <Card><CardHeader><CardTitle className="text-base">Monthly Revenue</CardTitle></CardHeader><CardContent className="h-72 relative">
-        <div className="absolute top-1 left-12 z-10 text-xs font-medium text-muted-foreground">{monthMeta.firstYear}</div>
-        {!monthMeta.singleYear && <div className="absolute top-1 right-4 z-10 text-xs font-medium text-muted-foreground">{monthMeta.lastYear}</div>}
-        <ResponsiveContainer width="100%" height="100%"><BarChart data={byMonth}><XAxis dataKey="month" fontSize={11} tickFormatter={monthTick} interval={0} /><YAxis fontSize={11} tickFormatter={(v: number) => formatMoney(v)} /><Tooltip labelFormatter={(l: string) => monthTick(l)} formatter={(v: number) => formatMoney(v)} />{monthMeta.janBoundary && !monthMeta.singleYear && <ReferenceLine x={monthMeta.janBoundary} stroke="#94a3b8" strokeDasharray="3 3" />}<Bar dataKey="amount" fill="#2563eb" /></BarChart></ResponsiveContainer>
-      </CardContent></Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Monthly Revenue</CardTitle>
+        </CardHeader>
+        <CardContent className="h-72 flex flex-col pt-2">
+          {monthMeta.janBoundary && !monthMeta.singleYear && (
+            <div className="relative h-5 w-full">
+              <span
+                className="absolute text-xs font-medium text-muted-foreground"
+                style={{
+                  left: `calc(60px + (${monthMeta.janIndex + 0.5} / ${byMonth.length}) * (100% - 60px))`,
+                  top: '50%',
+                  transform: 'translate(calc(-100% - 0.25rem), -50%)',
+                }}
+              >
+                {monthMeta.firstYear}
+              </span>
+              <span
+                className="absolute text-xs font-medium text-muted-foreground"
+                style={{
+                  left: `calc(60px + (${monthMeta.janIndex + 0.5} / ${byMonth.length}) * (100% - 60px))`,
+                  top: '50%',
+                  transform: 'translate(0.25rem, -50%)',
+                }}
+              >
+                {monthMeta.lastYear}
+              </span>
+            </div>
+          )}
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={byMonth} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                <XAxis dataKey="month" fontSize={11} tickFormatter={monthTick} interval={0} />
+                <YAxis width={60} fontSize={11} tickFormatter={(v: number) => formatMoney(v)} />
+                <Tooltip labelFormatter={(l: string) => monthTick(l)} formatter={(v: number) => formatMoney(v)} />
+                {monthMeta.janBoundary && !monthMeta.singleYear && <ReferenceLine x={monthMeta.janBoundary} stroke="#94a3b8" strokeDasharray="3 3" />}
+                <Bar dataKey="amount" fill="#2563eb" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card><CardHeader><CardTitle className="text-base">Revenue by MCO</CardTitle></CardHeader><CardContent className="h-64">
