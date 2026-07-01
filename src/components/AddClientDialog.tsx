@@ -36,6 +36,11 @@ const clientSchema = z.object({
   county: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
   iat_date: z.string().optional(),
+  auth_150_start: z.string().optional(),
+  auth_150_end: z.string().optional(),
+  auth_180_start: z.string().optional(),
+  auth_180_end: z.string().optional(),
+  assigned_employee_id: z.string().optional(),
   notes: z.string().trim().max(2000).optional(),
 });
 
