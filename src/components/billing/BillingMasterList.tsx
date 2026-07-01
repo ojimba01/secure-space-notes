@@ -65,6 +65,9 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
         if (phase !== 'all' && c.phase !== phase) return false;
         if (billing !== 'all' && c.billing_status !== billing) return false;
         if (payment !== 'all' && c.payment_status !== payment) return false;
+        if (staff !== 'all') {
+          if (staff === '__unassigned__' ? !!cl.assigned_employee_id : cl.assigned_employee_id !== staff) return false;
+        }
         if (due === 'this_month' && monthKey(c.cycle_end) !== thisMonth) return false;
         if (due === 'overdue' && !isPastDue(c)) return false;
         return true;
