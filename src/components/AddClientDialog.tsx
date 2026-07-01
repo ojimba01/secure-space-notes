@@ -147,6 +147,17 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         }
       }
 
+      // Auto-generate monthly touch-points from the HSP 150-day date, and rebalance the
+      // assigned staff member's caseload so they spread evenly.
+      if (inserted?.id) {
+        try {
+          await regenerateTouchpointsForClient(inserted.id);
+          if (assignedId) await regenerateTouchpointsForStaff(assignedId);
+        } catch {
+          /* non-fatal */
+        }
+      }
+
 
 
       toast({
