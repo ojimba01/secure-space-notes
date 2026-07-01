@@ -14,6 +14,7 @@ import { AddClientDialog } from '@/components/AddClientDialog';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useMyCompliance } from '@/hooks/useMyCompliance';
+import { useViewAs } from '@/components/ViewAsProvider';
 
 interface Client {
   id: string;
@@ -95,6 +96,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   const { user } = useAuth();
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
+  const { isViewingAs, viewAsEmployeeId } = useViewAs();
   const { behindCount } = useMyCompliance();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -204,6 +206,11 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       client.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = selectedStatuses.has(getMilestoneStatus(client));
+
+    // View-as: show only the previewed employee's caseload.
+    if (isViewingAs) {
+      return matchesSearch && matchesStatus && client.assigned_employee_id === viewAsEmployeeId;
+    }
 
     if (!isAdmin) return matchesSearch && matchesStatus;
 
@@ -331,7 +338,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           <h1 className="text-xl md:text-3xl font-bold truncate">Clients</h1>
           <p className="text-sm text-muted-foreground hidden md:block">Manage your client cases and information</p>
         </div>
-        {isAdmin && !selectionMode && (
+        {isAdmin && !selectionMode && !isViewingAs && (
           <div className="flex items-center gap-2 shrink-0">
             <Button size="sm" variant="outline" onClick={() => setSelectionMode(true)}>
               <CheckSquare className="h-4 w-4 md:mr-2" />

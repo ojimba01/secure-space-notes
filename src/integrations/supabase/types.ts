@@ -64,6 +64,74 @@ export type Database = {
           },
         ]
       }
+      billing_cycles: {
+        Row: {
+          billed_amount: number | null
+          billing_status: string
+          claim_number: string | null
+          client_id: string
+          created_at: string
+          cycle_end: string
+          cycle_number: number
+          cycle_start: string
+          id: string
+          is_auto_generated: boolean
+          notes: string | null
+          paid_amount: number
+          paid_date: string | null
+          payment_status: string
+          phase: string
+          submitted_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          billed_amount?: number | null
+          billing_status?: string
+          claim_number?: string | null
+          client_id: string
+          created_at?: string
+          cycle_end: string
+          cycle_number: number
+          cycle_start: string
+          id?: string
+          is_auto_generated?: boolean
+          notes?: string | null
+          paid_amount?: number
+          paid_date?: string | null
+          payment_status?: string
+          phase?: string
+          submitted_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billed_amount?: number | null
+          billing_status?: string
+          claim_number?: string | null
+          client_id?: string
+          created_at?: string
+          cycle_end?: string
+          cycle_number?: number
+          cycle_start?: string
+          id?: string
+          is_auto_generated?: boolean
+          notes?: string | null
+          paid_amount?: number
+          paid_date?: string | null
+          payment_status?: string
+          phase?: string
+          submitted_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_cycles_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           client_id: string | null
@@ -445,6 +513,12 @@ export type Database = {
         Row: {
           address: string | null
           assigned_employee_id: string | null
+          auth_150_end: string | null
+          auth_150_start: string | null
+          auth_180_end: string | null
+          auth_180_start: string | null
+          auth_30_end: string | null
+          auth_30_start: string | null
           county: string | null
           created_at: string | null
           date_of_birth: string | null
@@ -468,6 +542,12 @@ export type Database = {
         Insert: {
           address?: string | null
           assigned_employee_id?: string | null
+          auth_150_end?: string | null
+          auth_150_start?: string | null
+          auth_180_end?: string | null
+          auth_180_start?: string | null
+          auth_30_end?: string | null
+          auth_30_start?: string | null
           county?: string | null
           created_at?: string | null
           date_of_birth?: string | null
@@ -491,6 +571,12 @@ export type Database = {
         Update: {
           address?: string | null
           assigned_employee_id?: string | null
+          auth_150_end?: string | null
+          auth_150_start?: string | null
+          auth_180_end?: string | null
+          auth_180_start?: string | null
+          auth_30_end?: string | null
+          auth_30_start?: string | null
           county?: string | null
           created_at?: string | null
           date_of_birth?: string | null

@@ -14,7 +14,8 @@ import {
   BookOpen,
   Play,
   Menu,
-  X
+  X,
+  DollarSign
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useTutorial } from '@/components/TutorialProvider';
@@ -23,6 +24,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { AdvancedTools } from '@/components/AdvancedTools';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
@@ -39,6 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
   const [recentNotes, setRecentNotes] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
+  const { isSuperadmin } = useIsSuperadmin();
 
   useEffect(() => {
     if (user) {
@@ -229,6 +233,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
               Audit Logs
             </Button>
           )}
+          {isSuperadmin && (
+            <Button 
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={() => handleNavigate('/billing')}
+            >
+              <DollarSign className="h-4 w-4" />
+              Billing &amp; Revenue
+            </Button>
+          )}
           <Button 
             variant="ghost"
             className="w-full justify-start gap-2"
@@ -289,18 +303,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
           </div>
         </Card>
 
-        {/* Logout Button */}
-        <Button 
-          variant="outline"
-          className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10 mt-auto"
-          onClick={async () => {
-            await signOut();
-            navigate('/auth');
-          }}
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </Button>
+        {/* Advanced Tools (superadmin only) - pinned to bottom */}
+        <div className="mt-auto space-y-2">
+          <AdvancedTools />
+          {/* Logout Button */}
+          <Button 
+            variant="outline"
+            className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={async () => {
+              await signOut();
+              navigate('/auth');
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+        </div>
       </div>
     </>
   );

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, Target, CalendarClock, CheckCircle2, ChevronRight } from 'lucide-react';
 import { useMyCompliance, ClientCompliance } from '@/hooks/useMyCompliance';
+import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 
 interface Props {
   onOpenClient: (clientId: string) => void;
@@ -44,7 +45,8 @@ const clientRow = (c: ClientCompliance, onOpen: (id: string) => void) => (
 );
 
 export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
-  const data = useMyCompliance();
+  const effectiveProfileId = useEffectiveProfileId();
+  const data = useMyCompliance(effectiveProfileId);
 
   return (
     <div className="p-6 space-y-6">

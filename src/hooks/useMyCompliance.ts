@@ -34,8 +34,9 @@ export interface MyComplianceData {
   refresh: () => void;
 }
 
-export function useMyCompliance(): MyComplianceData {
-  const profileId = useMyProfileId();
+export function useMyCompliance(overrideProfileId?: string | null): MyComplianceData {
+  const myProfileId = useMyProfileId();
+  const profileId = overrideProfileId !== undefined ? overrideProfileId : myProfileId;
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState<ClientCompliance[]>([]);
 
