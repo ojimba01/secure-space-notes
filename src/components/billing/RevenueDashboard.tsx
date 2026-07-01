@@ -395,8 +395,8 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
         <Card><CardHeader><CardTitle className="text-base">Collected vs. Outstanding</CardTitle></CardHeader><CardContent className="h-64">
           <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={paidSplit} dataKey="value" nameKey="name" outerRadius={80} label><Cell fill="#16a34a" /><Cell fill="#f59e0b" /></Pie><Tooltip formatter={(v: number) => formatMoney(v)} /><Legend /></PieChart></ResponsiveContainer>
         </CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-base">Cycles by billing status</CardTitle></CardHeader><CardContent className="h-64">
-          <ResponsiveContainer width="100%" height="100%"><BarChart data={byBillingStatus}><XAxis dataKey="status" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip /><Bar dataKey="count" fill="#7c3aed" /></BarChart></ResponsiveContainer>
+        <Card><CardHeader><CardTitle className="text-base"># of cycles by billing status</CardTitle></CardHeader><CardContent className="h-64">
+          <ResponsiveContainer width="100%" height="100%"><BarChart data={byBillingStatus}><XAxis dataKey="status" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip labelFormatter={(l) => l} formatter={(v: number) => [`${v} cycles`, 'Count']} /><Bar dataKey="count" fill="#7c3aed" /></BarChart></ResponsiveContainer>
         </CardContent></Card>
       </div>
 
