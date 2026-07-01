@@ -98,8 +98,8 @@ async function insertTouchpoints(client: TouchpointClient, seed: number): Promis
   const rows = dates.map((d) => {
     const iso = toDate(d.date).toISOString();
     return {
-      title: `Touch-point (${MODALITY_LABELS[d.modality]}) — ${client.first_name} ${client.last_name}`,
-      description: 'Auto-generated monthly touch-point',
+      title: `Touchpoint (${MODALITY_LABELS[d.modality]}) — ${client.first_name} ${client.last_name}`,
+      description: 'Auto-generated monthly touchpoint',
       event_type: 'touch_point',
       is_auto_generated: true,
       client_id: client.id,

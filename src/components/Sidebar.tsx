@@ -109,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
         <div className="p-1.5 bg-medical-blue rounded-md">
           <Stethoscope className="w-4 h-4 text-white" />
         </div>
-        <span className="font-semibold truncate">ClinicalNotes</span>
+        <span className="font-semibold truncate">SupportiveCM</span>
       </div>
     </div>
   );
@@ -150,7 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
                 <Stethoscope className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="font-semibold text-lg">ClinicalNotes</h2>
+                <h2 className="font-semibold text-lg">SupportiveCM</h2>
                 <p className="text-sm text-muted-foreground">HIPAA Compliant</p>
               </div>
             </button>
@@ -162,7 +162,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             data-tutorial="new-note-btn"
           >
             <Plus className="w-4 h-4" />
-            New Note
+            New note
           </Button>
         </div>
 
@@ -206,7 +206,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             onClick={() => handleViewChange('compliance')}
           >
             <ClipboardList className="h-4 w-4" />
-            Monthly Touchpoints
+            Monthly touchpoints
           </Button>
           <Button
             variant={activeView === 'clients' ? 'default' : 'ghost'}
@@ -252,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             data-tutorial="onboarding-nav"
           >
             <BookOpen className="h-4 w-4" />
-            Onboarding Guide
+            Help guide
           </Button>
           <Button
             variant="ghost"
@@ -260,7 +260,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             onClick={() => startTutorial()}
           >
             <Play className="h-4 w-4" />
-            Start Tutorial
+            Start walkthrough
           </Button>
         </div>
 
@@ -287,7 +287,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
                 </Card>
               ))
             ) : (
-              <p className="text-xs text-muted-foreground px-2 py-2">No recent notes</p>
+              <p className="text-xs text-muted-foreground px-2 py-2">No recent notes yet</p>
             )}
           </div>
         </div>

@@ -44,7 +44,7 @@ const OnboardingContent: React.FC<OnboardingContentProps> = ({ steps, features, 
     <div className="space-y-8">
       {/* Steps Section */}
       <section>
-        <h2 className="text-2xl font-semibold mb-4">Getting Started</h2>
+        <h2 className="text-2xl font-semibold mb-4">Getting started</h2>
         <div className="space-y-4">
           {steps.map((step, index) => {
             const IconComponent = getIcon(step.icon);
@@ -70,7 +70,7 @@ const OnboardingContent: React.FC<OnboardingContentProps> = ({ steps, features, 
 
       {/* Features Section */}
       <section>
-        <h2 className="text-2xl font-semibold mb-4">Key Features</h2>
+        <h2 className="text-2xl font-semibold mb-4">Key features</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {features.map((feature) => {
             const IconComponent = getIcon(feature.icon);

@@ -107,7 +107,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
     .map((m) => {
       const due = addDays(m.start as string, m.offset);
       const status = m.finished
-        ? { label: 'Finished', className: 'bg-green-600 text-white dark:bg-green-700' }
+        ? { label: 'Complete', className: 'bg-green-600 text-white dark:bg-green-700' }
         : milestoneStatus(due);
       return { label: m.label, due, status };
     });
@@ -131,7 +131,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
             {pendingNext && (
               <Badge variant="destructive" className="gap-1">
                 <AlertTriangle className="h-3 w-3" />
-                Pending next action
+                Next action overdue
               </Badge>
             )}
             {selectionMode && (
@@ -157,7 +157,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
             </p>
           ) : (
             <p className="text-sm font-medium text-red-600 dark:text-red-500">
-              No case manager assigned
+              Unassigned
             </p>
           )
         )}

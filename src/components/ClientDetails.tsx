@@ -256,13 +256,13 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           <TabsContent value="overview" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Client Information</CardTitle>
+                <CardTitle>Summary</CardTitle>
               </CardHeader>
               <CardContent>
                 {client.notes ? (
                   <p>{client.notes}</p>
                 ) : (
-                  <p className="text-muted-foreground">No additional notes available.</p>
+                  <p className="text-muted-foreground">No additional notes have been added.</p>
                 )}
               </CardContent>
             </Card>
@@ -316,16 +316,15 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete record?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {client.first_name} {client.last_name}'s record
-              and all associated data. This action cannot be undone.
+              This will permanently delete this record, including associated notes, files, calendar events, and history. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting ? 'Deleting...' : 'Delete'}
+              {isDeleting ? 'Deleting...' : 'Permanently delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

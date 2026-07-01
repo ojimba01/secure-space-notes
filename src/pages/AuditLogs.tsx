@@ -208,7 +208,7 @@ const AuditLogs = () => {
               <Stethoscope className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="font-semibold text-lg">ClinicalNotes</h2>
+              <h2 className="font-semibold text-lg">SupportiveCM</h2>
               <p className="text-xs text-muted-foreground">HIPAA Compliant</p>
             </div>
           </Link>

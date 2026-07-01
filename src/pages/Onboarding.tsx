@@ -210,7 +210,7 @@ const Onboarding = () => {
       <div className="max-w-4xl mx-auto">
         <Card className="mb-4 md:mb-6">
           <CardHeader className="text-center p-4 md:p-6">
-            <CardTitle className="text-xl md:text-3xl">Welcome to Clinical Notes</CardTitle>
+            <CardTitle className="text-xl md:text-3xl">Welcome to SupportiveCM</CardTitle>
             <CardDescription className="text-sm md:text-lg">
               {isAdmin 
                 ? 'As an administrator, you have access to all features. Review the guides below.'
@@ -222,8 +222,8 @@ const Onboarding = () => {
         {isAdmin ? (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="admin">Admin Guide</TabsTrigger>
-              <TabsTrigger value="employee">Case Manager Guide</TabsTrigger>
+              <TabsTrigger value="admin">Administrator guide</TabsTrigger>
+              <TabsTrigger value="employee">Case manager guide</TabsTrigger>
             </TabsList>
 
             <TabsContent value="admin" className="space-y-6">

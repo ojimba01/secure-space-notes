@@ -73,7 +73,7 @@ const EditOnboardingDialog: React.FC<EditOnboardingDialogProps> = ({
 
       if (error) throw error;
 
-      toast.success('Onboarding content updated');
+      toast.success('Help content updated');
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
@@ -89,7 +89,7 @@ const EditOnboardingDialog: React.FC<EditOnboardingDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Edit {item?.content_type === 'step' ? 'Step' : 'Feature'}</DialogTitle>
           <DialogDescription>
-            Update the onboarding content for {item?.role_type === 'admin' ? 'Admins' : 'Case Managers'}
+            Update the help content for {item?.role_type === 'admin' ? 'administrators' : 'case managers'}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">

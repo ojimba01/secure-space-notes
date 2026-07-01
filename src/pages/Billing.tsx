@@ -41,7 +41,7 @@ const Billing = () => {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5" /></Button>
-            <h1 className="text-2xl font-bold">Billing &amp; Revenue</h1>
+            <h1 className="text-2xl font-bold">Billing and revenue</h1>
           </div>
           <Button onClick={handleRegenerate} disabled={regenerating} className="gap-2">
             <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
@@ -54,12 +54,11 @@ const Billing = () => {
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
-              <TabsTrigger value="dashboard">Revenue Dashboard</TabsTrigger>
-              <TabsTrigger value="deadlines">Upcoming Deadlines</TabsTrigger>
-              <TabsTrigger value="master">Master List</TabsTrigger>
-              <TabsTrigger value="staff">Staff Level</TabsTrigger>
-              <TabsTrigger value="timeline" disabled={!timelineClientId}>Client Level</TabsTrigger>
-
+              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+              <TabsTrigger value="deadlines">Deadlines</TabsTrigger>
+              <TabsTrigger value="master">Case tracker</TabsTrigger>
+              <TabsTrigger value="staff">By case manager</TabsTrigger>
+              <TabsTrigger value="timeline" disabled={!timelineClientId}>Billing details</TabsTrigger>
             </TabsList>
             <TabsContent value="dashboard" className="mt-4">
               <RevenueDashboard clients={clients} cycles={cycles} refresh={refresh} onOpenDeadlines={() => setTab('deadlines')} />
@@ -77,7 +76,6 @@ const Billing = () => {
               {timelineClientId && <ClientBillingTimeline clientId={timelineClientId} />}
             </TabsContent>
           </Tabs>
-
         )}
       </div>
     </div>
