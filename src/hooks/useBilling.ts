@@ -18,6 +18,8 @@ export interface BillingClient {
   auth_150_end: string | null;
   auth_180_start: string | null;
   auth_180_end: string | null;
+  assigned_employee_id: string | null;
+  assigned_staff_name: string | null;
 }
 
 export interface BillingData {
