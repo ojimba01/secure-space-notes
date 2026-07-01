@@ -87,6 +87,7 @@ interface NotesHubProps {
 export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelected }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isViewingAs, viewAsEmployeeId, guardWrite } = useViewAs();
   const [notes, setNotes] = useState<HubNote[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
