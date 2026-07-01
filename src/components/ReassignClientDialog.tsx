@@ -141,6 +141,16 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
         if (error) throw error;
       }
 
+      // Rebalance touch-points: the client's new schedule and both old & new caseloads.
+      try {
+        await regenerateTouchpointsForClient(clientId);
+        if (currentEmployeeId) await regenerateTouchpointsForStaff(currentEmployeeId);
+        if (data.new_employee_id !== '__none__') await regenerateTouchpointsForStaff(data.new_employee_id);
+      } catch {
+        /* non-fatal */
+      }
+
+
       toast({
         title: data.new_employee_id === '__none__' ? 'Client Unassigned' : 'Client Reassigned',
         description: `${clientName} has been updated successfully.`,
