@@ -467,6 +467,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSav
   };
 
   const handleDelete = async () => {
+    if (guardWrite()) return;
     setIsDeleting(true);
     try {
       const { error } = await supabase.from('client_notes').delete().eq('id', note.id);
