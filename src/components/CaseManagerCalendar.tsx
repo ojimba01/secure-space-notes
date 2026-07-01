@@ -40,6 +40,7 @@ export const CaseManagerCalendar = () => {
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { isViewingAs, viewAsEmployeeId } = useViewAs();
 
   const openEditDialog = (event: CalendarEvent) => {
     setEditingEvent(event);
