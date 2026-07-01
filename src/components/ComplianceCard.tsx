@@ -187,6 +187,7 @@ export const ComplianceCard: React.FC<Props> = ({
   };
 
   const deleteContact = async (c: ContactRow) => {
+    if (guardWrite()) return;
     const { data: full } = await supabase
       .from('client_contacts')
       .select('calendar_event_id')
