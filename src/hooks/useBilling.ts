@@ -14,6 +14,7 @@ export interface BillingClient {
   member_id: string | null;
   level_of_need: string | null;
   status: string;
+  approval_status: string | null;
   auth_150_start: string | null;
   auth_150_end: string | null;
   auth_180_start: string | null;
