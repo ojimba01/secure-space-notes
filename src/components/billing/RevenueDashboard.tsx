@@ -117,16 +117,31 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
   const thisMonth = monthKey(todayAgency());
 
   const stats = useMemo(() => {
-    let expected = 0, billed = 0, collected = 0, thisMonthRev = 0;
+    let expected = 0, billed = 0, collected = 0, thisMonthRev = 0, denied = 0;
     for (const c of filtered) {
       const amt = Number(c.billed_amount ?? 0);
       expected += amt;
       if (isBilled(c.billing_status)) billed += amt;
+      if (c.billing_status === 'Denied') denied += amt;
       collected += Number(c.paid_amount ?? 0);
       if (monthKey(c.cycle_end) === thisMonth) thisMonthRev += amt;
     }
-    return { expected, billed, collected, outstanding: billed - collected, thisMonthRev };
+    return { expected, billed, collected, outstanding: billed - collected, thisMonthRev, denied };
   }, [filtered, thisMonth]);
+
+  const deniedCycles = useMemo(
+    () => filtered.filter((c) => c.billing_status === 'Denied'),
+    [filtered],
+  );
+  const [deniedOpen, setDeniedOpen] = useState(false);
+
+  // Month label helper: show short month name, plus the year at the January boundary.
+  const monthTick = (key: string): string => {
+    const [y, m] = key.split('-');
+    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const label = names[Number(m) - 1] ?? key;
+    return m === '01' ? `${label} ${y}` : label;
+  };
 
   const byMonth = useMemo(() => {
     const map = new Map<string, number>();
@@ -151,8 +166,6 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
     return BILLING_STATUSES.map((s) => ({ status: s, count: map.get(s) ?? 0 }));
   }, [filtered]);
 
-  const flagged = useMemo(() => clients.filter((c) => c.status === 'active' && c.auth_150_start && !c.level_of_need), [clients]);
-  const notReady = useMemo(() => clients.filter((c) => c.status === 'active' && !c.auth_150_start), [clients]);
 
   const Stat = ({ label, value, cls }: { label: string; value: number; cls?: string }) => (
     <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">{label}</div><div className={`text-2xl font-bold ${cls ?? ''}`}>{formatMoney(value)}</div></CardContent></Card>
