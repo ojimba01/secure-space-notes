@@ -210,7 +210,7 @@ const Onboarding = () => {
       <div className="max-w-4xl mx-auto">
         <Card className="mb-4 md:mb-6">
           <CardHeader className="text-center p-4 md:p-6">
-            <CardTitle className="text-xl md:text-3xl">Welcome to SupportiveCM</CardTitle>
+            <CardTitle className="text-xl md:text-3xl">Welcome to Clinical Notes</CardTitle>
             <CardDescription className="text-sm md:text-lg">
               {isAdmin 
                 ? 'As an administrator, you have access to all features. Review the guides below.'
