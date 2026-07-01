@@ -58,6 +58,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { isAdmin } = useIsAdmin();
+  const { isViewingAs } = useViewAs();
   const { isSuperadmin } = useIsSuperadmin();
   const [caseManagerName, setCaseManagerName] = useState<string | null>(null);
 
