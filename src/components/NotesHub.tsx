@@ -445,6 +445,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSav
   });
 
   const handleSave = async (data: NoteFormData) => {
+    if (guardWrite()) return;
     setIsSaving(true);
     try {
       const { error } = await supabase
