@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { regenerateClientCycles, fetchActiveCaseManagers, caseManagerName, CaseManagerOption } from '@/lib/billingSync';
 import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 
-const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
+const INSURANCE_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis'] as const;
 
 const LON_OPTIONS = ['Low Level', 'High Level'] as const;
 
@@ -26,10 +26,10 @@ const REASON_CLOSED_OPTIONS = [
 ] as const;
 
 const NJ_COUNTIES = [
-  'ATLANTIC', 'BERGEN', 'BURLINGTON', 'CAMDEN', 'CAPE MAY', 'CUMBERLAND',
-  'ESSEX', 'GLOUCESTER', 'HUDSON', 'HUNTERDON', 'MERCER', 'MIDDLESEX',
-  'MONMOUTH', 'MORRIS', 'OCEAN', 'PASSAIC', 'SALEM', 'SOMERSET',
-  'SUSSEX', 'UNION', 'WARREN',
+  'Atlantic', 'Bergen', 'Burlington', 'Camden', 'Cape May', 'Cumberland',
+  'Essex', 'Gloucester', 'Hudson', 'Hunterdon', 'Mercer', 'Middlesex',
+  'Monmouth', 'Morris', 'Ocean', 'Passaic', 'Salem', 'Somerset',
+  'Sussex', 'Union', 'Warren',
 ] as const;
 
 const clientSchema = z.object({
