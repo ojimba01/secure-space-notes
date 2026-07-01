@@ -106,7 +106,7 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [isViewingAs, viewAsEmployeeId]);
 
   useEffect(() => {
     if (selectedNoteId && notes.length > 0) {
