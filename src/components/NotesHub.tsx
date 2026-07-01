@@ -40,6 +40,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useViewAs } from '@/components/ViewAsProvider';
 import { noteSchema } from '@/lib/validationSchemas';
 import { z } from 'zod';
 import {
