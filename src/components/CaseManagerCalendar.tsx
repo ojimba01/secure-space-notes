@@ -144,6 +144,10 @@ export const CaseManagerCalendar = () => {
     'other': 'bg-slate-500',
     'touchpoint': 'bg-emerald-600',
     'touchpoint_suggested': 'bg-emerald-300',
+    'touch_point': 'bg-teal-500',
+  };
+  const eventTypeLabels: Record<string, string> = {
+    'touch_point': 'Touch-point',
   };
 
   return (
