@@ -50,7 +50,7 @@ export const CaseManagerCalendar = () => {
 
   useEffect(() => {
     fetchEvents();
-  }, [currentDate]);
+  }, [currentDate, isViewingAs, viewAsEmployeeId]);
 
   const fetchEvents = async () => {
     setLoading(true);
