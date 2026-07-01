@@ -141,7 +141,7 @@ export const BillingByStaff: React.FC<Props> = ({ clients, cycles, onOpenTimelin
               <TableHead>Case Manager</TableHead>
               <TableHead>Clients</TableHead>
               <TableHead>Expected</TableHead>
-              <TableHead>Billed</TableHead>
+              <TableHead>Amount</TableHead>
               <TableHead>Collected</TableHead>
               <TableHead>Outstanding</TableHead>
               <TableHead></TableHead>
