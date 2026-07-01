@@ -152,6 +152,15 @@ export const BillingMasterList: React.FC<Props> = ({ clients, cycles, refresh, o
               </TableRow>
             </TableHeader>
             <TableBody>
+              {rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
+                    {cycles.length === 0
+                      ? "No billing cycles yet. Add a client's 150-Day authorization start date (or run the backfill), and cycles appear automatically."
+                      : 'No cycles match these filters.'}
+                  </TableCell>
+                </TableRow>
+              )}
               {rows.map(({ cycle: c, client: cl }) => {
                 const pastDue = isPastDue(c);
                 return (
