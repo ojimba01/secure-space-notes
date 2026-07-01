@@ -7,8 +7,6 @@ import {
   requirementsForTier,
   addDays,
   daysBetween,
-  firstOfMonth,
-  lastOfMonth,
   toDate,
   Modality,
   MODALITY_LABELS,
@@ -31,50 +29,54 @@ interface TouchpointClient {
   assigned_employee_id?: string | null;
 }
 
-// Generate evenly-spread touch-point dates across the 150-day window, month by month.
-// `seed` offsets a client's dates slightly so multiple clients don't all pile onto the
-// same day of the month (used when rebalancing a staff member's caseload).
+// Generate a weekly touch-point every 7 days across the full 150-day window.
+// `seed` offsets a client's day-of-week slightly so multiple clients don't all pile
+// onto the same weekday (used when rebalancing a staff member's caseload).
 export function generateTouchpointDates(
   hsp150: string,
   tier: string | null | undefined,
   seed = 0,
 ): TouchpointDate[] {
   const req = requirementsForTier(tier);
-  const n = req.requiredContacts;
-  if (n <= 0) return [];
+  if (req.requiredContacts <= 0) return [];
 
-  const windowStart = hsp150;
+  const windowStart = addDays(hsp150, seed % 7); // small per-client day stagger
   const windowEnd = addDays(hsp150, WINDOW_DAYS - 1);
   const out: TouchpointDate[] = [];
 
-  let cursor = windowStart;
-  while (daysBetween(cursor, windowEnd) >= 0) {
-    const segStart = cursor;
-    const monthEnd = lastOfMonth(cursor);
-    const segEnd = daysBetween(monthEnd, windowEnd) < 0 ? windowEnd : monthEnd;
-    const span = Math.max(0, daysBetween(segStart, segEnd));
+  // High-level: aim for ~2 in-person visits per month, spaced at least 7 days apart.
+  // Since touch-points are already weekly, flag every other week as in-person until the
+  // monthly quota is met, then reset the quota at the start of each calendar month.
+  const wantInPerson = req.requiredInPerson > 0;
 
-    let inPersonPlaced = 0;
-    for (let i = 0; i < n; i++) {
-      const frac = (i + 1) / (n + 1);
-      let offset = Math.round(frac * span);
-      // small per-client stagger so caseloads don't cluster on identical days
-      if (span > 0) offset = (offset + (seed % Math.max(1, Math.floor(span / n) || 1))) % (span + 1);
-      const date = addDays(segStart, offset);
-      // High-level: mark the required in-person visits on the wider-spaced (even) slots
-      const isInPerson = inPersonPlaced < req.requiredInPerson && i % 2 === 0;
-      if (isInPerson) inPersonPlaced++;
-      out.push({ date, modality: isInPerson ? 'in_person' : 'phone' });
+  let cursor = windowStart;
+  let weekIndex = 0;
+  let currentMonth = cursor.slice(0, 7); // YYYY-MM
+  let inPersonThisMonth = 0;
+
+  while (daysBetween(cursor, windowEnd) >= 0) {
+    const month = cursor.slice(0, 7);
+    if (month !== currentMonth) {
+      currentMonth = month;
+      inPersonThisMonth = 0;
     }
 
-    // advance to the first day of the next month
-    const next = firstOfMonth(addDays(monthEnd, 1));
-    cursor = next;
+    let isInPerson = false;
+    if (wantInPerson && inPersonThisMonth < req.requiredInPerson && weekIndex % 2 === 0) {
+      isInPerson = true;
+      inPersonThisMonth++;
+    }
+
+    out.push({ date: cursor, modality: isInPerson ? 'in_person' : 'phone' });
+
+    cursor = addDays(cursor, 7);
+    weekIndex++;
   }
 
   // enforce chronological order and de-dupe identical dates
   out.sort((a, b) => a.date.localeCompare(b.date));
-  return out;
+  const seen = new Set<string>();
+  return out.filter((d) => (seen.has(d.date) ? false : (seen.add(d.date), true)));
 }
 
 async function insertTouchpoints(client: TouchpointClient, seed: number): Promise<void> {
