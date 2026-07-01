@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -18,9 +18,15 @@ import {
   monthKey,
   todayAgency,
   isBilled,
+  nextBillDue,
+  isPastDue,
+  daysBetween,
+  toDate,
+  fmt,
 } from '@/lib/billing';
 import { BillingClient } from '@/hooks/useBilling';
-import { buildDeadlineRows, bucketFor, markCycleSubmitted } from '@/lib/billingDeadlines';
+import { markCycleSubmitted } from '@/lib/billingDeadlines';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface Props {
   clients: BillingClient[];
@@ -39,11 +45,50 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
   const [to, setTo] = useState('');
   const [submitting, setSubmitting] = useState<string | null>(null);
 
-  // "Due for billing this week" = current/past-due cycles due within 7 days or overdue.
-  const dueSoon = useMemo(() => {
-    return buildDeadlineRows(clients, cycles)
-      .filter((r) => bucketFor(r.daysRemaining) === 'overdue' || bucketFor(r.daysRemaining) === 'week');
-  }, [clients, cycles]);
+  // Split current-cycle deadlines into "due this week" and "overdue".
+  const [weekOpen, setWeekOpen] = useState(false);
+  const [overdueOpen, setOverdueOpen] = useState(false);
+  const openActiveClients = useMemo(() => clients.filter((c) => c.status === 'active'), [clients]);
+
+  function endOfWeekSunday(s: string): string {
+    const d = toDate(s);
+    const day = d.getUTCDay(); // 0 = Sunday
+    const add = (7 - day) % 7;
+    d.setUTCDate(d.getUTCDate() + add);
+    return fmt(d);
+  }
+
+  const { dueThisWeek, overdue } = useMemo(() => {
+    const byClient = new Map<string, BillingCycle[]>();
+    for (const c of cycles) {
+      const arr = byClient.get(c.client_id) ?? [];
+      arr.push(c);
+      byClient.set(c.client_id, arr);
+    }
+
+    const today = todayAgency();
+    const sunday = endOfWeekSunday(today);
+    const week: { cycle: BillingCycle; client: BillingClient; dueDate: string; daysRemaining: number }[] = [];
+    const past: { cycle: BillingCycle; client: BillingClient; dueDate: string; daysRemaining: number }[] = [];
+
+    for (const cl of openActiveClients) {
+      const list = byClient.get(cl.id);
+      if (!list) continue;
+      const dueDate = nextBillDue(list, cl.auth_150_start);
+      if (!dueDate) continue;
+      const cycle = list.find((c) => c.cycle_end === dueDate) ?? list[list.length - 1];
+      if (!cycle) continue;
+
+      if (isPastDue(cycle, today)) {
+        past.push({ cycle, client: cl, dueDate, daysRemaining: daysBetween(today, dueDate) });
+      } else if (dueDate >= today && dueDate <= sunday) {
+        week.push({ cycle, client: cl, dueDate, daysRemaining: daysBetween(today, dueDate) });
+      }
+    }
+
+    const sort = (a: { dueDate: string }, b: { dueDate: string }) => a.dueDate.localeCompare(b.dueDate);
+    return { dueThisWeek: week.sort(sort), overdue: past.sort(sort) };
+  }, [cycles, openActiveClients]);
 
   const handleSubmit = async (cycle: BillingCycle) => {
     setSubmitting(cycle.id);
@@ -125,63 +170,140 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
 
   return (
     <div className="space-y-4">
-      <Card className={dueSoon.length > 0 ? 'border-amber-300' : ''}>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-base">Due for billing this week</CardTitle>
-          {onOpenDeadlines && (
-            <Button variant="link" size="sm" className="h-auto p-0" onClick={onOpenDeadlines}>
-              View all deadlines →
-            </Button>
-          )}
-        </CardHeader>
-        <CardContent className="p-0">
-          {dueSoon.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">Nothing due this week — you're all caught up. 🎉</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Assigned Staff</TableHead>
-                    <TableHead>MCO</TableHead>
-                    <TableHead>#</TableHead>
-                    <TableHead>Billed</TableHead>
-                    <TableHead>Due date</TableHead>
-                    <TableHead>Remaining</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dueSoon.map(({ cycle: c, client: cl, dueDate, daysRemaining }) => {
-                    const overdue = daysRemaining < 0;
-                    return (
-                      <TableRow key={c.id}>
-                        <TableCell className="font-medium whitespace-nowrap">{cl.first_name} {cl.last_name}</TableCell>
-                        <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
-                        <TableCell>{cl.insurance ?? '—'}</TableCell>
-                        <TableCell>{c.cycle_number}</TableCell>
-                        <TableCell>{formatMoney(c.billed_amount)}</TableCell>
-                        <TableCell className="whitespace-nowrap">{dueDate}</TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <Badge className={overdue ? 'bg-red-600 text-white hover:bg-red-600' : 'bg-amber-500 text-white hover:bg-amber-500'}>
-                            {overdue ? `${Math.abs(daysRemaining)}d overdue` : daysRemaining === 0 ? 'due today' : `${daysRemaining}d left`}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="outline" size="sm" className="h-8 gap-1" disabled={submitting === c.id} onClick={() => handleSubmit(c)}>
-                            <CheckCircle2 className="h-4 w-4" />Mark Submitted
-                          </Button>
-                        </TableCell>
+      <div className="space-y-3">
+        <Collapsible open={weekOpen} onOpenChange={setWeekOpen}>
+          <Card className={dueThisWeek.length > 0 ? 'border-amber-300' : ''}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="flex flex-row items-center justify-between pb-2 cursor-pointer select-none hover:bg-muted/50">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base">Due for billing this week</CardTitle>
+                  <Badge variant="secondary">{dueThisWeek.length}</Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  {onOpenDeadlines && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenDeadlines();
+                      }}
+                    >
+                      View all deadlines →
+                    </Button>
+                  )}
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${weekOpen ? 'rotate-180' : ''}`} />
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {weekOpen && dueThisWeek.length > 0 && (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Assigned Staff</TableHead>
+                        <TableHead>MCO</TableHead>
+                        <TableHead>#</TableHead>
+                        <TableHead>Billed</TableHead>
+                        <TableHead>Due date</TableHead>
+                        <TableHead>Remaining</TableHead>
+                        <TableHead></TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {dueThisWeek.map(({ cycle: c, client: cl, dueDate, daysRemaining }) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium whitespace-nowrap">{cl.first_name} {cl.last_name}</TableCell>
+                          <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
+                          <TableCell>{cl.insurance ?? '—'}</TableCell>
+                          <TableCell>{c.cycle_number}</TableCell>
+                          <TableCell>{formatMoney(c.billed_amount)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{dueDate}</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <Badge className="bg-amber-500 text-white hover:bg-amber-500">
+                              {daysRemaining === 0 ? 'due today' : `${daysRemaining}d left`}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="outline" size="sm" className="h-8 gap-1" disabled={submitting === c.id} onClick={() => handleSubmit(c)}>
+                              <CheckCircle2 className="h-4 w-4" />Mark Submitted
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {weekOpen && dueThisWeek.length === 0 && (
+                <p className="p-4 text-sm text-muted-foreground">Nothing due this week.</p>
+              )}
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        <Collapsible open={overdueOpen} onOpenChange={setOverdueOpen}>
+          <Card className={overdue.length > 0 ? 'border-red-300' : ''}>
+            <CollapsibleTrigger asChild>
+              <CardHeader className="flex flex-row items-center justify-between pb-2 cursor-pointer select-none hover:bg-muted/50">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base">Overdue</CardTitle>
+                  <Badge variant="secondary">{overdue.length}</Badge>
+                </div>
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${overdueOpen ? 'rotate-180' : ''}`} />
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {overdueOpen && overdue.length > 0 && (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Assigned Staff</TableHead>
+                        <TableHead>MCO</TableHead>
+                        <TableHead>#</TableHead>
+                        <TableHead>Billed</TableHead>
+                        <TableHead>Due date</TableHead>
+                        <TableHead>Remaining</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {overdue.map(({ cycle: c, client: cl, dueDate, daysRemaining }) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium whitespace-nowrap">{cl.first_name} {cl.last_name}</TableCell>
+                          <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
+                          <TableCell>{cl.insurance ?? '—'}</TableCell>
+                          <TableCell>{c.cycle_number}</TableCell>
+                          <TableCell>{formatMoney(c.billed_amount)}</TableCell>
+                          <TableCell className="whitespace-nowrap">{dueDate}</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <Badge className="bg-red-600 text-white hover:bg-red-600">
+                              {Math.abs(daysRemaining)}d overdue
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="outline" size="sm" className="h-8 gap-1" disabled={submitting === c.id} onClick={() => handleSubmit(c)}>
+                              <CheckCircle2 className="h-4 w-4" />Mark Submitted
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {overdueOpen && overdue.length === 0 && (
+                <p className="p-4 text-sm text-muted-foreground">No overdue cycles.</p>
+              )}
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      </div>
 
       <div className="flex flex-wrap gap-2 items-center">
         <Select value={mco} onValueChange={setMco}><SelectTrigger className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All MCOs</SelectItem>{MCO_OPTIONS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select>
