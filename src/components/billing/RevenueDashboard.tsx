@@ -137,12 +137,10 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
   );
   const [deniedOpen, setDeniedOpen] = useState(false);
 
-  // Month label helper: show short month name, plus the year at the January boundary.
   const monthTick = (key: string): string => {
-    const [y, m] = key.split('-');
+    const [, m] = key.split('-');
     const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const label = names[Number(m) - 1] ?? key;
-    return m === '01' ? `${label} ${y}` : label;
+    return names[Number(m) - 1] ?? key;
   };
 
   const byMonth = useMemo(() => {
