@@ -20,6 +20,7 @@ import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
+import { useViewAs } from '@/components/ViewAsProvider';
 
 interface Client {
   id: string;
