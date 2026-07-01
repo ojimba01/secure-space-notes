@@ -137,7 +137,7 @@ const Admin = () => {
       setEmployees(visibleEmployees);
     } catch (error) {
       toast({
-        title: "Error fetching employees",
+        title: "Could not load staff list.",
         description: getErrorMessage(error),
         variant: "destructive",
       });
@@ -154,7 +154,7 @@ const Admin = () => {
       if (error) throw error;
 
       toast({
-        title: employee.active ? "User Deactivated" : "User Activated",
+        title: employee.active ? "Staff account deactivated" : "Staff account activated",
         description: `${employee.first_name} ${employee.last_name} has been ${employee.active ? 'deactivated' : 'activated'}.`,
       });
 
@@ -243,7 +243,7 @@ const Admin = () => {
       });
     } catch (error) {
       toast({
-        title: "Error fetching stats",
+        title: "Could not load dashboard metrics.",
         description: getErrorMessage(error),
         variant: "destructive",
       });
@@ -281,7 +281,7 @@ const Admin = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Shield className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+            <h1 className="text-3xl font-bold">Admin dashboard</h1>
           </div>
         </div>
 
@@ -319,7 +319,7 @@ const Admin = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
+              <CardTitle className="text-sm font-medium">Total staff</CardTitle>
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -329,7 +329,7 @@ const Admin = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Active Employees</CardTitle>
+              <CardTitle className="text-sm font-medium">Active staff</CardTitle>
               <UserCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -344,7 +344,7 @@ const Admin = () => {
         {/* Employees List */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>{showActiveOnly ? 'Active Employees' : 'All Employees'}</CardTitle>
+            <CardTitle>{showActiveOnly ? 'Active staff' : 'All staff'}</CardTitle>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Show active only</span>
               <Switch checked={showActiveOnly} onCheckedChange={setShowActiveOnly} />
@@ -409,7 +409,7 @@ const Admin = () => {
                 </div>
               ))}
               {(showActiveOnly ? employees.filter((e) => e.active) : employees).length === 0 && (
-                <p className="text-center text-muted-foreground py-8">No employees found</p>
+                <p className="text-center text-muted-foreground py-8">No staff found</p>
               )}
             </div>
           </CardContent>
@@ -427,7 +427,7 @@ const Admin = () => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate employee?</AlertDialogTitle>
+            <AlertDialogTitle>Deactivate account?</AlertDialogTitle>
             <AlertDialogDescription>
               You are about to deactivate{' '}
               <span className="font-semibold">
@@ -459,7 +459,7 @@ const Admin = () => {
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Deactivate
+              Deactivate account
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

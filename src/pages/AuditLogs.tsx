@@ -190,6 +190,28 @@ const AuditLogs = () => {
       : profile.email;
   };
 
+
+  const formatAction = (action: string) => {
+    switch (action) {
+      case 'INSERT': return 'Created';
+      case 'UPDATE': return 'Updated';
+      case 'DELETE': return 'Deleted';
+      default: return action;
+    }
+  };
+
+  const formatTableName = (name: string) => {
+    const map: Record<string, string> = {
+      client_notes: 'Client notes',
+      client_files: 'Client files',
+      user_roles: 'User roles',
+      calendar_events: 'Calendar events',
+      clients: 'Clients',
+      profiles: 'Profiles',
+    };
+    return map[name] ?? name;
+  };
+
   if (loading || checkingAdmin) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
@@ -214,7 +236,7 @@ const AuditLogs = () => {
           </Link>
           <Button onClick={exportToCSV} disabled={filteredLogs.length === 0}>
             <FileDown className="h-4 w-4 mr-2" />
-            Export to CSV
+            Export CSV
           </Button>
         </div>
 
@@ -222,8 +244,8 @@ const AuditLogs = () => {
           <div className="flex items-center gap-3">
             <Shield className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="text-3xl font-bold">Audit Logs</h1>
-              <p className="text-muted-foreground">HIPAA compliance activity tracking</p>
+              <h1 className="text-3xl font-bold">Audit logs</h1>
+              <p className="text-muted-foreground">System activity and compliance review.</p>
             </div>
           </div>
         </div>
@@ -244,7 +266,7 @@ const AuditLogs = () => {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search logs..."
+                    placeholder="Search audit logs"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -260,27 +282,27 @@ const AuditLogs = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Actions</SelectItem>
-                    <SelectItem value="INSERT">Insert</SelectItem>
-                    <SelectItem value="UPDATE">Update</SelectItem>
-                    <SelectItem value="DELETE">Delete</SelectItem>
+                    <SelectItem value="INSERT">Created</SelectItem>
+                    <SelectItem value="UPDATE">Updated</SelectItem>
+                    <SelectItem value="DELETE">Deleted</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Table</label>
+                <label className="text-sm font-medium">Record type</label>
                 <Select value={tableFilter} onValueChange={setTableFilter}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Tables</SelectItem>
+                    <SelectItem value="all">All record types</SelectItem>
                     <SelectItem value="clients">Clients</SelectItem>
-                    <SelectItem value="client_notes">Client Notes</SelectItem>
-                    <SelectItem value="client_files">Client Files</SelectItem>
+                    <SelectItem value="client_notes">Client notes</SelectItem>
+                    <SelectItem value="client_files">Client files</SelectItem>
                     <SelectItem value="profiles">Profiles</SelectItem>
-                    <SelectItem value="user_roles">User Roles</SelectItem>
-                    <SelectItem value="calendar_events">Calendar Events</SelectItem>
+                    <SelectItem value="user_roles">User roles</SelectItem>
+                    <SelectItem value="calendar_events">Calendar events</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -305,7 +327,7 @@ const AuditLogs = () => {
             </div>
 
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Showing {filteredLogs.length} of {logs.length} entries</span>
+              <span>Showing {filteredLogs.length} of {logs.length} records.</span>
               {(searchTerm || actionFilter !== 'all' || tableFilter !== 'all' || dateFrom || dateTo) && (
                 <Button
                   variant="ghost"
@@ -335,7 +357,7 @@ const AuditLogs = () => {
               <div className="text-center py-8">Loading audit logs...</div>
             ) : filteredLogs.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No audit logs match your filters.
+                No records match the selected filters.
               </div>
             ) : (
               <div className="space-y-2">
@@ -344,9 +366,9 @@ const AuditLogs = () => {
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center gap-2">
                         <Badge variant={getActionBadgeVariant(log.action)}>
-                          {log.action}
+                          {formatAction(log.action)}
                         </Badge>
-                        <span className="font-medium">{log.table_name}</span>
+                        <span className="font-medium">{formatTableName(log.table_name)}</span>
                         {log.record_id && (
                           <span className="text-xs text-muted-foreground">
                             ID: {log.record_id.substring(0, 8)}...

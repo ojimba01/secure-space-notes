@@ -143,13 +143,11 @@ export const BulkReassignDialog: React.FC<BulkReassignDialogProps> = ({
 
 
     const verb = isUnassign ? 'unassigned' : 'reassigned';
-    const parts = [`${success} ${verb}`];
-    if (skipped) parts.push(`${skipped} skipped`);
-    if (failed) parts.push(`${failed} failed`);
+    const summary = `${success} ${verb} · ${skipped} skipped · ${failed} failed`;
 
     toast({
-      title: isUnassign ? 'Bulk Unassignment Complete' : 'Bulk Reassignment Complete',
-      description: parts.join(', '),
+      title: isUnassign ? 'Records unassigned' : 'Records reassigned',
+      description: summary,
       variant: failed > 0 ? 'destructive' : 'default',
     });
 
@@ -167,14 +165,10 @@ export const BulkReassignDialog: React.FC<BulkReassignDialogProps> = ({
         <DialogHeader>
           <div className="flex items-center gap-2">
             <UserCog className="h-5 w-5 text-primary" />
-            <DialogTitle>Bulk Reassign Clients</DialogTitle>
+            <DialogTitle>Reassign selected</DialogTitle>
           </div>
           <DialogDescription>
-            Reassign {clientIds.length} {clientIds.length === 1 ? 'client' : 'clients'}
-            {selectedEmployee
-              ? ` to ${selectedEmployee.first_name} ${selectedEmployee.last_name}`
-              : ''}
-            . Each change is logged in the assignment history.
+            Assign {clientIds.length} selected {clientIds.length === 1 ? 'record' : 'records'} to a new case manager. Each change will be saved in assignment history.
           </DialogDescription>
         </DialogHeader>
 

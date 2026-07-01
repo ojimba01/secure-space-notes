@@ -61,7 +61,7 @@ export const BillingCycleDialog: React.FC<Props> = ({ cycle, open, onOpenChange,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit cycle #{cycle.cycle_number}</DialogTitle>
+          <DialogTitle>Edit cycle {cycle.cycle_number}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
@@ -83,7 +83,7 @@ export const BillingCycleDialog: React.FC<Props> = ({ cycle, open, onOpenChange,
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Billed amount ($)</Label>
+            <Label>Billing amount</Label>
             <Input type="number" value={form.billed_amount ?? ''} onChange={(e) => set('billed_amount', e.target.value === '' ? null : e.target.value)} />
           </div>
           <div className="space-y-1">
@@ -115,7 +115,7 @@ export const BillingCycleDialog: React.FC<Props> = ({ cycle, open, onOpenChange,
           </div>
 
           <div className="space-y-1">
-            <Label>Paid amount ($)</Label>
+            <Label>Amount paid</Label>
             <Input type="number" value={form.paid_amount ?? 0} onChange={(e) => set('paid_amount', e.target.value)} />
           </div>
           <div className="space-y-1">
@@ -123,11 +123,11 @@ export const BillingCycleDialog: React.FC<Props> = ({ cycle, open, onOpenChange,
             <Input value={form.claim_number ?? ''} onChange={(e) => set('claim_number', e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label>Submitted date</Label>
+            <Label>Submission date</Label>
             <Input type="date" value={form.submitted_date ?? ''} onChange={(e) => set('submitted_date', e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label>Paid date</Label>
+            <Label>Payment date</Label>
             <Input type="date" value={form.paid_date ?? ''} onChange={(e) => set('paid_date', e.target.value)} />
           </div>
           <div className="col-span-2 space-y-1">
@@ -137,7 +137,7 @@ export const BillingCycleDialog: React.FC<Props> = ({ cycle, open, onOpenChange,
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+          <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
