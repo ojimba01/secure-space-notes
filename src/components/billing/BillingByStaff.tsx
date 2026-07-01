@@ -35,7 +35,6 @@ export const BillingByStaff: React.FC<Props> = ({ clients, cycles, onOpenTimelin
     return map;
   }, [cycles]);
 
-  // Only clients that have cycles / are billable and active.
   const billableClients = useMemo(
     () => clients.filter((c) => c.status === 'active' && cyclesByClient.has(c.id)),
     [clients, cyclesByClient],
@@ -79,14 +78,14 @@ export const BillingByStaff: React.FC<Props> = ({ clients, cycles, onOpenTimelin
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" className="gap-1" onClick={() => setSelected(null)}>
-            <ArrowLeft className="h-4 w-4" />Back to staff
+            <ArrowLeft className="h-4 w-4" />Back
           </Button>
           <h3 className="text-lg font-semibold">{group.name}</h3>
-          <Badge variant="secondary">{group.clients.length} clients</Badge>
+          <Badge variant="secondary">{group.clients.length}</Badge>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Expected</div><div className="text-lg font-bold">{formatMoney(totals.expected)}</div></CardContent></Card>
-          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Billed</div><div className="text-lg font-bold">{formatMoney(totals.billed)}</div></CardContent></Card>
+          <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Submitted</div><div className="text-lg font-bold">{formatMoney(totals.billed)}</div></CardContent></Card>
           <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Collected</div><div className="text-lg font-bold text-green-600">{formatMoney(totals.collected)}</div></CardContent></Card>
           <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Outstanding</div><div className="text-lg font-bold text-amber-600">{formatMoney(totals.outstanding)}</div></CardContent></Card>
         </div>
@@ -97,7 +96,7 @@ export const BillingByStaff: React.FC<Props> = ({ clients, cycles, onOpenTimelin
                 <TableRow>
                   <TableHead>Client</TableHead>
                   <TableHead>MCO</TableHead>
-                  <TableHead>Next Bill Due</TableHead>
+                  <TableHead>Next due</TableHead>
                   <TableHead>Current status</TableHead>
                   <TableHead>Expected</TableHead>
                   <TableHead></TableHead>
@@ -138,10 +137,10 @@ export const BillingByStaff: React.FC<Props> = ({ clients, cycles, onOpenTimelin
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Case Manager</TableHead>
+              <TableHead>Case manager</TableHead>
               <TableHead>Clients</TableHead>
               <TableHead>Expected</TableHead>
-              <TableHead>Amount</TableHead>
+              <TableHead>Submitted</TableHead>
               <TableHead>Collected</TableHead>
               <TableHead>Outstanding</TableHead>
               <TableHead></TableHead>
