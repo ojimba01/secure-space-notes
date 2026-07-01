@@ -44,7 +44,7 @@ export const CaseManagerCalendar = () => {
   const { isViewingAs, viewAsEmployeeId } = useViewAs();
 
   const openEditDialog = (event: CalendarEvent) => {
-    if (isViewingAs) return;
+    // Sandbox (view-as) can open the dialog and click through; saves are skipped.
     setEditingEvent(event);
     setIsEditDialogOpen(true);
   };
