@@ -25,6 +25,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { useViewAs } from '@/components/ViewAsProvider';
 import { AdvancedTools } from '@/components/AdvancedTools';
 import { cn } from '@/lib/utils';
 
@@ -43,6 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   const { isSuperadmin } = useIsSuperadmin();
+  const { isViewingAs } = useViewAs();
 
   useEffect(() => {
     if (user) {
@@ -183,7 +185,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             onClick={() => handleViewChange('compliance')}
           >
             <ClipboardList className="h-4 w-4" />
-            My Month
+            Monthly Touchpoints
           </Button>
           <Button 
             variant={activeView === 'clients' ? 'default' : 'ghost'}
@@ -195,14 +197,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             Clients
           </Button>
           <Button 
-            variant={activeView === 'notes' ? 'default' : 'ghost'}
-            className="w-full justify-start gap-2"
-            onClick={() => handleViewChange('notes')}
-          >
-            <FileText className="h-4 w-4" />
-            Notes
-          </Button>
-          <Button 
             variant={activeView === 'calendar' ? 'default' : 'ghost'}
             className="w-full justify-start gap-2"
             onClick={() => handleViewChange('calendar')}
@@ -211,7 +205,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             <Calendar className="h-4 w-4" />
             Calendar
           </Button>
-          {isAdmin && (
+          <Button 
+            variant={activeView === 'notes' ? 'default' : 'ghost'}
+            className="w-full justify-start gap-2"
+            onClick={() => handleViewChange('notes')}
+          >
+            <FileText className="h-4 w-4" />
+            Notes
+          </Button>
+          {isAdmin && !isViewingAs && (
             <Button 
               variant="ghost"
               className="w-full justify-start gap-2"
@@ -222,7 +224,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
               Admin Dashboard
             </Button>
           )}
-          {isAdmin && (
+          {isSuperadmin && !isViewingAs && (
+            <Button 
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={() => handleNavigate('/billing')}
+            >
+              <DollarSign className="h-4 w-4" />
+              Billing &amp; Revenue
+            </Button>
+          )}
+          {isAdmin && !isViewingAs && (
             <Button 
               variant="ghost"
               className="w-full justify-start gap-2"
@@ -231,16 +243,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             >
               <ClipboardList className="h-4 w-4" />
               Audit Logs
-            </Button>
-          )}
-          {isSuperadmin && (
-            <Button 
-              variant="ghost"
-              className="w-full justify-start gap-2"
-              onClick={() => handleNavigate('/billing')}
-            >
-              <DollarSign className="h-4 w-4" />
-              Billing &amp; Revenue
             </Button>
           )}
           <Button 

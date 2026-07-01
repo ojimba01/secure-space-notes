@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { UserCog } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
+import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 
 const reassignSchema = z.object({
   new_employee_id: z.string().min(1, 'Please select an employee'),
@@ -140,6 +141,16 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
         });
         if (error) throw error;
       }
+
+      // Rebalance touch-points: the client's new schedule and both old & new caseloads.
+      try {
+        await regenerateTouchpointsForClient(clientId);
+        if (currentEmployeeId) await regenerateTouchpointsForStaff(currentEmployeeId);
+        if (data.new_employee_id !== '__none__') await regenerateTouchpointsForStaff(data.new_employee_id);
+      } catch {
+        /* non-fatal */
+      }
+
 
       toast({
         title: data.new_employee_id === '__none__' ? 'Client Unassigned' : 'Client Reassigned',

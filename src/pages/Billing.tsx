@@ -16,7 +16,7 @@ const Billing = () => {
   const { isSuperadmin, loading } = useIsSuperadmin();
   const navigate = useNavigate();
   const { loading: dataLoading, clients, cycles, refresh, regenerate } = useBilling();
-  const [tab, setTab] = useState('deadlines');
+  const [tab, setTab] = useState('dashboard');
   const [timelineClientId, setTimelineClientId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
 
@@ -54,17 +54,17 @@ const Billing = () => {
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
-              <TabsTrigger value="deadlines">Upcoming Deadlines</TabsTrigger>
               <TabsTrigger value="dashboard">Revenue Dashboard</TabsTrigger>
+              <TabsTrigger value="deadlines">Upcoming Deadlines</TabsTrigger>
               <TabsTrigger value="master">Master List</TabsTrigger>
               <TabsTrigger value="staff">By Staff</TabsTrigger>
               <TabsTrigger value="timeline" disabled={!timelineClientId}>Client Timeline</TabsTrigger>
             </TabsList>
-            <TabsContent value="deadlines" className="mt-4">
-              <UpcomingDeadlines clients={clients} cycles={cycles} refresh={refresh} onOpenTimeline={openTimeline} />
-            </TabsContent>
             <TabsContent value="dashboard" className="mt-4">
               <RevenueDashboard clients={clients} cycles={cycles} refresh={refresh} onOpenDeadlines={() => setTab('deadlines')} />
+            </TabsContent>
+            <TabsContent value="deadlines" className="mt-4">
+              <UpcomingDeadlines clients={clients} cycles={cycles} refresh={refresh} onOpenTimeline={openTimeline} />
             </TabsContent>
             <TabsContent value="master" className="mt-4">
               <BillingMasterList clients={clients} cycles={cycles} refresh={refresh} onOpenTimeline={openTimeline} />

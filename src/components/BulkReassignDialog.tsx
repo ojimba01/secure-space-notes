@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { UserCog } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
+import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 
 const schema = z.object({
   new_employee_id: z.string().min(1, 'Please select an employee'),
@@ -128,6 +129,18 @@ export const BulkReassignDialog: React.FC<BulkReassignDialogProps> = ({
         }
       }
     }
+
+    // Regenerate touch-points for each moved client, then rebalance the target staff caseload.
+    try {
+      for (const id of clientIds) {
+        await regenerateTouchpointsForClient(id);
+      }
+      if (!isUnassign) await regenerateTouchpointsForStaff(data.new_employee_id);
+    } catch {
+      /* non-fatal */
+    }
+
+
 
     const verb = isUnassign ? 'unassigned' : 'reassigned';
     const parts = [`${success} ${verb}`];

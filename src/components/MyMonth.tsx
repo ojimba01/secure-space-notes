@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -6,9 +6,18 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, Target, CalendarClock, CheckCircle2, ChevronRight } from 'lucide-react';
 import { useMyCompliance, ClientCompliance } from '@/hooks/useMyCompliance';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
+import { supabase } from '@/integrations/supabase/client';
+import { startOfWeek, endOfWeek, format } from 'date-fns';
 
 interface Props {
   onOpenClient: (clientId: string) => void;
+}
+
+interface UpcomingTouchpoint {
+  id: string;
+  title: string;
+  start_time: string;
+  client_id: string | null;
 }
 
 const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode }> = ({ icon, label, value }) => (
@@ -47,11 +56,29 @@ const clientRow = (c: ClientCompliance, onOpen: (id: string) => void) => (
 export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
   const effectiveProfileId = useEffectiveProfileId();
   const data = useMyCompliance(effectiveProfileId);
+  const [upcoming, setUpcoming] = useState<UpcomingTouchpoint[]>([]);
+
+  useEffect(() => {
+    if (!effectiveProfileId) return;
+    const from = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const to = endOfWeek(new Date(), { weekStartsOn: 1 });
+    (async () => {
+      const { data: rows } = await supabase
+        .from('calendar_events')
+        .select('id, title, start_time, client_id')
+        .eq('employee_id', effectiveProfileId)
+        .eq('event_type', 'touch_point')
+        .gte('start_time', from.toISOString())
+        .lte('start_time', to.toISOString())
+        .order('start_time', { ascending: true });
+      setUpcoming((rows as UpcomingTouchpoint[]) ?? []);
+    })();
+  }, [effectiveProfileId]);
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">My Month</h1>
+        <h1 className="text-2xl font-bold">Monthly Touchpoints</h1>
         <p className="text-muted-foreground">Your monthly touch-point compliance at a glance.</p>
       </div>
 
@@ -79,6 +106,31 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
         <Stat icon={<CheckCircle2 className="h-5 w-5" />} label="On track this month" value={`${data.onTrackCount} / ${data.caseload}`} />
         <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Behind clients" value={data.behindCount} />
       </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Scheduled touch-points this week</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {upcoming.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No touch-points scheduled this week.</p>
+          ) : (
+            upcoming.map((e) => (
+              <button
+                key={e.id}
+                onClick={() => e.client_id && onOpenClient(e.client_id)}
+                className="w-full flex items-center justify-between rounded-md border p-3 text-left hover:bg-accent transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-teal-500" />
+                  <span className="font-medium text-sm">{e.title}</span>
+                </div>
+                <span className="text-xs text-muted-foreground">{format(new Date(e.start_time), 'EEE, MMM d')}</span>
+              </button>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+
 
       <Card>
         <CardHeader><CardTitle className="text-lg">Due for a touch point this week</CardTitle></CardHeader>

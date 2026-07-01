@@ -131,12 +131,10 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </Button>
         
         <div className="flex gap-2">
-          {!isViewingAs && (
-            <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-          )}
+          <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
           {isAdmin && !isViewingAs && (
             <>
               <Button variant="outline" onClick={() => setReassignDialogOpen(true)}>

@@ -14,6 +14,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { regenerateClientCycles } from '@/lib/billingSync';
+import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
+import { useViewAs } from '@/components/ViewAsProvider';
 
 const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
 
@@ -88,6 +90,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
   onClientUpdated,
 }) => {
   const { toast } = useToast();
+  const { guardWrite } = useViewAs();
   const { isAdmin } = useIsAdmin();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -117,7 +120,13 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
   });
 
   const handleSubmit = async (data: ClientFormData) => {
+    // Sandbox (view-as): show the change happened, but skip the DB write.
+    if (guardWrite()) {
+      onOpenChange(false);
+      return;
+    }
     setIsSubmitting(true);
+
 
     try {
       const { error } = await supabase
@@ -157,6 +166,18 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       if (billingChanged) {
         try {
           await regenerateClientCycles(client.id);
+        } catch {
+          /* non-fatal */
+        }
+      }
+
+      // Regenerate touch-points if the HSP 150-day date or level of need changed.
+      const touchpointsChanged =
+        (data.hsp_150_date || '') !== (client.hsp_150_date || '') ||
+        (data.level_of_need || '') !== (client.level_of_need || '');
+      if (touchpointsChanged) {
+        try {
+          await regenerateTouchpointsForClient(client.id);
         } catch {
           /* non-fatal */
         }

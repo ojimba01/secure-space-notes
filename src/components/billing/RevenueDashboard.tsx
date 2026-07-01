@@ -27,6 +27,7 @@ import {
 import { BillingClient } from '@/hooks/useBilling';
 import { markCycleSubmitted } from '@/lib/billingDeadlines';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { InfoHint } from '@/components/InfoHint';
 
 interface Props {
   clients: BillingClient[];
@@ -117,16 +118,31 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
   const thisMonth = monthKey(todayAgency());
 
   const stats = useMemo(() => {
-    let expected = 0, billed = 0, collected = 0, thisMonthRev = 0;
+    let expected = 0, billed = 0, collected = 0, thisMonthRev = 0, denied = 0;
     for (const c of filtered) {
       const amt = Number(c.billed_amount ?? 0);
       expected += amt;
       if (isBilled(c.billing_status)) billed += amt;
+      if (c.billing_status === 'Denied') denied += amt;
       collected += Number(c.paid_amount ?? 0);
       if (monthKey(c.cycle_end) === thisMonth) thisMonthRev += amt;
     }
-    return { expected, billed, collected, outstanding: billed - collected, thisMonthRev };
+    return { expected, billed, collected, outstanding: billed - collected, thisMonthRev, denied };
   }, [filtered, thisMonth]);
+
+  const deniedCycles = useMemo(
+    () => filtered.filter((c) => c.billing_status === 'Denied'),
+    [filtered],
+  );
+  const [deniedOpen, setDeniedOpen] = useState(false);
+
+  // Month label helper: show short month name, plus the year at the January boundary.
+  const monthTick = (key: string): string => {
+    const [y, m] = key.split('-');
+    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const label = names[Number(m) - 1] ?? key;
+    return m === '01' ? `${label} ${y}` : label;
+  };
 
   const byMonth = useMemo(() => {
     const map = new Map<string, number>();
@@ -151,11 +167,9 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
     return BILLING_STATUSES.map((s) => ({ status: s, count: map.get(s) ?? 0 }));
   }, [filtered]);
 
-  const flagged = useMemo(() => clients.filter((c) => c.status === 'active' && c.auth_150_start && !c.level_of_need), [clients]);
-  const notReady = useMemo(() => clients.filter((c) => c.status === 'active' && !c.auth_150_start), [clients]);
 
-  const Stat = ({ label, value, cls }: { label: string; value: number; cls?: string }) => (
-    <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">{label}</div><div className={`text-2xl font-bold ${cls ?? ''}`}>{formatMoney(value)}</div></CardContent></Card>
+  const Stat = ({ label, value, cls, hint }: { label: string; value: number; cls?: string; hint?: string }) => (
+    <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground flex items-center gap-1">{label}{hint && <InfoHint text={hint} />}</div><div className={`text-2xl font-bold ${cls ?? ''}`}>{formatMoney(value)}</div></CardContent></Card>
   );
 
   if (cycles.length === 0) {
@@ -314,26 +328,66 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
 
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Stat label="Expected revenue" value={stats.expected} />
-        <Stat label="Billed to date" value={stats.billed} />
-        <Stat label="Collected" value={stats.collected} cls="text-green-600" />
-        <Stat label="Outstanding" value={stats.outstanding} cls="text-amber-600" />
-        <Stat label="This month" value={stats.thisMonthRev} />
+        <Stat label="Expected revenue" value={stats.expected} hint="Total of billed amounts across all billing cycles matching the current filters — a projection across the whole window, not a single month." />
+        <Stat label="Billed to date" value={stats.billed} hint="Cycles that have actually been billed/submitted to the MCO (billing status = Submitted)." />
+        <Stat label="Collected" value={stats.collected} cls="text-green-600" hint="Money actually received (paid amount). This is paid, distinct from billed." />
+        <Stat label="Outstanding" value={stats.outstanding} cls="text-amber-600" hint="Billed to date minus Collected." />
+        <Stat label="Billed this month" value={stats.thisMonthRev} hint="Billed amount for cycles whose cycle end falls in the current calendar month." />
       </div>
 
-      {(flagged.length > 0 || notReady.length > 0) && (
-        <Card className="border-amber-300">
-          <CardContent className="p-4 text-sm space-y-1">
-            {flagged.length > 0 && <div><b className="text-amber-600">Rate unknown</b> ({flagged.length}): {flagged.map((c) => `${c.first_name} ${c.last_name}`).join(', ')}</div>}
-            {notReady.length > 0 && <div><b className="text-muted-foreground">Not ready to bill</b> ({notReady.length}): no 150-Day start date.</div>}
-          </CardContent>
+      <Collapsible open={deniedOpen} onOpenChange={setDeniedOpen}>
+        <Card className={deniedCycles.length > 0 ? 'border-red-300' : ''}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="flex flex-row items-center justify-between py-3 cursor-pointer select-none hover:bg-muted/50">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm">Denied to date</CardTitle>
+                <Badge variant="secondary">{deniedCycles.length}</Badge>
+                <span className="text-sm font-semibold text-red-600">{formatMoney(stats.denied)}</span>
+              </div>
+              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${deniedOpen ? 'rotate-180' : ''}`} />
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            {deniedCycles.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client</TableHead>
+                      <TableHead>MCO</TableHead>
+                      <TableHead>#</TableHead>
+                      <TableHead>Cycle end</TableHead>
+                      <TableHead>Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {deniedCycles.map((c) => {
+                      const cl = clientMap.get(c.client_id);
+                      return (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium whitespace-nowrap">{cl ? `${cl.first_name} ${cl.last_name}` : '—'}</TableCell>
+                          <TableCell>{cl?.insurance ?? '—'}</TableCell>
+                          <TableCell>{c.cycle_number}</TableCell>
+                          <TableCell className="whitespace-nowrap">{c.cycle_end}</TableCell>
+                          <TableCell>{formatMoney(c.billed_amount)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <p className="p-4 text-sm text-muted-foreground">No denied cycles. Mark a cycle "Denied" from the Master List to track it here.</p>
+            )}
+          </CollapsibleContent>
         </Card>
-      )}
+      </Collapsible>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card><CardHeader><CardTitle className="text-base">Revenue by month</CardTitle></CardHeader><CardContent className="h-64">
-          <ResponsiveContainer width="100%" height="100%"><BarChart data={byMonth}><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} /><Tooltip formatter={(v: number) => formatMoney(v)} /><Bar dataKey="amount" fill="#2563eb" /></BarChart></ResponsiveContainer>
-        </CardContent></Card>
+      <Card><CardHeader><CardTitle className="text-base">Monthly Revenue</CardTitle></CardHeader><CardContent className="h-72">
+        <ResponsiveContainer width="100%" height="100%"><BarChart data={byMonth}><XAxis dataKey="month" fontSize={11} tickFormatter={monthTick} interval={0} /><YAxis fontSize={11} /><Tooltip labelFormatter={(l: string) => monthTick(l)} formatter={(v: number) => formatMoney(v)} /><Bar dataKey="amount" fill="#2563eb" /></BarChart></ResponsiveContainer>
+      </CardContent></Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card><CardHeader><CardTitle className="text-base">Revenue by MCO</CardTitle></CardHeader><CardContent className="h-64">
           <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={byMco} dataKey="value" nameKey="name" outerRadius={80} label>{byMco.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip formatter={(v: number) => formatMoney(v)} /><Legend /></PieChart></ResponsiveContainer>
         </CardContent></Card>

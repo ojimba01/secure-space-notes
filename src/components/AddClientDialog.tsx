@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { regenerateClientCycles, fetchActiveCaseManagers, caseManagerName, CaseManagerOption } from '@/lib/billingSync';
+import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 
 const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
 
@@ -142,6 +143,17 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       if (inserted?.id && clientData.auth_150_start) {
         try {
           await regenerateClientCycles(inserted.id);
+        } catch {
+          /* non-fatal */
+        }
+      }
+
+      // Auto-generate monthly touch-points from the HSP 150-day date, and rebalance the
+      // assigned staff member's caseload so they spread evenly.
+      if (inserted?.id) {
+        try {
+          await regenerateTouchpointsForClient(inserted.id);
+          if (assignedId) await regenerateTouchpointsForStaff(assignedId);
         } catch {
           /* non-fatal */
         }

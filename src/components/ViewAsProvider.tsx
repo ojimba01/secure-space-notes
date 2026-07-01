@@ -5,12 +5,19 @@ interface ViewAsState {
   viewAsEmployeeId: string | null;
   viewAsName: string | null;
   isViewingAs: boolean;
+  /**
+   * True whenever a view-as session is active. In sandbox mode dialogs and
+   * buttons work normally and local UI state can update, but mutation handlers
+   * must skip the actual database write.
+   */
+  isSandbox: boolean;
   startViewAs: (employeeId: string, name: string) => void;
   exitViewAs: () => void;
   /**
-   * Read-only write guard. Returns true and shows a toast when a mutation
-   * should be blocked because a view-as session is active. Components call
-   * this at the top of any create/edit/delete handler as defense in depth.
+   * Sandbox write interceptor. Returns true when the real DB write should be
+   * skipped because a view-as session is active, showing a "not saved" toast.
+   * Handlers should still update local React state so the change appears on
+   * screen, then call this right before the Supabase call and bail if true.
    */
   guardWrite: () => boolean;
 }
@@ -33,7 +40,7 @@ export const ViewAsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const guardWrite = useCallback(() => {
     if (viewAsEmployeeId) {
-      toast(`Read-only — you're viewing as ${viewAsName}. Exit to make changes.`);
+      toast(`Sandbox preview — not saved. You're viewing as ${viewAsName}.`);
       return true;
     }
     return false;
@@ -45,6 +52,7 @@ export const ViewAsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         viewAsEmployeeId,
         viewAsName,
         isViewingAs: !!viewAsEmployeeId,
+        isSandbox: !!viewAsEmployeeId,
         startViewAs,
         exitViewAs,
         guardWrite,
