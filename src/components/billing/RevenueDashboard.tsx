@@ -340,11 +340,11 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
 
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Stat label="Expected revenue" value={stats.expected} hint="The total you expect to earn from every billing cycle shown here, added up across all months — whether or not it's been billed yet." />
-        <Stat label="Billed to date" value={stats.billed} hint="How much you've actually submitted to the insurance companies (MCOs) for payment so far." />
+        <Stat label="Expected" value={stats.expected} hint="The total you expect to earn from every billing cycle shown here, added up across all months — whether or not it's been billed yet." />
+        <Stat label="Submitted" value={stats.billed} hint="How much you've actually submitted to the insurance companies (MCOs) for payment so far." />
         <Stat label="Collected" value={stats.collected} cls="text-green-600" hint="How much money has actually been paid to you so far." />
-        <Stat label="Outstanding" value={stats.outstanding} cls="text-amber-600" hint="Money you've billed but haven't been paid yet — it's Billed to date minus Collected." />
-        <Stat label="Billed this month" value={stats.thisMonthRev} hint="The revenue from billing cycles whose 30-day period ends in the current calendar month." />
+        <Stat label="Outstanding" value={stats.outstanding} cls="text-amber-600" hint="Money you've billed but haven't been paid yet — it's Submitted minus Collected." />
+        <Stat label="This month" value={stats.thisMonthRev} hint="The revenue from billing cycles whose 30-day period ends in the current calendar month." />
       </div>
 
       <Card>
