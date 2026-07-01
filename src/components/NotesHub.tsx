@@ -135,8 +135,13 @@ export const NotesHub: React.FC<NotesHubProps> = ({ selectedNoteId, onClearSelec
       if (notesRes.error) throw notesRes.error;
       if (clientsRes.error) throw clientsRes.error;
 
-      setNotes((notesRes.data as HubNote[]) || []);
-      setClients((clientsRes.data as ClientRow[]) || []);
+      let notesData = (notesRes.data as HubNote[]) || [];
+      let clientsData = (clientsRes.data as ClientRow[]) || [];
+      if (isViewingAs && viewAsEmployeeId) {
+        notesData = notesData.filter((n) => n.employee_id === viewAsEmployeeId);
+      }
+      setNotes(notesData);
+      setClients(clientsData);
     } catch (error: any) {
       toast({ title: 'Error loading notes', description: error.message, variant: 'destructive' });
     } finally {
