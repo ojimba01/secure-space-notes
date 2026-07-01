@@ -27,6 +27,7 @@ import {
 import { BillingClient } from '@/hooks/useBilling';
 import { markCycleSubmitted } from '@/lib/billingDeadlines';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { InfoHint } from '@/components/InfoHint';
 
 interface Props {
   clients: BillingClient[];
