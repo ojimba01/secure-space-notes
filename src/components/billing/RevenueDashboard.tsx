@@ -31,12 +31,32 @@ interface Props {
 
 const COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#0891b2'];
 
-export const RevenueDashboard: React.FC<Props> = ({ clients, cycles }) => {
+export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, onOpenDeadlines }) => {
   const clientMap = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
   const openIds = useMemo(() => new Set(clients.filter((c) => c.status === 'active').map((c) => c.id)), [clients]);
   const [mco, setMco] = useState('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [submitting, setSubmitting] = useState<string | null>(null);
+
+  // "Due for billing this week" = current/past-due cycles due within 7 days or overdue.
+  const dueSoon = useMemo(() => {
+    return buildDeadlineRows(clients, cycles)
+      .filter((r) => bucketFor(r.daysRemaining) === 'overdue' || bucketFor(r.daysRemaining) === 'week');
+  }, [clients, cycles]);
+
+  const handleSubmit = async (cycle: BillingCycle) => {
+    setSubmitting(cycle.id);
+    try {
+      await markCycleSubmitted(cycle);
+      toast.success('Marked as submitted');
+      refresh?.();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update');
+    } finally {
+      setSubmitting(null);
+    }
+  };
 
   const filtered = useMemo(() => {
     return cycles.filter((c) => {
