@@ -91,6 +91,16 @@ interface Client {
   auth_150_end?: string;
   auth_180_start?: string;
   auth_180_end?: string;
+  mco_housing_manager?: string;
+  approval_status?: string;
+  assessment_due_date?: string;
+  hsp_due_date?: string;
+  next_action_due_date?: string;
+  closed_date?: string;
+  reason_closed?: string;
+  auth_30_number?: string;
+  auth_150_number?: string;
+  auth_180_number?: string;
   notes?: string;
 }
 
