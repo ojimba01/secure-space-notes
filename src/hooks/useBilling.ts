@@ -21,6 +21,20 @@ export interface BillingClient {
   auth_180_end: string | null;
   assigned_employee_id: string | null;
   assigned_staff_name: string | null;
+  phone: string | null;
+  intake_date: string | null;
+  assessment_due_date: string | null;
+  mco_housing_manager: string | null;
+  auth_30_number: string | null;
+  auth_30_start: string | null;
+  auth_30_end: string | null;
+  hsp_due_date: string | null;
+  auth_150_number: string | null;
+  auth_180_number: string | null;
+  next_action_due_date: string | null;
+  closed_date: string | null;
+  reason_closed: string | null;
+  notes: string | null;
 }
 
 export interface BillingData {
