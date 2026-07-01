@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
+import { regenerateClientCycles } from '@/lib/billingSync';
 
 const INSURANCE_OPTIONS = ['AETNA', 'HORIZON', 'WELLPOINT', 'UNITED HEALTH', 'FIDELIS'] as const;
 
