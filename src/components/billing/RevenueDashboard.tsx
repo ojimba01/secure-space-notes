@@ -346,6 +346,24 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
         <Stat label="Billed this month" value={stats.thisMonthRev} hint="Billed amount for cycles whose cycle end falls in the current calendar month." />
       </div>
 
+      <Card><CardHeader><CardTitle className="text-base">Monthly Revenue</CardTitle></CardHeader><CardContent className="h-72 relative">
+        <div className="absolute top-1 left-12 z-10 text-xs font-medium text-muted-foreground">{monthMeta.firstYear}</div>
+        {!monthMeta.singleYear && <div className="absolute top-1 right-4 z-10 text-xs font-medium text-muted-foreground">{monthMeta.lastYear}</div>}
+        <ResponsiveContainer width="100%" height="100%"><BarChart data={byMonth}><XAxis dataKey="month" fontSize={11} tickFormatter={monthTick} interval={0} /><YAxis fontSize={11} tickFormatter={(v: number) => formatMoney(v)} /><Tooltip labelFormatter={(l: string) => monthTick(l)} formatter={(v: number) => formatMoney(v)} />{monthMeta.janBoundary && !monthMeta.singleYear && <ReferenceLine x={monthMeta.janBoundary} stroke="#94a3b8" strokeDasharray="3 3" />}<Bar dataKey="amount" fill="#2563eb" /></BarChart></ResponsiveContainer>
+      </CardContent></Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card><CardHeader><CardTitle className="text-base">Revenue by MCO</CardTitle></CardHeader><CardContent className="h-64">
+          <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={byMco} dataKey="value" nameKey="name" outerRadius={80} label>{byMco.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip formatter={(v: number) => formatMoney(v)} /><Legend /></PieChart></ResponsiveContainer>
+        </CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-base">Collected vs. Outstanding</CardTitle></CardHeader><CardContent className="h-64">
+          <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={paidSplit} dataKey="value" nameKey="name" outerRadius={80} label><Cell fill="#16a34a" /><Cell fill="#f59e0b" /></Pie><Tooltip formatter={(v: number) => formatMoney(v)} /><Legend /></PieChart></ResponsiveContainer>
+        </CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-base">Cycles by billing status</CardTitle></CardHeader><CardContent className="h-64">
+          <ResponsiveContainer width="100%" height="100%"><BarChart data={byBillingStatus}><XAxis dataKey="status" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip /><Bar dataKey="count" fill="#7c3aed" /></BarChart></ResponsiveContainer>
+        </CardContent></Card>
+      </div>
+
       <Collapsible open={deniedOpen} onOpenChange={setDeniedOpen}>
         <Card className={deniedCycles.length > 0 ? 'border-red-300' : ''}>
           <CollapsibleTrigger asChild>
@@ -394,21 +412,6 @@ export const RevenueDashboard: React.FC<Props> = ({ clients, cycles, refresh, on
         </Card>
       </Collapsible>
 
-      <Card><CardHeader><CardTitle className="text-base">Monthly Revenue</CardTitle></CardHeader><CardContent className="h-72">
-        <ResponsiveContainer width="100%" height="100%"><BarChart data={byMonth}><XAxis dataKey="month" fontSize={11} tickFormatter={monthTick} interval={0} /><YAxis fontSize={11} /><Tooltip labelFormatter={(l: string) => monthTick(l)} formatter={(v: number) => formatMoney(v)} /><Bar dataKey="amount" fill="#2563eb" /></BarChart></ResponsiveContainer>
-      </CardContent></Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card><CardHeader><CardTitle className="text-base">Revenue by MCO</CardTitle></CardHeader><CardContent className="h-64">
-          <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={byMco} dataKey="value" nameKey="name" outerRadius={80} label>{byMco.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip formatter={(v: number) => formatMoney(v)} /><Legend /></PieChart></ResponsiveContainer>
-        </CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-base">Collected vs. Outstanding</CardTitle></CardHeader><CardContent className="h-64">
-          <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={paidSplit} dataKey="value" nameKey="name" outerRadius={80} label><Cell fill="#16a34a" /><Cell fill="#f59e0b" /></Pie><Tooltip formatter={(v: number) => formatMoney(v)} /><Legend /></PieChart></ResponsiveContainer>
-        </CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-base">Cycles by billing status</CardTitle></CardHeader><CardContent className="h-64">
-          <ResponsiveContainer width="100%" height="100%"><BarChart data={byBillingStatus}><XAxis dataKey="status" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip /><Bar dataKey="count" fill="#7c3aed" /></BarChart></ResponsiveContainer>
-        </CardContent></Card>
-      </div>
     </div>
   );
 };
