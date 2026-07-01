@@ -544,6 +544,11 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSav
                   </FormItem>
                 )}
               />
+              {isViewingAs ? (
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" onClick={onBack}>Back</Button>
+                </div>
+              ) : (
               <div className="flex items-center justify-between gap-2">
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -581,6 +586,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({ note, clientName, onBack, onSav
                   </Button>
                 </div>
               </div>
+              )}
             </form>
           </Form>
         </CardContent>
