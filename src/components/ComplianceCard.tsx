@@ -74,6 +74,8 @@ export const ComplianceCard: React.FC<Props> = ({
   const tier = levelOfNeed === 'High Level' ? 'High Level' : 'Low Level';
   const req = requirementsForTier(tier);
   const isHigh = tier === 'High Level';
+  const setupComplete = hasValidTier(levelOfNeed) && !!hspStartDate;
+  const window = setupComplete ? currentBillingWindow(hspStartDate!, today) : null;
 
   const isNewClientFirstWeek =
     !!clientCreatedAt &&
