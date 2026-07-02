@@ -112,9 +112,11 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   const [selectedManagerIds, setSelectedManagerIds] = useState<Set<string>>(new Set());
   const [includeUnassigned, setIncludeUnassigned] = useState(true);
   const [filterInitialized, setFilterInitialized] = useState(false);
+  const [levelFilter, setLevelFilter] = useState<string>('all');
   const [selectedStatuses, setSelectedStatuses] = useState<Set<MilestoneStatusKey>>(
     new Set(MILESTONE_STATUS_OPTIONS.map((o) => o.key)),
   );
+
 
 
   useEffect(() => {
