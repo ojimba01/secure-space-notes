@@ -65,7 +65,7 @@ const Billing = () => {
             <TabsList>
               <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
               <TabsTrigger value="deadlines">Deadlines</TabsTrigger>
-              <TabsTrigger value="master">Case tracker</TabsTrigger>
+              <TabsTrigger value="master">Case status</TabsTrigger>
               <TabsTrigger value="staff">By case manager</TabsTrigger>
               <TabsTrigger value="timeline" disabled={!timelineClientId}>Billing details</TabsTrigger>
             </TabsList>
