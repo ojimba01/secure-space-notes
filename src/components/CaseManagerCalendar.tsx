@@ -142,8 +142,6 @@ export const CaseManagerCalendar = () => {
     'follow_up': 'bg-orange-500',
     'administrative': 'bg-gray-500',
     'other': 'bg-slate-500',
-    'touch_point': 'bg-emerald-600',
-    'touchpoint_suggested': 'bg-emerald-300',
     'touch_point': 'bg-teal-500',
   };
   const eventTypeLabels: Record<string, string> = {
