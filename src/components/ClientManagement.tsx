@@ -32,6 +32,7 @@ interface Client {
   iat_date?: string | null;
   hsp_150_date?: string | null;
   hsp_180_date?: string | null;
+  level_of_need?: string | null;
 }
 
 interface ManagerOption {
