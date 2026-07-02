@@ -166,3 +166,98 @@ export function totalsForCycles(cycles: BillingCycle[]): ClientTotals {
   const collected = cycles.reduce((s, c) => s + (c.paid_amount ?? 0), 0);
   return { expected, billed, collected, outstanding: billed - collected };
 }
+
+// ---- Named Excel-mirroring billing helpers --------------------------
+// These wrap the existing logic with clear names so components stop
+// duplicating billing date math. Use these everywhere.
+
+export type BillingPhase = 'Not started' | '150-Day' | '180-Day' | 'Completed';
+
+export interface BillingRun {
+  start: string | null; // 150-day auth start
+  end: string | null; // end of active authorization run (180 end || 150 end)
+  auth150End: string | null;
+  auth180End: string | null;
+}
+
+export interface ClientBillingFields {
+  auth_150_start?: string | null;
+  auth_150_end?: string | null;
+  auth_180_start?: string | null;
+  auth_180_end?: string | null;
+  level_of_need?: string | null;
+  status?: string | null;
+}
+
+// The active authorization run: from the 150-day start to the last known end.
+export function getBillingRun(client: ClientBillingFields): BillingRun {
+  return {
+    start: client.auth_150_start ?? null,
+    end: client.auth_180_end || client.auth_150_end || null,
+    auth150End: client.auth_150_end ?? null,
+    auth180End: client.auth_180_end ?? null,
+  };
+}
+
+// True when a client has enough setup to generate billing cycles.
+export function isMissingBillingSetup(client: ClientBillingFields): boolean {
+  const run = getBillingRun(client);
+  if (!run.start) return true;
+  if (!run.end) return true; // need a clearly-defined billing end
+  if (rateForLevel(client.level_of_need) == null) return true; // billed amount depends on LoN
+  return false;
+}
+
+export function missingBillingSetupReason(client: ClientBillingFields): string {
+  const missing: string[] = [];
+  if (!client.auth_150_start) missing.push('150-day authorization start date');
+  if (!(client.auth_180_end || client.auth_150_end)) missing.push('authorization end date');
+  if (rateForLevel(client.level_of_need) == null) missing.push('level of need');
+  if (missing.length === 0) return '';
+  return `Billing cycles cannot be generated until the ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} entered.`;
+}
+
+// Alias matching the requested helper name.
+export function generateBillingCyclesForClient(client: ClientBillingFields): GeneratedCycle[] {
+  return generateCyclesForClient(client);
+}
+
+// Current billing phase relative to today.
+export function getCurrentBillingPhase(client: ClientBillingFields, today = todayAgency()): BillingPhase {
+  const run = getBillingRun(client);
+  if (!run.start) return 'Not started';
+  if (daysBetween(today, run.start) > 0) return 'Not started'; // today before start
+  if (run.auth150End && daysBetween(today, run.auth150End) >= 0) return '150-Day'; // today <= 150 end
+  if (run.end && daysBetween(today, run.end) >= 0) return '180-Day'; // between 150 end and final end
+  if (run.end && daysBetween(run.end, today) > 0) return 'Completed';
+  return '150-Day';
+}
+
+// Current cycle number = ceil((today - start + 1) / 30), clamped to [1, cycleCount].
+export function getCurrentBillingCycle(
+  client: ClientBillingFields,
+  today = todayAgency(),
+  cycles?: GeneratedCycle[],
+): number | null {
+  const run = getBillingRun(client);
+  if (!run.start) return null;
+  const generated = cycles ?? generateCyclesForClient(client);
+  const maxCycle = generated.length || 1;
+  const diff = daysBetween(run.start, today); // today - start
+  if (diff < 0) return 1;
+  const n = Math.floor(diff / CYCLE_LENGTH_DAYS) + 1; // ceil((diff+1)/30) == floor(diff/30)+1
+  return Math.min(Math.max(1, n), maxCycle);
+}
+
+// Next bill due = end date of the current billing cycle.
+export function getNextBillDue(
+  client: ClientBillingFields,
+  cycles?: Array<{ cycle_number: number; cycle_end: string }>,
+  today = todayAgency(),
+): string | null {
+  const generated = cycles ?? generateCyclesForClient(client);
+  const cur = getCurrentBillingCycle(client, today, generated as GeneratedCycle[]);
+  if (cur == null) return null;
+  const cycle = generated.find((c) => c.cycle_number === cur) ?? generated[generated.length - 1];
+  return cycle ? cycle.cycle_end : null;
+}
