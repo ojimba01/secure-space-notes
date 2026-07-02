@@ -356,3 +356,58 @@ export function suggestTouchpointType(
   if (prog.remainingInPerson > 0) return 'Face-to-face visit';
   return 'Phone, text, email, or virtual follow-up';
 }
+
+// ---- Touchpoint classification -------------------------------------
+// Modality answers "how did the contact happen?" (kept separate from type).
+// The core scheduling/counting logic still uses the Modality type above;
+// these are the selectable options in the Log Touchpoint dialog.
+export interface ModalityOption { value: string; label: string; inPerson: boolean }
+export const MODALITY_OPTIONS: ModalityOption[] = [
+  { value: 'phone', label: 'Phone', inPerson: false },
+  { value: 'text', label: 'Text', inPerson: false },
+  { value: 'email', label: 'Email', inPerson: false },
+  { value: 'virtual', label: 'Video / virtual', inPerson: false },
+  { value: 'in_person', label: 'Face-to-face / in-person', inPerson: true },
+];
+
+// Touchpoint type answers "what kind of case-management work happened?"
+export interface TouchpointTypeOption { value: string; label: string }
+export const TOUCHPOINT_TYPES: TouchpointTypeOption[] = [
+  { value: 'general_checkin', label: 'General member check-in' },
+  { value: 'housing_search', label: 'Housing search / application follow-up' },
+  { value: 'hsp_goal', label: 'Housing Stabilization Plan goal follow-up' },
+  { value: 'landlord_tenant', label: 'Landlord / tenant coordination' },
+  { value: 'lease_issue', label: 'Lease issue / tenancy concern' },
+  { value: 'eviction_prevention', label: 'Eviction prevention / lease violation response' },
+  { value: 'voucher_application', label: 'Housing subsidy / voucher application' },
+  { value: 'voucher_recert', label: 'Subsidy or voucher recertification' },
+  { value: 'benefits_docs', label: 'Benefits / income / documentation support' },
+  { value: 'resource_linkage', label: 'Transportation or basic-needs resource linkage' },
+  { value: 'bh_medical', label: 'Behavioral health / SUD / medical coordination' },
+  { value: 'legal_aid', label: 'Legal aid coordination' },
+  { value: 'supportive_housing', label: 'Supportive housing program coordination' },
+  { value: 'reassessment', label: 'Reassessment of housing stability / risk factors' },
+  { value: 'crisis_followup', label: 'Crisis follow-up' },
+  { value: 'other', label: 'Other' },
+];
+
+export function touchpointTypeLabel(value: string | null | undefined): string {
+  if (!value) return '';
+  return TOUCHPOINT_TYPES.find((t) => t.value === value)?.label ?? value;
+}
+
+// Suggest a touchpoint type from structured client fields + whether any
+// contact has been logged in the current window. Never invents facts.
+export function suggestTouchpointType(client: {
+  level_of_need?: string | null;
+  housing_status?: string | null;
+  voucher_status?: string | null;
+}, hasContactThisWindow: boolean): string {
+  const hs = (client.housing_status ?? '').toLowerCase();
+  const vs = (client.voucher_status ?? '').toLowerCase();
+  if (!hasContactThisWindow) return 'general_checkin';
+  if (hs.includes('search')) return 'housing_search';
+  if (vs.includes('active') || vs.includes('pending')) return 'voucher_application';
+  if (client.level_of_need === 'High Level') return 'reassessment';
+  return 'general_checkin';
+}
