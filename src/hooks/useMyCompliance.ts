@@ -194,7 +194,7 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
       behindCount: overdueClients.length,
     });
     setLoading(false);
-  }, [profileId, today, wkStart, wkEnd]);
+  }, [profileId, myProfileId, today, wkStart, wkEnd]);
 
   useEffect(() => { load(); }, [load]);
 
