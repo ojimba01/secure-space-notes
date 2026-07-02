@@ -398,7 +398,7 @@ export function touchpointTypeLabel(value: string | null | undefined): string {
 
 // Suggest a touchpoint type from structured client fields + whether any
 // contact has been logged in the current window. Never invents facts.
-export function suggestTouchpointType(client: {
+export function suggestTouchpointTypeFromClient(client: {
   level_of_need?: string | null;
   housing_status?: string | null;
   voucher_status?: string | null;
