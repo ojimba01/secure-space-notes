@@ -52,11 +52,17 @@ const Billing = () => {
             <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5" /></Button>
             <h1 className="text-2xl font-bold">Billing and revenue</h1>
           </div>
-          <Button onClick={handleRegenerate} disabled={regenerating} className="gap-2">
-            <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
-            Regenerate cycles
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button onClick={handleRegenerate} disabled={regenerating} className="gap-2">
+              <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
+              Regenerate cycles
+            </Button>
+            <p className="text-xs text-muted-foreground max-w-xs text-right">
+              Regenerate cycles updates dates and missing cycle rows. It does not erase submitted claims or payment history.
+            </p>
+          </div>
         </div>
+
 
         {dataLoading ? (
           <p className="text-muted-foreground">Loading billing data…</p>
