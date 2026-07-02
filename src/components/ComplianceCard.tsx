@@ -124,11 +124,12 @@ export const ComplianceCard: React.FC<Props> = ({
       setSummaryNote(row.summary_note ?? '');
     }
 
+    const contactsFrom = window && window.start < month ? window.start : month;
     const { data: cts } = await supabase
       .from('client_contacts')
       .select('id, contact_date, modality')
       .eq('client_id', clientId)
-      .gte('contact_date', month)
+      .gte('contact_date', contactsFrom)
       .order('contact_date', { ascending: true });
     setContacts((cts as ContactRow[]) ?? []);
     setLoading(false);
