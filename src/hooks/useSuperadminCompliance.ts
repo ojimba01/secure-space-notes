@@ -123,7 +123,7 @@ export function useSuperadminCompliance(): SuperadminComplianceData {
           windowEnd: window.end,
           contactDays: prog.contactDays,
           requiredContacts: req.requiredContacts,
-          inPersonDays: prog.inPersonDays,
+          inPersonDays: prog.inPersonSpaced,
           requiredInPerson: req.requiredInPerson,
           reasons,
         });
