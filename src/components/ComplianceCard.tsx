@@ -292,7 +292,7 @@ export const ComplianceCard: React.FC<Props> = ({
                 <div>Completed: <span className="font-medium text-foreground">{winProg!.contactDays}</span> · Remaining: <span className="font-medium text-foreground">{winProg!.remaining}</span></div>
                 {suggestion && <div>Suggested next: <span className="font-medium text-foreground">{suggestion}</span></div>}
                 <p className="pt-1">{isHigh
-                  ? 'High Level: 2 touchpoints per 30-day billing period. At least 1 must be face-to-face / in-person. Touchpoints must be on separate days.'.replace('2 touchpoints', '4 touchpoints').replace('1 must', '2 must')
+                  ? 'High Level: 4 touchpoints per 30-day billing period. At least 2 must be face-to-face / in-person. Touchpoints must be on separate days.'
                   : 'Low Level: 2 touchpoints per 30-day billing period. At least 1 must be face-to-face / in-person. Touchpoints must be on separate days.'}</p>
               </div>
             )}
