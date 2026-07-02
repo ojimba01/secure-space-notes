@@ -133,7 +133,7 @@ export const ComplianceCard: React.FC<Props> = ({
       .order('contact_date', { ascending: true });
     setContacts((cts as ContactRow[]) ?? []);
     setLoading(false);
-  }, [clientId, month, tier, assignedEmployeeId, isNewClientFirstWeek, req.requiredContacts, req.requiredInPerson, req.requiredActivities, today]);
+  }, [clientId, month, tier, assignedEmployeeId, isNewClientFirstWeek, req.requiredContacts, req.requiredInPerson, req.requiredActivities, today, window?.start]);
 
   useEffect(() => { load(); }, [load]);
 
