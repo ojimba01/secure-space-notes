@@ -474,7 +474,19 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
             </div>
           </PopoverContent>
         </Popover>
+        <Select value={levelFilter} onValueChange={setLevelFilter}>
+          <SelectTrigger className="w-auto min-w-[150px] shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All levels</SelectItem>
+            <SelectItem value="Low Level">Low Level</SelectItem>
+            <SelectItem value="High Level">High Level</SelectItem>
+            <SelectItem value="missing">Missing level of need</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
 
       <div className="flex items-center gap-3">
         <div className="inline-flex items-center gap-2 bg-secondary/40 border rounded-full px-4 py-1.5 text-sm font-medium">
