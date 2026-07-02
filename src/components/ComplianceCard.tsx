@@ -55,7 +55,7 @@ const modalityIcon = (m: Modality) =>
   m === 'phone' ? <Phone className="h-3.5 w-3.5" /> : m === 'virtual' ? <Video className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />;
 
 export const ComplianceCard: React.FC<Props> = ({
-  clientId, clientName, levelOfNeed, assignedEmployeeId, clientCreatedAt, onChanged,
+  clientId, clientName, levelOfNeed, hspStartDate, assignedEmployeeId, clientCreatedAt, onChanged,
 }) => {
   const { toast } = useToast();
   const { guardWrite } = useViewAs();
