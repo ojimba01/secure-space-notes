@@ -33,6 +33,7 @@ interface Props {
   clientId: string;
   clientName: string;
   levelOfNeed?: string | null;
+  hspStartDate?: string | null;
   assignedEmployeeId?: string | null;
   clientCreatedAt?: string | null;
   onChanged?: () => void;
