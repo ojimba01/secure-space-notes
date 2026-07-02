@@ -184,10 +184,10 @@ async function insertTouchpoints(client: TouchpointClient, seed: number, window:
 
   const rows = dates.map((d) => {
     const iso = toDate(d.date).toISOString();
-    const label = d.modality === 'in_person' ? 'Face-to-face' : 'Phone/virtual';
+    const label = d.modality === 'in_person' ? 'Face-to-face / in-person' : 'Phone, text, email, or virtual';
     return {
-      title: `Touchpoint (${label}) — ${client.first_name} ${client.last_name}`,
-      description: 'Auto-scheduled touchpoint for the current 30-day billing window',
+      title: `Touchpoint — ${client.first_name} ${client.last_name}`,
+      description: `Suggested modality: ${label}. Auto-scheduled for the current 30-day billing window.`,
       event_type: 'touch_point',
       is_auto_generated: true,
       is_manually_adjusted: false,

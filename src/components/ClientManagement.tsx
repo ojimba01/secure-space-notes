@@ -6,6 +6,7 @@ import { ClientDetails } from '@/components/ClientDetails';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users } from 'lucide-react';
@@ -32,6 +33,7 @@ interface Client {
   iat_date?: string | null;
   hsp_150_date?: string | null;
   hsp_180_date?: string | null;
+  level_of_need?: string | null;
 }
 
 interface ManagerOption {
@@ -111,9 +113,11 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   const [selectedManagerIds, setSelectedManagerIds] = useState<Set<string>>(new Set());
   const [includeUnassigned, setIncludeUnassigned] = useState(true);
   const [filterInitialized, setFilterInitialized] = useState(false);
+  const [levelFilter, setLevelFilter] = useState<string>('all');
   const [selectedStatuses, setSelectedStatuses] = useState<Set<MilestoneStatusKey>>(
     new Set(MILESTONE_STATUS_OPTIONS.map((o) => o.key)),
   );
+
 
 
   useEffect(() => {
@@ -207,12 +211,18 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
 
     const matchesStatus = selectedStatuses.has(getMilestoneStatus(client));
 
+    const lon = client.level_of_need;
+    const matchesLevel =
+      levelFilter === 'all' ||
+      (levelFilter === 'missing' ? lon !== 'Low Level' && lon !== 'High Level' : lon === levelFilter);
+
     // View-as: show only the previewed employee's caseload.
     if (isViewingAs) {
-      return matchesSearch && matchesStatus && client.assigned_employee_id === viewAsEmployeeId;
+      return matchesSearch && matchesStatus && matchesLevel && client.assigned_employee_id === viewAsEmployeeId;
     }
 
-    if (!isAdmin) return matchesSearch && matchesStatus;
+    if (!isAdmin) return matchesSearch && matchesStatus && matchesLevel;
+
 
     // A client counts as "assigned" only if its manager is a valid, selectable
     // manager option. Clients assigned to removed/superadmin accounts (e.g. the
@@ -223,7 +233,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       ? selectedManagerIds.has(client.assigned_employee_id as string)
       : includeUnassigned;
 
-    return matchesSearch && matchesManager && matchesStatus;
+    return matchesSearch && matchesManager && matchesStatus && matchesLevel;
   });
 
   const allStatusesSelected = selectedStatuses.size === MILESTONE_STATUS_OPTIONS.length;
@@ -464,7 +474,19 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
             </div>
           </PopoverContent>
         </Popover>
+        <Select value={levelFilter} onValueChange={setLevelFilter}>
+          <SelectTrigger className="w-auto min-w-[150px] shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All levels</SelectItem>
+            <SelectItem value="Low Level">Low Level</SelectItem>
+            <SelectItem value="High Level">High Level</SelectItem>
+            <SelectItem value="missing">Missing level of need</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
 
       <div className="flex items-center gap-3">
         <div className="inline-flex items-center gap-2 bg-secondary/40 border rounded-full px-4 py-1.5 text-sm font-medium">

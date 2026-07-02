@@ -9,6 +9,8 @@ import { NotesHub } from "@/components/NotesHub";
 import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
 import { MyMonth } from "@/components/MyMonth";
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { SuperadminTouchpoints } from '@/components/SuperadminTouchpoints';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 type View = 'compliance' | 'clients' | 'notes' | 'calendar';
@@ -16,6 +18,7 @@ type View = 'compliance' | 'clients' | 'notes' | 'calendar';
 const Index = () => {
   const { user, loading } = useAuth();
   const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const { isSuperadmin } = useIsSuperadmin();
   const { isViewingAs } = useViewAs();
   const [activeView, setActiveView] = useState<View>('compliance');
   const [clientsKey, setClientsKey] = useState(0);
@@ -109,7 +112,9 @@ const Index = () => {
         <Sidebar activeView={activeView} onViewChange={handleViewChange} onOpenNote={handleOpenNote} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
           {activeView === 'compliance' ? (
-            <MyMonth onOpenClient={handleOpenClient} />
+            isSuperadmin && !isViewingAs
+              ? <SuperadminTouchpoints onOpenClient={handleOpenClient} />
+              : <MyMonth onOpenClient={handleOpenClient} />
           ) : activeView === 'clients' ? (
             <ClientManagement
               key={clientsKey}

@@ -148,6 +148,7 @@ export type Database = {
           start_time: string
           status: string
           title: string
+          touchpoint_type: string | null
         }
         Insert: {
           client_id?: string | null
@@ -164,6 +165,7 @@ export type Database = {
           start_time: string
           status?: string
           title: string
+          touchpoint_type?: string | null
         }
         Update: {
           client_id?: string | null
@@ -180,6 +182,7 @@ export type Database = {
           start_time?: string
           status?: string
           title?: string
+          touchpoint_type?: string | null
         }
         Relationships: [
           {
@@ -274,6 +277,7 @@ export type Database = {
           id: string
           modality: string
           notes: string | null
+          touchpoint_type: string | null
         }
         Insert: {
           calendar_event_id?: string | null
@@ -284,6 +288,7 @@ export type Database = {
           id?: string
           modality: string
           notes?: string | null
+          touchpoint_type?: string | null
         }
         Update: {
           calendar_event_id?: string | null
@@ -294,6 +299,7 @@ export type Database = {
           id?: string
           modality?: string
           notes?: string | null
+          touchpoint_type?: string | null
         }
         Relationships: [
           {

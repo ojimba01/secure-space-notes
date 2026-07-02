@@ -22,6 +22,10 @@ import {
   daysBetween,
   nextBillDue,
   MAX_CYCLES,
+  isMissingBillingSetup,
+  missingBillingSetupReason,
+  getCurrentBillingPhase,
+  getNextBillDue,
 } from '@/lib/billing';
 import { BillingClient } from '@/hooks/useBilling';
 import { BillingCycleDialog } from '@/components/billing/BillingCycleDialog';
@@ -47,8 +51,8 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'pending', label: 'Pending approval' },
   { key: 'approved', label: 'Approved / active' },
   { key: 'closed', label: 'Closed' },
-  { key: 'tracker', label: 'Billing tracker' },
-  { key: 'cycles', label: 'Billing cycles' },
+  { key: 'tracker', label: 'Client billing overview' },
+  { key: 'cycles', label: 'Billing cycle ledger' },
 ];
 
 const isClosed = (c: BillingClient) => c.status !== 'active';
@@ -356,6 +360,14 @@ export const BillingMasterList: React.FC<Props> = ({ clients: approvedClients, c
         ))}
       </div>
 
+      {view === 'tracker' && (
+        <p className="text-sm text-muted-foreground">High-level view of each client’s authorization timeline and upcoming billing windows. Mostly read-only summary information.</p>
+      )}
+      {view === 'cycles' && (
+        <p className="text-sm text-muted-foreground">Cycle-level claim and payment tracking. Edit billing/payment status here.</p>
+      )}
+
+
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           {view === 'cycles' ? (
@@ -490,8 +502,18 @@ export const BillingMasterList: React.FC<Props> = ({ clients: approvedClients, c
                       {view === 'tracker' && (() => {
                         const cyc = x.cyc;
                         const cur = x.cur;
-                        const phaseLabel = cl.auth_150_start && cur ? cur.phase : 'Not started';
-                        const nbd = nextBillDue(cyc, cl.auth_150_start);
+                        const missingSetup = isMissingBillingSetup(cl);
+                        if (missingSetup) {
+                          return <>
+                            <TableCell>{dv(cl.insurance)}</TableCell><TableCell>{dv(cl.member_id)}</TableCell>
+                            <TableCell className="whitespace-nowrap text-amber-600 font-medium">Missing billing setup</TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-[280px] whitespace-normal" colSpan={1 + MAX_CYCLES * 2}>
+                              {missingBillingSetupReason(cl)}
+                            </TableCell>
+                          </>;
+                        }
+                        const phaseLabel = getCurrentBillingPhase(cl);
+                        const nbd = getNextBillDue(cl, cyc) ?? nextBillDue(cyc, cl.auth_150_start);
                         const nbdPast = nbd && daysBetween(nbd, today) > 0 && cur?.billing_status !== 'Submitted';
                         return <>
                           <TableCell>{dv(cl.insurance)}</TableCell><TableCell>{dv(cl.member_id)}</TableCell>
