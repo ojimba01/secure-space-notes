@@ -246,9 +246,16 @@ export const ComplianceCard: React.FC<Props> = ({
 
   // Built-in fallback guidance so info buttons are never blank when DB tooltips are empty.
   const contactHintItems = isHigh
-    ? ['Log **4 contacts** this month, including **2 in-person visits at least 7 days apart**. Also complete the required **support activities** in the checklist below.']
-    : ['Log **2 contacts** this month. Phone, virtual, or in-person all count. Each must be on a different day.'];
+    ? ['**High Level:** 4 touchpoints per 30-day billing period. At least 2 must be face-to-face / in-person. Touchpoints must be on separate days.']
+    : ['**Low Level:** 2 touchpoints per 30-day billing period. At least 1 must be face-to-face / in-person. Touchpoints must be on separate days.'];
   const modalityHint = 'How the contact happened: Phone, Virtual (video), or In-Person (face-to-face visit).';
+
+  // current 30-day billing window progress
+  const winContacts = window ? contactsInWindow(contacts, window) : [];
+  const winProg = window ? windowProgress(req, winContacts) : null;
+  const winStatus = window ? windowStatus(req, window, winContacts, today) : 'missing_setup';
+  const suggestion = window ? suggestTouchpointType(req, winContacts) : null;
+  const fmtShort = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 
   return (
