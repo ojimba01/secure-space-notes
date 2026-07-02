@@ -266,8 +266,41 @@ export const ComplianceCard: React.FC<Props> = ({
           {statusChip(status)}
         </CardHeader>
         <CardContent className="space-y-5">
+          {/* touchpoint requirements — current 30-day billing window */}
+          <div className="rounded-md border p-3 space-y-2 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">Touchpoint requirements</div>
+              {!setupComplete ? (
+                <Badge className="bg-amber-500 text-white hover:bg-amber-500">Missing setup</Badge>
+              ) : winStatus === 'complete' ? (
+                <Badge className="bg-green-600 text-white hover:bg-green-600">Complete for this window</Badge>
+              ) : winStatus === 'overdue' ? (
+                <Badge className="bg-red-600 text-white hover:bg-red-600">Overdue</Badge>
+              ) : (
+                <Badge variant="secondary">On track</Badge>
+              )}
+            </div>
+            {!setupComplete ? (
+              <p className="text-xs text-muted-foreground">
+                Add a {hspStartDate ? '' : 'HSP / authorization / touchpoint start date'}{!hspStartDate && !hasValidTier(levelOfNeed) ? ' and ' : ''}{hasValidTier(levelOfNeed) ? '' : 'level of need'} to enable automatic scheduling.
+              </p>
+            ) : (
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>Current 30-day window: <span className="font-medium text-foreground">{fmtShort(window!.start)} – {fmtShort(window!.end)}</span></div>
+                <div>Level of need: <span className="font-medium text-foreground">{levelOfNeed}</span></div>
+                <div>Required touchpoints: <span className="font-medium text-foreground">{req.requiredContacts}</span> · Required face-to-face: <span className="font-medium text-foreground">{req.requiredInPerson}</span></div>
+                <div>Completed: <span className="font-medium text-foreground">{winProg!.contactDays}</span> · Remaining: <span className="font-medium text-foreground">{winProg!.remaining}</span></div>
+                {suggestion && <div>Suggested next: <span className="font-medium text-foreground">{suggestion}</span></div>}
+                <p className="pt-1">{isHigh
+                  ? 'High Level: 2 touchpoints per 30-day billing period. At least 1 must be face-to-face / in-person. Touchpoints must be on separate days.'.replace('2 touchpoints', '4 touchpoints').replace('1 must', '2 must')
+                  : 'Low Level: 2 touchpoints per 30-day billing period. At least 1 must be face-to-face / in-person. Touchpoints must be on separate days.'}</p>
+              </div>
+            )}
+          </div>
+
           {/* contacts progress */}
           <div className="space-y-2">
+
             <div className="flex items-center gap-2 text-sm font-medium">
               Contacts completed: {progress.contactDays} of {req.requiredContacts}
               {req.requiredInPerson > 0 && (
