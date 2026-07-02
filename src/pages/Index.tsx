@@ -18,6 +18,7 @@ type View = 'compliance' | 'clients' | 'notes' | 'calendar';
 const Index = () => {
   const { user, loading } = useAuth();
   const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const { isSuperadmin } = useIsSuperadmin();
   const { isViewingAs } = useViewAs();
   const [activeView, setActiveView] = useState<View>('compliance');
   const [clientsKey, setClientsKey] = useState(0);
