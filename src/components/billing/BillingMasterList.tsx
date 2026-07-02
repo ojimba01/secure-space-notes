@@ -356,6 +356,14 @@ export const BillingMasterList: React.FC<Props> = ({ clients: approvedClients, c
         ))}
       </div>
 
+      {view === 'tracker' && (
+        <p className="text-sm text-muted-foreground">High-level view of each client’s authorization timeline and upcoming billing windows. Mostly read-only summary information.</p>
+      )}
+      {view === 'cycles' && (
+        <p className="text-sm text-muted-foreground">Cycle-level claim and payment tracking. Edit billing/payment status here.</p>
+      )}
+
+
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           {view === 'cycles' ? (
