@@ -22,6 +22,10 @@ import {
   daysBetween,
   nextBillDue,
   MAX_CYCLES,
+  isMissingBillingSetup,
+  missingBillingSetupReason,
+  getCurrentBillingPhase,
+  getNextBillDue,
 } from '@/lib/billing';
 import { BillingClient } from '@/hooks/useBilling';
 import { BillingCycleDialog } from '@/components/billing/BillingCycleDialog';
