@@ -9,6 +9,8 @@ import { NotesHub } from "@/components/NotesHub";
 import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
 import { MyMonth } from "@/components/MyMonth";
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { SuperadminTouchpoints } from '@/components/SuperadminTouchpoints';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 type View = 'compliance' | 'clients' | 'notes' | 'calendar';
