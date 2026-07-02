@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { useBilling } from '@/hooks/useBilling';
@@ -19,6 +19,15 @@ const Billing = () => {
   const [tab, setTab] = useState('dashboard');
   const [timelineClientId, setTimelineClientId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
+  const autoRan = useRef(false);
+
+  // Auto-generate all cycles once after initial load so deadlines and billing
+  // details reflect every cycle (not just cycle 1) without a manual refresh.
+  useEffect(() => {
+    if (dataLoading || autoRan.current || clients.length === 0) return;
+    autoRan.current = true;
+    regenerate();
+  }, [dataLoading, clients.length, regenerate]);
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading…</div>;
   if (!isSuperadmin) return <Navigate to="/" replace />;
@@ -56,7 +65,7 @@ const Billing = () => {
             <TabsList>
               <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
               <TabsTrigger value="deadlines">Deadlines</TabsTrigger>
-              <TabsTrigger value="master">Case tracker</TabsTrigger>
+              <TabsTrigger value="master">Case status</TabsTrigger>
               <TabsTrigger value="staff">By case manager</TabsTrigger>
               <TabsTrigger value="timeline" disabled={!timelineClientId}>Billing details</TabsTrigger>
             </TabsList>

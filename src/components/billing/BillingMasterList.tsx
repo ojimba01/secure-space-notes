@@ -43,7 +43,7 @@ type ViewKey =
   | 'cycles';
 
 const VIEWS: { key: ViewKey; label: string }[] = [
-  { key: 'master', label: 'Case tracker' },
+  { key: 'master', label: 'All cases' },
   { key: 'pending', label: 'Pending approval' },
   { key: 'approved', label: 'Approved / active' },
   { key: 'closed', label: 'Closed' },
