@@ -77,8 +77,11 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
     if (!profileId) return;
     setLoading(true);
 
-    // regenerate schedule (preserves manual edits) before reading
-    await regenerateTouchpointsForStaff(profileId).catch(() => {});
+    // regenerate schedule (preserves manual edits) before reading.
+    // Only for the real signed-in user — never write from the view-as sandbox.
+    if (profileId === myProfileId) {
+      await regenerateTouchpointsForStaff(profileId).catch(() => {});
+    }
 
     const { data: cls } = await supabase
       .from('clients')
