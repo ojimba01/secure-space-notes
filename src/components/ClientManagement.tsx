@@ -210,12 +210,18 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
 
     const matchesStatus = selectedStatuses.has(getMilestoneStatus(client));
 
+    const lon = client.level_of_need;
+    const matchesLevel =
+      levelFilter === 'all' ||
+      (levelFilter === 'missing' ? lon !== 'Low Level' && lon !== 'High Level' : lon === levelFilter);
+
     // View-as: show only the previewed employee's caseload.
     if (isViewingAs) {
-      return matchesSearch && matchesStatus && client.assigned_employee_id === viewAsEmployeeId;
+      return matchesSearch && matchesStatus && matchesLevel && client.assigned_employee_id === viewAsEmployeeId;
     }
 
-    if (!isAdmin) return matchesSearch && matchesStatus;
+    if (!isAdmin) return matchesSearch && matchesStatus && matchesLevel;
+
 
     // A client counts as "assigned" only if its manager is a valid, selectable
     // manager option. Clients assigned to removed/superadmin accounts (e.g. the
