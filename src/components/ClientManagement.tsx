@@ -6,6 +6,7 @@ import { ClientDetails } from '@/components/ClientDetails';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users } from 'lucide-react';
