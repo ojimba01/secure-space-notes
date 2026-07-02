@@ -24,7 +24,10 @@ import {
   Modality, MODALITY_LABELS, SUPPORT_ACTIVITIES, ComplianceStatus,
   requirementsForTier, computeProgress, deriveStatus, generatePlanDates,
   firstOfMonth, todayAgency, daysBetween, ENFORCEMENT_START, ContactRow,
+  hasValidTier, currentBillingWindow, contactsInWindow, windowProgress,
+  windowStatus, suggestTouchpointType, toDate,
 } from '@/lib/compliance';
+import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 
 interface Props {
   clientId: string;
