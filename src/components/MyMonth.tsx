@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,7 @@ import {
 } from '@/components/ui/select';
 import {
   AlertTriangle, CalendarClock, CheckCircle2, ClipboardList, Settings2,
-  ChevronRight, Phone, MapPin, MoveRight,
-
+  ChevronRight, MoveRight,
 } from 'lucide-react';
 import { InfoHint } from '@/components/InfoHint';
 import {
@@ -25,17 +24,27 @@ import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Modality, MODALITY_LABELS, todayAgency } from '@/lib/compliance';
+import {
+  todayAgency, MODALITY_OPTIONS, TOUCHPOINT_TYPES,
+} from '@/lib/compliance';
 import { format } from 'date-fns';
 
 interface Props {
   onOpenClient: (clientId: string) => void;
 }
 
-const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactNode; hint?: string }> = ({ icon, label, value, hint }) => (
-  <Card>
+type KpiKey = 'overdue' | 'scheduled' | 'completed' | 'remaining' | 'missing';
+
+const Stat: React.FC<{
+  icon: React.ReactNode; label: string; value: React.ReactNode; hint?: string;
+  active?: boolean; onClick?: () => void; tone?: 'danger' | 'default';
+}> = ({ icon, label, value, hint, active, onClick, tone = 'default' }) => (
+  <Card
+    onClick={onClick}
+    className={`cursor-pointer transition-colors ${active ? 'ring-2 ring-primary' : ''} ${tone === 'danger' ? 'border-red-200' : ''} hover:bg-muted/40`}
+  >
     <CardContent className="p-4 flex items-center gap-3">
-      <div className="rounded-full bg-primary/10 p-2 text-primary">{icon}</div>
+      <div className={`rounded-full p-2 ${tone === 'danger' ? 'bg-red-100 text-red-600' : 'bg-primary/10 text-primary'}`}>{icon}</div>
       <div>
         <div className="text-2xl font-bold leading-none">{value}</div>
         <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
@@ -47,9 +56,6 @@ const Stat: React.FC<{ icon: React.ReactNode; label: string; value: React.ReactN
   </Card>
 );
 
-const modalityLabel = (m: Modality) => (m === 'in_person' ? 'Face-to-face / in-person' : 'Phone / text / video allowed');
-const modalityIcon = (m: Modality) => (m === 'in_person' ? <MapPin className="h-3.5 w-3.5" /> : <Phone className="h-3.5 w-3.5" />);
-
 const statusBadge = (s: TpStatus) => {
   switch (s) {
     case 'completed': return <Badge className="bg-green-600 text-white hover:bg-green-600">Completed</Badge>;
@@ -59,6 +65,9 @@ const statusBadge = (s: TpStatus) => {
     default: return <Badge variant="outline">Scheduled</Badge>;
   }
 };
+
+const lonBadge = (lon: string | null) =>
+  lon ? <Badge variant="outline" className="text-[11px]">{lon}</Badge> : <Badge variant="secondary" className="text-[11px]">No level of need</Badge>;
 
 export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
   const effectiveProfileId = useEffectiveProfileId();
@@ -70,7 +79,8 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
 
   // log dialog
   const [logTp, setLogTp] = useState<ScheduledTouchpoint | null>(null);
-  const [logModality, setLogModality] = useState<Modality>('phone');
+  const [logModality, setLogModality] = useState<string>('phone');
+  const [logType, setLogType] = useState<string>('general_checkin');
   const [logNotes, setLogNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -78,9 +88,13 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
   const [moveTp, setMoveTp] = useState<ScheduledTouchpoint | null>(null);
   const [moveDate, setMoveDate] = useState('');
 
+  // KPI details drawer
+  const [detail, setDetail] = useState<KpiKey | null>(null);
+
   const openLog = (t: ScheduledTouchpoint) => {
     setLogTp(t);
-    setLogModality(t.modality);
+    setLogModality(t.modality === 'in_person' ? 'in_person' : 'phone');
+    setLogType('general_checkin');
     setLogNotes('');
   };
 
@@ -89,13 +103,15 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
     if (guardWrite()) { setLogTp(null); return; }
     if (!myProfileId) { toast({ title: 'Could not identify your profile', variant: 'destructive' }); return; }
     setSaving(true);
-    // link the scheduled event to the logged contact and mark complete
-    await supabase.from('calendar_events').update({ status: 'completed', modality: logModality }).eq('id', logTp.id);
+    await supabase.from('calendar_events').update({
+      status: 'completed', modality: logModality, touchpoint_type: logType,
+    }).eq('id', logTp.id);
     const { error } = await supabase.from('client_contacts').insert({
       client_id: logTp.client_id,
       employee_id: myProfileId,
       contact_date: logTp.date,
       modality: logModality,
+      touchpoint_type: logType,
       notes: logNotes || null,
       calendar_event_id: logTp.id,
     });
@@ -123,47 +139,95 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
     data.refresh();
   };
 
-  // group this week's touchpoints by day
-  const byDay: Record<string, ScheduledTouchpoint[]> = {};
-  data.scheduledThisWeek.forEach((t) => { (byDay[t.date] ||= []).push(t); });
-  const days = Object.keys(byDay).sort();
-
-  const [filterModality, setFilterModality] = useState<string>('all');
-  const [filterOverdue, setFilterOverdue] = useState(false);
-  const upcoming = data.upcoming.filter((t) => {
-    if (filterModality !== 'all' && t.modality !== filterModality) return false;
-    if (filterOverdue && t.status !== 'overdue') return false;
-    return true;
-  });
+  const completedThisWeekList = useMemo(
+    () => data.scheduledThisWeek.filter((t) => t.status === 'completed'),
+    [data.scheduledThisWeek],
+  );
 
   const remainingCount = data.remainingThisWeek.length;
 
-  const tpRow = (t: ScheduledTouchpoint) => (
+  // Compact list row — no repeated modality guidance.
+  const tpRow = (t: ScheduledTouchpoint, withActions = true) => (
     <div key={t.id} className="flex items-center justify-between rounded-md border p-3 gap-2">
       <div className="min-w-0">
         <div className="font-medium truncate">{t.client_name}</div>
-        <div className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
-          <span>{t.level_of_need || 'No level of need'}</span>
-          <span>·</span>
-          <span className="flex items-center gap-1">{modalityIcon(t.modality)} {modalityLabel(t.modality)}</span>
+        <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap mt-0.5">
+          {lonBadge(t.level_of_need)}
+          <span>{format(new Date(`${t.date}T12:00:00`), 'EEE, MMM d')}</span>
         </div>
       </div>
       <div className="flex items-center gap-1 shrink-0">
         {statusBadge(t.status)}
-        {t.status !== 'completed' && (
+        {withActions && t.status !== 'completed' && (
           <Button size="sm" variant="outline" onClick={() => openLog(t)}>Log</Button>
         )}
-        <Button size="sm" variant="ghost" onClick={() => openMove(t)} title="Move"><MoveRight className="h-4 w-4" /></Button>
+        {withActions && (
+          <Button size="sm" variant="ghost" onClick={() => openMove(t)} title="Move"><MoveRight className="h-4 w-4" /></Button>
+        )}
         <Button size="sm" variant="ghost" onClick={() => onOpenClient(t.client_id)} title="Open client"><ChevronRight className="h-4 w-4" /></Button>
       </div>
     </div>
   );
 
+  const detailContent = () => {
+    switch (detail) {
+      case 'overdue':
+        return data.overdueClients.length
+          ? data.overdueClients.map((c) => (
+            <button key={c.id} onClick={() => { setDetail(null); onOpenClient(c.id); }}
+              className="w-full text-left flex items-center justify-between rounded-md border border-red-200 bg-red-50 p-3 hover:bg-red-100">
+              <div>
+                <div className="font-medium">{c.client_name} {lonBadge(c.level_of_need)}</div>
+                <ul className="text-xs text-red-700 list-disc pl-4">{c.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+            </button>
+          ))
+          : <p className="text-sm text-muted-foreground">No clients at audit risk.</p>;
+      case 'scheduled':
+        return data.scheduledThisWeek.length
+          ? data.scheduledThisWeek.map((t) => tpRow(t))
+          : <p className="text-sm text-muted-foreground">Nothing scheduled this week.</p>;
+      case 'completed':
+        return completedThisWeekList.length
+          ? completedThisWeekList.map((t) => tpRow(t, false))
+          : <p className="text-sm text-muted-foreground">No touchpoints completed this week yet.</p>;
+      case 'remaining':
+        return data.remainingThisWeek.length
+          ? data.remainingThisWeek.map((t) => tpRow(t))
+          : <p className="text-sm text-muted-foreground">Nothing remaining this week.</p>;
+      case 'missing':
+        return data.missingSetupClients.length
+          ? data.missingSetupClients.map((c) => (
+            <div key={c.id} className="flex items-center justify-between rounded-md border border-amber-300 bg-amber-50 p-3">
+              <div>
+                <div className="font-medium">{c.client_name}</div>
+                <div className="text-xs text-amber-700">
+                  Missing: {[c.missingDate && 'HSP / authorization start date', c.missingLevelOfNeed && 'level of need'].filter(Boolean).join(' and ')}
+                </div>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => { setDetail(null); onOpenClient(c.id); }}>Update client</Button>
+            </div>
+          ))
+          : <p className="text-sm text-muted-foreground">All active clients have complete setup.</p>;
+      default:
+        return null;
+    }
+  };
+
+  const detailTitle: Record<KpiKey, string> = {
+    overdue: 'Overdue / audit risk',
+    scheduled: 'Scheduled this week',
+    completed: 'Completed this week',
+    remaining: 'Remaining this week',
+    missing: 'Missing setup information',
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Touchpoints</h1>
-        <p className="text-muted-foreground">Your auto-scheduled client touchpoints for the current 30-day billing windows.</p>
+        <p className="text-muted-foreground">Your work queue and audit-risk view for the current 30-day billing windows.</p>
       </div>
 
       {/* reminders */}
@@ -180,32 +244,51 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
         </Alert>
       )}
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* KPIs — clickable */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Overdue / audit risk" value={data.overdueClients.length}
+          tone="danger" onClick={() => setDetail('overdue')} active={detail === 'overdue'}
+          hint="Clients whose current 30-day window is at risk of missing requirements." />
         <Stat icon={<CalendarClock className="h-5 w-5" />} label="Scheduled this week" value={data.scheduledThisWeek.length}
-          hint="Auto-scheduled touchpoints assigned to you for this week (Mon–Sun)." />
+          onClick={() => setDetail('scheduled')} active={detail === 'scheduled'}
+          hint="Auto-scheduled touchpoints assigned to you this week (Mon–Sun)." />
         <Stat icon={<CheckCircle2 className="h-5 w-5" />} label="Completed this week" value={data.completedThisWeek}
+          onClick={() => setDetail('completed')} active={detail === 'completed'}
           hint="Touchpoints you have logged this week." />
         <Stat icon={<ClipboardList className="h-5 w-5" />} label="Remaining this week" value={remainingCount}
+          onClick={() => setDetail('remaining')} active={detail === 'remaining'}
           hint="Scheduled touchpoints this week that have not been logged yet." />
         <Stat icon={<Settings2 className="h-5 w-5" />} label="Missing setup" value={data.missingSetupClients.length}
+          onClick={() => setDetail('missing')} active={detail === 'missing'}
           hint="Active clients missing a start date or level of need — they can't be scheduled yet." />
       </div>
 
-      {/* Section 1: This week's touchpoints */}
-      <Card>
-        <CardHeader><CardTitle className="text-lg">This week’s touchpoints</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          {days.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No touchpoints scheduled this week.</p>
-          ) : days.map((d) => (
-            <div key={d} className="space-y-2">
-              <div className="text-sm font-semibold text-muted-foreground">{format(new Date(`${d}T12:00:00`), 'EEEE, MMM d')}</div>
-              {byDay[d].map(tpRow)}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      {/* Section 1: Overdue / audit risk — hidden entirely when empty */}
+      {data.overdueClients.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg text-red-600">Overdue / audit risk</CardTitle>
+            <p className="text-sm text-muted-foreground">Clients whose current 30-day billing window is at risk.</p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {data.overdueClients.map((c) => (
+              <button key={c.id} onClick={() => onOpenClient(c.id)}
+                className="w-full text-left flex items-center justify-between rounded-md border border-red-200 bg-red-50 p-3 hover:bg-red-100">
+                <div>
+                  <div className="font-medium flex items-center gap-2">{c.client_name} {lonBadge(c.level_of_need)}</div>
+                  <ul className="text-xs text-red-700 list-disc pl-4">
+                    {c.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                  </ul>
+                  <div className="text-[11px] text-muted-foreground mt-1">
+                    Window {format(new Date(`${c.windowStart}T12:00:00`), 'MMM d')} – {format(new Date(`${c.windowEnd}T12:00:00`), 'MMM d')} · {c.contactDays} of {c.requiredContacts} completed
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Section 2: Missing setup */}
       <Card>
@@ -230,86 +313,51 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
         </CardContent>
       </Card>
 
-      {/* Section 3: Overdue / audit risk */}
+      {/* Section 3: Upcoming scheduled touchpoints (next 30 days) */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg text-red-600">Overdue / audit risk</CardTitle>
-          <p className="text-sm text-muted-foreground">Clients whose current 30-day billing window is at risk.</p>
+          <CardTitle className="text-lg">Upcoming scheduled touchpoints</CardTitle>
+          <p className="text-sm text-muted-foreground">Scheduled touchpoints over the next 30 days. Full detail is on your calendar.</p>
         </CardHeader>
         <CardContent className="space-y-2">
-          {data.overdueClients.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No clients at audit risk right now.</p>
-          ) : data.overdueClients.map((c) => (
-            <button key={c.id} onClick={() => onOpenClient(c.id)}
-              className="w-full text-left flex items-center justify-between rounded-md border border-red-200 bg-red-50 p-3 hover:bg-red-100">
-              <div>
-                <div className="font-medium">{c.client_name} <span className="text-xs text-muted-foreground">({c.level_of_need})</span></div>
-                <ul className="text-xs text-red-700 list-disc pl-4">
-                  {c.reasons.map((r, i) => <li key={i}>{r}</li>)}
-                </ul>
-                <div className="text-[11px] text-muted-foreground mt-1">
-                  Window {format(new Date(`${c.windowStart}T12:00:00`), 'MMM d')} – {format(new Date(`${c.windowEnd}T12:00:00`), 'MMM d')}
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-            </button>
-          ))}
+          {data.upcoming.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No upcoming touchpoints scheduled.</p>
+          ) : data.upcoming.map((t) => tpRow(t))}
         </CardContent>
       </Card>
 
-      {/* Section 4: Upcoming */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Upcoming touchpoints</CardTitle>
-          <p className="text-sm text-muted-foreground">Scheduled touchpoints over the next 30 days.</p>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Select value={filterModality} onValueChange={setFilterModality}>
-              <SelectTrigger className="w-48 h-8"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All modalities</SelectItem>
-                <SelectItem value="in_person">Face-to-face only</SelectItem>
-                <SelectItem value="phone">Phone / virtual</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button size="sm" variant={filterOverdue ? 'default' : 'outline'} onClick={() => setFilterOverdue((v) => !v)}>
-              Overdue only
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {upcoming.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No upcoming touchpoints match your filters.</p>
-          ) : upcoming.map((t) => (
-            <div key={t.id} className="flex items-center justify-between rounded-md border p-3 gap-2">
-              <div className="min-w-0">
-                <div className="font-medium truncate">{t.client_name}</div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  {modalityIcon(t.modality)} {modalityLabel(t.modality)}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs text-muted-foreground">{format(new Date(`${t.date}T12:00:00`), 'EEE, MMM d')}</span>
-                {statusBadge(t.status)}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      {/* KPI details drawer */}
+      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{detail ? detailTitle[detail] : ''}</DialogTitle></DialogHeader>
+          <div className="space-y-2">{detailContent()}</div>
+        </DialogContent>
+      </Dialog>
 
       {/* Log dialog */}
       <Dialog open={!!logTp} onOpenChange={(o) => !o && setLogTp(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Log touchpoint — {logTp?.client_name}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">Scheduled for {logTp && format(new Date(`${logTp.date}T12:00:00`), 'EEEE, MMM d')}. Suggested: {logTp ? modalityLabel(logTp.modality) : ''}.</div>
+            <div className="text-sm text-muted-foreground">
+              Scheduled for {logTp && format(new Date(`${logTp.date}T12:00:00`), 'EEEE, MMM d')}.
+              {logTp?.modality === 'in_person' && ' Suggested: face-to-face / in-person.'}
+            </div>
             <div className="space-y-2">
-              <Label>Modality</Label>
-              <Select value={logModality} onValueChange={(v) => setLogModality(v as Modality)}>
+              <Label>Touchpoint type</Label>
+              <Select value={logType} onValueChange={setLogType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="phone">Phone</SelectItem>
-                  <SelectItem value="virtual">Virtual</SelectItem>
-                  <SelectItem value="in_person">In-person</SelectItem>
+                  {TOUCHPOINT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Modality</Label>
+              <Select value={logModality} onValueChange={setLogModality}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MODALITY_OPTIONS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
