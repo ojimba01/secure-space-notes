@@ -200,6 +200,7 @@ export const ComplianceCard: React.FC<Props> = ({
       return;
     }
     toast({ title: 'Contact logged' });
+    await regenerateTouchpointsForClient(clientId).catch(() => {});
     await load();
     onChanged?.();
   };
