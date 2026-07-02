@@ -112,7 +112,9 @@ const Index = () => {
         <Sidebar activeView={activeView} onViewChange={handleViewChange} onOpenNote={handleOpenNote} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
           {activeView === 'compliance' ? (
-            <MyMonth onOpenClient={handleOpenClient} />
+            isSuperadmin && !isViewingAs
+              ? <SuperadminTouchpoints onOpenClient={handleOpenClient} />
+              : <MyMonth onOpenClient={handleOpenClient} />
           ) : activeView === 'clients' ? (
             <ClientManagement
               key={clientsKey}
