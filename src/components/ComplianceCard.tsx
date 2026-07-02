@@ -175,7 +175,9 @@ export const ComplianceCard: React.FC<Props> = ({
       .from('calendar_events')
       .insert({
         title: `${MODALITY_LABELS[modality]} contact — ${clientName}`,
-        event_type: 'touchpoint',
+        event_type: 'touch_point',
+        status: 'completed',
+        modality,
         employee_id: myProfileId,
         client_id: clientId,
         start_time: startIso,
