@@ -84,7 +84,7 @@ const ResetPassword = () => {
             <Stethoscope className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="font-semibold text-lg">Clinical Notes</h2>
+            <h2 className="font-semibold text-lg">Case Notes</h2>
             <p className="text-xs text-muted-foreground">HIPAA compliant</p>
           </div>
         </Link>

@@ -173,6 +173,7 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
           start_time: startDateTime.toISOString(),
           end_time: endDateTime.toISOString(),
           note_id: formData.note_id || null,
+          ...(formData.event_type === 'touch_point' ? { is_manually_adjusted: true } : {}),
         })
         .eq('id', event.id);
 

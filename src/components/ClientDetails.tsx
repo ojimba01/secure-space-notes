@@ -236,6 +236,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             clientId={client.id}
             clientName={`${client.first_name} ${client.last_name}`}
             levelOfNeed={client.level_of_need}
+            hspStartDate={(client as any).hsp_150_date}
             assignedEmployeeId={client.assigned_employee_id}
             clientCreatedAt={(client as any).created_at}
             onChanged={onUpdate}

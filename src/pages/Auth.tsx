@@ -130,14 +130,14 @@ const Auth = () => {
             <Stethoscope className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="font-semibold text-lg">Clinical Notes</h2>
+            <h2 className="font-semibold text-lg">Case Notes</h2>
             <p className="text-xs text-muted-foreground">HIPAA compliant</p>
           </div>
         </Link>
 
         <Card className="w-full">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Clinical Notes</CardTitle>
+          <CardTitle className="text-2xl font-bold">Case Notes</CardTitle>
           <CardDescription>
             Secure case management platform
           </CardDescription>

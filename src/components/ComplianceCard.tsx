@@ -24,12 +24,16 @@ import {
   Modality, MODALITY_LABELS, SUPPORT_ACTIVITIES, ComplianceStatus,
   requirementsForTier, computeProgress, deriveStatus, generatePlanDates,
   firstOfMonth, todayAgency, daysBetween, ENFORCEMENT_START, ContactRow,
+  hasValidTier, currentBillingWindow, contactsInWindow, windowProgress,
+  windowStatus, suggestTouchpointType, toDate,
 } from '@/lib/compliance';
+import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 
 interface Props {
   clientId: string;
   clientName: string;
   levelOfNeed?: string | null;
+  hspStartDate?: string | null;
   assignedEmployeeId?: string | null;
   clientCreatedAt?: string | null;
   onChanged?: () => void;
@@ -51,7 +55,7 @@ const modalityIcon = (m: Modality) =>
   m === 'phone' ? <Phone className="h-3.5 w-3.5" /> : m === 'virtual' ? <Video className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />;
 
 export const ComplianceCard: React.FC<Props> = ({
-  clientId, clientName, levelOfNeed, assignedEmployeeId, clientCreatedAt, onChanged,
+  clientId, clientName, levelOfNeed, hspStartDate, assignedEmployeeId, clientCreatedAt, onChanged,
 }) => {
   const { toast } = useToast();
   const { guardWrite } = useViewAs();
@@ -70,6 +74,8 @@ export const ComplianceCard: React.FC<Props> = ({
   const tier = levelOfNeed === 'High Level' ? 'High Level' : 'Low Level';
   const req = requirementsForTier(tier);
   const isHigh = tier === 'High Level';
+  const setupComplete = hasValidTier(levelOfNeed) && !!hspStartDate;
+  const window = setupComplete ? currentBillingWindow(hspStartDate!, today) : null;
 
   const isNewClientFirstWeek =
     !!clientCreatedAt &&
@@ -118,15 +124,16 @@ export const ComplianceCard: React.FC<Props> = ({
       setSummaryNote(row.summary_note ?? '');
     }
 
+    const contactsFrom = window && window.start < month ? window.start : month;
     const { data: cts } = await supabase
       .from('client_contacts')
       .select('id, contact_date, modality')
       .eq('client_id', clientId)
-      .gte('contact_date', month)
+      .gte('contact_date', contactsFrom)
       .order('contact_date', { ascending: true });
     setContacts((cts as ContactRow[]) ?? []);
     setLoading(false);
-  }, [clientId, month, tier, assignedEmployeeId, isNewClientFirstWeek, req.requiredContacts, req.requiredInPerson, req.requiredActivities, today]);
+  }, [clientId, month, tier, assignedEmployeeId, isNewClientFirstWeek, req.requiredContacts, req.requiredInPerson, req.requiredActivities, today, window?.start]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -168,7 +175,9 @@ export const ComplianceCard: React.FC<Props> = ({
       .from('calendar_events')
       .insert({
         title: `${MODALITY_LABELS[modality]} contact — ${clientName}`,
-        event_type: 'touchpoint',
+        event_type: 'touch_point',
+        status: 'completed',
+        modality,
         employee_id: myProfileId,
         client_id: clientId,
         start_time: startIso,
@@ -191,6 +200,7 @@ export const ComplianceCard: React.FC<Props> = ({
       return;
     }
     toast({ title: 'Contact logged' });
+    await regenerateTouchpointsForClient(clientId).catch(() => {});
     await load();
     onChanged?.();
   };
@@ -236,9 +246,16 @@ export const ComplianceCard: React.FC<Props> = ({
 
   // Built-in fallback guidance so info buttons are never blank when DB tooltips are empty.
   const contactHintItems = isHigh
-    ? ['Log **4 contacts** this month, including **2 in-person visits at least 7 days apart**. Also complete the required **support activities** in the checklist below.']
-    : ['Log **2 contacts** this month. Phone, virtual, or in-person all count. Each must be on a different day.'];
+    ? ['**High Level:** 4 touchpoints per 30-day billing period. At least 2 must be face-to-face / in-person. Touchpoints must be on separate days.']
+    : ['**Low Level:** 2 touchpoints per 30-day billing period. At least 1 must be face-to-face / in-person. Touchpoints must be on separate days.'];
   const modalityHint = 'How the contact happened: Phone, Virtual (video), or In-Person (face-to-face visit).';
+
+  // current 30-day billing window progress
+  const winContacts = window ? contactsInWindow(contacts, window) : [];
+  const winProg = window ? windowProgress(req, winContacts) : null;
+  const winStatus = window ? windowStatus(req, window, winContacts, today) : 'missing_setup';
+  const suggestion = window ? suggestTouchpointType(req, winContacts) : null;
+  const fmtShort = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 
   return (
@@ -249,8 +266,41 @@ export const ComplianceCard: React.FC<Props> = ({
           {statusChip(status)}
         </CardHeader>
         <CardContent className="space-y-5">
+          {/* touchpoint requirements — current 30-day billing window */}
+          <div className="rounded-md border p-3 space-y-2 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">Touchpoint requirements</div>
+              {!setupComplete ? (
+                <Badge className="bg-amber-500 text-white hover:bg-amber-500">Missing setup</Badge>
+              ) : winStatus === 'complete' ? (
+                <Badge className="bg-green-600 text-white hover:bg-green-600">Complete for this window</Badge>
+              ) : winStatus === 'overdue' ? (
+                <Badge className="bg-red-600 text-white hover:bg-red-600">Overdue</Badge>
+              ) : (
+                <Badge variant="secondary">On track</Badge>
+              )}
+            </div>
+            {!setupComplete ? (
+              <p className="text-xs text-muted-foreground">
+                Add a {hspStartDate ? '' : 'HSP / authorization / touchpoint start date'}{!hspStartDate && !hasValidTier(levelOfNeed) ? ' and ' : ''}{hasValidTier(levelOfNeed) ? '' : 'level of need'} to enable automatic scheduling.
+              </p>
+            ) : (
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>Current 30-day window: <span className="font-medium text-foreground">{fmtShort(window!.start)} – {fmtShort(window!.end)}</span></div>
+                <div>Level of need: <span className="font-medium text-foreground">{levelOfNeed}</span></div>
+                <div>Required touchpoints: <span className="font-medium text-foreground">{req.requiredContacts}</span> · Required face-to-face: <span className="font-medium text-foreground">{req.requiredInPerson}</span></div>
+                <div>Completed: <span className="font-medium text-foreground">{winProg!.contactDays}</span> · Remaining: <span className="font-medium text-foreground">{winProg!.remaining}</span></div>
+                {suggestion && <div>Suggested next: <span className="font-medium text-foreground">{suggestion}</span></div>}
+                <p className="pt-1">{isHigh
+                  ? 'High Level: 4 touchpoints per 30-day billing period. At least 2 must be face-to-face / in-person. Touchpoints must be on separate days.'
+                  : 'Low Level: 2 touchpoints per 30-day billing period. At least 1 must be face-to-face / in-person. Touchpoints must be on separate days.'}</p>
+              </div>
+            )}
+          </div>
+
           {/* contacts progress */}
           <div className="space-y-2">
+
             <div className="flex items-center gap-2 text-sm font-medium">
               Contacts completed: {progress.contactDays} of {req.requiredContacts}
               {req.requiredInPerson > 0 && (

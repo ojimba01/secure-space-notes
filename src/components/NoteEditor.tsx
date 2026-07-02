@@ -139,7 +139,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ initialContent = '', rea
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Clinical Notes</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Case Notes</h1>
           <p className="text-muted-foreground">HIPAA-compliant collaborative note taking</p>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

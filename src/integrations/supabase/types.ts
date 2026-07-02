@@ -142,8 +142,11 @@ export type Database = {
           event_type: string | null
           id: string
           is_auto_generated: boolean
+          is_manually_adjusted: boolean
+          modality: string | null
           note_id: string | null
           start_time: string
+          status: string
           title: string
         }
         Insert: {
@@ -155,8 +158,11 @@ export type Database = {
           event_type?: string | null
           id?: string
           is_auto_generated?: boolean
+          is_manually_adjusted?: boolean
+          modality?: string | null
           note_id?: string | null
           start_time: string
+          status?: string
           title: string
         }
         Update: {
@@ -168,8 +174,11 @@ export type Database = {
           event_type?: string | null
           id?: string
           is_auto_generated?: boolean
+          is_manually_adjusted?: boolean
+          modality?: string | null
           note_id?: string | null
           start_time?: string
+          status?: string
           title?: string
         }
         Relationships: [

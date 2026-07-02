@@ -42,9 +42,16 @@ export interface Requirements {
 
 export function requirementsForTier(tier: string | null | undefined): Requirements {
   if (tier === 'High Level') {
+    // 4 touchpoints per 30-day window, at least 2 face-to-face
     return { requiredContacts: 4, requiredInPerson: 2, requiredActivities: 2 };
   }
-  return { requiredContacts: 2, requiredInPerson: 0, requiredActivities: 0 };
+  // Low Level: 2 touchpoints per 30-day window, at least 1 face-to-face
+  return { requiredContacts: 2, requiredInPerson: 1, requiredActivities: 0 };
+}
+
+// A valid level of need value (Low Level / High Level). Anything else = not set.
+export function hasValidTier(tier: string | null | undefined): boolean {
+  return tier === 'High Level' || tier === 'Low Level';
 }
 
 // ---- date helpers ---------------------------------------------------
@@ -217,4 +224,135 @@ export function startOfWeek(today: string): string {
 }
 export function endOfWeek(today: string): string {
   return addDays(startOfWeek(today), 6);
+}
+
+// ---- rolling 30-day billing windows --------------------------------
+// Touchpoint compliance is tracked in rolling 30-day windows anchored to the
+// client's HSP / authorization / touchpoint start date — NOT calendar months.
+export const BILLING_WINDOW_DAYS = 30;
+export const MIN_SPACING_DAYS = 7; // conservative internal scheduling rule
+
+export interface BillingWindow {
+  index: number; // 0-based window number since start
+  start: string; // YYYY-MM-DD (inclusive)
+  end: string; // YYYY-MM-DD (inclusive)
+}
+
+// The 30-day window that `today` falls into, given the client's start date.
+// Returns null when there is no start date.
+export function currentBillingWindow(
+  startDate: string | null | undefined,
+  today: string,
+): BillingWindow | null {
+  if (!startDate) return null;
+  const diff = daysBetween(startDate, today);
+  if (diff < 0) {
+    // start date is in the future — the first window is upcoming
+    return { index: 0, start: startDate, end: addDays(startDate, BILLING_WINDOW_DAYS - 1) };
+  }
+  const index = Math.floor(diff / BILLING_WINDOW_DAYS);
+  const start = addDays(startDate, index * BILLING_WINDOW_DAYS);
+  return { index, start, end: addDays(start, BILLING_WINDOW_DAYS - 1) };
+}
+
+// Contacts that fall inside a given window (inclusive of both ends).
+export function contactsInWindow(contacts: ContactRow[], w: BillingWindow): ContactRow[] {
+  return contacts.filter(
+    (c) => daysBetween(w.start, c.contact_date) >= 0 && daysBetween(c.contact_date, w.end) >= 0,
+  );
+}
+
+export type WindowStatus = 'on_track' | 'overdue' | 'complete' | 'missing_setup';
+
+export interface WindowProgress {
+  contactDays: number;
+  inPersonSpaced: number;
+  requiredContacts: number;
+  requiredInPerson: number;
+  remaining: number;
+  remainingInPerson: number;
+  isComplete: boolean;
+}
+
+export function windowProgress(req: Requirements, contacts: ContactRow[]): WindowProgress {
+  const contactDays = distinctDays(contacts).length;
+  const inPersonSpaced = spacedInPersonDates(contacts).length;
+  const remaining = Math.max(0, req.requiredContacts - contactDays);
+  const remainingInPerson = Math.max(0, req.requiredInPerson - inPersonSpaced);
+  const isComplete = contactDays >= req.requiredContacts && inPersonSpaced >= req.requiredInPerson;
+  return {
+    contactDays,
+    inPersonSpaced,
+    requiredContacts: req.requiredContacts,
+    requiredInPerson: req.requiredInPerson,
+    remaining,
+    remainingInPerson,
+    isComplete,
+  };
+}
+
+// Plain-English reasons a client is at audit risk in the current window.
+export function overdueReasons(
+  req: Requirements,
+  window: BillingWindow,
+  windowContacts: ContactRow[],
+  today: string,
+): string[] {
+  const prog = windowProgress(req, windowContacts);
+  const reasons: string[] = [];
+  if (prog.isComplete) return reasons;
+
+  const windowEnded = daysBetween(window.end, today) > 0;
+  const daysLeft = daysBetween(today, window.end); // >=0 while inside window
+
+  if (windowEnded) {
+    reasons.push(
+      `${prog.contactDays} of ${req.requiredContacts} touchpoints logged in the closed 30-day window`,
+    );
+    return reasons;
+  }
+
+  if (prog.contactDays === 0 && daysBetween(window.start, today) >= BILLING_WINDOW_DAYS - 1) {
+    reasons.push('No touchpoints logged since authorization start');
+  }
+
+  // not enough days left to fit remaining separate-day touchpoints
+  if (prog.remaining > daysLeft + 1) {
+    reasons.push('Not enough days left in billing window');
+  }
+
+  // required face-to-face can no longer be completed
+  if (prog.remainingInPerson > 0) {
+    const need = (prog.remainingInPerson - 1) * MIN_SPACING_DAYS;
+    if (need > daysLeft) reasons.push('Required face-to-face touchpoint can no longer be completed');
+  }
+
+  if (prog.contactDays < req.requiredContacts && daysLeft <= 5) {
+    reasons.push(`${prog.contactDays} of ${req.requiredContacts} touchpoints logged in current 30-day window`);
+  }
+
+  return reasons;
+}
+
+export function windowStatus(
+  req: Requirements,
+  window: BillingWindow,
+  windowContacts: ContactRow[],
+  today: string,
+): WindowStatus {
+  const prog = windowProgress(req, windowContacts);
+  if (prog.isComplete) return 'complete';
+  return overdueReasons(req, window, windowContacts, today).length > 0 ? 'overdue' : 'on_track';
+}
+
+// ---- rule-based suggested touchpoint type ---------------------------
+// Uses only structured data — never invents facts.
+export function suggestTouchpointType(
+  req: Requirements,
+  windowContacts: ContactRow[],
+): string {
+  const prog = windowProgress(req, windowContacts);
+  if (prog.contactDays === 0) return 'Initial check-in for this 30-day window';
+  if (prog.remainingInPerson > 0) return 'Face-to-face visit';
+  return 'Phone, text, email, or virtual follow-up';
 }
