@@ -42,9 +42,16 @@ export interface Requirements {
 
 export function requirementsForTier(tier: string | null | undefined): Requirements {
   if (tier === 'High Level') {
+    // 4 touchpoints per 30-day window, at least 2 face-to-face
     return { requiredContacts: 4, requiredInPerson: 2, requiredActivities: 2 };
   }
-  return { requiredContacts: 2, requiredInPerson: 0, requiredActivities: 0 };
+  // Low Level: 2 touchpoints per 30-day window, at least 1 face-to-face
+  return { requiredContacts: 2, requiredInPerson: 1, requiredActivities: 0 };
+}
+
+// A valid level of need value (Low Level / High Level). Anything else = not set.
+export function hasValidTier(tier: string | null | undefined): boolean {
+  return tier === 'High Level' || tier === 'Low Level';
 }
 
 // ---- date helpers ---------------------------------------------------
