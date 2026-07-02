@@ -47,8 +47,8 @@ const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'pending', label: 'Pending approval' },
   { key: 'approved', label: 'Approved / active' },
   { key: 'closed', label: 'Closed' },
-  { key: 'tracker', label: 'Billing tracker' },
-  { key: 'cycles', label: 'Billing cycles' },
+  { key: 'tracker', label: 'Client billing overview' },
+  { key: 'cycles', label: 'Billing cycle ledger' },
 ];
 
 const isClosed = (c: BillingClient) => c.status !== 'active';
