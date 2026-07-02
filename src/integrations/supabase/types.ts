@@ -640,6 +640,93 @@ export type Database = {
           },
         ]
       }
+      clients_import_staging: {
+        Row: {
+          approval_status: string | null
+          assessment_due_date: string | null
+          auth_150_end: string | null
+          auth_150_number: string | null
+          auth_150_start: string | null
+          auth_180_end: string | null
+          auth_180_number: string | null
+          auth_180_start: string | null
+          auth_30_end: string | null
+          auth_30_number: string | null
+          auth_30_start: string | null
+          closed_date: string | null
+          first_name: string | null
+          full_update: boolean | null
+          hsp_due_date: string | null
+          id: string
+          insurance: string | null
+          intake_date: string | null
+          last_name: string | null
+          mco_housing_manager: string | null
+          member_id: string | null
+          next_action_due_date: string | null
+          notes: string | null
+          phone: string | null
+          reason_closed: string | null
+          status: string | null
+        }
+        Insert: {
+          approval_status?: string | null
+          assessment_due_date?: string | null
+          auth_150_end?: string | null
+          auth_150_number?: string | null
+          auth_150_start?: string | null
+          auth_180_end?: string | null
+          auth_180_number?: string | null
+          auth_180_start?: string | null
+          auth_30_end?: string | null
+          auth_30_number?: string | null
+          auth_30_start?: string | null
+          closed_date?: string | null
+          first_name?: string | null
+          full_update?: boolean | null
+          hsp_due_date?: string | null
+          id: string
+          insurance?: string | null
+          intake_date?: string | null
+          last_name?: string | null
+          mco_housing_manager?: string | null
+          member_id?: string | null
+          next_action_due_date?: string | null
+          notes?: string | null
+          phone?: string | null
+          reason_closed?: string | null
+          status?: string | null
+        }
+        Update: {
+          approval_status?: string | null
+          assessment_due_date?: string | null
+          auth_150_end?: string | null
+          auth_150_number?: string | null
+          auth_150_start?: string | null
+          auth_180_end?: string | null
+          auth_180_number?: string | null
+          auth_180_start?: string | null
+          auth_30_end?: string | null
+          auth_30_number?: string | null
+          auth_30_start?: string | null
+          closed_date?: string | null
+          first_name?: string | null
+          full_update?: boolean | null
+          hsp_due_date?: string | null
+          id?: string
+          insurance?: string | null
+          intake_date?: string | null
+          last_name?: string | null
+          mco_housing_manager?: string | null
+          member_id?: string | null
+          next_action_due_date?: string | null
+          notes?: string | null
+          phone?: string | null
+          reason_closed?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       compliance_escalations: {
         Row: {
           claimed_complete: Json
@@ -898,6 +985,7 @@ export type Database = {
     }
     Functions: {
       activate_user: { Args: { _profile_id: string }; Returns: undefined }
+      apply_clients_import: { Args: never; Returns: number }
       call_compliance_cron: { Args: { _job: string }; Returns: undefined }
       can_access_client_files: {
         Args: { _client_id: string; _user_id: string }
