@@ -232,7 +232,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       ? selectedManagerIds.has(client.assigned_employee_id as string)
       : includeUnassigned;
 
-    return matchesSearch && matchesManager && matchesStatus;
+    return matchesSearch && matchesManager && matchesStatus && matchesLevel;
   });
 
   const allStatusesSelected = selectedStatuses.size === MILESTONE_STATUS_OPTIONS.length;
