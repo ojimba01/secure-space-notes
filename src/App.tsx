@@ -46,9 +46,10 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/admin" element={<SuperadminRoute><Admin /></SuperadminRoute>} />
-              <Route path="/billing" element={<SuperadminRoute><Billing /></SuperadminRoute>} />
+              <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+              <Route path="/billing" element={<AdminRoute><Billing /></AdminRoute>} />
               <Route path="/audit-logs" element={<SuperadminRoute><AuditLogs /></SuperadminRoute>} />
+
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="*" element={<NotFound />} />
