@@ -279,7 +279,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
 
 
         {/* Recent Notes - Hidden on mobile to save space */}
-        <div className="space-y-3 hidden md:block" data-tutorial="recent-notes">
+        {!showAdminNav && (
+        <div className="space-y-3 hidden md:block" data-tutorial="recent-notes">)
           <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
             Recent Notes
           </h3>
