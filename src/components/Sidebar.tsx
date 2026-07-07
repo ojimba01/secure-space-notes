@@ -306,6 +306,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             )}
           </div>
         </div>
+        )}
 
         {/* Security Notice - Compact on mobile */}
         <Card className="p-3 md:p-4 bg-medical-green-light/20 border-medical-green/20">
