@@ -46,6 +46,7 @@ const getErrorMessage = (error: unknown) =>
 
 const Admin = () => {
   const navigate = useNavigate();
+  usePageTutorial('admin-dashboard');
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
