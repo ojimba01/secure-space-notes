@@ -22,6 +22,7 @@ const Index = () => {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const { isSuperadmin } = useIsSuperadmin();
   const { isViewingAs } = useViewAs();
+  const { role } = useRole();
   const [activeView, setActiveView] = useState<View>('compliance');
   const [clientsKey, setClientsKey] = useState(0);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
