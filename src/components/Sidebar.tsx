@@ -24,7 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { useRole } from '@/hooks/useRole';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { AdvancedTools } from '@/components/AdvancedTools';
 import { cn } from '@/lib/utils';
