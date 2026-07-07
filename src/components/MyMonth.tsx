@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import {
   AlertTriangle, CalendarClock, CheckCircle2, ClipboardList, Settings2,
-  ChevronRight, MoveRight,
+  ChevronRight, MoveRight, Plus,
 } from 'lucide-react';
 import { InfoHint } from '@/components/InfoHint';
 import {
