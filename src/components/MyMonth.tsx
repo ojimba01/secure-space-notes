@@ -88,6 +88,54 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
   const [moveTp, setMoveTp] = useState<ScheduledTouchpoint | null>(null);
   const [moveDate, setMoveDate] = useState('');
 
+  // add (ad-hoc) touchpoint dialog — log against any assigned client
+  const [addOpen, setAddOpen] = useState(false);
+  const [addClients, setAddClients] = useState<{ id: string; name: string }[]>([]);
+  const [addClientId, setAddClientId] = useState('');
+  const [addDate, setAddDate] = useState(today);
+  const [addModality, setAddModality] = useState('phone');
+  const [addType, setAddType] = useState('general_checkin');
+  const [addNotes, setAddNotes] = useState('');
+  const [addSaving, setAddSaving] = useState(false);
+
+  const openAdd = async () => {
+    setAddClientId('');
+    setAddDate(today);
+    setAddModality('phone');
+    setAddType('general_checkin');
+    setAddNotes('');
+    setAddOpen(true);
+    if (effectiveProfileId) {
+      const { data } = await supabase
+        .from('clients')
+        .select('id, first_name, last_name')
+        .eq('assigned_employee_id', effectiveProfileId)
+        .eq('status', 'active')
+        .order('last_name');
+      setAddClients((data ?? []).map((c: any) => ({ id: c.id, name: `${c.first_name} ${c.last_name}` })));
+    }
+  };
+
+  const submitAdd = async () => {
+    if (!addClientId) { toast({ title: 'Select a client', variant: 'destructive' }); return; }
+    if (guardWrite()) { setAddOpen(false); return; }
+    if (!myProfileId) { toast({ title: 'Could not identify your profile', variant: 'destructive' }); return; }
+    setAddSaving(true);
+    const { error } = await supabase.from('client_contacts').insert({
+      client_id: addClientId,
+      employee_id: myProfileId,
+      contact_date: addDate,
+      modality: addModality,
+      touchpoint_type: addType,
+      notes: addNotes || null,
+    });
+    setAddSaving(false);
+    if (error) { toast({ title: 'Error logging touchpoint', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Touchpoint logged' });
+    setAddOpen(false);
+    data.refresh();
+  };
+
   // KPI details drawer
   const [detail, setDetail] = useState<KpiKey | null>(null);
 
