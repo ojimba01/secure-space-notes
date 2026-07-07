@@ -39,12 +39,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { startTutorial } = useTutorial();
-  const [isAdmin, setIsAdmin] = useState(false);
   const [recentNotes, setRecentNotes] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
-  const { isSuperadmin } = useIsSuperadmin();
+  const { isAdmin, isSuperadmin, isStaff } = useRole();
   const { isViewingAs } = useViewAs();
+  // While previewing as staff, admins should see the staff navigation.
+  const showAdminNav = isAdmin && !isViewingAs;
 
   useEffect(() => {
     if (user) {
