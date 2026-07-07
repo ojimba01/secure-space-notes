@@ -442,6 +442,53 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add (ad-hoc) touchpoint dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add touchpoint</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Client</Label>
+              <Select value={addClientId} onValueChange={setAddClientId}>
+                <SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger>
+                <SelectContent>
+                  {addClients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Input type="date" value={addDate} max={today} onChange={(e) => setAddDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Touchpoint type</Label>
+              <Select value={addType} onValueChange={setAddType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TOUCHPOINT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Modality</Label>
+              <Select value={addModality} onValueChange={setAddModality}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MODALITY_OPTIONS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Note (optional)</Label>
+              <Input value={addNotes} onChange={(e) => setAddNotes(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={submitAdd} disabled={addSaving}>Save touchpoint</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
