@@ -140,27 +140,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
               </div>
             </button>
           </div>
-            
-          <Button 
-            className="w-full gap-2 bg-medical-blue hover:bg-medical-blue/90"
-            onClick={() => handleViewChange('notes')}
-            data-tutorial="new-note-btn"
-          >
-            <Plus className="w-4 h-4" />
-            New note
-          </Button>
+
+          {!showAdminNav && (
+            <Button
+              className="w-full gap-2 bg-medical-blue hover:bg-medical-blue/90"
+              onClick={() => handleViewChange('notes')}
+              data-tutorial="new-note-btn"
+            >
+              <Plus className="w-4 h-4" />
+              New note
+            </Button>
+          )}
         </div>
 
         {/* Search */}
-        <div className="space-y-2" data-tutorial="search-notes">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search notes..." 
-              className="pl-10"
-            />
+        {!showAdminNav && (
+          <div className="space-y-2" data-tutorial="search-notes">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search notes..."
+                className="pl-10"
+              />
+            </div>
           </div>
-        </div>
+        )}
+
 
         {/* Navigation — role-specific */}
         <div className="space-y-1 md:space-y-2">
