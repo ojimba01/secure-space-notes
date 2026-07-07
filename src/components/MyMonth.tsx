@@ -273,9 +273,15 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Touchpoints</h1>
-        <p className="text-muted-foreground">Your work queue and audit-risk view for the current 30-day billing windows.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Touchpoints</h1>
+          <p className="text-muted-foreground">Your work queue and audit-risk view for the current 30-day billing windows.</p>
+        </div>
+        <Button onClick={openAdd} className="shrink-0">
+          <Plus className="h-4 w-4 mr-2" />
+          Add touchpoint
+        </Button>
       </div>
 
       {/* reminders */}
