@@ -368,8 +368,9 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
       </Card>
 
       {/* Section 3: Upcoming scheduled touchpoints (next 30 days) */}
-      <Card>
-        <CardHeader>
+      <div data-tutorial="tp-upcoming-week">
+        <Card>
+          <CardHeader>
           <CardTitle className="text-lg">Upcoming scheduled touchpoints</CardTitle>
           <p className="text-sm text-muted-foreground">Scheduled touchpoints over the next 30 days. Full detail is on your calendar.</p>
         </CardHeader>
