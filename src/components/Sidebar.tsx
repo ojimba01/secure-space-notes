@@ -162,73 +162,96 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
           </div>
         </div>
 
-        {/* Navigation */}
+        {/* Navigation — role-specific */}
         <div className="space-y-1 md:space-y-2">
-          {isAdmin && !isViewingAs && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2"
-              onClick={() => handleNavigate('/admin')}
-              data-tutorial="admin-nav"
-            >
-              <Shield className="h-4 w-4" />
-              Admin Dashboard
-            </Button>
-          )}
-          {isSuperadmin && !isViewingAs && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2"
-              onClick={() => handleNavigate('/billing')}
-            >
-              <DollarSign className="h-4 w-4" />
-              Billing &amp; Revenue
-            </Button>
-          )}
-          <Button
-            variant={activeView === 'compliance' ? 'default' : 'ghost'}
-            className="w-full justify-start gap-2"
-            onClick={() => handleViewChange('compliance')}
-          >
-            <ClipboardList className="h-4 w-4" />
-            Touchpoints
-          </Button>
-          <Button
-            variant={activeView === 'clients' ? 'default' : 'ghost'}
-            className="w-full justify-start gap-2"
-            onClick={() => handleViewChange('clients')}
-            data-tutorial="clients-nav"
-          >
-            <Users className="h-4 w-4" />
-            Clients
-          </Button>
-          <Button
-            variant={activeView === 'calendar' ? 'default' : 'ghost'}
-            className="w-full justify-start gap-2"
-            onClick={() => handleViewChange('calendar')}
-            data-tutorial="calendar-nav"
-          >
-            <Calendar className="h-4 w-4" />
-            Calendar
-          </Button>
-          <Button
-            variant={activeView === 'notes' ? 'default' : 'ghost'}
-            className="w-full justify-start gap-2"
-            onClick={() => handleViewChange('notes')}
-          >
-            <FileText className="h-4 w-4" />
-            Notes
-          </Button>
-          {isAdmin && !isViewingAs && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2"
-              onClick={() => handleNavigate('/audit-logs')}
-              data-tutorial="audit-nav"
-            >
-              <ClipboardList className="h-4 w-4" />
-              Audit Logs
-            </Button>
+          {showAdminNav ? (
+            <>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2"
+                onClick={() => handleNavigate('/admin')}
+                data-tutorial="dashboard-nav"
+              >
+                <Shield className="h-4 w-4" />
+                Dashboard
+              </Button>
+              <Button
+                variant={activeView === 'clients' ? 'default' : 'ghost'}
+                className="w-full justify-start gap-2"
+                onClick={() => handleViewChange('clients')}
+                data-tutorial="clients-nav"
+              >
+                <Users className="h-4 w-4" />
+                Clients
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2"
+                onClick={() => handleNavigate('/billing')}
+                data-tutorial="billing-nav"
+              >
+                <DollarSign className="h-4 w-4" />
+                Billing
+              </Button>
+              <Button
+                variant={activeView === 'compliance' ? 'default' : 'ghost'}
+                className="w-full justify-start gap-2"
+                onClick={() => handleViewChange('compliance')}
+                data-tutorial="touchpoints-nav"
+              >
+                <ClipboardList className="h-4 w-4" />
+                Touchpoints
+              </Button>
+              {isSuperadmin && (
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2"
+                  onClick={() => handleNavigate('/audit-logs')}
+                  data-tutorial="audit-nav"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  Audit logs
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <Button
+                variant={activeView === 'compliance' ? 'default' : 'ghost'}
+                className="w-full justify-start gap-2"
+                onClick={() => handleViewChange('compliance')}
+                data-tutorial="touchpoints-nav"
+              >
+                <ClipboardList className="h-4 w-4" />
+                Touchpoints
+              </Button>
+              <Button
+                variant={activeView === 'calendar' ? 'default' : 'ghost'}
+                className="w-full justify-start gap-2"
+                onClick={() => handleViewChange('calendar')}
+                data-tutorial="calendar-nav"
+              >
+                <Calendar className="h-4 w-4" />
+                Calendar
+              </Button>
+              <Button
+                variant={activeView === 'clients' ? 'default' : 'ghost'}
+                className="w-full justify-start gap-2"
+                onClick={() => handleViewChange('clients')}
+                data-tutorial="clients-nav"
+              >
+                <Users className="h-4 w-4" />
+                My clients
+              </Button>
+              <Button
+                variant={activeView === 'notes' ? 'default' : 'ghost'}
+                className="w-full justify-start gap-2"
+                onClick={() => handleViewChange('notes')}
+              >
+                <FileText className="h-4 w-4" />
+                Notes
+              </Button>
+            </>
           )}
           <Button
             variant="ghost"
@@ -248,6 +271,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             Start walkthrough
           </Button>
         </div>
+
 
         {/* Recent Notes - Hidden on mobile to save space */}
         <div className="space-y-3 hidden md:block" data-tutorial="recent-notes">
