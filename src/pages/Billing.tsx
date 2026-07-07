@@ -30,7 +30,7 @@ const Billing = () => {
   }, [dataLoading, clients.length, regenerate]);
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading…</div>;
-  if (!isSuperadmin) return <Navigate to="/" replace />;
+  if (!isAdmin) return <Navigate to="/" replace />;
 
   const handleRegenerate = async () => {
     setRegenerating(true);
