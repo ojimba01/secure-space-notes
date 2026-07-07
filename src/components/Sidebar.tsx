@@ -49,7 +49,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
 
   useEffect(() => {
     if (user) {
-      checkAdminStatus();
       fetchRecentNotes();
     }
   }, [user]);
@@ -65,21 +64,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
     if (isMobile) setIsOpen(false);
   };
 
-  const checkAdminStatus = async () => {
-    if (!user) return;
-    
-    try {
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .in('role', ['admin', 'superadmin']);
-      
-      setIsAdmin(!!data && data.length > 0);
-    } catch (error) {
-      setIsAdmin(false);
-    }
-  };
 
   const fetchRecentNotes = async () => {
     try {
