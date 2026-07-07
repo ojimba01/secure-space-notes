@@ -299,7 +299,7 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
       )}
 
       {/* KPIs — clickable */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3" data-tutorial="tp-top-numbers">
         <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Overdue / audit risk" value={data.overdueClients.length}
           tone="danger" onClick={() => setDetail('overdue')} active={detail === 'overdue'}
           hint="Clients whose current 30-day window is at risk of missing requirements." />
