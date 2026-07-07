@@ -380,6 +380,7 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
           ) : data.upcoming.map((t) => tpRow(t))}
         </CardContent>
       </Card>
+      </div>
 
       {/* KPI details drawer */}
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
