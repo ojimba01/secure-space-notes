@@ -476,7 +476,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           </PopoverContent>
         </Popover>
         <Select value={levelFilter} onValueChange={setLevelFilter}>
-          <SelectTrigger className="w-auto min-w-[150px] shrink-0">
+          <SelectTrigger className="w-auto min-w-[150px] shrink-0" data-tutorial="lon-filter">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
