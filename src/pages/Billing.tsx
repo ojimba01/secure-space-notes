@@ -9,8 +9,10 @@ import { CycleDates } from '@/components/billing/CycleDates';
 import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePageTutorial } from '@/components/TutorialProvider';
 
 const Billing = () => {
+  usePageTutorial('admin-billing');
   const { isAdmin, loading } = useIsAdmin();
   const navigate = useNavigate();
   const { loading: dataLoading, clients, cycles, regenerate } = useBilling();
@@ -68,9 +70,9 @@ const Billing = () => {
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
-              <TabsTrigger value="overview">Billing overview</TabsTrigger>
-              <TabsTrigger value="cycles">Cycle dates</TabsTrigger>
-              <TabsTrigger value="timeline" disabled={!timelineClientId}>Client detail</TabsTrigger>
+              <TabsTrigger value="overview" data-tutorial="billing-overview-tab">Billing overview</TabsTrigger>
+              <TabsTrigger value="cycles" data-tutorial="cycle-dates-tab">Cycle dates</TabsTrigger>
+              <TabsTrigger value="timeline" data-tutorial="client-detail-tab" disabled={!timelineClientId}>Client detail</TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="mt-4">
               <BillingOverview clients={clients} cycles={cycles} onOpenTimeline={openTimeline} />

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./components/AuthProvider";
 import { ViewAsProvider, useViewAs } from "./components/ViewAsProvider";
+import { TutorialProvider } from "./components/TutorialProvider";
 import { useIsAdmin } from "./hooks/useIsAdmin";
 import { ViewAsBanner } from "./components/ViewAsBanner";
 import Index from "./pages/Index";
@@ -43,18 +44,20 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <ViewAsProvider>
-            <ViewAsBanner />
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-              <Route path="/billing" element={<AdminRoute><Billing /></AdminRoute>} />
-              <Route path="/audit-logs" element={<SuperadminRoute><AuditLogs /></SuperadminRoute>} />
+            <TutorialProvider>
+              <ViewAsBanner />
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+                <Route path="/billing" element={<AdminRoute><Billing /></AdminRoute>} />
+                <Route path="/audit-logs" element={<SuperadminRoute><AuditLogs /></SuperadminRoute>} />
 
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </TutorialProvider>
           </ViewAsProvider>
         </BrowserRouter>
       </TooltipProvider>

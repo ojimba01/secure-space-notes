@@ -278,7 +278,7 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
           <h1 className="text-2xl font-bold">Touchpoints</h1>
           <p className="text-muted-foreground">Your work queue and audit-risk view for the current 30-day billing windows.</p>
         </div>
-        <Button onClick={openAdd} className="shrink-0">
+        <Button onClick={openAdd} className="shrink-0" data-tutorial="add-touchpoint-btn">
           <Plus className="h-4 w-4 mr-2" />
           Add touchpoint
         </Button>
@@ -286,9 +286,9 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
 
       {/* reminders */}
       {(remainingCount > 0 || data.unscheduledInPerson > 0) && (
-        <Alert>
+        <Alert data-tutorial="supervisor-reminders">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Reminders</AlertTitle>
+          <AlertTitle>Supervisor reminders</AlertTitle>
           <AlertDescription>
             <ul className="list-disc pl-5 space-y-0.5">
               {remainingCount > 0 && <li>You have {remainingCount} touchpoint{remainingCount === 1 ? '' : 's'} remaining this week.</li>}
@@ -299,7 +299,7 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
       )}
 
       {/* KPIs — clickable */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3" data-tutorial="tp-top-numbers">
         <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Overdue / audit risk" value={data.overdueClients.length}
           tone="danger" onClick={() => setDetail('overdue')} active={detail === 'overdue'}
           hint="Clients whose current 30-day window is at risk of missing requirements." />
@@ -368,8 +368,9 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
       </Card>
 
       {/* Section 3: Upcoming scheduled touchpoints (next 30 days) */}
-      <Card>
-        <CardHeader>
+      <div data-tutorial="tp-upcoming-week">
+        <Card>
+          <CardHeader>
           <CardTitle className="text-lg">Upcoming scheduled touchpoints</CardTitle>
           <p className="text-sm text-muted-foreground">Scheduled touchpoints over the next 30 days. Full detail is on your calendar.</p>
         </CardHeader>
@@ -379,6 +380,7 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
           ) : data.upcoming.map((t) => tpRow(t))}
         </CardContent>
       </Card>
+      </div>
 
       {/* KPI details drawer */}
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>

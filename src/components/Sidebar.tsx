@@ -38,7 +38,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOpenNote }) => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { startTutorial } = useTutorial();
+  const { startTutorial, openHelp } = useTutorial();
   const [recentNotes, setRecentNotes] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -261,8 +261,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
           <Button
             variant="ghost"
             className="w-full justify-start gap-2"
-            onClick={() => handleNavigate('/onboarding')}
-            data-tutorial="onboarding-nav"
+            onClick={() => { openHelp(); if (isMobile) setIsOpen(false); }}
+            data-tutorial="help-guide-nav"
           >
             <BookOpen className="h-4 w-4" />
             Help guide
@@ -270,7 +270,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
           <Button
             variant="ghost"
             className="w-full justify-start gap-2 text-primary"
-            onClick={() => startTutorial()}
+            onClick={() => { startTutorial(); if (isMobile) setIsOpen(false); }}
           >
             <Play className="h-4 w-4" />
             Start walkthrough

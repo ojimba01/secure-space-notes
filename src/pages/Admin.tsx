@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardPriorities } from '@/components/dashboard/DashboardPriorities';
+import { usePageTutorial } from '@/components/TutorialProvider';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,6 +46,7 @@ const getErrorMessage = (error: unknown) =>
 
 const Admin = () => {
   const navigate = useNavigate();
+  usePageTutorial('admin-dashboard');
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -286,7 +288,9 @@ const Admin = () => {
         </div>
 
         {/* Priority cards */}
-        <DashboardPriorities />
+        <div data-tutorial="priority-cards">
+          <DashboardPriorities />
+        </div>
 
 
         {/* Stats Cards */}
