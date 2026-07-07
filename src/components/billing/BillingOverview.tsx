@@ -97,7 +97,7 @@ export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeli
           className="w-64"
         />
         <Select value={stage} onValueChange={(v) => setStage(v as 'all' | ApprovalStage)}>
-          <SelectTrigger className="w-56"><SelectValue placeholder="Approval status" /></SelectTrigger>
+          <SelectTrigger className="w-56" data-tutorial="billing-approval-status"><SelectValue placeholder="Approval status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All approval statuses</SelectItem>
             {APPROVAL_STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -105,7 +105,7 @@ export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeli
         </Select>
       </div>
 
-      <div className="flex flex-wrap gap-1 border rounded-md p-1 w-fit">
+      <div className="flex flex-wrap gap-1 border rounded-md p-1 w-fit" data-tutorial="billing-urgency-filters">
         {URGENCY_FILTERS.map((f) => (
           <Button key={f.key} size="sm" variant={urgency === f.key ? 'default' : 'ghost'} onClick={() => setUrgency(f.key)}>
             {f.label}
