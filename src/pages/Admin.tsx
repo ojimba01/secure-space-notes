@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ComplianceEscalations } from '@/components/ComplianceEscalations';
+import { DashboardPriorities } from '@/components/dashboard/DashboardPriorities';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
