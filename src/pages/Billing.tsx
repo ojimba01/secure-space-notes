@@ -9,8 +9,10 @@ import { CycleDates } from '@/components/billing/CycleDates';
 import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePageTutorial } from '@/components/TutorialProvider';
 
 const Billing = () => {
+  usePageTutorial('admin-billing');
   const { isAdmin, loading } = useIsAdmin();
   const navigate = useNavigate();
   const { loading: dataLoading, clients, cycles, regenerate } = useBilling();
