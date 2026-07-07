@@ -109,8 +109,12 @@ const Index = () => {
     return <Navigate to="/onboarding" replace />;
   }
 
+  // Admins previewing as staff should get the staff walkthroughs.
+  const effectiveRole = isViewingAs ? 'staff' : role;
+  const tutorialKey = resolveTutorialKey(effectiveRole, '/', activeView);
+
   return (
-    <TutorialProvider>
+    <IndexTutorialBinding tutorialKey={tutorialKey}>
       <div className={`flex h-screen bg-background w-full overflow-hidden ${isViewingAs ? 'pt-9' : ''}`}>
         <Sidebar activeView={activeView} onViewChange={handleViewChange} onOpenNote={handleOpenNote} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
@@ -134,8 +138,17 @@ const Index = () => {
           )}
         </main>
       </div>
-    </TutorialProvider>
+    </IndexTutorialBinding>
   );
+};
+
+/** Registers the active page's tutorial while Index is mounted. */
+const IndexTutorialBinding: React.FC<{
+  tutorialKey: string | null;
+  children: React.ReactNode;
+}> = ({ tutorialKey, children }) => {
+  usePageTutorial(tutorialKey);
+  return <>{children}</>;
 };
 
 export default Index;
