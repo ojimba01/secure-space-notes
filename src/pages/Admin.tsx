@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ComplianceEscalations } from '@/components/ComplianceEscalations';
+import { DashboardPriorities } from '@/components/dashboard/DashboardPriorities';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -281,9 +281,13 @@ const Admin = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Shield className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Admin dashboard</h1>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
           </div>
         </div>
+
+        {/* Priority cards */}
+        <DashboardPriorities />
+
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -338,8 +342,7 @@ const Admin = () => {
           </Card>
         </div>
 
-        {/* Compliance escalations */}
-        <ComplianceEscalations />
+
 
         {/* Employees List */}
         <Card>
