@@ -13,7 +13,7 @@ import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Billing = () => {
-  const { isSuperadmin, loading } = useIsSuperadmin();
+  const { isAdmin, loading } = useIsAdmin();
   const navigate = useNavigate();
   const { loading: dataLoading, clients, cycles, refresh, regenerate } = useBilling();
   const [tab, setTab] = useState('dashboard');
