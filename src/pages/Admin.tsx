@@ -288,7 +288,9 @@ const Admin = () => {
         </div>
 
         {/* Priority cards */}
-        <DashboardPriorities />
+        <div data-tutorial="priority-cards">
+          <DashboardPriorities />
+        </div>
 
 
         {/* Stats Cards */}
