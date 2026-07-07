@@ -342,8 +342,7 @@ const Admin = () => {
           </Card>
         </div>
 
-        {/* Compliance escalations */}
-        <ComplianceEscalations />
+
 
         {/* Employees List */}
         <Card>
