@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useBilling } from '@/hooks/useBilling';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
