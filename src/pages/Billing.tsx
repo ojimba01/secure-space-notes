@@ -4,11 +4,9 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useBilling } from '@/hooks/useBilling';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { RevenueDashboard } from '@/components/billing/RevenueDashboard';
-import { BillingMasterList } from '@/components/billing/BillingMasterList';
+import { BillingOverview } from '@/components/billing/BillingOverview';
+import { CycleDates } from '@/components/billing/CycleDates';
 import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
-import { UpcomingDeadlines } from '@/components/billing/UpcomingDeadlines';
-import { BillingByStaff } from '@/components/billing/BillingByStaff';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -16,10 +14,11 @@ const Billing = () => {
   const { isAdmin, loading } = useIsAdmin();
   const navigate = useNavigate();
   const { loading: dataLoading, clients, cycles, refresh, regenerate } = useBilling();
-  const [tab, setTab] = useState('dashboard');
+  const [tab, setTab] = useState('overview');
   const [timelineClientId, setTimelineClientId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const autoRan = useRef(false);
+
 
   // Auto-generate all cycles once after initial load so deadlines and billing
   // details reflect every cycle (not just cycle 1) without a manual refresh.
