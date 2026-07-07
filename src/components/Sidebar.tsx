@@ -38,7 +38,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOpenNote }) => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { startTutorial } = useTutorial();
+  const { startTutorial, openHelp } = useTutorial();
   const [recentNotes, setRecentNotes] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
