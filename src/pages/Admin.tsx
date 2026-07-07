@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardPriorities } from '@/components/dashboard/DashboardPriorities';
+import { usePageTutorial } from '@/components/TutorialProvider';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
