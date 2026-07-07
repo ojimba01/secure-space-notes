@@ -68,28 +68,21 @@ const Billing = () => {
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
-              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-              <TabsTrigger value="deadlines">Deadlines</TabsTrigger>
-              <TabsTrigger value="master">Case status</TabsTrigger>
-              <TabsTrigger value="staff">By case manager</TabsTrigger>
-              <TabsTrigger value="timeline" disabled={!timelineClientId}>Billing details</TabsTrigger>
+              <TabsTrigger value="overview">Billing overview</TabsTrigger>
+              <TabsTrigger value="cycles">Cycle dates</TabsTrigger>
+              <TabsTrigger value="timeline" disabled={!timelineClientId}>Client detail</TabsTrigger>
             </TabsList>
-            <TabsContent value="dashboard" className="mt-4">
-              <RevenueDashboard clients={clients} cycles={cycles} refresh={refresh} onOpenDeadlines={() => setTab('deadlines')} />
+            <TabsContent value="overview" className="mt-4">
+              <BillingOverview clients={clients} cycles={cycles} onOpenTimeline={openTimeline} />
             </TabsContent>
-            <TabsContent value="deadlines" className="mt-4">
-              <UpcomingDeadlines clients={clients} cycles={cycles} refresh={refresh} onOpenTimeline={openTimeline} />
-            </TabsContent>
-            <TabsContent value="master" className="mt-4">
-              <BillingMasterList clients={clients} cycles={cycles} refresh={refresh} onOpenTimeline={openTimeline} />
-            </TabsContent>
-            <TabsContent value="staff" className="mt-4">
-              <BillingByStaff clients={clients} cycles={cycles} onOpenTimeline={openTimeline} />
+            <TabsContent value="cycles" className="mt-4">
+              <CycleDates clients={clients} cycles={cycles} onOpenTimeline={openTimeline} />
             </TabsContent>
             <TabsContent value="timeline" className="mt-4">
               {timelineClientId && <ClientBillingTimeline clientId={timelineClientId} />}
             </TabsContent>
           </Tabs>
+
         )}
       </div>
     </div>
