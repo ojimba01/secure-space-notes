@@ -278,7 +278,7 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
           <h1 className="text-2xl font-bold">Touchpoints</h1>
           <p className="text-muted-foreground">Your work queue and audit-risk view for the current 30-day billing windows.</p>
         </div>
-        <Button onClick={openAdd} className="shrink-0">
+        <Button onClick={openAdd} className="shrink-0" data-tutorial="add-touchpoint-btn">
           <Plus className="h-4 w-4 mr-2" />
           Add touchpoint
         </Button>
