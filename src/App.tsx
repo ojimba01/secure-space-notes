@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./components/AuthProvider";
 import { ViewAsProvider, useViewAs } from "./components/ViewAsProvider";
+import { TutorialProvider } from "./components/TutorialProvider";
 import { useIsAdmin } from "./hooks/useIsAdmin";
 import { ViewAsBanner } from "./components/ViewAsBanner";
 import Index from "./pages/Index";
