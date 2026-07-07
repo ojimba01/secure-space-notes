@@ -70,9 +70,9 @@ const Billing = () => {
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
-              <TabsTrigger value="overview">Billing overview</TabsTrigger>
-              <TabsTrigger value="cycles">Cycle dates</TabsTrigger>
-              <TabsTrigger value="timeline" disabled={!timelineClientId}>Client detail</TabsTrigger>
+              <TabsTrigger value="overview" data-tutorial="billing-overview-tab">Billing overview</TabsTrigger>
+              <TabsTrigger value="cycles" data-tutorial="cycle-dates-tab">Cycle dates</TabsTrigger>
+              <TabsTrigger value="timeline" data-tutorial="client-detail-tab" disabled={!timelineClientId}>Client detail</TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="mt-4">
               <BillingOverview clients={clients} cycles={cycles} onOpenTimeline={openTimeline} />
