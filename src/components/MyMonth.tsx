@@ -286,9 +286,9 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
 
       {/* reminders */}
       {(remainingCount > 0 || data.unscheduledInPerson > 0) && (
-        <Alert>
+        <Alert data-tutorial="supervisor-reminders">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Reminders</AlertTitle>
+          <AlertTitle>Supervisor reminders</AlertTitle>
           <AlertDescription>
             <ul className="list-disc pl-5 space-y-0.5">
               {remainingCount > 0 && <li>You have {remainingCount} touchpoint{remainingCount === 1 ? '' : 's'} remaining this week.</li>}
