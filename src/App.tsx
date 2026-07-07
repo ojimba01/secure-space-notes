@@ -28,8 +28,9 @@ const SuperadminRoute = ({ children }: { children: JSX.Element }) => {
 // Admin + Superadmin routes (Dashboard, Billing). Hidden while previewing as staff.
 const AdminRoute = ({ children }: { children: JSX.Element }) => {
   const { isViewingAs } = useViewAs();
+  const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading } = useIsAdmin();
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading…</div>;
+  if (authLoading || loading) return <div className="flex items-center justify-center min-h-screen">Loading…</div>;
   if (isViewingAs || !isAdmin) return <Navigate to="/" replace />;
   return children;
 };
