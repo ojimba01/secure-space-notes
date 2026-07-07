@@ -9,11 +9,13 @@ export const useIsAdmin = () => {
 
   useEffect(() => {
     const checkAdmin = async () => {
+      setLoading(true);
       if (!user) {
         setIsAdmin(false);
         setLoading(false);
         return;
       }
+
 
       try {
         const { data } = await supabase
