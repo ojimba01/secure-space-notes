@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useBilling } from '@/hooks/useBilling';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -13,7 +13,7 @@ import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Billing = () => {
-  const { isSuperadmin, loading } = useIsSuperadmin();
+  const { isAdmin, loading } = useIsAdmin();
   const navigate = useNavigate();
   const { loading: dataLoading, clients, cycles, refresh, regenerate } = useBilling();
   const [tab, setTab] = useState('dashboard');
@@ -30,7 +30,7 @@ const Billing = () => {
   }, [dataLoading, clients.length, regenerate]);
 
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading…</div>;
-  if (!isSuperadmin) return <Navigate to="/" replace />;
+  if (!isAdmin) return <Navigate to="/" replace />;
 
   const handleRegenerate = async () => {
     setRegenerating(true);
