@@ -356,6 +356,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
             </Button>
             <Button
               size="sm"
+              data-tutorial="add-client-btn"
               className="md:size-default"
               onClick={() => setShowAddDialog(true)}
               disabled={!isAdmin && behindCount >= 5}
