@@ -25,6 +25,15 @@ const SuperadminRoute = ({ children }: { children: JSX.Element }) => {
   return isViewingAs ? <Navigate to="/" replace /> : children;
 };
 
+// Admin + Superadmin routes (Dashboard, Billing). Hidden while previewing as staff.
+const AdminRoute = ({ children }: { children: JSX.Element }) => {
+  const { isViewingAs } = useViewAs();
+  const { isAdmin, loading } = useIsAdmin();
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading…</div>;
+  if (isViewingAs || !isAdmin) return <Navigate to="/" replace />;
+  return children;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
