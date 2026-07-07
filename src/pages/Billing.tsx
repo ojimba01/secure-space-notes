@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 const Billing = () => {
   const { isAdmin, loading } = useIsAdmin();
   const navigate = useNavigate();
-  const { loading: dataLoading, clients, cycles, refresh, regenerate } = useBilling();
+  const { loading: dataLoading, clients, cycles, regenerate } = useBilling();
   const [tab, setTab] = useState('overview');
   const [timelineClientId, setTimelineClientId] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
