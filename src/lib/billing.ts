@@ -261,3 +261,86 @@ export function getNextBillDue(
   const cycle = generated.find((c) => c.cycle_number === cur) ?? generated[generated.length - 1];
   return cycle ? cycle.cycle_end : null;
 }
+
+// ---- Per-client billing status helpers (used by Billing Overview & Cycle Dates) ----
+
+// A cycle is an "open claim" if it still needs to be billed (not submitted/paid/denied).
+export function isOpenClaim(c: BillingCycle): boolean {
+  return (
+    c.billing_status !== 'Submitted' &&
+    c.billing_status !== 'Denied' &&
+    c.payment_status !== 'Paid'
+  );
+}
+
+export type BillingUrgency = 'due_48' | 'due_week' | 'overdue' | 'none';
+
+// Compute the urgency of a single cycle relative to today.
+export function cycleUrgency(c: BillingCycle, today = todayAgency()): BillingUrgency {
+  if (!isOpenClaim(c)) return 'none';
+  const daysToEnd = daysBetween(today, c.cycle_end); // >0 future, <0 past
+  if (daysToEnd < 0) return 'overdue';
+  if (daysToEnd <= 2) return 'due_48';
+  if (daysToEnd <= 7) return 'due_week';
+  return 'none';
+}
+
+export interface ClientBillingSummary {
+  urgency: BillingUrgency; // most severe across open cycles
+  dueDate: string | null; // end date of the current/next open cycle
+  hasDenied: boolean;
+  hasPaid: boolean;
+  claimStatus: BillingStatus | null; // current cycle billing status
+  currentCycleNumber: number | null;
+}
+
+const URGENCY_RANK: Record<BillingUrgency, number> = { overdue: 3, due_48: 2, due_week: 1, none: 0 };
+
+// Roll a client's cycles into a single summary for the overview row.
+export function summarizeClientBilling(
+  client: { auth_150_start?: string | null },
+  cycles: BillingCycle[],
+  today = todayAgency(),
+): ClientBillingSummary {
+  const cur = currentCycleNumber(client.auth_150_start, today);
+  const currentCycle = cycles.find((c) => c.cycle_number === cur) ?? null;
+  let urgency: BillingUrgency = 'none';
+  let dueDate: string | null = currentCycle?.cycle_end ?? null;
+  for (const c of cycles) {
+    const u = cycleUrgency(c, today);
+    if (URGENCY_RANK[u] > URGENCY_RANK[urgency]) {
+      urgency = u;
+      dueDate = c.cycle_end;
+    }
+  }
+  return {
+    urgency,
+    dueDate,
+    hasDenied: cycles.some((c) => c.billing_status === 'Denied'),
+    hasPaid: cycles.some((c) => c.payment_status === 'Paid'),
+    claimStatus: currentCycle?.billing_status ?? null,
+    currentCycleNumber: cur,
+  };
+}
+
+// Approval-stage filter values shown in the Billing Overview dropdown.
+export const APPROVAL_STAGES = [
+  'Pending HSP approval',
+  'HSP approved',
+  'Pending billing approval',
+  'Billing approved',
+] as const;
+export type ApprovalStage = (typeof APPROVAL_STAGES)[number];
+
+// Derive a client's approval stage from HSP approval + billing progress.
+export function approvalStageFor(
+  client: { approval_status?: string | null },
+  cycles: BillingCycle[],
+): ApprovalStage {
+  const hspApproved = client.approval_status === 'Approved';
+  if (!hspApproved) return 'Pending HSP approval';
+  const anyBilled = cycles.some((c) => c.billing_status === 'Submitted' || c.payment_status === 'Paid');
+  if (anyBilled) return 'Billing approved';
+  const anyReady = cycles.some((c) => c.billing_status !== 'Not Billed');
+  return anyReady ? 'Pending billing approval' : 'HSP approved';
+}
