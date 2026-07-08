@@ -2,17 +2,17 @@
 // Mirrors the per-client logic in useBilling.regenerateClient so it can be
 // called right after a client is created/edited, without loading the whole hook.
 import { supabase } from '@/integrations/supabase/client';
-import { BillingCycle, generateCyclesForClient } from '@/lib/billing';
+import { BillingCycle, generateCyclesForClient, isSetupComplete } from '@/lib/billing';
 
 export async function regenerateClientCycles(clientId: string): Promise<void> {
   const { data: client } = await supabase
     .from('clients')
-    .select('id, status, level_of_need, auth_150_start, auth_150_end, auth_180_start, auth_180_end')
+    .select('id, status, approval_status, level_of_need, auth_150_start, auth_150_end, auth_180_start, auth_180_end')
     .eq('id', clientId)
     .maybeSingle();
 
   if (!client) return;
-  if (client.status !== 'active' || !client.auth_150_start) return;
+  if (client.status !== 'active' || !isSetupComplete(client)) return;
 
   const { data: existingRows } = await supabase
     .from('billing_cycles')

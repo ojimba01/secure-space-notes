@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   BillingCycle,
   generateCyclesForClient,
+  isSetupComplete,
   rateForLevel,
 } from '@/lib/billing';
 
@@ -72,7 +73,7 @@ export function useBilling(): BillingData {
     );
     const { data: cyc } = await supabase.from('billing_cycles').select('*').order('cycle_number');
     const mapped = ((cls as Array<Omit<BillingClient, 'assigned_staff_name'>>) ?? [])
-      .filter((c) => c.approval_status === 'Approved')
+      .filter((c) => isSetupComplete(c))
       .map((c) => ({
         ...c,
         assigned_staff_name: c.assigned_employee_id ? nameById.get(c.assigned_employee_id) ?? null : null,
@@ -89,7 +90,7 @@ export function useBilling(): BillingData {
   // Generate missing cycles + refresh still-auto cycles for a single client.
   const regenerateOne = useCallback(
     async (client: BillingClient, existing: BillingCycle[]) => {
-      if (!isOpen(client) || !client.auth_150_start) return { created: 0, updated: 0 };
+      if (!isOpen(client) || !isSetupComplete(client)) return { created: 0, updated: 0 };
       const ideal = generateCyclesForClient(client);
       const byNumber = new Map(existing.map((c) => [c.cycle_number, c]));
       let created = 0;
@@ -119,6 +120,22 @@ export function useBilling(): BillingData {
             await supabase.from('billing_cycles').update(patch).eq('id', found.id);
             updated++;
           }
+        }
+      }
+      // Trim stale auto-generated cycles beyond the current run, but only when
+      // they carry no manual claim/payment history.
+      const maxNum = ideal.length ? ideal[ideal.length - 1].cycle_number : 0;
+      for (const c of existing) {
+        if (
+          c.cycle_number > maxNum &&
+          c.is_auto_generated &&
+          c.billing_status === 'Not Billed' &&
+          c.payment_status === 'Unpaid' &&
+          !c.submitted_date &&
+          !c.paid_date &&
+          !c.claim_number
+        ) {
+          await supabase.from('billing_cycles').delete().eq('id', c.id);
         }
       }
       return { created, updated };

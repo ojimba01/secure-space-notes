@@ -5,6 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const CYCLE_LENGTH_DAYS = 30;
 const MAX_CYCLES = 12;
+const CYCLES_150 = 5;
 const RATE_LOW = 320;
 const RATE_HIGH = 640;
 
@@ -17,21 +18,37 @@ function toDate(s: string) { return new Date(`${s}T12:00:00Z`); }
 function fmt(d: Date) { return d.toISOString().slice(0, 10); }
 function addDays(s: string, days: number) { const d = toDate(s); d.setUTCDate(d.getUTCDate() + days); return fmt(d); }
 function daysBetween(a: string, b: string) { return Math.round((toDate(b).getTime() - toDate(a).getTime()) / 86400000); }
-function rateForLevel(level: string | null) { return level === 'Low Level' ? RATE_LOW : level === 'High Level' ? RATE_HIGH : null; }
+function rateForLevel(level: string | null) {
+  if (!level) return null;
+  const l = level.trim().toLowerCase();
+  if (l.startsWith('low')) return RATE_LOW;
+  if (l.startsWith('high')) return RATE_HIGH;
+  return null;
+}
+function isHspSubmitted(client: any) {
+  const s = (client.approval_status ?? '').trim().toLowerCase();
+  return s === 'submitted' || s === 'approved';
+}
+function isSetupComplete(client: any) {
+  return isHspSubmitted(client) && !!client.auth_150_start && rateForLevel(client.level_of_need) != null;
+}
 
 function generateCycles(client: any) {
   const start = client.auth_150_start;
   if (!start) return [] as any[];
-  const endOfRun = client.auth_180_end || client.auth_150_end || null;
   const amount = rateForLevel(client.level_of_need);
+  const has180 = !!(client.auth_180_start || client.auth_180_end);
+  let lastCycle = CYCLES_150;
+  if (has180 && client.auth_180_end) {
+    const diff = daysBetween(start, client.auth_180_end);
+    if (diff >= 0) lastCycle = Math.min(Math.max(CYCLES_150, Math.floor(diff / CYCLE_LENGTH_DAYS) + 1), MAX_CYCLES);
+  }
   const cycles: any[] = [];
-  for (let n = 1; n <= MAX_CYCLES; n++) {
+  for (let n = 1; n <= lastCycle; n++) {
     const cycleStart = addDays(start, CYCLE_LENGTH_DAYS * (n - 1));
-    if (endOfRun && daysBetween(cycleStart, endOfRun) < 0) break;
     const cycleEnd = addDays(cycleStart, CYCLE_LENGTH_DAYS - 1);
-    const phase = client.auth_150_end && daysBetween(cycleStart, client.auth_150_end) >= 0 ? '150-Day' : '180-Day';
+    const phase = n <= CYCLES_150 ? '150-Day' : '180-Day';
     cycles.push({ cycle_number: n, phase, cycle_start: cycleStart, cycle_end: cycleEnd, billed_amount: amount });
-    if (endOfRun && daysBetween(cycleEnd, endOfRun) >= 0) break;
   }
   return cycles;
 }
@@ -48,7 +65,7 @@ Deno.serve(async (req) => {
 
   const { data: clients } = await supabase
     .from('clients')
-    .select('id, level_of_need, status, auth_150_start, auth_150_end, auth_180_start, auth_180_end')
+    .select('id, level_of_need, status, approval_status, auth_150_start, auth_150_end, auth_180_start, auth_180_end')
     .eq('status', 'active');
 
   const { data: allCycles } = await supabase.from('billing_cycles').select('*');
@@ -59,7 +76,7 @@ Deno.serve(async (req) => {
   });
 
   for (const client of clients ?? []) {
-    if (!client.auth_150_start) continue;
+    if (!isSetupComplete(client)) continue;
     const existing = byClient.get(client.id) ?? [];
     const byNumber = new Map(existing.map((c: any) => [c.cycle_number, c]));
     for (const g of generateCycles(client)) {
@@ -82,6 +99,18 @@ Deno.serve(async (req) => {
           await supabase.from('billing_cycles').update(patch).eq('id', found.id);
           updated++;
         }
+      }
+    }
+    // Trim stale auto-generated cycles beyond the run with no manual history.
+    const ideal = generateCycles(client);
+    const maxNum = ideal.length ? ideal[ideal.length - 1].cycle_number : 0;
+    for (const c of existing) {
+      if (
+        c.cycle_number > maxNum && c.is_auto_generated &&
+        c.billing_status === 'Not Billed' && c.payment_status === 'Unpaid' &&
+        !c.submitted_date && !c.paid_date && !c.claim_number
+      ) {
+        await supabase.from('billing_cycles').delete().eq('id', c.id);
       }
     }
   }

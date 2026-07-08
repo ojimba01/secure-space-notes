@@ -26,6 +26,12 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({
   onStart,
 }) => {
   const tutorials = tutorialsForRole(role);
+  const subtitle =
+    role === 'superadmin'
+      ? 'Start a page tour or review supervisor workflows.'
+      : role === 'staff'
+        ? 'Start a page tour or review staff workflows.'
+        : 'Start a page tour or review how each workflow works.';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -35,10 +41,7 @@ export const HelpGuide: React.FC<HelpGuideProps> = ({
             <BookOpen className="h-5 w-5 text-primary" />
             Help Guide
           </DialogTitle>
-          <DialogDescription>
-            Launch a guided walkthrough for any part of the app. Each one highlights
-            the real controls on the page.
-          </DialogDescription>
+          <DialogDescription>{subtitle}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
