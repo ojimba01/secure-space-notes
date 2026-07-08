@@ -60,9 +60,12 @@ export function monthKey(s: string): string {
   return s.slice(0, 7); // YYYY-MM
 }
 
+// Accept legacy/short labels ("Low", "High") as well as "Low Level" / "High Level".
 export function rateForLevel(level: string | null | undefined): number | null {
-  if (level === 'Low Level') return RATE_LOW;
-  if (level === 'High Level') return RATE_HIGH;
+  if (!level) return null;
+  const l = level.trim().toLowerCase();
+  if (l.startsWith('low')) return RATE_LOW;
+  if (l.startsWith('high')) return RATE_HIGH;
   return null;
 }
 
