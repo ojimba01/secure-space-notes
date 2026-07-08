@@ -51,15 +51,15 @@ const Billing = () => {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5" /></Button>
-            <h1 className="text-2xl font-bold">Billing and revenue</h1>
+            <h1 className="text-2xl font-bold whitespace-nowrap">Billing</h1>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <Button onClick={handleRegenerate} disabled={regenerating} className="gap-2">
+            <Button onClick={handleRegenerate} disabled={regenerating} className="gap-2 whitespace-nowrap" data-tutorial="regenerate-cycles-btn">
               <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
               Regenerate cycles
             </Button>
             <p className="text-xs text-muted-foreground max-w-xs text-right">
-              Regenerate cycles updates dates and missing cycle rows. It does not erase submitted claims or payment history.
+              Regenerate cycles updates missing cycle rows and dates without erasing claim or payment history.
             </p>
           </div>
         </div>
