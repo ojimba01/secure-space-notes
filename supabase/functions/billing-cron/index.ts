@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
 
   const { data: clients } = await supabase
     .from('clients')
-    .select('id, level_of_need, status, auth_150_start, auth_150_end, auth_180_start, auth_180_end')
+    .select('id, level_of_need, status, approval_status, auth_150_start, auth_150_end, auth_180_start, auth_180_end')
     .eq('status', 'active');
 
   const { data: allCycles } = await supabase.from('billing_cycles').select('*');
