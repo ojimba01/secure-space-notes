@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   BillingCycle,
   generateCyclesForClient,
+  isSetupComplete,
   rateForLevel,
 } from '@/lib/billing';
 
