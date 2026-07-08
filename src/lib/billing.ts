@@ -78,6 +78,8 @@ export interface GeneratedCycle {
 }
 
 // Generate the ideal set of 30-day cycles for a client from their auth dates.
+// Anchor = auth_150_start (the HSP approval start date maps to this column).
+// Default 5 cycles for the 150-day run; extend through the 180-day end when present.
 export function generateCyclesForClient(client: {
   auth_150_start?: string | null;
   auth_150_end?: string | null;
@@ -87,20 +89,25 @@ export function generateCyclesForClient(client: {
 }): GeneratedCycle[] {
   const start = client.auth_150_start;
   if (!start) return [];
-  const endOfRun = client.auth_180_end || client.auth_150_end || null;
   const amount = rateForLevel(client.level_of_need);
-  const cycles: GeneratedCycle[] = [];
+  const has180 = !!(client.auth_180_start || client.auth_180_end);
 
-  for (let n = 1; n <= MAX_CYCLES; n++) {
+  // Base run is 5 cycles. If a 180-day extension exists, continue through its end.
+  let lastCycle = CYCLES_150;
+  if (has180 && client.auth_180_end) {
+    const diff = daysBetween(start, client.auth_180_end);
+    if (diff >= 0) {
+      const needed = Math.floor(diff / CYCLE_LENGTH_DAYS) + 1;
+      lastCycle = Math.min(Math.max(CYCLES_150, needed), MAX_CYCLES);
+    }
+  }
+
+  const cycles: GeneratedCycle[] = [];
+  for (let n = 1; n <= lastCycle; n++) {
     const cycleStart = addDays(start, CYCLE_LENGTH_DAYS * (n - 1));
-    if (endOfRun && daysBetween(cycleStart, endOfRun) < 0) break; // start passed end-of-run
     const cycleEnd = addDays(cycleStart, CYCLE_LENGTH_DAYS - 1);
-    const phase =
-      client.auth_150_end && daysBetween(cycleStart, client.auth_150_end) >= 0
-        ? '150-Day'
-        : '180-Day';
+    const phase = n <= CYCLES_150 ? '150-Day' : '180-Day';
     cycles.push({ cycle_number: n, phase, cycle_start: cycleStart, cycle_end: cycleEnd, billed_amount: amount });
-    if (endOfRun && daysBetween(cycleEnd, endOfRun) >= 0) break; // covered end-of-run
   }
   return cycles;
 }
