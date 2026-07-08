@@ -90,7 +90,7 @@ export function useBilling(): BillingData {
   // Generate missing cycles + refresh still-auto cycles for a single client.
   const regenerateOne = useCallback(
     async (client: BillingClient, existing: BillingCycle[]) => {
-      if (!isOpen(client) || !client.auth_150_start) return { created: 0, updated: 0 };
+      if (!isOpen(client) || !isSetupComplete(client)) return { created: 0, updated: 0 };
       const ideal = generateCyclesForClient(client);
       const byNumber = new Map(existing.map((c) => [c.cycle_number, c]));
       let created = 0;
