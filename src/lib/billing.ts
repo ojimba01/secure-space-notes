@@ -4,6 +4,8 @@
 export const AGENCY_TZ = 'America/New_York';
 export const CYCLE_LENGTH_DAYS = 30;
 export const MAX_CYCLES = 12;
+// A standard 150-day authorization run is 5 x 30-day billing cycles.
+export const CYCLES_150 = 5;
 
 export const RATE_LOW = 320;
 export const RATE_HIGH = 640;
