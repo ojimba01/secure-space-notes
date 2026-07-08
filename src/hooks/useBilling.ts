@@ -122,6 +122,22 @@ export function useBilling(): BillingData {
           }
         }
       }
+      // Trim stale auto-generated cycles beyond the current run, but only when
+      // they carry no manual claim/payment history.
+      const maxNum = ideal.length ? ideal[ideal.length - 1].cycle_number : 0;
+      for (const c of existing) {
+        if (
+          c.cycle_number > maxNum &&
+          c.is_auto_generated &&
+          c.billing_status === 'Not Billed' &&
+          c.payment_status === 'Unpaid' &&
+          !c.submitted_date &&
+          !c.paid_date &&
+          !c.claim_number
+        ) {
+          await supabase.from('billing_cycles').delete().eq('id', c.id);
+        }
+      }
       return { created, updated };
     },
     [],
