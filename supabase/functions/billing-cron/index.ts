@@ -101,6 +101,18 @@ Deno.serve(async (req) => {
         }
       }
     }
+    // Trim stale auto-generated cycles beyond the run with no manual history.
+    const ideal = generateCycles(client);
+    const maxNum = ideal.length ? ideal[ideal.length - 1].cycle_number : 0;
+    for (const c of existing) {
+      if (
+        c.cycle_number > maxNum && c.is_auto_generated &&
+        c.billing_status === 'Not Billed' && c.payment_status === 'Unpaid' &&
+        !c.submitted_date && !c.paid_date && !c.claim_number
+      ) {
+        await supabase.from('billing_cycles').delete().eq('id', c.id);
+      }
+    }
   }
 
   return new Response(JSON.stringify({ ok: true, created, updated, today }), {
