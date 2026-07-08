@@ -73,7 +73,7 @@ export function useBilling(): BillingData {
     );
     const { data: cyc } = await supabase.from('billing_cycles').select('*').order('cycle_number');
     const mapped = ((cls as Array<Omit<BillingClient, 'assigned_staff_name'>>) ?? [])
-      .filter((c) => c.approval_status === 'Approved')
+      .filter((c) => isSetupComplete(c))
       .map((c) => ({
         ...c,
         assigned_staff_name: c.assigned_employee_id ? nameById.get(c.assigned_employee_id) ?? null : null,
