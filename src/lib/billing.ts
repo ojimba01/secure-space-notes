@@ -211,19 +211,36 @@ export function getBillingRun(client: ClientBillingFields): BillingRun {
   };
 }
 
-// True when a client has enough setup to generate billing cycles.
-export function isMissingBillingSetup(client: ClientBillingFields): boolean {
-  const run = getBillingRun(client);
-  if (!run.start) return true;
-  if (!run.end) return true; // need a clearly-defined billing end
-  if (rateForLevel(client.level_of_need) == null) return true; // billed amount depends on LoN
-  return false;
+// HSP is considered submitted once it is at least Submitted (Submitted or Approved).
+export function isHspSubmitted(client: { approval_status?: string | null }): boolean {
+  const s = (client.approval_status ?? '').trim().toLowerCase();
+  return s === 'submitted' || s === 'approved';
 }
 
-export function missingBillingSetupReason(client: ClientBillingFields): string {
+// Setup complete = HSP submitted + billing anchor (auth_150_start) + level of need.
+// This is the gate for generating billing cycles and staff visibility.
+export function isSetupComplete(
+  client: ClientBillingFields & { approval_status?: string | null },
+): boolean {
+  if (!isHspSubmitted(client)) return false;
+  if (!client.auth_150_start) return false;
+  if (rateForLevel(client.level_of_need) == null) return false;
+  return true;
+}
+
+// True when a client lacks the data needed to generate billing cycles.
+export function isMissingBillingSetup(
+  client: ClientBillingFields & { approval_status?: string | null },
+): boolean {
+  return !isSetupComplete(client);
+}
+
+export function missingBillingSetupReason(
+  client: ClientBillingFields & { approval_status?: string | null },
+): string {
   const missing: string[] = [];
-  if (!client.auth_150_start) missing.push('150-day authorization start date');
-  if (!(client.auth_180_end || client.auth_150_end)) missing.push('authorization end date');
+  if (!isHspSubmitted(client)) missing.push('HSP submission');
+  if (!client.auth_150_start) missing.push('HSP approval start date');
   if (rateForLevel(client.level_of_need) == null) missing.push('level of need');
   if (missing.length === 0) return '';
   return `Billing cycles cannot be generated until the ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} entered.`;
