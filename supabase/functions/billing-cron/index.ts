@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
   });
 
   for (const client of clients ?? []) {
-    if (!client.auth_150_start) continue;
+    if (!isSetupComplete(client)) continue;
     const existing = byClient.get(client.id) ?? [];
     const byNumber = new Map(existing.map((c: any) => [c.cycle_number, c]));
     for (const g of generateCycles(client)) {
