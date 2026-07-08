@@ -1,6 +1,4 @@
 import React, {
-  createContext,
-  useContext,
   useState,
   useEffect,
   useCallback,
@@ -11,35 +9,9 @@ import { useRole } from '@/hooks/useRole';
 import TutorialOverlay from '@/components/TutorialOverlay';
 import { HelpGuide } from '@/components/HelpGuide';
 import { TUTORIALS, type TutorialDefinition } from '@/lib/tutorials';
+import { TutorialContext } from '@/components/tutorial-context';
 
-interface TutorialContextType {
-  /** Declare which tutorial applies to the currently visible page. */
-  setActivePage: (key: string | null) => void;
-  /** Launch a specific tutorial, or the current page's tutorial when omitted. */
-  startTutorial: (key?: string) => void;
-  endTutorial: () => void;
-  openHelp: () => void;
-  closeHelp: () => void;
-  activeKey: string | null;
-  isTutorialActive: boolean;
-}
-
-const TutorialContext = createContext<TutorialContextType | undefined>(undefined);
-
-export const useTutorial = () => {
-  const ctx = useContext(TutorialContext);
-  if (!ctx) throw new Error('useTutorial must be used within a TutorialProvider');
-  return ctx;
-};
-
-/** Registers the active tutorial for a page while it is mounted. */
-export const usePageTutorial = (key: string | null) => {
-  const { setActivePage } = useTutorial();
-  useEffect(() => {
-    setActivePage(key);
-    return () => setActivePage(null);
-  }, [key, setActivePage]);
-};
+export { useTutorial, usePageTutorial } from '@/components/tutorial-context';
 
 const doneStorageKey = (userId: string, key: string) =>
   `ss_tutorial_done::${userId}::${key}`;
