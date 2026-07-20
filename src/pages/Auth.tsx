@@ -246,7 +246,7 @@ const Auth = () => {
                     id="signup-email"
                     name="email"
                     type="email"
-                    placeholder="yourname@comprehensive-carenetwork.com"
+                    placeholder="yourname@supportivecm.org"
                     required
                   />
                 </div>
