@@ -1,0 +1,3 @@
+UPDATE auth.users SET email = 'mditmars1@supportivecm.org', raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('email', 'mditmars1@supportivecm.org'), email_confirmed_at = COALESCE(email_confirmed_at, now()), updated_at = now() WHERE email = 'mditmars@supportivecm.org';
+
+UPDATE public.profiles SET email = 'mditmars1@supportivecm.org', updated_at = now() WHERE email = 'mditmars@supportivecm.org';
