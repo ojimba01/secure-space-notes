@@ -20,9 +20,10 @@ const FILTERS: { key: CycleFilter; label: string }[] = [
   { key: 'due_48', label: 'Due within 48 hours' },
   { key: 'due_week', label: 'Due this week' },
   { key: 'overdue', label: 'Overdue' },
-  { key: 'paid', label: 'Paid' },
+  { key: 'paid', label: 'Billing approved' },
   { key: 'denied', label: 'Denied' },
 ];
+
 
 const COLS = [1, 2, 3, 4, 5];
 
