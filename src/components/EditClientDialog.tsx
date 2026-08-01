@@ -564,20 +564,21 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
             <div className="rounded-md border p-4 space-y-4">
               <div>
-                <h4 className="text-sm font-semibold">Billing Authorization Period</h4>
+                <h4 className="text-sm font-semibold">Billing authorization period</h4>
                 <p className="text-xs text-muted-foreground">
-                  Drives the billing section. Distinct from HSP milestone dates above. All optional.
+                  The HSP approval start date drives every billing cycle. The 150-day end date is
+                  calculated for you and can be overridden.
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField control={form.control} name="auth_30_number" render={({ field }) => (
-                  <FormItem><FormLabel>30-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>30-day auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="auth_150_number" render={({ field }) => (
-                  <FormItem><FormLabel>150-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>150-day auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="auth_180_number" render={({ field }) => (
-                  <FormItem><FormLabel>180-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>180-day auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -587,10 +588,26 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                   name="auth_150_start"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>150-Day Start</FormLabel>
+                      <FormLabel>HSP approval start date</FormLabel>
                       <FormControl>
-                        <Input {...field} type="date" />
+                        <Input
+                          {...field}
+                          type="date"
+                          onChange={(e) => {
+                            field.onChange(e);
+                            // Auto-fill the 150-day end (start + 149 days) when blank.
+                            const v = e.target.value;
+                            if (v && !form.getValues('auth_150_end')) {
+                              const d = new Date(`${v}T12:00:00Z`);
+                              d.setUTCDate(d.getUTCDate() + 149);
+                              form.setValue('auth_150_end', d.toISOString().slice(0, 10));
+                            }
+                          }}
+                        />
                       </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Billing cycle 1 starts on this date. Cycles run every 30 days.
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -600,10 +617,11 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                   name="auth_150_end"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>150-Day End</FormLabel>
+                      <FormLabel>150-day end date</FormLabel>
                       <FormControl>
                         <Input {...field} type="date" />
                       </FormControl>
+                      <p className="text-xs text-muted-foreground">Calculated as start + 149 days.</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -613,7 +631,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                   name="auth_180_start"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>180-Day Start</FormLabel>
+                      <FormLabel>180-day start date</FormLabel>
                       <FormControl>
                         <Input {...field} type="date" />
                       </FormControl>
@@ -626,7 +644,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                   name="auth_180_end"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>180-Day End</FormLabel>
+                      <FormLabel>180-day end date</FormLabel>
                       <FormControl>
                         <Input {...field} type="date" />
                       </FormControl>
@@ -636,6 +654,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                 />
               </div>
             </div>
+
 
             <div className="rounded-md border p-4 space-y-4">
               <h4 className="text-sm font-semibold">Closure</h4>
