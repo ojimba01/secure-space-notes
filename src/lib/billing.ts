@@ -77,17 +77,32 @@ export interface GeneratedCycle {
   billed_amount: number | null;
 }
 
+// The canonical billing anchor = the HSP approval start date.
+// Stored in auth_150_start; legacy records may only carry hsp_150_date.
+export function billingAnchor(client: {
+  auth_150_start?: string | null;
+  hsp_150_date?: string | null;
+}): string | null {
+  return client.auth_150_start || client.hsp_150_date || null;
+}
+
+// End of the 150-day authorization run: start + 149 days.
+export function derivedAuth150End(anchor: string | null | undefined): string | null {
+  return anchor ? addDays(anchor, 149) : null;
+}
+
 // Generate the ideal set of 30-day cycles for a client from their auth dates.
-// Anchor = auth_150_start (the HSP approval start date maps to this column).
+// Anchor = HSP approval start date (auth_150_start, falling back to hsp_150_date).
 // Default 5 cycles for the 150-day run; extend through the 180-day end when present.
 export function generateCyclesForClient(client: {
   auth_150_start?: string | null;
   auth_150_end?: string | null;
   auth_180_start?: string | null;
   auth_180_end?: string | null;
+  hsp_150_date?: string | null;
   level_of_need?: string | null;
 }): GeneratedCycle[] {
-  const start = client.auth_150_start;
+  const start = billingAnchor(client);
   if (!start) return [];
   const amount = rateForLevel(client.level_of_need);
   const has180 = !!(client.auth_180_start || client.auth_180_end);
@@ -111,6 +126,7 @@ export function generateCyclesForClient(client: {
   }
   return cycles;
 }
+
 
 // The current cycle number = the one whose 30-day range contains today.
 export function currentCycleNumber(auth150Start: string | null | undefined, today = todayAgency()): number | null {
