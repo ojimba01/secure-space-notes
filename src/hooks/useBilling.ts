@@ -102,7 +102,16 @@ export function useBilling(): BillingData {
   const regenerateOne = useCallback(
     async (client: BillingClient, existing: BillingCycle[]) => {
       if (!isOpen(client) || !isSetupComplete(client)) return { created: 0, updated: 0 };
+      // Persist the canonical anchor + derived 150-day end for legacy records.
+      const anchor = billingAnchor(client);
+      const clientPatch: Record<string, string> = {};
+      if (anchor && !client.auth_150_start) clientPatch.auth_150_start = anchor;
+      if (anchor && !client.auth_150_end) clientPatch.auth_150_end = derivedAuth150End(anchor)!;
+      if (Object.keys(clientPatch).length) {
+        await supabase.from('clients').update(clientPatch).eq('id', client.id);
+      }
       const ideal = generateCyclesForClient(client);
+
       const byNumber = new Map(existing.map((c) => [c.cycle_number, c]));
       let created = 0;
       let updated = 0;
