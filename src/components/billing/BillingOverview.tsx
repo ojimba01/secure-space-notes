@@ -13,6 +13,12 @@ import {
   approvalStageFor,
   summarizeClientBilling,
   billingBadgeClass,
+  billingStatusLabel,
+  hspStatusFor,
+  isMissingBillingSetup,
+  missingSetupItems,
+  nextBillingAction,
+  urgencyLabel,
 } from '@/lib/billing';
 import { BillingClient } from '@/hooks/useBilling';
 
@@ -22,7 +28,7 @@ interface Props {
   onOpenTimeline: (clientId: string) => void;
 }
 
-type UrgencyFilter = 'all' | 'due_48' | 'due_week' | 'overdue' | 'denied';
+type UrgencyFilter = 'all' | 'due_48' | 'due_week' | 'overdue' | 'denied' | 'missing';
 
 const URGENCY_FILTERS: { key: UrgencyFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -30,20 +36,21 @@ const URGENCY_FILTERS: { key: UrgencyFilter; label: string }[] = [
   { key: 'due_week', label: 'Due this week' },
   { key: 'overdue', label: 'Overdue' },
   { key: 'denied', label: 'Denied' },
+  { key: 'missing', label: 'Missing information' },
 ];
 
 function urgencyBadge(u: BillingUrgency) {
-  switch (u) {
-    case 'overdue':
-      return <Badge className="bg-red-600 text-white hover:bg-red-600">Overdue</Badge>;
-    case 'due_48':
-      return <Badge className="bg-amber-500 text-white hover:bg-amber-500">Due &lt; 48h</Badge>;
-    case 'due_week':
-      return <Badge className="bg-amber-400 text-white hover:bg-amber-400">Due this week</Badge>;
-    default:
-      return null;
-  }
+  const label = urgencyLabel(u);
+  if (!label) return null;
+  const cls =
+    u === 'overdue'
+      ? 'bg-red-600 text-white hover:bg-red-600'
+      : u === 'due_48'
+        ? 'bg-amber-500 text-white hover:bg-amber-500'
+        : 'bg-amber-400 text-white hover:bg-amber-400';
+  return <Badge className={cls}>{label}</Badge>;
 }
+
 
 export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeline }) => {
   const [search, setSearch] = useState('');
