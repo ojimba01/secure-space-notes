@@ -213,33 +213,41 @@ export interface ClientBillingFields {
   auth_150_end?: string | null;
   auth_180_start?: string | null;
   auth_180_end?: string | null;
+  hsp_150_date?: string | null;
   level_of_need?: string | null;
   status?: string | null;
+  closed_date?: string | null;
 }
 
-// The active authorization run: from the 150-day start to the last known end.
+// The active authorization run: from the HSP approval start date to the last known end.
 export function getBillingRun(client: ClientBillingFields): BillingRun {
+  const start = billingAnchor(client);
+  const auth150End = client.auth_150_end || derivedAuth150End(start);
   return {
-    start: client.auth_150_start ?? null,
-    end: client.auth_180_end || client.auth_150_end || null,
-    auth150End: client.auth_150_end ?? null,
+    start,
+    end: client.auth_180_end || auth150End || null,
+    auth150End,
     auth180End: client.auth_180_end ?? null,
   };
 }
 
-// HSP is considered submitted once it is at least Submitted (Submitted or Approved).
-export function isHspSubmitted(client: { approval_status?: string | null }): boolean {
+// HSP counts as submitted once the status says so, OR once an approval start date
+// exists (an approval start date can only come from an approved HSP).
+export function isHspSubmitted(
+  client: { approval_status?: string | null; auth_150_start?: string | null; hsp_150_date?: string | null },
+): boolean {
   const s = (client.approval_status ?? '').trim().toLowerCase();
-  return s === 'submitted' || s === 'approved';
+  if (s === 'submitted' || s === 'approved') return true;
+  return !!billingAnchor(client);
 }
 
-// Setup complete = HSP submitted + billing anchor (auth_150_start) + level of need.
+// Setup complete = HSP submitted + HSP approval start date + level of need.
 // This is the gate for generating billing cycles and staff visibility.
 export function isSetupComplete(
   client: ClientBillingFields & { approval_status?: string | null },
 ): boolean {
+  if (!billingAnchor(client)) return false;
   if (!isHspSubmitted(client)) return false;
-  if (!client.auth_150_start) return false;
   if (rateForLevel(client.level_of_need) == null) return false;
   return true;
 }
@@ -251,16 +259,25 @@ export function isMissingBillingSetup(
   return !isSetupComplete(client);
 }
 
+// Ordered list of what is still missing before cycles can be generated.
+export function missingSetupItems(
+  client: ClientBillingFields & { approval_status?: string | null },
+): string[] {
+  const missing: string[] = [];
+  if (!isHspSubmitted(client)) missing.push('HSP submission');
+  if (!billingAnchor(client)) missing.push('HSP approval start date');
+  if (rateForLevel(client.level_of_need) == null) missing.push('LoN');
+  return missing;
+}
+
 export function missingBillingSetupReason(
   client: ClientBillingFields & { approval_status?: string | null },
 ): string {
-  const missing: string[] = [];
-  if (!isHspSubmitted(client)) missing.push('HSP submission');
-  if (!client.auth_150_start) missing.push('HSP approval start date');
-  if (rateForLevel(client.level_of_need) == null) missing.push('level of need');
+  const missing = missingSetupItems(client);
   if (missing.length === 0) return '';
   return `Billing cycles cannot be generated until the ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} entered.`;
 }
+
 
 // Alias matching the requested helper name.
 export function generateBillingCyclesForClient(client: ClientBillingFields): GeneratedCycle[] {
