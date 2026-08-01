@@ -13,6 +13,12 @@ import {
   approvalStageFor,
   summarizeClientBilling,
   billingBadgeClass,
+  billingStatusLabel,
+  hspStatusFor,
+  isMissingBillingSetup,
+  missingSetupItems,
+  nextBillingAction,
+  urgencyLabel,
 } from '@/lib/billing';
 import { BillingClient } from '@/hooks/useBilling';
 
@@ -22,7 +28,7 @@ interface Props {
   onOpenTimeline: (clientId: string) => void;
 }
 
-type UrgencyFilter = 'all' | 'due_48' | 'due_week' | 'overdue' | 'denied';
+type UrgencyFilter = 'all' | 'due_48' | 'due_week' | 'overdue' | 'denied' | 'missing';
 
 const URGENCY_FILTERS: { key: UrgencyFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -30,20 +36,21 @@ const URGENCY_FILTERS: { key: UrgencyFilter; label: string }[] = [
   { key: 'due_week', label: 'Due this week' },
   { key: 'overdue', label: 'Overdue' },
   { key: 'denied', label: 'Denied' },
+  { key: 'missing', label: 'Missing information' },
 ];
 
 function urgencyBadge(u: BillingUrgency) {
-  switch (u) {
-    case 'overdue':
-      return <Badge className="bg-red-600 text-white hover:bg-red-600">Overdue</Badge>;
-    case 'due_48':
-      return <Badge className="bg-amber-500 text-white hover:bg-amber-500">Due &lt; 48h</Badge>;
-    case 'due_week':
-      return <Badge className="bg-amber-400 text-white hover:bg-amber-400">Due this week</Badge>;
-    default:
-      return null;
-  }
+  const label = urgencyLabel(u);
+  if (!label) return null;
+  const cls =
+    u === 'overdue'
+      ? 'bg-red-600 text-white hover:bg-red-600'
+      : u === 'due_48'
+        ? 'bg-amber-500 text-white hover:bg-amber-500'
+        : 'bg-amber-400 text-white hover:bg-amber-400';
+  return <Badge className={cls}>{label}</Badge>;
 }
+
 
 export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeline }) => {
   const [search, setSearch] = useState('');
@@ -69,15 +76,19 @@ export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeli
           cl,
           summary: summarizeClientBilling(cl, cyc),
           stage: approvalStageFor(cl, cyc),
+          hsp: hspStatusFor(cl),
+          action: nextBillingAction(cl, cyc),
+          missing: isMissingBillingSetup(cl) ? missingSetupItems(cl) : [],
         };
       })
-      .filter(({ cl, summary, stage: st }) => {
+      .filter(({ cl, summary, stage: st, missing }) => {
         if (search) {
           const name = `${cl.first_name} ${cl.last_name}`.toLowerCase();
           const q = search.toLowerCase();
           if (!name.includes(q) && !(cl.member_id ?? '').toLowerCase().includes(q)) return false;
         }
         if (stage !== 'all' && st !== stage) return false;
+        if (urgency === 'missing' && missing.length === 0) return false;
         if (urgency === 'denied' && !summary.hasDenied) return false;
         if (urgency === 'due_48' && summary.urgency !== 'due_48') return false;
         if (urgency === 'due_week' && !(summary.urgency === 'due_week' || summary.urgency === 'due_48')) return false;
@@ -86,6 +97,7 @@ export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeli
       })
       .sort((a, b) => `${a.cl.last_name}${a.cl.first_name}`.localeCompare(`${b.cl.last_name}${b.cl.first_name}`));
   }, [clients, cyclesByClient, search, stage, urgency]);
+
 
   return (
     <div className="space-y-3">
@@ -120,7 +132,7 @@ export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeli
               <TableRow>
                 <TableHead>Client</TableHead>
                 <TableHead>Case manager</TableHead>
-                <TableHead>Level of need</TableHead>
+                <TableHead>LoN</TableHead>
                 <TableHead>Next action</TableHead>
                 <TableHead>HSP status</TableHead>
                 <TableHead>Claim status</TableHead>
@@ -130,27 +142,35 @@ export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeli
               {rows.length === 0 && (
                 <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No clients match these filters.</TableCell></TableRow>
               )}
-              {rows.map(({ cl, summary, stage: st }) => (
+              {rows.map(({ cl, summary, hsp, action, missing }) => (
                 <TableRow key={cl.id} className="cursor-pointer" onClick={() => onOpenTimeline(cl.id)}>
                   <TableCell className="font-medium whitespace-nowrap">{cl.first_name} {cl.last_name}</TableCell>
                   <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
                   <TableCell className="whitespace-nowrap">{cl.level_of_need ?? <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {summary.dueDate ?? '—'}
-                    {urgencyBadge(summary.urgency) && <span className="ml-2">{urgencyBadge(summary.urgency)}</span>}
+                    <div className="flex items-center gap-2">
+                      <span>{action.label}</span>
+                      {urgencyBadge(action.urgency)}
+                    </div>
+                    {action.dueDate && (
+                      <div className="text-xs text-muted-foreground">by {action.dueDate}</div>
+                    )}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{st}</TableCell>
+                  <TableCell className="whitespace-nowrap">{hsp}</TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {summary.hasDenied ? (
+                    {missing.length > 0 ? (
+                      <span className="text-muted-foreground">Missing {missing.join(', ')}</span>
+                    ) : summary.hasDenied ? (
                       <Badge className="bg-red-600 text-white hover:bg-red-600">Denied</Badge>
                     ) : summary.claimStatus ? (
-                      <Badge className={billingBadgeClass(summary.claimStatus)}>{summary.claimStatus}</Badge>
+                      <Badge className={billingBadgeClass(summary.claimStatus)}>{billingStatusLabel(summary.claimStatus)}</Badge>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
+
             </TableBody>
           </Table>
         </CardContent>

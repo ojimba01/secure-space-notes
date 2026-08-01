@@ -25,16 +25,22 @@ function rateForLevel(level: string | null) {
   if (l.startsWith('high')) return RATE_HIGH;
   return null;
 }
+// Canonical billing anchor: the HSP approval start date. Legacy records may
+// only carry hsp_150_date.
+function billingAnchor(client: any): string | null {
+  return client.auth_150_start || client.hsp_150_date || null;
+}
 function isHspSubmitted(client: any) {
   const s = (client.approval_status ?? '').trim().toLowerCase();
-  return s === 'submitted' || s === 'approved';
+  if (s === 'submitted' || s === 'approved') return true;
+  return !!billingAnchor(client);
 }
 function isSetupComplete(client: any) {
-  return isHspSubmitted(client) && !!client.auth_150_start && rateForLevel(client.level_of_need) != null;
+  return isHspSubmitted(client) && !!billingAnchor(client) && rateForLevel(client.level_of_need) != null;
 }
 
 function generateCycles(client: any) {
-  const start = client.auth_150_start;
+  const start = billingAnchor(client);
   if (!start) return [] as any[];
   const amount = rateForLevel(client.level_of_need);
   const has180 = !!(client.auth_180_start || client.auth_180_end);
@@ -65,7 +71,7 @@ Deno.serve(async (req) => {
 
   const { data: clients } = await supabase
     .from('clients')
-    .select('id, level_of_need, status, approval_status, auth_150_start, auth_150_end, auth_180_start, auth_180_end')
+    .select('id, level_of_need, status, approval_status, hsp_150_date, auth_150_start, auth_150_end, auth_180_start, auth_180_end')
     .eq('status', 'active');
 
   const { data: allCycles } = await supabase.from('billing_cycles').select('*');
@@ -77,6 +83,15 @@ Deno.serve(async (req) => {
 
   for (const client of clients ?? []) {
     if (!isSetupComplete(client)) continue;
+    // Backfill the canonical anchor + derived 150-day end for legacy records.
+    const anchor = billingAnchor(client);
+    const clientPatch: Record<string, string> = {};
+    if (anchor && !client.auth_150_start) clientPatch.auth_150_start = anchor;
+    if (anchor && !client.auth_150_end) clientPatch.auth_150_end = addDays(anchor, 149);
+    if (Object.keys(clientPatch).length) {
+      await supabase.from('clients').update(clientPatch).eq('id', client.id);
+      Object.assign(client, clientPatch);
+    }
     const existing = byClient.get(client.id) ?? [];
     const byNumber = new Map(existing.map((c: any) => [c.cycle_number, c]));
     for (const g of generateCycles(client)) {

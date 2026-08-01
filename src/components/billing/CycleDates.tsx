@@ -20,9 +20,10 @@ const FILTERS: { key: CycleFilter; label: string }[] = [
   { key: 'due_48', label: 'Due within 48 hours' },
   { key: 'due_week', label: 'Due this week' },
   { key: 'overdue', label: 'Overdue' },
-  { key: 'paid', label: 'Paid' },
+  { key: 'paid', label: 'Billing approved' },
   { key: 'denied', label: 'Denied' },
 ];
+
 
 const COLS = [1, 2, 3, 4, 5];
 
@@ -79,11 +80,11 @@ export const CycleDates: React.FC<Props> = ({ clients, cycles, onOpenTimeline })
 
     let badge: React.ReactNode = null;
     if (isDenied) badge = <Badge className="bg-red-600 text-white hover:bg-red-600">Denied</Badge>;
-    else if (isPaid) badge = <Badge className="bg-green-600 text-white hover:bg-green-600">Paid</Badge>;
+    else if (isPaid) badge = <Badge className="bg-green-600 text-white hover:bg-green-600">Billing approved</Badge>;
     else if (u === 'overdue') badge = <Badge className="bg-red-600 text-white hover:bg-red-600">Overdue</Badge>;
-    else if (u === 'due_48') badge = <Badge className="bg-amber-500 text-white hover:bg-amber-500">Due &lt; 48h</Badge>;
+    else if (u === 'due_48') badge = <Badge className="bg-amber-500 text-white hover:bg-amber-500">Due within 48h</Badge>;
     else if (u === 'due_week') badge = <Badge className="bg-amber-400 text-white hover:bg-amber-400">Due this week</Badge>;
-    else if (c.billing_status === 'Submitted') badge = <Badge className="bg-blue-600 text-white hover:bg-blue-600">Submitted</Badge>;
+    else if (c.billing_status === 'Submitted') badge = <Badge className="bg-blue-600 text-white hover:bg-blue-600">Pending billing approval</Badge>;
 
     return (
       <div className={muted ? 'opacity-40' : ''}>
@@ -93,6 +94,7 @@ export const CycleDates: React.FC<Props> = ({ clients, cycles, onOpenTimeline })
       </div>
     );
   };
+
 
   return (
     <div className="space-y-3">

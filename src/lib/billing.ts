@@ -77,17 +77,32 @@ export interface GeneratedCycle {
   billed_amount: number | null;
 }
 
+// The canonical billing anchor = the HSP approval start date.
+// Stored in auth_150_start; legacy records may only carry hsp_150_date.
+export function billingAnchor(client: {
+  auth_150_start?: string | null;
+  hsp_150_date?: string | null;
+}): string | null {
+  return client.auth_150_start || client.hsp_150_date || null;
+}
+
+// End of the 150-day authorization run: start + 149 days.
+export function derivedAuth150End(anchor: string | null | undefined): string | null {
+  return anchor ? addDays(anchor, 149) : null;
+}
+
 // Generate the ideal set of 30-day cycles for a client from their auth dates.
-// Anchor = auth_150_start (the HSP approval start date maps to this column).
+// Anchor = HSP approval start date (auth_150_start, falling back to hsp_150_date).
 // Default 5 cycles for the 150-day run; extend through the 180-day end when present.
 export function generateCyclesForClient(client: {
   auth_150_start?: string | null;
   auth_150_end?: string | null;
   auth_180_start?: string | null;
   auth_180_end?: string | null;
+  hsp_150_date?: string | null;
   level_of_need?: string | null;
 }): GeneratedCycle[] {
-  const start = client.auth_150_start;
+  const start = billingAnchor(client);
   if (!start) return [];
   const amount = rateForLevel(client.level_of_need);
   const has180 = !!(client.auth_180_start || client.auth_180_end);
@@ -111,6 +126,7 @@ export function generateCyclesForClient(client: {
   }
   return cycles;
 }
+
 
 // The current cycle number = the one whose 30-day range contains today.
 export function currentCycleNumber(auth150Start: string | null | undefined, today = todayAgency()): number | null {
@@ -197,33 +213,41 @@ export interface ClientBillingFields {
   auth_150_end?: string | null;
   auth_180_start?: string | null;
   auth_180_end?: string | null;
+  hsp_150_date?: string | null;
   level_of_need?: string | null;
   status?: string | null;
+  closed_date?: string | null;
 }
 
-// The active authorization run: from the 150-day start to the last known end.
+// The active authorization run: from the HSP approval start date to the last known end.
 export function getBillingRun(client: ClientBillingFields): BillingRun {
+  const start = billingAnchor(client);
+  const auth150End = client.auth_150_end || derivedAuth150End(start);
   return {
-    start: client.auth_150_start ?? null,
-    end: client.auth_180_end || client.auth_150_end || null,
-    auth150End: client.auth_150_end ?? null,
+    start,
+    end: client.auth_180_end || auth150End || null,
+    auth150End,
     auth180End: client.auth_180_end ?? null,
   };
 }
 
-// HSP is considered submitted once it is at least Submitted (Submitted or Approved).
-export function isHspSubmitted(client: { approval_status?: string | null }): boolean {
+// HSP counts as submitted once the status says so, OR once an approval start date
+// exists (an approval start date can only come from an approved HSP).
+export function isHspSubmitted(
+  client: { approval_status?: string | null; auth_150_start?: string | null; hsp_150_date?: string | null },
+): boolean {
   const s = (client.approval_status ?? '').trim().toLowerCase();
-  return s === 'submitted' || s === 'approved';
+  if (s === 'submitted' || s === 'approved') return true;
+  return !!billingAnchor(client);
 }
 
-// Setup complete = HSP submitted + billing anchor (auth_150_start) + level of need.
+// Setup complete = HSP submitted + HSP approval start date + level of need.
 // This is the gate for generating billing cycles and staff visibility.
 export function isSetupComplete(
   client: ClientBillingFields & { approval_status?: string | null },
 ): boolean {
+  if (!billingAnchor(client)) return false;
   if (!isHspSubmitted(client)) return false;
-  if (!client.auth_150_start) return false;
   if (rateForLevel(client.level_of_need) == null) return false;
   return true;
 }
@@ -235,16 +259,25 @@ export function isMissingBillingSetup(
   return !isSetupComplete(client);
 }
 
+// Ordered list of what is still missing before cycles can be generated.
+export function missingSetupItems(
+  client: ClientBillingFields & { approval_status?: string | null },
+): string[] {
+  const missing: string[] = [];
+  if (!isHspSubmitted(client)) missing.push('HSP submission');
+  if (!billingAnchor(client)) missing.push('HSP approval start date');
+  if (rateForLevel(client.level_of_need) == null) missing.push('LoN');
+  return missing;
+}
+
 export function missingBillingSetupReason(
   client: ClientBillingFields & { approval_status?: string | null },
 ): string {
-  const missing: string[] = [];
-  if (!isHspSubmitted(client)) missing.push('HSP submission');
-  if (!client.auth_150_start) missing.push('HSP approval start date');
-  if (rateForLevel(client.level_of_need) == null) missing.push('level of need');
+  const missing = missingSetupItems(client);
   if (missing.length === 0) return '';
   return `Billing cycles cannot be generated until the ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} entered.`;
 }
+
 
 // Alias matching the requested helper name.
 export function generateBillingCyclesForClient(client: ClientBillingFields): GeneratedCycle[] {
@@ -327,11 +360,11 @@ const URGENCY_RANK: Record<BillingUrgency, number> = { overdue: 3, due_48: 2, du
 
 // Roll a client's cycles into a single summary for the overview row.
 export function summarizeClientBilling(
-  client: { auth_150_start?: string | null },
+  client: { auth_150_start?: string | null; hsp_150_date?: string | null },
   cycles: BillingCycle[],
   today = todayAgency(),
 ): ClientBillingSummary {
-  const cur = currentCycleNumber(client.auth_150_start, today);
+  const cur = currentCycleNumber(billingAnchor(client), today);
   const currentCycle = cycles.find((c) => c.cycle_number === cur) ?? null;
   let urgency: BillingUrgency = 'none';
   let dueDate: string | null = currentCycle?.cycle_end ?? null;
@@ -352,6 +385,45 @@ export function summarizeClientBilling(
   };
 }
 
+// ---- User-facing labels ---------------------------------------------
+
+// Internal billing_status values map to plain-language labels in the UI.
+// "Submitted" is never shown as-is; it reads "Pending billing approval".
+export function billingStatusLabel(status: BillingStatus | null | undefined): string {
+  switch (status) {
+    case 'Submitted':
+      return 'Pending billing approval';
+    case 'Ready to Bill':
+      return 'Ready to bill';
+    case 'Denied':
+      return 'Denied';
+    case 'Not Billed':
+      return 'Not billed';
+    default:
+      return '—';
+  }
+}
+
+// The plain-language claim status for a cycle, folding payment state in.
+export function claimStatusLabel(c: BillingCycle): string {
+  if (c.billing_status === 'Denied') return 'Denied';
+  if (c.payment_status === 'Paid') return 'Billing approved';
+  return billingStatusLabel(c.billing_status);
+}
+
+export function urgencyLabel(u: BillingUrgency): string | null {
+  switch (u) {
+    case 'overdue':
+      return 'Overdue';
+    case 'due_48':
+      return 'Due within 48h';
+    case 'due_week':
+      return 'Due this week';
+    default:
+      return null;
+  }
+}
+
 // Approval-stage filter values shown in the Billing Overview dropdown.
 export const APPROVAL_STAGES = [
   'Pending HSP approval',
@@ -361,15 +433,76 @@ export const APPROVAL_STAGES = [
 ] as const;
 export type ApprovalStage = (typeof APPROVAL_STAGES)[number];
 
+// HSP status shown in Billing Overview.
+export type HspStatus = 'HSP needs submission' | 'Pending HSP approval' | 'HSP approved' | 'HSP denied';
+
+export function hspStatusFor(
+  client: { approval_status?: string | null; auth_150_start?: string | null; hsp_150_date?: string | null },
+): HspStatus {
+  const s = (client.approval_status ?? '').trim().toLowerCase();
+  if (s === 'denied') return 'HSP denied';
+  // An approval start date means the HSP came back approved.
+  if (billingAnchor(client)) return 'HSP approved';
+  if (s === 'approved') return 'HSP approved';
+  if (s === 'submitted') return 'Pending HSP approval';
+  return 'HSP needs submission';
+}
+
 // Derive a client's approval stage from HSP approval + billing progress.
 export function approvalStageFor(
-  client: { approval_status?: string | null },
+  client: { approval_status?: string | null; auth_150_start?: string | null; hsp_150_date?: string | null },
   cycles: BillingCycle[],
 ): ApprovalStage {
-  const hspApproved = client.approval_status === 'Approved';
-  if (!hspApproved) return 'Pending HSP approval';
-  const anyBilled = cycles.some((c) => c.billing_status === 'Submitted' || c.payment_status === 'Paid');
-  if (anyBilled) return 'Billing approved';
-  const anyReady = cycles.some((c) => c.billing_status !== 'Not Billed');
-  return anyReady ? 'Pending billing approval' : 'HSP approved';
+  const hsp = hspStatusFor(client);
+  if (hsp !== 'HSP approved') return 'Pending HSP approval';
+  if (cycles.some((c) => c.payment_status === 'Paid')) return 'Billing approved';
+  if (cycles.some((c) => c.billing_status === 'Submitted')) return 'Pending billing approval';
+  return 'HSP approved';
 }
+
+// ---- Next action ----------------------------------------------------
+
+export interface NextAction {
+  label: string;
+  dueDate: string | null;
+  urgency: BillingUrgency;
+}
+
+// Plain-language next action for a client row. Never a bare date.
+export function nextBillingAction(
+  client: ClientBillingFields & { approval_status?: string | null },
+  cycles: BillingCycle[],
+  today = todayAgency(),
+): NextAction {
+  const summary = summarizeClientBilling(client, cycles, today);
+
+  // Setup gaps come first.
+  if (!isHspSubmitted(client)) return { label: 'Submit HSP', dueDate: null, urgency: 'none' };
+  if (!billingAnchor(client)) return { label: 'Add HSP approval start date', dueDate: null, urgency: 'none' };
+  if (rateForLevel(client.level_of_need) == null) return { label: 'Add LoN', dueDate: null, urgency: 'none' };
+  if (cycles.length === 0) return { label: 'Generate billing cycles', dueDate: null, urgency: 'none' };
+
+  const denied = cycles.find((c) => c.billing_status === 'Denied');
+  if (denied) return { label: 'Review denied claim', dueDate: denied.cycle_end, urgency: 'overdue' };
+
+  // The earliest open (unbilled) cycle drives the action.
+  const open = cycles.filter(isOpenClaim).sort((a, b) => a.cycle_number - b.cycle_number)[0];
+  if (open) {
+    return {
+      label: `Submit Cycle ${open.cycle_number} claim`,
+      dueDate: open.cycle_end,
+      urgency: cycleUrgency(open, today),
+    };
+  }
+
+  // Everything billed — is anything still awaiting payment confirmation?
+  const awaiting = cycles
+    .filter((c) => c.billing_status === 'Submitted' && c.payment_status !== 'Paid')
+    .sort((a, b) => a.cycle_number - b.cycle_number)[0];
+  if (awaiting) {
+    return { label: 'Confirm billing approval', dueDate: awaiting.cycle_end, urgency: 'none' };
+  }
+
+  return { label: 'No action needed', dueDate: summary.dueDate, urgency: 'none' };
+}
+

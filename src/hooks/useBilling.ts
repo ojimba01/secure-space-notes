@@ -2,10 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   BillingCycle,
+  billingAnchor,
+  derivedAuth150End,
   generateCyclesForClient,
   isSetupComplete,
   rateForLevel,
 } from '@/lib/billing';
+
 
 export interface BillingClient {
   id: string;
@@ -16,6 +19,8 @@ export interface BillingClient {
   level_of_need: string | null;
   status: string;
   approval_status: string | null;
+  hsp_150_date: string | null;
+
   auth_150_start: string | null;
   auth_150_end: string | null;
   auth_180_start: string | null;
@@ -59,7 +64,7 @@ export function useBilling(): BillingData {
     const { data: cls } = await supabase
       .from('clients')
       .select(
-        'id, first_name, last_name, insurance, member_id, level_of_need, status, approval_status, auth_150_start, auth_150_end, auth_180_start, auth_180_end, assigned_employee_id, phone, intake_date, assessment_due_date, mco_housing_manager, auth_30_number, auth_30_start, auth_30_end, hsp_due_date, auth_150_number, auth_180_number, next_action_due_date, closed_date, reason_closed, notes',
+        'id, first_name, last_name, insurance, member_id, level_of_need, status, approval_status, hsp_150_date, auth_150_start, auth_150_end, auth_180_start, auth_180_end, assigned_employee_id, phone, intake_date, assessment_due_date, mco_housing_manager, auth_30_number, auth_30_start, auth_30_end, hsp_due_date, auth_150_number, auth_180_number, next_action_due_date, closed_date, reason_closed, notes',
       )
       .order('last_name');
     const { data: profs } = await supabase
@@ -72,16 +77,22 @@ export function useBilling(): BillingData {
       }),
     );
     const { data: cyc } = await supabase.from('billing_cycles').select('*').order('cycle_number');
+    // Every open client appears in billing — clients missing setup show up with a
+    // "missing information" next action instead of being hidden.
     const mapped = ((cls as Array<Omit<BillingClient, 'assigned_staff_name'>>) ?? [])
-      .filter((c) => isSetupComplete(c))
+      .filter((c) => c.status === 'active' && !c.closed_date)
       .map((c) => ({
         ...c,
+        // Normalize the anchor locally so the UI matches what cycles were built from.
+        auth_150_start: billingAnchor(c),
+        auth_150_end: c.auth_150_end || derivedAuth150End(billingAnchor(c)),
         assigned_staff_name: c.assigned_employee_id ? nameById.get(c.assigned_employee_id) ?? null : null,
       }));
     setClients(mapped as BillingClient[]);
     setCycles((cyc as BillingCycle[]) ?? []);
     setLoading(false);
   }, []);
+
 
   useEffect(() => {
     load();
@@ -91,7 +102,16 @@ export function useBilling(): BillingData {
   const regenerateOne = useCallback(
     async (client: BillingClient, existing: BillingCycle[]) => {
       if (!isOpen(client) || !isSetupComplete(client)) return { created: 0, updated: 0 };
+      // Persist the canonical anchor + derived 150-day end for legacy records.
+      const anchor = billingAnchor(client);
+      const clientPatch: Record<string, string> = {};
+      if (anchor && !client.auth_150_start) clientPatch.auth_150_start = anchor;
+      if (anchor && !client.auth_150_end) clientPatch.auth_150_end = derivedAuth150End(anchor)!;
+      if (Object.keys(clientPatch).length) {
+        await supabase.from('clients').update(clientPatch).eq('id', client.id);
+      }
       const ideal = generateCyclesForClient(client);
+
       const byNumber = new Map(existing.map((c) => [c.cycle_number, c]));
       let created = 0;
       let updated = 0;
