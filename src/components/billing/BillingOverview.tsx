@@ -76,15 +76,19 @@ export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeli
           cl,
           summary: summarizeClientBilling(cl, cyc),
           stage: approvalStageFor(cl, cyc),
+          hsp: hspStatusFor(cl),
+          action: nextBillingAction(cl, cyc),
+          missing: isMissingBillingSetup(cl) ? missingSetupItems(cl) : [],
         };
       })
-      .filter(({ cl, summary, stage: st }) => {
+      .filter(({ cl, summary, stage: st, missing }) => {
         if (search) {
           const name = `${cl.first_name} ${cl.last_name}`.toLowerCase();
           const q = search.toLowerCase();
           if (!name.includes(q) && !(cl.member_id ?? '').toLowerCase().includes(q)) return false;
         }
         if (stage !== 'all' && st !== stage) return false;
+        if (urgency === 'missing' && missing.length === 0) return false;
         if (urgency === 'denied' && !summary.hasDenied) return false;
         if (urgency === 'due_48' && summary.urgency !== 'due_48') return false;
         if (urgency === 'due_week' && !(summary.urgency === 'due_week' || summary.urgency === 'due_48')) return false;
@@ -93,6 +97,7 @@ export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeli
       })
       .sort((a, b) => `${a.cl.last_name}${a.cl.first_name}`.localeCompare(`${b.cl.last_name}${b.cl.first_name}`));
   }, [clients, cyclesByClient, search, stage, urgency]);
+
 
   return (
     <div className="space-y-3">
