@@ -338,66 +338,89 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
 
             {/* Section: Dates & authorizations */}
             <div className="rounded-md border p-4 space-y-4">
-              <h4 className="text-sm font-semibold">Dates &amp; Authorizations</h4>
+              <h4 className="text-sm font-semibold">Dates and authorizations</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="intake_date" render={({ field }) => (
-                  <FormItem><FormLabel>Intake Date (Assessment Start)</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Intake date (assessment start)</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="assessment_due_date" render={({ field }) => (
-                  <FormItem><FormLabel>Assessment Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Assessment due date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="iat_date" render={({ field }) => (
-                  <FormItem><FormLabel>IAT Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>IAT start date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="hsp_due_date" render={({ field }) => (
-                  <FormItem><FormLabel>HSP Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>HSP due date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
 
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">30-Day Authorization</p>
+                <p className="text-xs font-medium text-muted-foreground">30-day authorization</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField control={form.control} name="auth_30_number" render={({ field }) => (
-                    <FormItem><FormLabel>30-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>30-day auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="auth_30_start" render={({ field }) => (
-                    <FormItem><FormLabel>30-Day Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>30-day start date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="auth_30_end" render={({ field }) => (
-                    <FormItem><FormLabel>30-Day End Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>30-day end date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">150-Day Authorization (drives billing)</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  150-day authorization — the HSP approval start date drives billing
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField control={form.control} name="auth_150_number" render={({ field }) => (
-                    <FormItem><FormLabel>150-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>150-day auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="auth_150_start" render={({ field }) => (
-                    <FormItem><FormLabel>150-Day Start</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                    <FormItem>
+                      <FormLabel>HSP approval start date</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="date"
+                          onChange={(e) => {
+                            field.onChange(e);
+                            // Auto-fill the 150-day end (start + 149 days) when blank.
+                            const v = e.target.value;
+                            if (v && !form.getValues('auth_150_end')) {
+                              const d = new Date(`${v}T12:00:00Z`);
+                              d.setUTCDate(d.getUTCDate() + 149);
+                              form.setValue('auth_150_end', d.toISOString().slice(0, 10));
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">Billing cycle 1 starts on this date.</p>
+                      <FormMessage />
+                    </FormItem>
                   )} />
                   <FormField control={form.control} name="auth_150_end" render={({ field }) => (
-                    <FormItem><FormLabel>150-Day End</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>150-day end date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">180-Day Authorization</p>
+                <p className="text-xs font-medium text-muted-foreground">180-day authorization</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField control={form.control} name="auth_180_number" render={({ field }) => (
-                    <FormItem><FormLabel>180-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>180-day auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="auth_180_start" render={({ field }) => (
-                    <FormItem><FormLabel>180-Day Start</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>180-day start date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={form.control} name="auth_180_end" render={({ field }) => (
-                    <FormItem><FormLabel>180-Day End</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>180-day end date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
               </div>
+
             </div>
 
             {/* Section: Follow-up */}
