@@ -132,7 +132,7 @@ export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeli
               <TableRow>
                 <TableHead>Client</TableHead>
                 <TableHead>Case manager</TableHead>
-                <TableHead>Level of need</TableHead>
+                <TableHead>LoN</TableHead>
                 <TableHead>Next action</TableHead>
                 <TableHead>HSP status</TableHead>
                 <TableHead>Claim status</TableHead>
@@ -142,27 +142,35 @@ export const BillingOverview: React.FC<Props> = ({ clients, cycles, onOpenTimeli
               {rows.length === 0 && (
                 <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No clients match these filters.</TableCell></TableRow>
               )}
-              {rows.map(({ cl, summary, stage: st }) => (
+              {rows.map(({ cl, summary, hsp, action, missing }) => (
                 <TableRow key={cl.id} className="cursor-pointer" onClick={() => onOpenTimeline(cl.id)}>
                   <TableCell className="font-medium whitespace-nowrap">{cl.first_name} {cl.last_name}</TableCell>
                   <TableCell className="whitespace-nowrap">{cl.assigned_staff_name ?? <span className="text-muted-foreground">Unassigned</span>}</TableCell>
                   <TableCell className="whitespace-nowrap">{cl.level_of_need ?? <span className="text-muted-foreground">—</span>}</TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {summary.dueDate ?? '—'}
-                    {urgencyBadge(summary.urgency) && <span className="ml-2">{urgencyBadge(summary.urgency)}</span>}
+                    <div className="flex items-center gap-2">
+                      <span>{action.label}</span>
+                      {urgencyBadge(action.urgency)}
+                    </div>
+                    {action.dueDate && (
+                      <div className="text-xs text-muted-foreground">by {action.dueDate}</div>
+                    )}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{st}</TableCell>
+                  <TableCell className="whitespace-nowrap">{hsp}</TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {summary.hasDenied ? (
+                    {missing.length > 0 ? (
+                      <span className="text-muted-foreground">Missing {missing.join(', ')}</span>
+                    ) : summary.hasDenied ? (
                       <Badge className="bg-red-600 text-white hover:bg-red-600">Denied</Badge>
                     ) : summary.claimStatus ? (
-                      <Badge className={billingBadgeClass(summary.claimStatus)}>{summary.claimStatus}</Badge>
+                      <Badge className={billingBadgeClass(summary.claimStatus)}>{billingStatusLabel(summary.claimStatus)}</Badge>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
+
             </TableBody>
           </Table>
         </CardContent>
