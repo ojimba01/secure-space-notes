@@ -209,9 +209,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       // Refresh billing cycles if auth dates or level of need changed.
       const billingChanged =
         (data.auth_150_start || '') !== (client.auth_150_start || '') ||
-        (data.auth_150_end || '') !== (client.auth_150_end || '') ||
-        (data.auth_180_start || '') !== (client.auth_180_start || '') ||
-        (data.auth_180_end || '') !== (client.auth_180_end || '') ||
+        !!data.hsp_submitted !== !!client.hsp_submitted ||
+        !!data.auth_180_approved !== !!client.auth_180_approved ||
         (data.level_of_need || '') !== (client.level_of_need || '');
       if (billingChanged) {
         try {
