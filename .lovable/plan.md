@@ -1,46 +1,24 @@
-## Goal
+# Align billing UI with the new database cycle engine
 
-Two related fixes around employee offboarding:
+## Status of the SQL file
 
-1. **DB cleanup + ongoing safeguard** — make sure no client is silently assigned to an inactive (deactivated) employee, now and in the future.
-2. **Deactivation confirmation** — require an admin to type the word `Confirm` before an employee is actually deactivated.
+The engine you uploaded has already been applied to the database as one migration. It added the setup fields to clients (HSP submitted, extension approved, billing tracking start), the active flag on cycles, the rate lookup, the automatic cycle generation and date-derivation triggers, admin + superadmin billing access, and it backfilled every existing client.
 
-Current data note: right now the three inactive employees happen to have 0 assigned clients, so the live database is already clean. The real risk is *future* deactivations. This plan adds an automatic unassign on deactivation so it never breaks again, plus a one-time sweep for any stragglers.
+Current backfill result: 9 clients have 5 cycles, 1 client has 11 cycles, and every generated cycle is exactly 30 inclusive days. 77 clients produce zero cycles because their setup is incomplete — 76 of those have a 150-day start date but no Level of Need.
 
-## Part 1 — Unassign clients when an employee is deactivated
+## What still needs doing in the app
 
-Update the `deactivate_user` database function so that, in addition to setting the profile inactive, it clears `assigned_employee_id` on every client currently assigned to that employee (sets them to NULL / unassigned). This guarantees a deactivated staff member can never remain silently attached to cases. Those clients then surface in the existing "Unassigned" filter on the Clients page, ready for an admin to bulk-reassign.
+The app currently generates cycles itself in the browser, which now duplicates and can fight the database engine.
 
-The unassignment is logged via the existing audit trigger on the `clients` table, preserving the audit trail (the employee profile itself is never deleted, per project rules).
+1. Retire client-side generation. Remove the front-end cycle-building logic and let saving a client be what creates cycles. The "Regenerate cycles" button stays, but it asks the database to re-sync instead of computing dates in the browser.
+2. Respect the active flag. Billing views only show active cycles, so superseded cycles stay in the record for history without appearing as live deadlines.
+3. Surface the setup gate honestly. For the 76 clients with a start date but no Level of Need, billing rows should read "Add Level of Need" as the next action rather than looking like zero-dollar or missing billing.
+4. Add the new fields to the client form. Checkboxes for "HSP submitted" and "180-day extension approved", with the 150-day and 180-day end dates shown as read-only since the database now derives them.
+5. Turning on the extension checkbox extends a client from 5 to 11 cycles automatically; turning it off hides cycles 6-11 without deleting their claim data.
 
-A one-time corrective sweep is included in the same migration: any client whose `assigned_employee_id` points to an inactive profile is set to NULL.
+## Technical notes
 
-```text
-deactivate_user(_profile_id):
-  - require superadmin (unchanged)
-  - block self-deactivation (unchanged)
-  - UPDATE clients SET assigned_employee_id = NULL
-      WHERE assigned_employee_id = _profile_id
-  - UPDATE profiles SET active = false WHERE id = _profile_id
-```
-
-## Part 2 — "Confirm" type-to-confirm safeguard
-
-In `src/pages/Admin.tsx`, deactivating currently happens instantly when the admin flips the Active switch. Add an `AlertDialog` that opens when an admin tries to **deactivate** an active employee (activating stays one click).
-
-The dialog will:
-- Warn that the employee will be deactivated and **all their assigned clients will become unassigned**, showing the employee's name.
-- Contain a text input. The destructive "Deactivate" button stays disabled until the admin types `Confirm` exactly.
-- On confirm, run the existing `deactivate_user` RPC and refresh the list.
-
-No confirmation is required for re-activating someone.
-
-## Technical details
-
-- **Migration**: `CREATE OR REPLACE FUNCTION public.deactivate_user` with the added client-unassign step, plus a one-time `UPDATE clients SET assigned_employee_id = NULL` for clients assigned to any inactive profile.
-- **`src/pages/Admin.tsx`**: add `AlertDialog` (already available in `src/components/ui/alert-dialog.tsx`) state (`pendingDeactivation`, `confirmText`), gate the Switch's `onCheckedChange` so deactivation opens the dialog instead of calling the RPC directly, and only call `handleToggleUserStatus` after the typed confirmation matches.
-
-## Out of scope
-
-- No changes to how clients are reassigned (existing BulkReassign/Reassign dialogs already handle that).
-- No deletion of employee records (project rule: deactivate only).
+- Replace `src/lib/billingSync.ts` and the `regenerateOne` logic in `src/hooks/useBilling.ts` with an RPC call to `public.sync_client_billing_cycles(client_id)`; expose that function to authenticated callers in a small follow-up migration and keep the admin check inside it.
+- Filter `is_active = true` in `useBilling`, `useDashboardPriorities`, and the billing-cron function.
+- Fetch `hsp_submitted`, `auth_180_approved`, `billing_tracking_start` in client queries; make `auth_150_end` / `auth_180_start` / `auth_180_end` read-only in `AddClientDialog` and `EditClientDialog`.
+- Update `billing-cron` to call the database function rather than recomputing cycles, then redeploy.
