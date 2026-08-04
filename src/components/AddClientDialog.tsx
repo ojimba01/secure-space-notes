@@ -381,28 +381,19 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                     <FormItem>
                       <FormLabel>HSP approval start date</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="date"
-                          onChange={(e) => {
-                            field.onChange(e);
-                            // Auto-fill the 150-day end (start + 149 days) when blank.
-                            const v = e.target.value;
-                            if (v && !form.getValues('auth_150_end')) {
-                              const d = new Date(`${v}T12:00:00Z`);
-                              d.setUTCDate(d.getUTCDate() + 149);
-                              form.setValue('auth_150_end', d.toISOString().slice(0, 10));
-                            }
-                          }}
-                        />
+                        <Input {...field} type="date" />
                       </FormControl>
                       <p className="text-xs text-muted-foreground">Billing cycle 1 starts on this date.</p>
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="auth_150_end" render={({ field }) => (
-                    <FormItem><FormLabel>150-day end date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                  )} />
+                  <FormItem>
+                    <FormLabel>150-day end date</FormLabel>
+                    <FormControl>
+                      <Input value={derivedEnds.end150} type="date" readOnly disabled />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Calculated as start + 149 days.</p>
+                  </FormItem>
                 </div>
               </div>
 
@@ -412,14 +403,52 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                   <FormField control={form.control} name="auth_180_number" render={({ field }) => (
                     <FormItem><FormLabel>180-day auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
-                  <FormField control={form.control} name="auth_180_start" render={({ field }) => (
-                    <FormItem><FormLabel>180-day start date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="auth_180_end" render={({ field }) => (
-                    <FormItem><FormLabel>180-day end date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                  )} />
+                  <FormItem>
+                    <FormLabel>180-day start date</FormLabel>
+                    <FormControl>
+                      <Input value={derivedEnds.start180} type="date" readOnly disabled />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Set once the extension is approved.</p>
+                  </FormItem>
+                  <FormItem>
+                    <FormLabel>180-day end date</FormLabel>
+                    <FormControl>
+                      <Input value={derivedEnds.end180} type="date" readOnly disabled />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Calculated as start + 329 days.</p>
+                  </FormItem>
                 </div>
               </div>
+
+              <div className="space-y-3 border-t pt-4">
+                <FormField control={form.control} name="hsp_submitted" render={({ field }) => (
+                  <FormItem className="flex flex-row items-start gap-3 space-y-0">
+                    <FormControl>
+                      <Checkbox checked={!!field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>HSP submitted</FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Required before billing cycles are generated.
+                      </p>
+                    </div>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="auth_180_approved" render={({ field }) => (
+                  <FormItem className="flex flex-row items-start gap-3 space-y-0">
+                    <FormControl>
+                      <Checkbox checked={!!field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>180-day extension approved</FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Extends the client from 5 to 11 billing cycles.
+                      </p>
+                    </div>
+                  </FormItem>
+                )} />
+              </div>
+
 
             </div>
 
