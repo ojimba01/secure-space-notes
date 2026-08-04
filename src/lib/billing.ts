@@ -93,31 +93,25 @@ export function derivedAuth150End(anchor: string | null | undefined): string | n
   return anchor ? addDays(anchor, 149) : null;
 }
 
-// Generate the ideal set of 30-day cycles for a client from their auth dates.
+// Preview of the cycles the database engine will create for a client.
+// The database is the source of truth (public.sync_client_billing_cycles);
+// this mirrors it exactly so previews match what gets saved.
 // Anchor = HSP approval start date (auth_150_start, falling back to hsp_150_date).
-// Default 5 cycles for the 150-day run; extend through the 180-day end when present.
+// 5 cycles for a 150-day run, 11 once the 180-day extension is approved.
 export function generateCyclesForClient(client: {
   auth_150_start?: string | null;
   auth_150_end?: string | null;
   auth_180_start?: string | null;
   auth_180_end?: string | null;
+  auth_180_approved?: boolean | null;
   hsp_150_date?: string | null;
   level_of_need?: string | null;
 }): GeneratedCycle[] {
   const start = billingAnchor(client);
   if (!start) return [];
   const amount = rateForLevel(client.level_of_need);
-  const has180 = !!(client.auth_180_start || client.auth_180_end);
-
-  // Base run is 5 cycles. If a 180-day extension exists, continue through its end.
-  let lastCycle = CYCLES_150;
-  if (has180 && client.auth_180_end) {
-    const diff = daysBetween(start, client.auth_180_end);
-    if (diff >= 0) {
-      const needed = Math.floor(diff / CYCLE_LENGTH_DAYS) + 1;
-      lastCycle = Math.min(Math.max(CYCLES_150, needed), MAX_CYCLES);
-    }
-  }
+  const extended = !!client.auth_180_approved;
+  const lastCycle = extended ? CYCLES_180 : CYCLES_150;
 
   const cycles: GeneratedCycle[] = [];
   for (let n = 1; n <= lastCycle; n++) {
