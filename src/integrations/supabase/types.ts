@@ -727,6 +727,90 @@ export type Database = {
         }
         Relationships: []
       }
+      hsp_import_staging: {
+        Row: {
+          approval_status: string | null
+          assessment_due_date: string | null
+          auth_150_end: string | null
+          auth_150_number: string | null
+          auth_150_start: string | null
+          auth_180_end: string | null
+          auth_180_number: string | null
+          auth_180_start: string | null
+          auth_30_end: string | null
+          auth_30_number: string | null
+          auth_30_start: string | null
+          case_status: string | null
+          client_id: string | null
+          closed_date: string | null
+          created_at: string
+          first_name: string | null
+          id: string
+          intake_date: string | null
+          last_name: string | null
+          mco: string | null
+          mco_housing_manager: string | null
+          member_id: string | null
+          next_action_due_date: string | null
+          phone: string | null
+          reason_closed: string | null
+        }
+        Insert: {
+          approval_status?: string | null
+          assessment_due_date?: string | null
+          auth_150_end?: string | null
+          auth_150_number?: string | null
+          auth_150_start?: string | null
+          auth_180_end?: string | null
+          auth_180_number?: string | null
+          auth_180_start?: string | null
+          auth_30_end?: string | null
+          auth_30_number?: string | null
+          auth_30_start?: string | null
+          case_status?: string | null
+          client_id?: string | null
+          closed_date?: string | null
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          intake_date?: string | null
+          last_name?: string | null
+          mco?: string | null
+          mco_housing_manager?: string | null
+          member_id?: string | null
+          next_action_due_date?: string | null
+          phone?: string | null
+          reason_closed?: string | null
+        }
+        Update: {
+          approval_status?: string | null
+          assessment_due_date?: string | null
+          auth_150_end?: string | null
+          auth_150_number?: string | null
+          auth_150_start?: string | null
+          auth_180_end?: string | null
+          auth_180_number?: string | null
+          auth_180_start?: string | null
+          auth_30_end?: string | null
+          auth_30_number?: string | null
+          auth_30_start?: string | null
+          case_status?: string | null
+          client_id?: string | null
+          closed_date?: string | null
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          intake_date?: string | null
+          last_name?: string | null
+          mco?: string | null
+          mco_housing_manager?: string | null
+          member_id?: string | null
+          next_action_due_date?: string | null
+          phone?: string | null
+          reason_closed?: string | null
+        }
+        Relationships: []
+      }
       onboarding_content: {
         Row: {
           content_type: string
@@ -913,6 +997,13 @@ export type Database = {
     }
     Functions: {
       activate_user: { Args: { _profile_id: string }; Returns: undefined }
+      apply_hsp_import: {
+        Args: never
+        Returns: {
+          inserted_count: number
+          updated_count: number
+        }[]
+      }
       call_compliance_cron: { Args: { _job: string }; Returns: undefined }
       can_access_client_files: {
         Args: { _client_id: string; _user_id: string }
