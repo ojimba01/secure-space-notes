@@ -487,7 +487,7 @@ export function nextBillingAction(
   // Setup gaps come first.
   if (!isHspSubmitted(client)) return { label: 'Submit HSP', dueDate: null, urgency: 'none' };
   if (!billingAnchor(client)) return { label: 'Add HSP approval start date', dueDate: null, urgency: 'none' };
-  if (rateForLevel(client.level_of_need) == null) return { label: 'Add LoN', dueDate: null, urgency: 'none' };
+  if (rateForLevel(client.level_of_need) == null) return { label: 'Add Level of Need', dueDate: null, urgency: 'none' };
   if (cycles.length === 0) return { label: 'Generate billing cycles', dueDate: null, urgency: 'none' };
 
   const denied = cycles.find((c) => c.billing_status === 'Denied');
