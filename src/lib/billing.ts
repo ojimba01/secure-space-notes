@@ -33,6 +33,8 @@ export interface BillingCycle {
   submitted_date: string | null;
   paid_date: string | null;
   is_auto_generated: boolean;
+  // Superseded cycles stay in the record for history but are not live deadlines.
+  is_active?: boolean;
   notes: string | null;
   created_at?: string;
   updated_at?: string;
