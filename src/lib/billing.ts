@@ -6,6 +6,8 @@ export const CYCLE_LENGTH_DAYS = 30;
 export const MAX_CYCLES = 12;
 // A standard 150-day authorization run is 5 x 30-day billing cycles.
 export const CYCLES_150 = 5;
+// An approved 180-day extension runs 11 x 30-day billing cycles in total.
+export const CYCLES_180 = 11;
 
 export const RATE_LOW = 320;
 export const RATE_HIGH = 640;
