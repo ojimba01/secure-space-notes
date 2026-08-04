@@ -75,6 +75,7 @@ export type Database = {
           cycle_number: number
           cycle_start: string
           id: string
+          is_active: boolean
           is_auto_generated: boolean
           notes: string | null
           paid_amount: number
@@ -94,6 +95,7 @@ export type Database = {
           cycle_number: number
           cycle_start: string
           id?: string
+          is_active?: boolean
           is_auto_generated?: boolean
           notes?: string | null
           paid_amount?: number
@@ -113,6 +115,7 @@ export type Database = {
           cycle_number?: number
           cycle_start?: string
           id?: string
+          is_active?: boolean
           is_auto_generated?: boolean
           notes?: string | null
           paid_amount?: number
@@ -536,12 +539,14 @@ export type Database = {
           auth_150_end: string | null
           auth_150_number: string | null
           auth_150_start: string | null
+          auth_180_approved: boolean
           auth_180_end: string | null
           auth_180_number: string | null
           auth_180_start: string | null
           auth_30_end: string | null
           auth_30_number: string | null
           auth_30_start: string | null
+          billing_tracking_start: string
           closed_date: string | null
           county: string | null
           created_at: string | null
@@ -552,6 +557,7 @@ export type Database = {
           hsp_150_date: string | null
           hsp_180_date: string | null
           hsp_due_date: string | null
+          hsp_submitted: boolean
           iat_date: string | null
           id: string
           insurance: string | null
@@ -575,12 +581,14 @@ export type Database = {
           auth_150_end?: string | null
           auth_150_number?: string | null
           auth_150_start?: string | null
+          auth_180_approved?: boolean
           auth_180_end?: string | null
           auth_180_number?: string | null
           auth_180_start?: string | null
           auth_30_end?: string | null
           auth_30_number?: string | null
           auth_30_start?: string | null
+          billing_tracking_start?: string
           closed_date?: string | null
           county?: string | null
           created_at?: string | null
@@ -591,6 +599,7 @@ export type Database = {
           hsp_150_date?: string | null
           hsp_180_date?: string | null
           hsp_due_date?: string | null
+          hsp_submitted?: boolean
           iat_date?: string | null
           id?: string
           insurance?: string | null
@@ -614,12 +623,14 @@ export type Database = {
           auth_150_end?: string | null
           auth_150_number?: string | null
           auth_150_start?: string | null
+          auth_180_approved?: boolean
           auth_180_end?: string | null
           auth_180_number?: string | null
           auth_180_start?: string | null
           auth_30_end?: string | null
           auth_30_number?: string | null
           auth_30_start?: string | null
+          billing_tracking_start?: string
           closed_date?: string | null
           county?: string | null
           created_at?: string | null
@@ -630,6 +641,7 @@ export type Database = {
           hsp_150_date?: string | null
           hsp_180_date?: string | null
           hsp_due_date?: string | null
+          hsp_submitted?: boolean
           iat_date?: string | null
           id?: string
           insurance?: string | null
@@ -913,6 +925,7 @@ export type Database = {
     }
     Functions: {
       activate_user: { Args: { _profile_id: string }; Returns: undefined }
+      billing_rate_for_level: { Args: { p_level: string }; Returns: number }
       call_compliance_cron: { Args: { _job: string }; Returns: undefined }
       can_access_client_files: {
         Args: { _client_id: string; _user_id: string }
@@ -951,6 +964,10 @@ export type Database = {
       set_employee_admin: {
         Args: { _make_admin: boolean; _profile_id: string }
         Returns: undefined
+      }
+      sync_client_billing_cycles: {
+        Args: { p_client_id: string }
+        Returns: number
       }
     }
     Enums: {
