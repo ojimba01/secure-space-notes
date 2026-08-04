@@ -101,6 +101,8 @@ interface Client {
   auth_30_number?: string;
   auth_150_number?: string;
   auth_180_number?: string;
+  hsp_submitted?: boolean | null;
+  auth_180_approved?: boolean | null;
   notes?: string;
 }
 
