@@ -274,7 +274,7 @@ export function missingSetupItems(
   const missing: string[] = [];
   if (!isHspSubmitted(client)) missing.push('HSP submission');
   if (!billingAnchor(client)) missing.push('HSP approval start date');
-  if (rateForLevel(client.level_of_need) == null) missing.push('LoN');
+  if (rateForLevel(client.level_of_need) == null) missing.push('Level of Need');
   return missing;
 }
 
