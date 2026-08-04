@@ -62,9 +62,8 @@ const clientSchema = z.object({
   auth_150_number: z.string().trim().max(100).optional(),
   auth_180_number: z.string().trim().max(100).optional(),
   auth_150_start: z.string().optional(),
-  auth_150_end: z.string().optional(),
-  auth_180_start: z.string().optional(),
-  auth_180_end: z.string().optional(),
+  hsp_submitted: z.boolean().optional(),
+  auth_180_approved: z.boolean().optional(),
   status: z.enum(['active', 'inactive']),
   notes: z.string().trim().max(2000).optional(),
 });
