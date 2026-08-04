@@ -197,9 +197,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           auth_150_number: data.auth_150_number || null,
           auth_180_number: data.auth_180_number || null,
           auth_150_start: data.auth_150_start || null,
-          auth_150_end: data.auth_150_end || null,
-          auth_180_start: data.auth_180_start || null,
-          auth_180_end: data.auth_180_end || null,
+          hsp_submitted: !!data.hsp_submitted,
+          auth_180_approved: !!data.auth_180_approved,
           status: data.status,
           notes: data.notes || null,
         })
