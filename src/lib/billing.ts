@@ -211,6 +211,9 @@ export interface ClientBillingFields {
   auth_150_end?: string | null;
   auth_180_start?: string | null;
   auth_180_end?: string | null;
+  auth_180_approved?: boolean | null;
+  hsp_submitted?: boolean | null;
+  billing_tracking_start?: string | null;
   hsp_150_date?: string | null;
   level_of_need?: string | null;
   status?: string | null;
@@ -229,11 +232,18 @@ export function getBillingRun(client: ClientBillingFields): BillingRun {
   };
 }
 
-// HSP counts as submitted once the status says so, OR once an approval start date
-// exists (an approval start date can only come from an approved HSP).
+// HSP submission is recorded explicitly on the client record. Legacy records fall
+// back to the approval status, or to the presence of an approval start date
+// (which can only come from an approved HSP).
 export function isHspSubmitted(
-  client: { approval_status?: string | null; auth_150_start?: string | null; hsp_150_date?: string | null },
+  client: {
+    hsp_submitted?: boolean | null;
+    approval_status?: string | null;
+    auth_150_start?: string | null;
+    hsp_150_date?: string | null;
+  },
 ): boolean {
+  if (client.hsp_submitted === true) return true;
   const s = (client.approval_status ?? '').trim().toLowerCase();
   if (s === 'submitted' || s === 'approved') return true;
   return !!billingAnchor(client);
