@@ -79,7 +79,8 @@ export function useDashboardPriorities(): DashboardPriorities {
     // ---- Billing priorities -----------------------------------------
     const { data: cyc } = await supabase
       .from('billing_cycles')
-      .select('client_id, cycle_number, cycle_end, billing_status, payment_status');
+      .select('client_id, cycle_number, cycle_end, billing_status, payment_status')
+      .eq('is_active', true);
     const billingDue48: PriorityItem[] = [];
     const billingOverdue: PriorityItem[] = [];
     (cyc ?? []).forEach((cy: any) => {

@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
+import { Checkbox } from '@/components/ui/checkbox';
 import { regenerateClientCycles } from '@/lib/billingSync';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 import { useViewAs } from '@/components/ViewAsProvider';
@@ -61,9 +62,8 @@ const clientSchema = z.object({
   auth_150_number: z.string().trim().max(100).optional(),
   auth_180_number: z.string().trim().max(100).optional(),
   auth_150_start: z.string().optional(),
-  auth_150_end: z.string().optional(),
-  auth_180_start: z.string().optional(),
-  auth_180_end: z.string().optional(),
+  hsp_submitted: z.boolean().optional(),
+  auth_180_approved: z.boolean().optional(),
   status: z.enum(['active', 'inactive']),
   notes: z.string().trim().max(2000).optional(),
 });
@@ -101,6 +101,8 @@ interface Client {
   auth_30_number?: string;
   auth_150_number?: string;
   auth_180_number?: string;
+  hsp_submitted?: boolean | null;
+  auth_180_approved?: boolean | null;
   notes?: string;
 }
 
@@ -150,13 +152,31 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       auth_150_number: client.auth_150_number || '',
       auth_180_number: client.auth_180_number || '',
       auth_150_start: client.auth_150_start || '',
-      auth_150_end: client.auth_150_end || '',
-      auth_180_start: client.auth_180_start || '',
-      auth_180_end: client.auth_180_end || '',
+      hsp_submitted: !!client.hsp_submitted,
+      auth_180_approved: !!client.auth_180_approved,
       status: client.status as 'active' | 'inactive',
       notes: client.notes || '',
     },
   });
+
+  // The database derives these from the HSP approval start date, so they are shown
+  // read-only here and previewed live as the start date changes.
+  const watchedStart = form.watch('auth_150_start');
+  const watchedExtension = form.watch('auth_180_approved');
+  const derivedEnds = React.useMemo(() => {
+    if (!watchedStart) return { end150: '', start180: '', end180: '' };
+    const plus = (days: number) => {
+      const d = new Date(`${watchedStart}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + days);
+      return d.toISOString().slice(0, 10);
+    };
+    return {
+      end150: plus(149),
+      start180: watchedExtension ? plus(150) : '',
+      end180: watchedExtension ? plus(329) : '',
+    };
+  }, [watchedStart, watchedExtension]);
+
 
   const handleSubmit = async (data: ClientFormData) => {
     // Sandbox (view-as): show the change happened, but skip the DB write.
@@ -196,9 +216,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           auth_150_number: data.auth_150_number || null,
           auth_180_number: data.auth_180_number || null,
           auth_150_start: data.auth_150_start || null,
-          auth_150_end: data.auth_150_end || null,
-          auth_180_start: data.auth_180_start || null,
-          auth_180_end: data.auth_180_end || null,
+          hsp_submitted: !!data.hsp_submitted,
+          auth_180_approved: !!data.auth_180_approved,
           status: data.status,
           notes: data.notes || null,
         })
@@ -209,9 +228,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       // Refresh billing cycles if auth dates or level of need changed.
       const billingChanged =
         (data.auth_150_start || '') !== (client.auth_150_start || '') ||
-        (data.auth_150_end || '') !== (client.auth_150_end || '') ||
-        (data.auth_180_start || '') !== (client.auth_180_start || '') ||
-        (data.auth_180_end || '') !== (client.auth_180_end || '') ||
+        !!data.hsp_submitted !== !!client.hsp_submitted ||
+        !!data.auth_180_approved !== !!client.auth_180_approved ||
         (data.level_of_need || '') !== (client.level_of_need || '');
       if (billingChanged) {
         try {
@@ -566,8 +584,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               <div>
                 <h4 className="text-sm font-semibold">Billing authorization period</h4>
                 <p className="text-xs text-muted-foreground">
-                  The HSP approval start date drives every billing cycle. The 150-day end date is
-                  calculated for you and can be overridden.
+                  The HSP approval start date drives every billing cycle. The end dates are
+                  calculated automatically once the start date is saved.
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -590,20 +608,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                     <FormItem>
                       <FormLabel>HSP approval start date</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="date"
-                          onChange={(e) => {
-                            field.onChange(e);
-                            // Auto-fill the 150-day end (start + 149 days) when blank.
-                            const v = e.target.value;
-                            if (v && !form.getValues('auth_150_end')) {
-                              const d = new Date(`${v}T12:00:00Z`);
-                              d.setUTCDate(d.getUTCDate() + 149);
-                              form.setValue('auth_150_end', d.toISOString().slice(0, 10));
-                            }
-                          }}
-                        />
+                        <Input {...field} type="date" />
                       </FormControl>
                       <p className="text-xs text-muted-foreground">
                         Billing cycle 1 starts on this date. Cycles run every 30 days.
@@ -612,48 +617,70 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                     </FormItem>
                   )}
                 />
+                <FormItem>
+                  <FormLabel>150-day end date</FormLabel>
+                  <FormControl>
+                    <Input value={derivedEnds.end150 ?? ''} type="date" readOnly disabled />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">Calculated as start + 149 days.</p>
+                </FormItem>
+                <FormItem>
+                  <FormLabel>180-day start date</FormLabel>
+                  <FormControl>
+                    <Input value={derivedEnds.start180 ?? ''} type="date" readOnly disabled />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Calculated as start + 150 days once the extension is approved.
+                  </p>
+                </FormItem>
+                <FormItem>
+                  <FormLabel>180-day end date</FormLabel>
+                  <FormControl>
+                    <Input value={derivedEnds.end180 ?? ''} type="date" readOnly disabled />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">Calculated as start + 329 days.</p>
+                </FormItem>
+              </div>
+
+              <div className="space-y-3 border-t pt-4">
                 <FormField
                   control={form.control}
-                  name="auth_150_end"
+                  name="hsp_submitted"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>150-day end date</FormLabel>
+                    <FormItem className="flex flex-row items-start gap-3 space-y-0">
                       <FormControl>
-                        <Input {...field} type="date" />
+                        <Checkbox checked={!!field.value} onCheckedChange={field.onChange} />
                       </FormControl>
-                      <p className="text-xs text-muted-foreground">Calculated as start + 149 days.</p>
-                      <FormMessage />
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>HSP submitted</FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          Required before billing cycles are generated.
+                        </p>
+                      </div>
                     </FormItem>
                   )}
                 />
                 <FormField
                   control={form.control}
-                  name="auth_180_start"
+                  name="auth_180_approved"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>180-day start date</FormLabel>
+                    <FormItem className="flex flex-row items-start gap-3 space-y-0">
                       <FormControl>
-                        <Input {...field} type="date" />
+                        <Checkbox checked={!!field.value} onCheckedChange={field.onChange} />
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="auth_180_end"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>180-day end date</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <FormMessage />
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>180-day extension approved</FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          Extends the client from 5 to 11 billing cycles. Turning this off hides
+                          cycles 6 to 11 without deleting their claim details.
+                        </p>
+                      </div>
                     </FormItem>
                   )}
                 />
               </div>
             </div>
+
 
 
             <div className="rounded-md border p-4 space-y-4">

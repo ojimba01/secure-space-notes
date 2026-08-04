@@ -8,6 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -54,10 +55,9 @@ const clientSchema = z.object({
   auth_30_end: z.string().optional(),
   auth_150_number: z.string().trim().max(100).optional(),
   auth_150_start: z.string().optional(),
-  auth_150_end: z.string().optional(),
   auth_180_number: z.string().trim().max(100).optional(),
-  auth_180_start: z.string().optional(),
-  auth_180_end: z.string().optional(),
+  hsp_submitted: z.boolean().optional(),
+  auth_180_approved: z.boolean().optional(),
   next_action_due_date: z.string().optional(),
   closed_date: z.string().optional(),
   reason_closed: z.string().trim().max(100).optional(),
@@ -114,10 +114,9 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       auth_30_end: '',
       auth_150_number: '',
       auth_150_start: '',
-      auth_150_end: '',
       auth_180_number: '',
-      auth_180_start: '',
-      auth_180_end: '',
+      hsp_submitted: false,
+      auth_180_approved: false,
       next_action_due_date: '',
       closed_date: '',
       reason_closed: '',
@@ -125,6 +124,25 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       notes: '',
     },
   });
+
+  // The database derives the authorization end dates from the HSP approval start
+  // date, so they are previewed read-only here.
+  const watchedStart = form.watch('auth_150_start');
+  const watchedExtension = form.watch('auth_180_approved');
+  const derivedEnds = React.useMemo(() => {
+    if (!watchedStart) return { end150: '', start180: '', end180: '' };
+    const plus = (days: number) => {
+      const d = new Date(`${watchedStart}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + days);
+      return d.toISOString().slice(0, 10);
+    };
+    return {
+      end150: plus(149),
+      start180: watchedExtension ? plus(150) : '',
+      end180: watchedExtension ? plus(329) : '',
+    };
+  }, [watchedStart, watchedExtension]);
+
 
 
   const handleSubmit = async (data: ClientFormData) => {
@@ -167,10 +185,9 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         auth_30_end: data.auth_30_end || null,
         auth_150_number: data.auth_150_number || null,
         auth_150_start: data.auth_150_start || null,
-        auth_150_end: data.auth_150_end || null,
         auth_180_number: data.auth_180_number || null,
-        auth_180_start: data.auth_180_start || null,
-        auth_180_end: data.auth_180_end || null,
+        hsp_submitted: !!data.hsp_submitted,
+        auth_180_approved: !!data.auth_180_approved,
         next_action_due_date: data.next_action_due_date || null,
         closed_date: data.closed_date || null,
         reason_closed: data.reason_closed || null,
@@ -381,28 +398,19 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                     <FormItem>
                       <FormLabel>HSP approval start date</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          type="date"
-                          onChange={(e) => {
-                            field.onChange(e);
-                            // Auto-fill the 150-day end (start + 149 days) when blank.
-                            const v = e.target.value;
-                            if (v && !form.getValues('auth_150_end')) {
-                              const d = new Date(`${v}T12:00:00Z`);
-                              d.setUTCDate(d.getUTCDate() + 149);
-                              form.setValue('auth_150_end', d.toISOString().slice(0, 10));
-                            }
-                          }}
-                        />
+                        <Input {...field} type="date" />
                       </FormControl>
                       <p className="text-xs text-muted-foreground">Billing cycle 1 starts on this date.</p>
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="auth_150_end" render={({ field }) => (
-                    <FormItem><FormLabel>150-day end date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                  )} />
+                  <FormItem>
+                    <FormLabel>150-day end date</FormLabel>
+                    <FormControl>
+                      <Input value={derivedEnds.end150} type="date" readOnly disabled />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Calculated as start + 149 days.</p>
+                  </FormItem>
                 </div>
               </div>
 
@@ -412,14 +420,52 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                   <FormField control={form.control} name="auth_180_number" render={({ field }) => (
                     <FormItem><FormLabel>180-day auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                   )} />
-                  <FormField control={form.control} name="auth_180_start" render={({ field }) => (
-                    <FormItem><FormLabel>180-day start date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="auth_180_end" render={({ field }) => (
-                    <FormItem><FormLabel>180-day end date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                  )} />
+                  <FormItem>
+                    <FormLabel>180-day start date</FormLabel>
+                    <FormControl>
+                      <Input value={derivedEnds.start180} type="date" readOnly disabled />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Set once the extension is approved.</p>
+                  </FormItem>
+                  <FormItem>
+                    <FormLabel>180-day end date</FormLabel>
+                    <FormControl>
+                      <Input value={derivedEnds.end180} type="date" readOnly disabled />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Calculated as start + 329 days.</p>
+                  </FormItem>
                 </div>
               </div>
+
+              <div className="space-y-3 border-t pt-4">
+                <FormField control={form.control} name="hsp_submitted" render={({ field }) => (
+                  <FormItem className="flex flex-row items-start gap-3 space-y-0">
+                    <FormControl>
+                      <Checkbox checked={!!field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>HSP submitted</FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Required before billing cycles are generated.
+                      </p>
+                    </div>
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="auth_180_approved" render={({ field }) => (
+                  <FormItem className="flex flex-row items-start gap-3 space-y-0">
+                    <FormControl>
+                      <Checkbox checked={!!field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>180-day extension approved</FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Extends the client from 5 to 11 billing cycles.
+                      </p>
+                    </div>
+                  </FormItem>
+                )} />
+              </div>
+
 
             </div>
 

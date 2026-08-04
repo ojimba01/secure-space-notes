@@ -6,6 +6,8 @@ export const CYCLE_LENGTH_DAYS = 30;
 export const MAX_CYCLES = 12;
 // A standard 150-day authorization run is 5 x 30-day billing cycles.
 export const CYCLES_150 = 5;
+// An approved 180-day extension runs 11 x 30-day billing cycles in total.
+export const CYCLES_180 = 11;
 
 export const RATE_LOW = 320;
 export const RATE_HIGH = 640;
@@ -33,6 +35,8 @@ export interface BillingCycle {
   submitted_date: string | null;
   paid_date: string | null;
   is_auto_generated: boolean;
+  // Superseded cycles stay in the record for history but are not live deadlines.
+  is_active?: boolean;
   notes: string | null;
   created_at?: string;
   updated_at?: string;
@@ -91,31 +95,25 @@ export function derivedAuth150End(anchor: string | null | undefined): string | n
   return anchor ? addDays(anchor, 149) : null;
 }
 
-// Generate the ideal set of 30-day cycles for a client from their auth dates.
+// Preview of the cycles the database engine will create for a client.
+// The database is the source of truth (public.sync_client_billing_cycles);
+// this mirrors it exactly so previews match what gets saved.
 // Anchor = HSP approval start date (auth_150_start, falling back to hsp_150_date).
-// Default 5 cycles for the 150-day run; extend through the 180-day end when present.
+// 5 cycles for a 150-day run, 11 once the 180-day extension is approved.
 export function generateCyclesForClient(client: {
   auth_150_start?: string | null;
   auth_150_end?: string | null;
   auth_180_start?: string | null;
   auth_180_end?: string | null;
+  auth_180_approved?: boolean | null;
   hsp_150_date?: string | null;
   level_of_need?: string | null;
 }): GeneratedCycle[] {
   const start = billingAnchor(client);
   if (!start) return [];
   const amount = rateForLevel(client.level_of_need);
-  const has180 = !!(client.auth_180_start || client.auth_180_end);
-
-  // Base run is 5 cycles. If a 180-day extension exists, continue through its end.
-  let lastCycle = CYCLES_150;
-  if (has180 && client.auth_180_end) {
-    const diff = daysBetween(start, client.auth_180_end);
-    if (diff >= 0) {
-      const needed = Math.floor(diff / CYCLE_LENGTH_DAYS) + 1;
-      lastCycle = Math.min(Math.max(CYCLES_150, needed), MAX_CYCLES);
-    }
-  }
+  const extended = !!client.auth_180_approved;
+  const lastCycle = extended ? CYCLES_180 : CYCLES_150;
 
   const cycles: GeneratedCycle[] = [];
   for (let n = 1; n <= lastCycle; n++) {
@@ -213,6 +211,9 @@ export interface ClientBillingFields {
   auth_150_end?: string | null;
   auth_180_start?: string | null;
   auth_180_end?: string | null;
+  auth_180_approved?: boolean | null;
+  hsp_submitted?: boolean | null;
+  billing_tracking_start?: string | null;
   hsp_150_date?: string | null;
   level_of_need?: string | null;
   status?: string | null;
@@ -231,11 +232,18 @@ export function getBillingRun(client: ClientBillingFields): BillingRun {
   };
 }
 
-// HSP counts as submitted once the status says so, OR once an approval start date
-// exists (an approval start date can only come from an approved HSP).
+// HSP submission is recorded explicitly on the client record. Legacy records fall
+// back to the approval status, or to the presence of an approval start date
+// (which can only come from an approved HSP).
 export function isHspSubmitted(
-  client: { approval_status?: string | null; auth_150_start?: string | null; hsp_150_date?: string | null },
+  client: {
+    hsp_submitted?: boolean | null;
+    approval_status?: string | null;
+    auth_150_start?: string | null;
+    hsp_150_date?: string | null;
+  },
 ): boolean {
+  if (client.hsp_submitted === true) return true;
   const s = (client.approval_status ?? '').trim().toLowerCase();
   if (s === 'submitted' || s === 'approved') return true;
   return !!billingAnchor(client);
@@ -266,7 +274,7 @@ export function missingSetupItems(
   const missing: string[] = [];
   if (!isHspSubmitted(client)) missing.push('HSP submission');
   if (!billingAnchor(client)) missing.push('HSP approval start date');
-  if (rateForLevel(client.level_of_need) == null) missing.push('LoN');
+  if (rateForLevel(client.level_of_need) == null) missing.push('Level of Need');
   return missing;
 }
 
@@ -479,7 +487,7 @@ export function nextBillingAction(
   // Setup gaps come first.
   if (!isHspSubmitted(client)) return { label: 'Submit HSP', dueDate: null, urgency: 'none' };
   if (!billingAnchor(client)) return { label: 'Add HSP approval start date', dueDate: null, urgency: 'none' };
-  if (rateForLevel(client.level_of_need) == null) return { label: 'Add LoN', dueDate: null, urgency: 'none' };
+  if (rateForLevel(client.level_of_need) == null) return { label: 'Add Level of Need', dueDate: null, urgency: 'none' };
   if (cycles.length === 0) return { label: 'Generate billing cycles', dueDate: null, urgency: 'none' };
 
   const denied = cycles.find((c) => c.billing_status === 'Denied');

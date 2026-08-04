@@ -4,8 +4,6 @@ import {
   BillingCycle,
   billingAnchor,
   derivedAuth150End,
-  generateCyclesForClient,
-  isSetupComplete,
   rateForLevel,
 } from '@/lib/billing';
 
@@ -25,6 +23,9 @@ export interface BillingClient {
   auth_150_end: string | null;
   auth_180_start: string | null;
   auth_180_end: string | null;
+  auth_180_approved: boolean | null;
+  hsp_submitted: boolean | null;
+  billing_tracking_start: string | null;
   assigned_employee_id: string | null;
   assigned_staff_name: string | null;
   phone: string | null;
@@ -52,7 +53,8 @@ export interface BillingData {
   regenerateClient: (clientId: string) => Promise<void>;
 }
 
-const isOpen = (c: BillingClient) => c.status === 'active';
+const CLIENT_SELECT =
+  'id, first_name, last_name, insurance, member_id, level_of_need, status, approval_status, hsp_150_date, auth_150_start, auth_150_end, auth_180_start, auth_180_end, auth_180_approved, hsp_submitted, billing_tracking_start, assigned_employee_id, phone, intake_date, assessment_due_date, mco_housing_manager, auth_30_number, auth_30_start, auth_30_end, hsp_due_date, auth_150_number, auth_180_number, next_action_due_date, closed_date, reason_closed, notes';
 
 export function useBilling(): BillingData {
   const [loading, setLoading] = useState(true);
@@ -61,12 +63,7 @@ export function useBilling(): BillingData {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: cls } = await supabase
-      .from('clients')
-      .select(
-        'id, first_name, last_name, insurance, member_id, level_of_need, status, approval_status, hsp_150_date, auth_150_start, auth_150_end, auth_180_start, auth_180_end, assigned_employee_id, phone, intake_date, assessment_due_date, mco_housing_manager, auth_30_number, auth_30_start, auth_30_end, hsp_due_date, auth_150_number, auth_180_number, next_action_due_date, closed_date, reason_closed, notes',
-      )
-      .order('last_name');
+    const { data: cls } = await supabase.from('clients').select(CLIENT_SELECT).order('last_name');
     const { data: profs } = await supabase
       .from('profiles')
       .select('id, first_name, last_name, email');
@@ -76,7 +73,12 @@ export function useBilling(): BillingData {
         return [p.id, full || p.email] as const;
       }),
     );
-    const { data: cyc } = await supabase.from('billing_cycles').select('*').order('cycle_number');
+    // Only live cycles drive the UI — superseded rows stay in the record for history.
+    const { data: cyc } = await supabase
+      .from('billing_cycles')
+      .select('*')
+      .eq('is_active', true)
+      .order('cycle_number');
     // Every open client appears in billing — clients missing setup show up with a
     // "missing information" next action instead of being hidden.
     const mapped = ((cls as Array<Omit<BillingClient, 'assigned_staff_name'>>) ?? [])
@@ -98,95 +100,28 @@ export function useBilling(): BillingData {
     load();
   }, [load]);
 
-  // Generate missing cycles + refresh still-auto cycles for a single client.
-  const regenerateOne = useCallback(
-    async (client: BillingClient, existing: BillingCycle[]) => {
-      if (!isOpen(client) || !isSetupComplete(client)) return { created: 0, updated: 0 };
-      // Persist the canonical anchor + derived 150-day end for legacy records.
-      const anchor = billingAnchor(client);
-      const clientPatch: Record<string, string> = {};
-      if (anchor && !client.auth_150_start) clientPatch.auth_150_start = anchor;
-      if (anchor && !client.auth_150_end) clientPatch.auth_150_end = derivedAuth150End(anchor)!;
-      if (Object.keys(clientPatch).length) {
-        await supabase.from('clients').update(clientPatch).eq('id', client.id);
-      }
-      const ideal = generateCyclesForClient(client);
-
-      const byNumber = new Map(existing.map((c) => [c.cycle_number, c]));
-      let created = 0;
-      let updated = 0;
-
-      for (const g of ideal) {
-        const found = byNumber.get(g.cycle_number);
-        if (!found) {
-          await supabase.from('billing_cycles').insert({
-            client_id: client.id,
-            cycle_number: g.cycle_number,
-            phase: g.phase,
-            cycle_start: g.cycle_start,
-            cycle_end: g.cycle_end,
-            billed_amount: g.billed_amount,
-            is_auto_generated: true,
-          });
-          created++;
-        } else if (found.is_auto_generated) {
-          // refresh auto-generated rows from current auth dates / level
-          const patch: Record<string, unknown> = {};
-          if (found.phase !== g.phase) patch.phase = g.phase;
-          if (found.cycle_start !== g.cycle_start) patch.cycle_start = g.cycle_start;
-          if (found.cycle_end !== g.cycle_end) patch.cycle_end = g.cycle_end;
-          if ((found.billed_amount ?? null) !== (g.billed_amount ?? null)) patch.billed_amount = g.billed_amount;
-          if (Object.keys(patch).length) {
-            await supabase.from('billing_cycles').update(patch).eq('id', found.id);
-            updated++;
-          }
-        }
-      }
-      // Trim stale auto-generated cycles beyond the current run, but only when
-      // they carry no manual claim/payment history.
-      const maxNum = ideal.length ? ideal[ideal.length - 1].cycle_number : 0;
-      for (const c of existing) {
-        if (
-          c.cycle_number > maxNum &&
-          c.is_auto_generated &&
-          c.billing_status === 'Not Billed' &&
-          c.payment_status === 'Unpaid' &&
-          !c.submitted_date &&
-          !c.paid_date &&
-          !c.claim_number
-        ) {
-          await supabase.from('billing_cycles').delete().eq('id', c.id);
-        }
-      }
-      return { created, updated };
-    },
-    [],
-  );
-
+  // Cycle generation lives in the database. Re-syncing asks it to rebuild each
+  // client's cycles from their current setup fields.
   const regenerate = useCallback(async () => {
-    let created = 0;
-    let updated = 0;
-    const byClient = new Map<string, BillingCycle[]>();
-    cycles.forEach((c) => {
-      (byClient.get(c.client_id) ?? byClient.set(c.client_id, []).get(c.client_id)!).push(c);
-    });
+    const before = cycles.length;
     for (const client of clients) {
-      const r = await regenerateOne(client, byClient.get(client.id) ?? []);
-      created += r.created;
-      updated += r.updated;
+      await supabase.rpc('sync_client_billing_cycles', { p_client_id: client.id });
     }
     await load();
-    return { created, updated };
-  }, [clients, cycles, regenerateOne, load]);
+    const { count } = await supabase
+      .from('billing_cycles')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true);
+    const after = count ?? before;
+    return { created: Math.max(0, after - before), updated: Math.min(after, before) };
+  }, [clients, cycles.length, load]);
 
   const regenerateClient = useCallback(
     async (clientId: string) => {
-      const client = clients.find((c) => c.id === clientId);
-      if (!client) return;
-      await regenerateOne(client, cycles.filter((c) => c.client_id === clientId));
+      await supabase.rpc('sync_client_billing_cycles', { p_client_id: clientId });
       await load();
     },
-    [clients, cycles, regenerateOne, load],
+    [load],
   );
 
   return { loading, clients, cycles, refresh: load, regenerate, regenerateClient };
