@@ -125,6 +125,25 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
     },
   });
 
+  // The database derives the authorization end dates from the HSP approval start
+  // date, so they are previewed read-only here.
+  const watchedStart = form.watch('auth_150_start');
+  const watchedExtension = form.watch('auth_180_approved');
+  const derivedEnds = React.useMemo(() => {
+    if (!watchedStart) return { end150: '', start180: '', end180: '' };
+    const plus = (days: number) => {
+      const d = new Date(`${watchedStart}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + days);
+      return d.toISOString().slice(0, 10);
+    };
+    return {
+      end150: plus(149),
+      start180: watchedExtension ? plus(150) : '',
+      end180: watchedExtension ? plus(329) : '',
+    };
+  }, [watchedStart, watchedExtension]);
+
+
 
   const handleSubmit = async (data: ClientFormData) => {
     setIsSubmitting(true);
