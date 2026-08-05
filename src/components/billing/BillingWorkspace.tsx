@@ -18,13 +18,30 @@ import { BillingTutorial, BillingTutorialStep } from '@/components/billing/Billi
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
 const complete = (c: BillingClient) => c.status === 'active' && c.hsp_submitted && !!c.auth_150_start && !!normalizeLevel(c.level_of_need);
 
-type Blocker = 'Missing client name' | 'HSP not submitted' | 'Missing level of need' | 'Missing HSP approval start date';
+type Blocker = 'Missing client name' | 'HSP not submitted' | 'Missing HSP approval start date' | 'Missing level of need';
 const blocker = (c: BillingClient): Blocker =>
   !c.first_name?.trim() || !c.last_name?.trim() ? 'Missing client name'
   : !c.hsp_submitted ? 'HSP not submitted'
-  : !normalizeLevel(c.level_of_need) ? 'Missing level of need'
-  : 'Missing HSP approval start date';
-const blockerClass = (label: Blocker) => label === 'HSP not submitted' ? 'bg-amber-100 text-amber-900' : 'bg-red-100 text-red-800';
+  : !c.auth_150_start ? 'Missing HSP approval start date'
+  : 'Missing level of need';
+const blockerClass = (label: Blocker) =>
+  label === 'HSP not submitted' ? 'bg-amber-100 text-amber-900'
+  : label === 'Missing HSP approval start date' ? 'bg-orange-100 text-orange-900'
+  : label === 'Missing level of need' ? 'bg-red-100 text-red-800'
+  : 'bg-rose-200 text-rose-900';
+
+// Selected dropdown values get their own colour so the grid is readable at a glance.
+const MCO_COLORS: Record<string, string> = {
+  Aetna: 'border-blue-300 bg-blue-100 text-blue-900',
+  Horizon: 'border-sky-300 bg-sky-100 text-sky-900',
+  Wellpoint: 'border-violet-300 bg-violet-100 text-violet-900',
+  'United Health': 'border-teal-300 bg-teal-100 text-teal-900',
+  Fidelis: 'border-orange-300 bg-orange-100 text-orange-900',
+};
+const mcoClass = (v?: string | null) => (v ? MCO_COLORS[v] ?? 'border-slate-300 bg-slate-100 text-slate-900' : 'bg-white');
+const lonClass = (v: string) => (v === 'Low' ? 'border-emerald-300 bg-emerald-100 text-emerald-900' : v === 'High' ? 'border-purple-300 bg-purple-100 text-purple-900' : 'bg-white');
+const yesNoClass = (v: boolean | null | undefined) => (v === true ? 'border-green-300 bg-green-100 text-green-900' : v === false ? 'border-slate-300 bg-slate-100 text-slate-800' : 'bg-white');
+const boolValue = (v: boolean | null | undefined) => (v === true ? 'yes' : v === false ? 'no' : undefined);
 
 const HOW_TO_READ = 'The 30-day HSP window (Cycle 0) comes first and is not billable. Cycles 1–5 are the 150-day authorization. Cycles 6–11 are the 180-day extension. A claim must be submitted within 6 months of a cycle end date — that is the final deadline.';
 
