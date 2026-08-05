@@ -336,12 +336,16 @@ export function BillingWorkspace() {
 // here creates their billing cycles, which moves them into the lists above.
 function LonQueue({clients,save,openProfile}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;openProfile:(id:string)=>void}){
   const [picked,setPicked]=useState<Record<string,string>>({});
+  const [page,setPage]=useState(0);
+  const pages=Math.max(1,Math.ceil(clients.length/PAGE_SIZE));
+  useEffect(()=>{ if(page>pages-1) setPage(pages-1); },[page,pages]);
+  const rows=clients.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
   return <Card className="overflow-hidden border-amber-300">
     <div className="border-b bg-amber-50 p-4">
       <h3 className="font-semibold text-amber-900">Please update LON status ({clients.length})</h3>
       <p className="mt-1 text-sm text-amber-900/80">These clients have an HSP approval start date but no level of need, so their billing cycles cannot be created yet. Choose the level of need and press Save. They move into the lists above right away.</p>
     </div>
-    <div className="divide-y">{clients.map(c=><div key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
+    <div className="divide-y">{rows.map(c=><div key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
       <div className="flex items-center gap-2">
         <ProfileIconButton onClick={()=>openProfile(c.id)}/>
         <b>{c.first_name} {c.last_name}</b>
@@ -355,6 +359,7 @@ function LonQueue({clients,save,openProfile}:{clients:BillingClient[];save:(id:s
         <Button size="sm" className="bg-indigo-600 text-white hover:bg-indigo-700" disabled={!picked[c.id]} onClick={()=>save(c.id,{level_of_need:picked[c.id]})}>Save</Button>
       </div>
     </div>)}</div>
+    <div className="border-t px-3"><Pager page={page} setPage={setPage} total={clients.length} label="clients"/></div>
   </Card>;
 }
 
