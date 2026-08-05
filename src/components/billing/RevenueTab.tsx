@@ -99,7 +99,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
       <Card className="p-4">
         <div className="text-sm text-muted-foreground">Potential 6 month revenue</div>
         <div className="mt-1 text-2xl font-bold">{rangeLabel}</div>
-        <div className="mt-1 text-xs text-muted-foreground">Every active cycle ending in the window.</div>
+        <div className="mt-1 text-xs text-muted-foreground">&nbsp;</div>
       </Card>
       <Card className="p-4">
         <div className="text-sm text-muted-foreground">Not accounted for yet</div>
@@ -109,7 +109,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
       <Card className="p-4">
         <div className="text-sm text-muted-foreground">Submitted / collected</div>
         <div className="mt-1 text-2xl font-bold text-green-700">{formatMoney(total.submitted)}</div>
-        <div className="mt-1 text-xs text-muted-foreground">{formatMoney(total.collected)} received so far.</div>
+        <div className="mt-1 text-xs text-muted-foreground">&nbsp;</div>
       </Card>
     </div>
 
