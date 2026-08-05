@@ -14,8 +14,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
+import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientProfileDialog } from '@/components/billing/ClientProfileDialog';
+import { RevenueTab } from '@/components/billing/RevenueTab';
 import { BillingTutorial, BillingTutorialStep } from '@/components/billing/BillingTutorial';
+
 
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
 const complete = (c: BillingClient) => c.status === 'active' && c.hsp_submitted && !!c.auth_150_start && !!normalizeLevel(c.level_of_need);
