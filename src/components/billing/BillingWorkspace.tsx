@@ -107,10 +107,40 @@ const ProfileIconButton = ({ onClick, tour }: { onClick:()=>void; tour?:boolean 
   </Button>
 );
 
+// ---- Billing tutorial practice data -------------------------------------
+// The tutorial never touches real records. While it runs, the workspace shows a
+// single practice client with practice cycles, and every change stays in memory.
+const PRACTICE_CLIENT_ID = 'practice-client';
+const PRACTICE_NAME = { first: 'Practice', last: 'Client' };
+function buildPractice(): { clients: BillingClient[]; cycles: BillingCycle[] } {
+  const start = addDays(todayAgency(), -100);
+  const client: BillingClient = {
+    id: PRACTICE_CLIENT_ID, first_name: PRACTICE_NAME.first, last_name: PRACTICE_NAME.last,
+    insurance: 'Aetna', member_id: 'PRACTICE-001', level_of_need: 'Low Level', status: 'active',
+    hsp_submitted: true, auth_150_start: start, auth_150_end: addDays(start, 150),
+    auth_180_approved: false, auth_180_start: null, auth_180_end: null,
+    assigned_employee_id: null, assigned_staff_name: 'Practice staff',
+    billing_tracking_start: start, auth_30_start: addDays(start, -30), auth_30_end: start,
+    hsp_due_date: start, auth_30_number: 'P-30', auth_150_number: 'P-150', auth_180_number: null,
+    created_at: new Date().toISOString(), deleted_at: null,
+  };
+  const cycles: BillingCycle[] = [1,2,3,4,5].map(num=>{
+    const cs = addDays(start, (num-1)*30);
+    return {
+      id: `practice-cycle-${num}`, client_id: PRACTICE_CLIENT_ID, cycle_number: num,
+      phase: '150-day authorization', cycle_start: cs, cycle_end: addDays(cs, 29),
+      billed_amount: null, paid_amount: 0, billing_status: 'Not Billed', payment_status: 'Unpaid',
+      claim_number: null, submitted_date: null, paid_date: null, is_auto_generated: true, notes: null,
+      approval_state: null, is_active: true,
+    };
+  });
+  return { clients: [client], cycles };
+}
+
 export function BillingWorkspace() {
   const { user } = useAuth();
   const { isSuperadmin } = useIsSuperadmin();
-  const { loading, clients, deletedClients, cycles, updateClient, addClient, deleteClient, restoreClient, updateCycle } = useBilling();
+  const { loading, clients: realClients, deletedClients: realDeleted, cycles: realCycles, updateClient, addClient: addRealClient, deleteClient, restoreClient, updateCycle: updateRealCycle } = useBilling();
   const [section,setSection]=useState<'deadlines'|'setup'|'revenue'>('deadlines');
   const [filter,setFilter]=useState<'attention'|'all'|'extensions'>('attention');
   const [phaseTab,setPhaseTab]=useState<'both'|'150'|'180'>('both');
@@ -119,11 +149,45 @@ export function BillingWorkspace() {
   const [query,setQuery]=useState('');
   const [profileId,setProfileId]=useState<string|null>(null);
   const [tutorial,setTutorial]=useState(false);
+  const [practice,setPractice]=useState<{ clients: BillingClient[]; cycles: BillingCycle[] }|null>(null);
+  const [practiceRevenueView,setPracticeRevenueView]=useState<'projection'|'recovery'>('projection');
   const [deleteTarget,setDeleteTarget]=useState<BillingClient|null>(null);
   const [duplicate,setDuplicate]=useState<{ row: BillingClient; match: BillingClient }|null>(null);
   const [newRowIds,setNewRowIds]=useState<string[]>([]);
 
-  const finishTutorial=async()=>{ if(user) await supabase.from('user_tutorial_progress').upsert({user_id:user.id,current_step:10,completed:true,completed_at:new Date().toISOString()},{onConflict:'user_id'}); setTutorial(false); toast.success('Billing tutorial completed.'); };
+  // Practice data replaces the live lists while the tutorial is running.
+  const clients = practice ? practice.clients : realClients;
+  const cycles = practice ? practice.cycles : realCycles;
+  const deletedClients = practice ? [] : realDeleted;
+  const practiceClient = practice?.clients.find(c=>c.id===PRACTICE_CLIENT_ID) ?? null;
+  const practiceCycle = practice?.cycles[0] ?? null;
+
+  const startTutorial=()=>{
+    setPractice(buildPractice());
+    setPracticeRevenueView('projection');
+    setSection('deadlines'); setFilter('attention'); setPhaseTab('both'); setSetupReason('all');
+    setQuery(''); setOpen(null); setNewRowIds([]);
+    setTutorial(true);
+  };
+  const stopTutorial=()=>{
+    setTutorial(false); setPractice(null); setNewRowIds([]);
+    setSection('deadlines'); setFilter('attention'); setSetupReason('all'); setQuery(''); setOpen(null);
+  };
+  const finishTutorial=async()=>{ if(user) await supabase.from('user_tutorial_progress').upsert({user_id:user.id,current_step:10,completed:true,completed_at:new Date().toISOString()},{onConflict:'user_id'}); stopTutorial(); toast.success('Billing tutorial complete.'); };
+
+  // Practice-only writers. Nothing reaches the database.
+  const practiceUpdateClient=async(id:string,patch:Partial<BillingClient>)=>{
+    setPractice(p=>p?{...p,clients:p.clients.map(c=>c.id===id?{...c,...patch}:c)}:p);
+  };
+  const practiceUpdateCycle=async(id:string,patch:Partial<BillingCycle>)=>{
+    setPractice(p=>p?{...p,cycles:p.cycles.map(c=>c.id===id?{...c,...patch}:c)}:p);
+  };
+  const practiceAddClient=async()=>{
+    const id=`practice-new-${Date.now()}`;
+    setPractice(p=>p?{...p,clients:[{...buildPractice().clients[0],id,first_name:'',last_name:'',member_id:null,insurance:null,level_of_need:null,hsp_submitted:null,auth_150_start:null,auth_150_end:null,auth_30_number:null,auth_150_number:null,created_at:new Date().toISOString()},...p.clients]}:p);
+    return id;
+  };
+
 
   const cycleByClient = useMemo(()=>new Map(clients.map(c=>[c.id, cycles.filter(x=>x.client_id===c.id)])),[clients,cycles]);
   const eligible=clients.filter(complete), setup=clients.filter(c=>c.status==='active'&&!complete(c));
