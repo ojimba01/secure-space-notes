@@ -21,7 +21,8 @@ import { BillingTutorial, BillingTutorialStep } from '@/components/billing/Billi
 
 
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
-const complete = (c: BillingClient) => c.status === 'active' && c.hsp_submitted && !!c.auth_150_start && !!normalizeLevel(c.level_of_need);
+// A level of need is not needed to build cycles, only to price them.
+const complete = (c: BillingClient) => c.status === 'active' && !!c.hsp_submitted && !!c.auth_150_start;
 
 type Blocker = 'Missing client name' | 'HSP not submitted' | 'Missing HSP approval start date' | 'Missing level of need';
 const blocker = (c: BillingClient): Blocker =>
@@ -116,9 +117,12 @@ export function BillingWorkspace() {
   const lonAll=useMemo(()=>clients.filter(c=>c.status==='active'&&c.hsp_submitted&&!!c.auth_150_start&&!normalizeLevel(c.level_of_need)),[clients]);
   const lonPending=useMemo(()=>lonAll.filter(c=>matches(c,query)),[lonAll,query]);
   // Needs attention counts clients: those with a cycle near its final deadline
-  // plus everyone still waiting on a level of need.
+  // plus everyone still waiting on a level of need (counted once).
   const attentionClients=useMemo(()=>eligible.filter(c=>(cycleByClient.get(c.id)??[]).some(attention)),[eligible,cycleByClient]);
-  const attentionCount=attentionClients.length+lonAll.length;
+  const attentionCount=useMemo(()=>{
+    const ids=new Set(attentionClients.map(c=>c.id));
+    return ids.size+lonAll.filter(c=>!ids.has(c.id)).length;
+  },[attentionClients,lonAll]);
 
 
   // Nearest unresolved final deadline, used to order the full cycle list.
@@ -128,14 +132,11 @@ export function BillingWorkspace() {
     return Math.min(...list.map(x=>{const d=daysToFinalDeadline(x); return d<0?d+100000:d;}));
   };
   const visibleCycles=cycles.filter(c=>filter!=='attention'||attention(c));
-  const visibleClients=useMemo(()=>{
-    const withCycles=eligible
+  const visibleClients=useMemo(()=>eligible
       .filter(c=>filter!=='all'||phaseTab==='both'||(phaseTab==='180'?!!c.auth_180_approved:!c.auth_180_approved))
-      .filter(c=>matches(c,query)&&(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)));
-    // Clients awaiting a level of need sit in the list like everyone else.
-    const awaiting=filter==='all'&&phaseTab!=='180'?lonPending:[];
-    return [...withCycles,...awaiting].sort((a,b)=>nearestDeadline(a)-nearestDeadline(b));
-  },[eligible,query,cycleByClient,visibleCycles,filter,phaseTab,lonPending]);
+      .filter(c=>matches(c,query)&&(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)))
+      .sort((a,b)=>nearestDeadline(a)-nearestDeadline(b)),
+  [eligible,query,cycleByClient,visibleCycles,filter,phaseTab]);
 
   const searchResults = query.trim() ? clients.filter(c=>matches(c,query)).slice(0,8) : [];
 
@@ -234,15 +235,15 @@ export function BillingWorkspace() {
     {section==='revenue' ? <RevenueTab clients={clients} cycles={cycles}/>
     : section==='deadlines' ? <>
       <div className="flex flex-wrap gap-2">
-        <Button data-tour="filter-all" variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All active billing cycles ({eligible.length+lonAll.length})</Button>
+        <Button data-tour="filter-all" variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All active billing cycles ({eligible.length})</Button>
         <Button data-tour="filter-attention" onClick={()=>setFilter('attention')} className={filter==='attention'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs attention ({attentionCount})</Button>
         <button data-tour="filter-extensions" onClick={()=>setFilter('extensions')} className={`inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 ${filter==='extensions'?'bg-amber-600 text-white hover:bg-amber-700':'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50'}`}>Upcoming 180-day extensions ({extensionClients.length})</button>
       </div>
 
 
       {filter==='all' && <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant={phaseTab==='both'?'secondary':'outline'} className={`h-8 text-sm ${phaseTab!=='both'?'bg-white':''}`} onClick={()=>setPhaseTab('both')}>All authorizations ({eligible.length+lonAll.length})</Button>
-        <Button size="sm" variant={phaseTab==='150'?'default':'outline'} className={`h-8 text-sm ${phaseTab!=='150'?'bg-white':''}`} onClick={()=>setPhaseTab('150')}>150-day authorization ({eligible.filter(c=>!c.auth_180_approved).length+lonAll.length})</Button>
+        <Button size="sm" variant={phaseTab==='both'?'secondary':'outline'} className={`h-8 text-sm ${phaseTab!=='both'?'bg-white':''}`} onClick={()=>setPhaseTab('both')}>All authorizations ({eligible.length})</Button>
+        <Button size="sm" variant={phaseTab==='150'?'default':'outline'} className={`h-8 text-sm ${phaseTab!=='150'?'bg-white':''}`} onClick={()=>setPhaseTab('150')}>150-day authorization ({eligible.filter(c=>!c.auth_180_approved).length})</Button>
         <Button size="sm" variant={phaseTab==='180'?'default':'outline'} className={`h-8 text-sm ${phaseTab!=='180'?'bg-white':''}`} onClick={()=>setPhaseTab('180')}>180-day extension ({eligible.filter(c=>c.auth_180_approved).length})</Button>
       </div>}
 

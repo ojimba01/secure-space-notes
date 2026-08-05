@@ -6,9 +6,7 @@ import {
   RATE_LOW,
   RATE_HIGH,
   formatMoney,
-  generateCyclesForClient,
   monthKey,
-  normalizeLevel,
   rateForLevel,
   todayAgency,
   toDate,
@@ -49,37 +47,27 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
     const empty = (key: string): MonthRow => ({ key, expectedLow: 0, expectedHigh: 0, submitted: 0, notSubmitted: 0, collected: 0, assumedClients: 0 });
     const byMonth = new Map(months.map((m) => [m, empty(m)]));
     const inWindow = (key: string) => byMonth.get(key);
+    const assumedIds = new Set<string>();
 
-    // Clients already set up for billing use their real cycles.
+    // Cycles exist for every client with an approval start date, whether or not
+    // a level of need has been chosen. When it is missing the cycle is counted
+    // at the Low rate and the High rate to give a range.
     for (const cycle of cycles) {
       const row = inWindow(monthKey(cycle.cycle_end));
       if (!row) continue;
       const client = clients.find((c) => c.id === cycle.client_id);
-      const fallback = rateForLevel(client?.level_of_need) ?? RATE_LOW;
-      const amount = cycle.billed_amount ?? fallback;
-      row.expectedLow += amount;
-      row.expectedHigh += amount;
+      const known = cycle.billed_amount ?? rateForLevel(client?.level_of_need);
+      const low = known ?? RATE_LOW;
+      const high = known ?? RATE_HIGH;
+      if (known == null && client) { assumedIds.add(client.id); row.assumedClients += 1; }
+      row.expectedLow += low;
+      row.expectedHigh += high;
       row.collected += cycle.paid_amount ?? 0;
-      if (cycle.billing_status === 'Submitted') row.submitted += amount;
-      else if (daysBetween(cycle.cycle_end, today) > 0) row.notSubmitted += amount;
+      if (cycle.billing_status === 'Submitted') row.submitted += low;
+      else if (daysBetween(cycle.cycle_end, today) > 0) row.notSubmitted += low;
     }
 
-    // Clients with an approval start date but no level of need are assumed to be
-    // Low level; the high column shows the ceiling if they were all High level.
-    const assumed = clients.filter((c) => c.status === 'active' && c.hsp_submitted && !!c.auth_150_start && !normalizeLevel(c.level_of_need));
-    for (const client of assumed) {
-      const projected = generateCyclesForClient({ ...client, level_of_need: 'Low Level' });
-      const touched = new Set<string>();
-      for (const cycle of projected) {
-        const row = inWindow(monthKey(cycle.cycle_end));
-        if (!row) continue;
-        row.expectedLow += RATE_LOW;
-        row.expectedHigh += RATE_HIGH;
-        if (!touched.has(row.key)) { row.assumedClients += 1; touched.add(row.key); }
-      }
-    }
-
-    return { rows: months.map((m) => byMonth.get(m)!), assumedClientCount: assumed.length };
+    return { rows: months.map((m) => byMonth.get(m)!), assumedClientCount: assumedIds.size };
   }, [clients, cycles, months, today]);
 
   const total = rows.reduce(
@@ -103,7 +91,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
       <p className="mt-1 text-sm text-muted-foreground">
         Covers {monthLabel(months[0])} through {monthLabel(months[months.length - 1])}. Historical revenue is not included.
         A Low level cycle bills {formatMoney(RATE_LOW)} and a High level cycle bills {formatMoney(RATE_HIGH)}.
-        {assumedClientCount > 0 && ` ${assumedClientCount} client${assumedClientCount === 1 ? ' is' : 's are'} missing a level of need, so ${assumedClientCount === 1 ? 'it is' : 'they are'} counted as Low level. The higher figure shows what the same cycles would bill if every one of them were High level.`}
+        {assumedClientCount > 0 && ` ${assumedClientCount} client${assumedClientCount === 1 ? '' : 's'} still ${assumedClientCount === 1 ? 'needs' : 'need'} a level of need. Their cycles are counted at the Low rate in the Low column and the High rate in the High column.`}
       </p>
     </Card>
 
@@ -126,15 +114,25 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
     </div>
 
     <Card className="overflow-x-auto">
-      <table className="w-full min-w-[860px] text-sm">
+      <table className="w-full min-w-[720px] text-sm">
         <thead className="bg-slate-100 text-left">
-          <tr>{['Month', 'Monthly revenue (Low level assumed)', 'If unknown levels were High', 'Submitted', 'Pending', 'Collected'].map(h => <th key={h} className="p-3 font-semibold">{h}</th>)}</tr>
+          <tr>
+            <th rowSpan={2} className="p-3 align-bottom font-semibold">Month</th>
+            <th colSpan={2} className="border-b border-slate-200 p-3 text-center font-semibold">Monthly Revenue Range</th>
+            <th rowSpan={2} className="p-3 align-bottom font-semibold">Submitted</th>
+            <th rowSpan={2} className="p-3 align-bottom font-semibold">Pending</th>
+            <th rowSpan={2} className="p-3 align-bottom font-semibold">Collected</th>
+          </tr>
+          <tr>
+            <th className="px-3 pb-2 font-semibold">Low</th>
+            <th className="px-3 pb-2 font-semibold">High</th>
+          </tr>
         </thead>
         <tbody>
           {rows.map(r => <tr key={r.key} className="border-t">
             <td className="p-3 font-medium">{monthLabel(r.key)}</td>
             <td className="p-3">{formatMoney(r.expectedLow)}</td>
-            <td className="p-3">{r.expectedHigh > r.expectedLow ? formatMoney(r.expectedHigh) : '—'}</td>
+            <td className="p-3">{formatMoney(r.expectedHigh)}</td>
             <td className="p-3">{formatMoney(r.submitted)}</td>
             <td className={`p-3 ${r.notSubmitted > 0 ? 'font-medium text-red-700' : ''}`}>{formatMoney(r.notSubmitted)}</td>
             <td className="p-3">{formatMoney(r.collected)}</td>
@@ -142,7 +140,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
           <tr className="border-t bg-slate-50 font-semibold">
             <td className="p-3">Total</td>
             <td className="p-3">{formatMoney(total.expectedLow)}</td>
-            <td className="p-3">{total.expectedHigh > total.expectedLow ? formatMoney(total.expectedHigh) : '—'}</td>
+            <td className="p-3">{formatMoney(total.expectedHigh)}</td>
             <td className="p-3">{formatMoney(total.submitted)}</td>
             <td className="p-3 text-red-700">{formatMoney(total.notSubmitted)}</td>
             <td className="p-3">{formatMoney(total.collected)}</td>
