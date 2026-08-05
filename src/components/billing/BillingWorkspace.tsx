@@ -17,7 +17,9 @@ const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—
 const complete = (c: BillingClient) => c.status === 'active' && c.hsp_submitted && !!c.auth_150_start && ['Low','Low Level','High','High Level'].includes(c.level_of_need ?? '');
 const blocker = (c: BillingClient) => !c.first_name || !c.last_name || !c.level_of_need ? 'Missing information' : !c.hsp_submitted ? 'HSP not submitted' : !c.auth_150_start ? 'Waiting for HSP approval' : 'Missing information';
 const in48 = (d: string) => differenceInCalendarDays(parseISO(d), new Date()) <= 2;
-const attention = (c: BillingCycle) => c.billing_status === 'Ready to Bill' || (c.billing_status !== 'Submitted' && in48(c.cycle_end));
+// Needs attention = an ended cycle whose 6-month final submission deadline is
+// two weeks or less away (or already passed) and that is not approved or closed.
+const attention = (c: BillingCycle) => isDeadlineAtRisk(c);
 const matches = (c: BillingClient, q: string) => {
   const t = q.trim().toLowerCase();
   if (!t) return true;
