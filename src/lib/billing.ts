@@ -22,8 +22,8 @@ export type ApprovalState = (typeof APPROVAL_STATES)[number];
 
 // Claims must be submitted within 6 months of the cycle end date.
 export const FINAL_DEADLINE_MONTHS = 6;
-// A cycle enters "needs attention" this many days before its final deadline.
-export const DEADLINE_WARNING_DAYS = 14;
+// A cycle enters "needs attention" this many days before its final deadline (4 weeks).
+export const DEADLINE_WARNING_DAYS = 28;
 
 export interface BillingCycle {
   id: string;
