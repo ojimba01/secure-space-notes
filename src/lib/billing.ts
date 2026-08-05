@@ -22,8 +22,8 @@ export type ApprovalState = (typeof APPROVAL_STATES)[number];
 
 // Claims must be submitted within 6 months of the cycle end date.
 export const FINAL_DEADLINE_MONTHS = 6;
-// A cycle enters "needs attention" this many days before its final deadline.
-export const DEADLINE_WARNING_DAYS = 14;
+// A cycle enters "needs attention" this many days before its final deadline (4 weeks).
+export const DEADLINE_WARNING_DAYS = 28;
 
 export interface BillingCycle {
   id: string;
@@ -169,7 +169,7 @@ export function isCycleResolved(cycle: Pick<BillingCycle, 'approval_state'>): bo
 }
 
 // A cycle needs attention when it has ended, is not yet approved or closed,
-// and its final submission deadline is two weeks or less away (or has passed).
+// and its final submission deadline is four weeks or less away (or has passed).
 export function isDeadlineAtRisk(
   cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline' | 'approval_state'>,
   today = todayAgency(),
@@ -179,13 +179,20 @@ export function isDeadlineAtRisk(
   return daysToFinalDeadline(cycle, today) <= DEADLINE_WARNING_DAYS;
 }
 
+// True once the 6-month submission deadline for a cycle has passed.
+export function isDeadlinePassed(
+  cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline'>,
+  today = todayAgency(),
+): boolean {
+  return daysToFinalDeadline(cycle, today) < 0;
+}
+
 export function deadlineLabel(
   cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline' | 'approval_state'>,
   today = todayAgency(),
 ): string {
-  if (!hasCycleEnded(cycle, today)) return 'Not yet due';
   const days = daysToFinalDeadline(cycle, today);
-  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} past deadline`;
+  if (days < 0) return 'Deadline passed';
   if (days === 0) return 'Deadline today';
   return `${days} day${days === 1 ? '' : 's'} left`;
 }
