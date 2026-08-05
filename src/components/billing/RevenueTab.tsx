@@ -94,7 +94,8 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
   const months = useMemo(() => monthWindow(today), [today]);
   const [view, setView] = useState<'projection' | 'recovery'>('projection');
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
-  const [openClients, setOpenClients] = useState<Set<string>>(new Set());
+  const [detail, setDetail] = useState<{ title: string; clientName: string; tone: string; items: RecoveryItem[] } | null>(null);
+
 
   const toggle = (set: Set<string>, apply: (next: Set<string>) => void, key: string) => {
     const next = new Set(set);
