@@ -72,6 +72,7 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
   const [armed, setArmed] = useState(false);
   const [phase, setPhase] = useState<'main' | 'followUp'>('main');
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const [cardHeight, setCardHeight] = useState(300);
   const step = steps[n];
 
