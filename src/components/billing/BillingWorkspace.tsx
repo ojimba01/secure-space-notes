@@ -344,12 +344,24 @@ function ExtensionQueue({clients,save,openProfile}:{clients:BillingClient[];save
 
 const BLOCKERS: Blocker[] = ['HSP not submitted','Missing HSP approval start date','Missing level of need','Missing client name'];
 
-function FilterSelect({value,onChange,options,width='w-36'}:{value:string;onChange:(v:string)=>void;options:string[];width?:string}){
-  return <Select value={value} onValueChange={onChange}>
-    <SelectTrigger className={`mt-1 h-7 ${width} bg-white text-xs font-normal`}><SelectValue/></SelectTrigger>
-    <SelectContent><SelectItem value="all">All</SelectItem>{options.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-  </Select>;
+// Column filter: the header shows a small caret; the options only appear once it is pressed.
+function ColumnFilter({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:string[]}){
+  return <div className="font-semibold text-indigo-900">
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" aria-label={`Filter ${label}`} className="flex items-center gap-1 text-left hover:underline">
+          {label}<ChevronDown className="h-3.5 w-3.5"/>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="bg-white">
+        <DropdownMenuItem onClick={()=>onChange('all')}>All</DropdownMenuItem>
+        {options.map(o=><DropdownMenuItem key={o} onClick={()=>onChange(o)}>{o}</DropdownMenuItem>)}
+      </DropdownMenuContent>
+    </DropdownMenu>
+    {value!=='all' && <div className="text-xs font-normal text-indigo-900/70">{value}</div>}
+  </div>;
 }
+
 
 function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;openProfile:(id:string)=>void;onDelete:(c:BillingClient)=>void}){
   const [sort,setSort]=useState<{key:'name'|'start';dir:'asc'|'desc'}|null>(null);
