@@ -397,15 +397,16 @@ function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[]
     <table className="w-full min-w-[1850px] text-sm"><thead className="bg-indigo-100 text-left"><tr className="align-top">
       <th className="p-3"><SortHeader label="Client" keyName="name" asc="A–Z" desc="Z–A"/></th>
       <th className="p-3 font-semibold text-indigo-900">Member ID</th>
-      <th className="p-3 font-semibold text-indigo-900">MCO<FilterSelect value={fMco} onChange={setFMco} options={[...MCO_OPTIONS]} width="w-36"/></th>
-      <th className="p-3 font-semibold text-indigo-900">Level of Need<FilterSelect value={fLon} onChange={setFLon} options={['Low','High']} width="w-28"/></th>
-      <th className="p-3 font-semibold text-indigo-900">HSP submitted<FilterSelect value={fHsp} onChange={setFHsp} options={['Yes','No','Not answered']} width="w-32"/></th>
+      <th className="p-3"><ColumnFilter label="MCO" value={fMco} onChange={setFMco} options={[...MCO_OPTIONS]}/></th>
+      <th className="p-3"><ColumnFilter label="Level of Need" value={fLon} onChange={setFLon} options={['Low','High']}/></th>
+      <th className="p-3"><ColumnFilter label="HSP submitted" value={fHsp} onChange={setFHsp} options={['Yes','No','Blanks']}/></th>
       <th className="p-3"><SortHeader label="HSP approval start" keyName="start" asc="Earliest first" desc="Latest first"/></th>
-      <th className="p-3 font-semibold text-indigo-900">180-day extension<FilterSelect value={fExt} onChange={setFExt} options={['Approved','Not approved','Not answered']} width="w-36"/></th>
+      <th className="p-3"><ColumnFilter label="180-day extension" value={fExt} onChange={setFExt} options={['Approved','N/A','Blanks']}/></th>
       <th className="p-3 font-semibold text-indigo-900">30-day auth no.</th>
       <th className="p-3 font-semibold text-indigo-900">150-day auth no.</th>
       <th className="p-3 font-semibold text-indigo-900">180-day auth no.</th>
-      <th className="p-3 font-semibold text-indigo-900 whitespace-pre-line">Reason billing is incomplete{"\n"}<FilterSelect value={fWhy} onChange={setFWhy} options={['In billing',...BLOCKERS]} width="w-52"/></th>
+      <th className="p-3"><ColumnFilter label="Reason billing is incomplete" value={fWhy} onChange={setFWhy} options={['In billing',...BLOCKERS]}/></th>
+
       <th className="p-3 font-semibold text-indigo-900">Save</th>
       <th className="p-3 font-semibold text-indigo-900">Delete</th>
     </tr></thead>
