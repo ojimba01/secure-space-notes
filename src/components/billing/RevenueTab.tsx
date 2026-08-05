@@ -91,12 +91,22 @@ function groupByMonth(items: RecoveryItem[]): MonthGroup[] {
     });
 }
 
-export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycles: BillingCycle[] }) {
+export function RevenueTab({ clients, cycles, viewOverride, onViewChange }: {
+  clients: BillingClient[];
+  cycles: BillingCycle[];
+  /** The Billing tutorial drives the view so it can restore a practice step. */
+  viewOverride?: 'projection' | 'recovery';
+  onViewChange?: (view: 'projection' | 'recovery') => void;
+}) {
   const today = todayAgency();
   const months = useMemo(() => monthWindow(today), [today]);
-  const [view, setView] = useState<'projection' | 'recovery'>('projection');
+  const [viewState, setViewState] = useState<'projection' | 'recovery'>('projection');
+  const view = viewState;
+  const setView = (v: 'projection' | 'recovery') => { setViewState(v); onViewChange?.(v); };
+  useEffect(() => { if (viewOverride) setViewState(viewOverride); }, [viewOverride]);
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
   const [detail, setDetail] = useState<{ title: string; clientName: string; tone: string; items: RecoveryItem[] } | null>(null);
+
 
 
   const toggle = (set: Set<string>, apply: (next: Set<string>) => void, key: string) => {
