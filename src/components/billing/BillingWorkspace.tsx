@@ -379,7 +379,7 @@ function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[]
       (fMco==='all'||(c.insurance ?? '')===fMco)
       &&(fLon==='all'||normalizeLevel(c.level_of_need)===fLon)
       &&(fHsp==='all'||(fHsp==='Yes'?c.hsp_submitted===true:fHsp==='No'?c.hsp_submitted===false:c.hsp_submitted==null))
-      &&(fExt==='all'||(fExt==='Approved'?c.auth_180_approved===true:fExt==='Not approved'?c.auth_180_approved===false:c.auth_180_approved==null))
+      &&(fExt==='all'||(fExt==='Approved'?c.auth_180_approved===true:fExt==='N/A'?c.auth_180_approved===false:c.auth_180_approved==null))
       &&(fWhy==='all'||(fWhy==='In billing'?complete(c):!complete(c)&&blocker(c)===fWhy)));
     if(!sort) return filtered;
     const dir=sort.dir==='asc'?1:-1;
