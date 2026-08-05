@@ -189,7 +189,7 @@ export function BillingWorkspace() {
     </Dialog>
 
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex rounded-lg border bg-white p-1">
+      <div className="flex rounded-lg border bg-white p-1" data-tour="sections">
         <Button data-tour="section-deadlines" variant={section==='deadlines'?'default':'ghost'} onClick={()=>setSection('deadlines')}>Current billing deadlines</Button>
         <Button data-tour="section-setup" variant={section==='setup'?'default':'ghost'} className={section==='setup'?'bg-indigo-600 text-white hover:bg-indigo-700':''} onClick={()=>setSection('setup')}><Pencil className="mr-2 h-4 w-4"/>Add or set up client billing</Button>
       </div>
