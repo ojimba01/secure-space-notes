@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ArrowUpDown, ChevronDown, ChevronRight, DollarSign, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, DollarSign, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
@@ -23,6 +23,22 @@ import { BillingTutorial, BillingTutorialStep } from '@/components/billing/Billi
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
 // A level of need is not needed to build cycles, only to price them.
 const complete = (c: BillingClient) => c.status === 'active' && !!c.hsp_submitted && !!c.auth_150_start;
+
+// Long lists are shown ten at a time so the page stays readable.
+const PAGE_SIZE = 10;
+function Pager({page,setPage,total,label}:{page:number;setPage:(n:number)=>void;total:number;label:string}){
+  const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  if(total<=PAGE_SIZE) return null;
+  const from=page*PAGE_SIZE+1, to=Math.min(total,(page+1)*PAGE_SIZE);
+  return <div className="flex flex-wrap items-center justify-between gap-3 py-1">
+    <span className="text-sm text-muted-foreground">Showing {from}–{to} of {total} {label}</span>
+    <div className="flex items-center gap-2">
+      <Button size="sm" variant="outline" disabled={page===0} onClick={()=>setPage(page-1)}><ChevronLeft className="h-4 w-4"/></Button>
+      <span className="text-sm text-muted-foreground">Page {page+1} of {pages}</span>
+      <Button size="sm" variant="outline" disabled={page>=pages-1} onClick={()=>setPage(page+1)}><ChevronRight className="h-4 w-4"/></Button>
+    </div>
+  </div>;
+}
 
 type Blocker = 'Missing client name' | 'HSP not submitted' | 'Missing HSP approval start date' | 'Missing level of need';
 const blocker = (c: BillingClient): Blocker =>
@@ -138,6 +154,10 @@ export function BillingWorkspace() {
       .sort((a,b)=>nearestDeadline(a)-nearestDeadline(b)),
   [eligible,query,cycleByClient,visibleCycles,filter,phaseTab]);
 
+  const [page,setPage]=useState(0);
+  useEffect(()=>{setPage(0);},[filter,phaseTab,query]);
+  const pagedClients=visibleClients.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
+
   const searchResults = query.trim() ? clients.filter(c=>matches(c,query)).slice(0,8) : [];
 
   const runDuplicateCheck=(id:string)=>{
@@ -250,7 +270,7 @@ export function BillingWorkspace() {
 
       {filter==='extensions' ? <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>
       : visibleClients.length===0 ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No billable clients match that search':'Nothing needs attention right now'}</h3><p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'A client appears here when a finished cycle is within four weeks of its final submission deadline.'}</p></Card>
-      : <div className="space-y-3">{visibleClients.map((c,i)=>{
+      : <div className="space-y-3"><Pager page={page} setPage={setPage} total={visibleClients.length} label="clients"/>{pagedClients.map((c,i)=>{
         const all=cycleByClient.get(c.id)??[];
         const cc=all.filter(x=>filter==='all'||attention(x));
         const atRisk=all.filter(attention).length;
@@ -272,7 +292,7 @@ export function BillingWorkspace() {
           <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={i===0}/>
         </div>
         {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={updateCycle} tour={i===0}/>}
-      </Card>})}</div>}
+      </Card>})}<Pager page={page} setPage={setPage} total={visibleClients.length} label="clients"/></div>}
 
       {filter==='attention' && lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
 
@@ -316,12 +336,16 @@ export function BillingWorkspace() {
 // here creates their billing cycles, which moves them into the lists above.
 function LonQueue({clients,save,openProfile}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;openProfile:(id:string)=>void}){
   const [picked,setPicked]=useState<Record<string,string>>({});
+  const [page,setPage]=useState(0);
+  const pages=Math.max(1,Math.ceil(clients.length/PAGE_SIZE));
+  useEffect(()=>{ if(page>pages-1) setPage(pages-1); },[page,pages]);
+  const rows=clients.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
   return <Card className="overflow-hidden border-amber-300">
     <div className="border-b bg-amber-50 p-4">
       <h3 className="font-semibold text-amber-900">Please update LON status ({clients.length})</h3>
       <p className="mt-1 text-sm text-amber-900/80">These clients have an HSP approval start date but no level of need, so their billing cycles cannot be created yet. Choose the level of need and press Save. They move into the lists above right away.</p>
     </div>
-    <div className="divide-y">{clients.map(c=><div key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
+    <div className="divide-y">{rows.map(c=><div key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
       <div className="flex items-center gap-2">
         <ProfileIconButton onClick={()=>openProfile(c.id)}/>
         <b>{c.first_name} {c.last_name}</b>
@@ -335,6 +359,7 @@ function LonQueue({clients,save,openProfile}:{clients:BillingClient[];save:(id:s
         <Button size="sm" className="bg-indigo-600 text-white hover:bg-indigo-700" disabled={!picked[c.id]} onClick={()=>save(c.id,{level_of_need:picked[c.id]})}>Save</Button>
       </div>
     </div>)}</div>
+    <div className="border-t px-3"><Pager page={page} setPage={setPage} total={clients.length} label="clients"/></div>
   </Card>;
 }
 
