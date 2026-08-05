@@ -431,6 +431,9 @@ export function needsExtensionReview(
   if (client.auth_180_approved) return false;
   const days = daysUntil150End(client, today);
   if (days == null) return false;
+  // Once the 150-day end date is more than six months (about 183 days) past,
+  // the extension window has closed and the client drops off the queue.
+  if (days < -183) return false;
   return days <= EXTENSION_WARNING_DAYS;
 }
 
