@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ChevronDown, ChevronRight, HelpCircle, Pencil, Plus, RotateCcw, Search, Undo2, UserRound, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
