@@ -106,6 +106,10 @@ export function BillingWorkspace() {
   const eligible=clients.filter(complete), setup=clients.filter(c=>c.status==='active'&&!complete(c));
   const attentionCount=cycles.filter(attention).length;
   const extensionClients=useMemo(()=>eligible.filter(c=>needsExtensionReview(c)).sort((a,b)=>(daysUntil150End(a)??999)-(daysUntil150End(b)??999)),[eligible]);
+  // Clients ready for billing except for the level of need. They can be finished
+  // here and move straight into the lists above once the level is saved.
+  const lonPending=useMemo(()=>clients.filter(c=>c.status==='active'&&c.hsp_submitted&&!!c.auth_150_start&&!normalizeLevel(c.level_of_need)).filter(c=>matches(c,query)),[clients,query]);
+
 
   // Nearest unresolved final deadline, used to order the full cycle list.
   const nearestDeadline=(c:BillingClient)=>{
