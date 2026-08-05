@@ -356,7 +356,7 @@ function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[]
       <th className="p-3 font-semibold text-indigo-900">30-day auth no.</th>
       <th className="p-3 font-semibold text-indigo-900">150-day auth no.</th>
       <th className="p-3 font-semibold text-indigo-900">180-day auth no.</th>
-      <th className="p-3 font-semibold text-indigo-900">Why not in billing<FilterSelect value={fWhy} onChange={setFWhy} options={['In billing',...BLOCKERS]} width="w-52"/></th>
+      <th className="p-3 font-semibold text-indigo-900 whitespace-pre-line">Reason billing is incomplete{"\n"}<FilterSelect value={fWhy} onChange={setFWhy} options={['In billing',...BLOCKERS]} width="w-52"/></th>
       <th className="p-3 font-semibold text-indigo-900">Save</th>
       <th className="p-3 font-semibold text-indigo-900">Delete</th>
     </tr></thead>
