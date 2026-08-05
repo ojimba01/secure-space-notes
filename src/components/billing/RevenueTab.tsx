@@ -116,15 +116,25 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
     </div>
 
     <Card className="overflow-x-auto">
-      <table className="w-full min-w-[860px] text-sm">
+      <table className="w-full min-w-[720px] text-sm">
         <thead className="bg-slate-100 text-left">
-          <tr>{['Month', 'Monthly revenue (Low level assumed)', 'If unknown levels were High', 'Submitted', 'Pending', 'Collected'].map(h => <th key={h} className="p-3 font-semibold">{h}</th>)}</tr>
+          <tr>
+            <th rowSpan={2} className="p-3 align-bottom font-semibold">Month</th>
+            <th colSpan={2} className="border-b border-slate-200 p-3 text-center font-semibold">Monthly Revenue Range</th>
+            <th rowSpan={2} className="p-3 align-bottom font-semibold">Submitted</th>
+            <th rowSpan={2} className="p-3 align-bottom font-semibold">Pending</th>
+            <th rowSpan={2} className="p-3 align-bottom font-semibold">Collected</th>
+          </tr>
+          <tr>
+            <th className="px-3 pb-2 font-semibold">Low</th>
+            <th className="px-3 pb-2 font-semibold">High</th>
+          </tr>
         </thead>
         <tbody>
           {rows.map(r => <tr key={r.key} className="border-t">
             <td className="p-3 font-medium">{monthLabel(r.key)}</td>
             <td className="p-3">{formatMoney(r.expectedLow)}</td>
-            <td className="p-3">{r.expectedHigh > r.expectedLow ? formatMoney(r.expectedHigh) : '—'}</td>
+            <td className="p-3">{formatMoney(r.expectedHigh)}</td>
             <td className="p-3">{formatMoney(r.submitted)}</td>
             <td className={`p-3 ${r.notSubmitted > 0 ? 'font-medium text-red-700' : ''}`}>{formatMoney(r.notSubmitted)}</td>
             <td className="p-3">{formatMoney(r.collected)}</td>
@@ -132,7 +142,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
           <tr className="border-t bg-slate-50 font-semibold">
             <td className="p-3">Total</td>
             <td className="p-3">{formatMoney(total.expectedLow)}</td>
-            <td className="p-3">{total.expectedHigh > total.expectedLow ? formatMoney(total.expectedHigh) : '—'}</td>
+            <td className="p-3">{formatMoney(total.expectedHigh)}</td>
             <td className="p-3">{formatMoney(total.submitted)}</td>
             <td className="p-3 text-red-700">{formatMoney(total.notSubmitted)}</td>
             <td className="p-3">{formatMoney(total.collected)}</td>
