@@ -22,7 +22,7 @@ export function useBilling() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: cls, error: clientError }, { data: cyc, error: cycleError }, { data: profs }] = await Promise.all([
-      supabase.from('clients').select('id,first_name,last_name,insurance,member_id,level_of_need,status,hsp_submitted,auth_150_start,auth_150_end,auth_180_approved,auth_180_start,auth_180_end,assigned_employee_id,billing_tracking_start').order('last_name'),
+      supabase.from('clients').select('id,first_name,last_name,insurance,member_id,level_of_need,status,hsp_submitted,auth_150_start,auth_150_end,auth_180_approved,auth_180_start,auth_180_end,assigned_employee_id,billing_tracking_start,auth_30_start,auth_30_end,hsp_due_date,auth_30_number,auth_150_number,auth_180_number').order('last_name'),
       supabase.from('billing_cycles').select('*').eq('is_active', true).order('cycle_number'),
       supabase.from('profiles').select('id,first_name,last_name,email'),
     ]);
