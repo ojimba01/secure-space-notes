@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { differenceInCalendarDays, format, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ChevronDown, ChevronRight, HelpCircle, Plus, Search, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { BillingCycle } from '@/lib/billing';
+import { BillingCycle, APPROVAL_STATES, ApprovalState, isDeadlineAtRisk, isCycleResolved, finalDeadlineFor, deadlineLabel, hspDueDateFor, DEADLINE_WARNING_DAYS } from '@/lib/billing';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,8 +16,10 @@ import { BillingTutorial, BillingTutorialStep } from '@/components/billing/Billi
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
 const complete = (c: BillingClient) => c.status === 'active' && c.hsp_submitted && !!c.auth_150_start && ['Low','Low Level','High','High Level'].includes(c.level_of_need ?? '');
 const blocker = (c: BillingClient) => !c.first_name || !c.last_name || !c.level_of_need ? 'Missing information' : !c.hsp_submitted ? 'HSP not submitted' : !c.auth_150_start ? 'Waiting for HSP approval' : 'Missing information';
-const in48 = (d: string) => differenceInCalendarDays(parseISO(d), new Date()) <= 2;
-const attention = (c: BillingCycle) => c.billing_status === 'Ready to Bill' || (c.billing_status !== 'Submitted' && in48(c.cycle_end));
+
+// Needs attention = an ended cycle whose 6-month final submission deadline is
+// two weeks or less away (or already passed) and that is not approved or closed.
+const attention = (c: BillingCycle) => isDeadlineAtRisk(c);
 const matches = (c: BillingClient, q: string) => {
   const t = q.trim().toLowerCase();
   if (!t) return true;
@@ -97,8 +99,8 @@ export function BillingWorkspace() {
       <Card className="p-5">
         <h2 className="font-semibold">What am I looking at?</h2>
         <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-          <li><b className="text-red-600">Needs attention</b> — only the cycles you must act on now: ready to bill, due within 48 hours, or past due and not yet submitted.</li>
-          <li><b className="text-foreground">All clients and cycles</b> — every 30-day cycle for every billable client, including future and already-submitted cycles. Use it to review history, not for daily work.</li>
+          <li><b className="text-red-600">Needs attention</b> — cycles that have already ended, are not yet approved or closed, and whose final submission deadline is {DEADLINE_WARNING_DAYS} days or less away. The final deadline is 6 months after the cycle end date, so these are the claims you can still lose money on.</li>
+          <li><b className="text-foreground">All clients and cycles</b> — every 30-day cycle for every billable client, including future cycles and cycles already approved or closed. Use it to review history, not for daily work.</li>
         </ul>
         <p className="mt-2 text-sm text-muted-foreground">Clients with missing information never appear here. They stay in “Add or update clients” until their billing dates can be calculated.</p>
       </Card>
@@ -106,18 +108,27 @@ export function BillingWorkspace() {
         <Button data-tour="filter-attention" onClick={()=>setFilter('attention')} className={filter==='attention'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs attention ({attentionCount})</Button>
         <Button data-tour="filter-all" variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All clients and cycles ({cycles.length})</Button>
       </div>
-      {visibleClients.length===0 ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No billable clients match that search':'Nothing needs attention right now'}</h3><p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'Billing will place a client here when a cycle is due soon or ready to submit.'}</p></Card>
-      : <div className="space-y-3">{visibleClients.map((c,i)=>{const cc=(cycleByClient.get(c.id)??[]).filter(x=>filter==='all'||attention(x));return <Card key={c.id} className="overflow-hidden" data-tour={i===0?'client-row':undefined}>
+      {visibleClients.length===0 ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No billable clients match that search':'Nothing needs attention right now'}</h3><p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'A client appears here when a finished cycle is within two weeks of its final submission deadline.'}</p></Card>
+      : <div className="space-y-3">{visibleClients.map((c,i)=>{
+        const all=cycleByClient.get(c.id)??[];
+        const cc=all.filter(x=>filter==='all'||attention(x));
+        const atRisk=all.filter(attention).length;
+        const allResolved=all.length>0&&all.every(isCycleResolved);
+        return <Card key={c.id} className={`overflow-hidden ${atRisk?'border-red-400':''}`} data-tour={i===0?'client-row':undefined}>
         <div className="flex items-center gap-2 pr-4">
           <button className="flex flex-1 items-center gap-3 p-4 text-left hover:bg-slate-50" onClick={()=>setOpen(open===c.id?null:c.id)}>
             {open===c.id?<ChevronDown/>:<ChevronRight/>}
             <div className="flex-1"><b>{c.first_name} {c.last_name}</b><div className="text-sm text-muted-foreground">{c.level_of_need?.replace(' Level','')} level · {c.auth_180_approved?'180-day extension':'150-day authorization'}</div></div>
-            <div className="text-right"><b>{cc.length} cycle{cc.length===1?'':'s'}</b><div className="text-sm text-muted-foreground">Open to review</div></div>
+            <div className="text-right">
+              <b>{cc.length} cycle{cc.length===1?'':'s'}</b>
+              <div className={`text-sm ${atRisk?'font-medium text-red-600':allResolved?'font-medium text-green-700':'text-muted-foreground'}`}>{atRisk?`${atRisk} near final deadline`:allResolved?'All cycles approved or closed':'Open to review'}</div>
+            </div>
           </button>
           <Button variant="outline" size="sm" data-tour={i===0?'profile-btn':undefined} onClick={()=>setProfileId(c.id)}><UserRound className="mr-2 h-4 w-4"/>Client profile</Button>
         </div>
-        {open===c.id&&<CycleGrid cycles={cycleByClient.get(c.id)??[]} updateCycle={updateCycle} tour={i===0}/>}
+        {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={updateCycle} tour={i===0}/>}
       </Card>})}</div>}
+
     </> : <>
       <Card className="p-5"><h2 className="font-semibold">Add information as you receive it</h2><p className="mt-1 text-sm text-muted-foreground">Needs set-up is separate because these clients do not yet have enough information to calculate billing. Partial information is saved without creating overdue warnings.</p></Card>
       <div className="flex flex-wrap gap-2">
@@ -135,6 +146,29 @@ function ClientGrid({clients,save,showBlocker,openProfile}:{clients:BillingClien
   return <Card className="overflow-x-auto"><table className="w-full min-w-[1150px] text-sm"><thead className="bg-slate-100 text-left"><tr>{['Client','Member ID','MCO','Level of Need','HSP submitted','HSP approval start','180-day extension',showBlocker?'Why not in billing':'Billing stage','Profile'].map(x=><th key={x} className="p-3 font-semibold">{x}</th>)}</tr></thead><tbody>{clients.map(c=><tr key={c.id} className="border-t"><td className="p-2"><div className="flex gap-1"><Editable value={c.first_name} onSave={v=>save(c.id,{first_name:v})}/><Editable value={c.last_name} onSave={v=>save(c.id,{last_name:v})}/></div></td><td className="p-2"><Editable value={c.member_id} onSave={v=>save(c.id,{member_id:v||null})}/></td><td className="p-2"><Editable value={c.insurance} onSave={v=>save(c.id,{insurance:v||null})}/></td><td className="p-2"><Select value={c.level_of_need??''} onValueChange={v=>save(c.id,{level_of_need:v})}><SelectTrigger className="w-36"><SelectValue placeholder="Choose"/></SelectTrigger><SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="High">High</SelectItem></SelectContent></Select></td><td className="p-2"><Select value={c.hsp_submitted?'yes':'no'} onValueChange={v=>save(c.id,{hsp_submitted:v==='yes'})}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Yes</SelectItem></SelectContent></Select></td><td className="p-2"><Editable type="date" value={c.auth_150_start} onSave={v=>save(c.id,{auth_150_start:v||null})}/></td><td className="p-2"><Select value={c.auth_180_approved?'yes':'no'} onValueChange={v=>save(c.id,{auth_180_approved:v==='yes'})}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Approved</SelectItem></SelectContent></Select></td><td className="p-3"><span className={`rounded-full px-3 py-1 font-medium ${showBlocker?'bg-red-100 text-red-800':'bg-green-100 text-green-900'}`}>{showBlocker?blocker(c):(c.auth_180_approved?'180-day extension':'150-day authorization')}</span></td><td className="p-2"><Button variant="outline" size="sm" onClick={()=>openProfile(c.id)}><UserRound className="mr-2 h-4 w-4"/>Open</Button></td></tr>)}</tbody></table></Card>;
 }
 
-function CycleGrid({cycles,updateCycle,tour}:{cycles:BillingCycle[];updateCycle:(id:string,p:Partial<BillingCycle>)=>Promise<void>;tour?:boolean}){
-  return <div className="border-t bg-white p-4" data-tour={tour?'cycle-table':undefined}><div className="mb-3 text-sm"><b>How to read this:</b> Cycles 1–5 are the 150-day authorization. Cycles 6–11 are the 180-day extension.</div><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-sm"><thead><tr className="bg-slate-100">{['Cycle','Authorization','Dates','Billing status','Payment status','Claim number'].map(x=><th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>{cycles.map(c=><tr key={c.id} className="border-t"><td className="p-3 font-semibold">Cycle {c.cycle_number}</td><td className="p-3">{c.cycle_number<=5?'150-day authorization':'180-day extension'}</td><td className="p-3">{fmt(c.cycle_start)} – {fmt(c.cycle_end)}</td><td className="p-3"><Select value={c.billing_status} onValueChange={v=>updateCycle(c.id,{billing_status:v as BillingCycle['billing_status']}).then(()=>toast.success('Billing status saved.'))}><SelectTrigger className="w-36"><SelectValue/></SelectTrigger><SelectContent>{['Not Billed','Ready to Bill','Submitted','Denied'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td><td className="p-3"><Select value={c.payment_status} onValueChange={v=>updateCycle(c.id,{payment_status:v as BillingCycle['payment_status']}).then(()=>toast.success('Payment status saved.'))}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent>{['Unpaid','Partial','Paid'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td><td className="p-3"><Editable value={c.claim_number} onSave={v=>updateCycle(c.id,{claim_number:v||null})}/></td></tr>)}</tbody></table></div></div>;
+function CycleGrid({client,cycles,updateCycle,tour}:{client:BillingClient;cycles:BillingCycle[];updateCycle:(id:string,p:Partial<BillingCycle>)=>Promise<void>;tour?:boolean}){
+  const hspDue = client.hsp_due_date ?? hspDueDateFor(client.auth_30_start);
+  const allResolved = cycles.length>0 && cycles.every(isCycleResolved);
+  return <div className="border-t bg-white p-4" data-tour={tour?'cycle-table':undefined}>
+    <div className="mb-3 text-sm"><b>How to read this:</b> the 30-day HSP window comes first and is not billable. Cycles 1–5 are the 150-day authorization. Cycles 6–11 are the 180-day extension. A claim must be submitted within 6 months of a cycle end date — that is the final deadline.</div>
+    <div className="mb-3 rounded-md border bg-slate-50 p-3 text-sm">
+      <b>30-day HSP window (not billable)</b>
+      <div className="text-muted-foreground">{fmt(client.auth_30_start)} – {fmt(hspDue)} · HSP due date: <b className="text-foreground">{fmt(hspDue)}</b> · Auth number: {client.auth_30_number ?? '—'}</div>
+      <div className="text-muted-foreground">Billing starts once the HSP is approved{client.auth_150_start?` on ${fmt(client.auth_150_start)}`:''}. Add these dates and numbers from the client profile.</div>
+    </div>
+    {allResolved && <div className="mb-3 rounded-md border border-green-300 bg-green-50 p-3 text-sm font-medium text-green-800">Every cycle is approved or closed. Nothing else is outstanding for this client.</div>}
+    <div className="overflow-x-auto"><table className="w-full min-w-[1150px] text-sm"><thead><tr className="bg-slate-100">{['Cycle','Authorization','Dates','Final deadline','Approved?','Billing status','Payment status','Claim number'].map(x=><th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>{cycles.map(c=>{
+      const risk=isDeadlineAtRisk(c);
+      return <tr key={c.id} className={`border-t ${risk?'bg-red-50':''}`}>
+        <td className={`p-3 font-semibold ${risk?'text-red-700':''}`}>Cycle {c.cycle_number}</td>
+        <td className="p-3">{c.cycle_number<=5?'150-day authorization':'180-day extension'}</td>
+        <td className="p-3">{fmt(c.cycle_start)} – {fmt(c.cycle_end)}</td>
+        <td className={`p-3 ${risk?'font-semibold text-red-700':''}`}>{fmt(finalDeadlineFor(c))}<div className="text-xs font-normal text-muted-foreground">{deadlineLabel(c)}</div></td>
+        <td className="p-3"><Select value={c.approval_state ?? 'none'} onValueChange={v=>updateCycle(c.id,{approval_state:v==='none'?null:v as ApprovalState}).then(()=>toast.success('Cycle approval saved.'))}><SelectTrigger className="w-48"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">Not decided</SelectItem>{APPROVAL_STATES.map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
+        <td className="p-3"><Select value={c.billing_status} onValueChange={v=>updateCycle(c.id,{billing_status:v as BillingCycle['billing_status']}).then(()=>toast.success('Billing status saved.'))}><SelectTrigger className="w-36"><SelectValue/></SelectTrigger><SelectContent>{['Not Billed','Ready to Bill','Submitted','Denied'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
+        <td className="p-3"><Select value={c.payment_status} onValueChange={v=>updateCycle(c.id,{payment_status:v as BillingCycle['payment_status']}).then(()=>toast.success('Payment status saved.'))}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent>{['Unpaid','Partial','Paid'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
+        <td className="p-3"><Editable value={c.claim_number} onSave={v=>updateCycle(c.id,{claim_number:v||null})}/></td>
+      </tr>;
+    })}</tbody></table></div></div>;
 }
+
