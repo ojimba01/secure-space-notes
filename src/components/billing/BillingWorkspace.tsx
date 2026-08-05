@@ -437,8 +437,9 @@ export function BillingWorkspace() {
         const allResolved=all.length>0&&all.every(isCycleResolved);
         const level=normalizeLevel(c.level_of_need);
         return <Card key={c.id} className={`overflow-hidden ${atRisk?'border-red-400':''}`}>
-        <div className="flex items-center gap-2 pr-4">
-          <button className="flex flex-1 items-center gap-3 p-4 text-left hover:bg-slate-50" data-tour={i===0?'client-row':undefined} onClick={()=>setOpen(open===c.id?null:c.id)}>
+        <div className="flex items-center gap-2 pr-4" data-tour={i===0?'client-row':undefined}>
+          <button className="flex flex-1 items-center gap-3 p-4 text-left hover:bg-slate-50" onClick={()=>setOpen(open===c.id?null:c.id)}>
+
             {open===c.id?<ChevronDown/>:<ChevronRight/>}
             <div className="flex-1">
               <span className="flex items-center gap-2"><b>{c.first_name} {c.last_name}</b><InfoHint text={HOW_TO_READ}/></span>
