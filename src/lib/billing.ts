@@ -360,3 +360,82 @@ export function hspDueDateFor(auth30Start: string | null | undefined): string | 
   if (!auth30Start) return null;
   return addDays(auth30Start, HSP_WINDOW_DAYS - 1);
 }
+
+// ---- level of need labels -------------------------------------------
+// Historic records store "Low"/"Low Level"/"High"/"High Level". The UI works
+// with the short label so a saved value always shows up in the dropdown.
+export function normalizeLevel(level: string | null | undefined): 'Low' | 'High' | '' {
+  const t = (level ?? '').trim().toLowerCase();
+  if (t.startsWith('low')) return 'Low';
+  if (t.startsWith('high')) return 'High';
+  return '';
+}
+
+// ---- duplicate client detection --------------------------------------
+// A possible duplicate needs BOTH a near-identical name (each part within two
+// letters, to allow for spelling slips) AND a matching member ID or
+// authorization number. A shared name alone is never enough.
+export function editDistance(a: string, b: string): number {
+  const s = a.trim().toLowerCase(), t = b.trim().toLowerCase();
+  const rows = Array.from({ length: s.length + 1 }, (_, i) => [i, ...new Array(t.length).fill(0)]);
+  for (let j = 0; j <= t.length; j++) rows[0][j] = j;
+  for (let i = 1; i <= s.length; i++)
+    for (let j = 1; j <= t.length; j++)
+      rows[i][j] = Math.min(rows[i - 1][j] + 1, rows[i][j - 1] + 1, rows[i - 1][j - 1] + (s[i - 1] === t[j - 1] ? 0 : 1));
+  return rows[s.length][t.length];
+}
+
+export interface DuplicateCandidate {
+  id: string;
+  first_name: string;
+  last_name: string;
+  member_id?: string | null;
+  auth_30_number?: string | null;
+  auth_150_number?: string | null;
+  auth_180_number?: string | null;
+}
+
+const sameCode = (a: string | null | undefined, b: string | null | undefined) =>
+  !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+
+export function isPossibleDuplicate(a: DuplicateCandidate, b: DuplicateCandidate, tolerance = 2): boolean {
+  if (a.id === b.id) return false;
+  if (!a.first_name?.trim() || !a.last_name?.trim() || !b.first_name?.trim() || !b.last_name?.trim()) return false;
+  const nameClose =
+    editDistance(a.first_name, b.first_name) <= tolerance && editDistance(a.last_name, b.last_name) <= tolerance;
+  if (!nameClose) return false;
+  const codes: Array<keyof DuplicateCandidate> = ['member_id', 'auth_30_number', 'auth_150_number', 'auth_180_number'];
+  const aCodes = codes.map((k) => a[k] as string | null | undefined);
+  const bCodes = codes.map((k) => b[k] as string | null | undefined);
+  return aCodes.some((x) => bCodes.some((y) => sameCode(x, y)));
+}
+
+export function findPossibleDuplicates<T extends DuplicateCandidate>(client: T, all: T[], tolerance = 2): T[] {
+  return all.filter((other) => isPossibleDuplicate(client, other, tolerance));
+}
+
+// ---- 180-day extension watch ----------------------------------------
+// Alert staff when a 150-day authorization ends soon so the 180-day
+// extension can be confirmed before billing stops.
+export const EXTENSION_WARNING_DAYS = 30;
+
+export function daysUntil150End(client: { auth_150_end?: string | null }, today = todayAgency()): number | null {
+  if (!client.auth_150_end) return null;
+  return daysBetween(today, client.auth_150_end);
+}
+
+export function needsExtensionReview(
+  client: { auth_150_end?: string | null; auth_180_approved?: boolean | null; status?: string | null },
+  today = todayAgency(),
+): boolean {
+  if (client.auth_180_approved) return false;
+  const days = daysUntil150End(client, today);
+  if (days == null) return false;
+  return days <= EXTENSION_WARNING_DAYS;
+}
+
+// The 180-day extension always starts the day after the 150-day run ends.
+export function projected180Start(auth150Start: string | null | undefined): string | null {
+  if (!auth150Start) return null;
+  return addDays(auth150Start, 150);
+}
