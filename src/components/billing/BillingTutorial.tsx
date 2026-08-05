@@ -41,14 +41,16 @@ const PATTERN = new RegExp(
   'g',
 );
 
+const isBold = (s: string) => /^\*\*[^*]+\*\*$/.test(s) || TERMS.includes(s);
+
 /** Plain copy with UI names and required actions in bold. */
-function Rich({ text, className }: { text: string; className?: string }) {
+function Rich({ text, className, boldClassName = 'text-foreground' }: { text: string; className?: string; boldClassName?: string }) {
   const parts = text.split(PATTERN).filter((p) => p !== '');
   return (
     <p className={className}>
       {parts.map((part, i) =>
-        PATTERN.test(part)
-          ? <strong key={i} className="font-semibold text-foreground">{part.replace(/^\*\*|\*\*$/g, '')}</strong>
+        isBold(part)
+          ? <strong key={i} className={`font-semibold ${boldClassName}`}>{part.replace(/^\*\*|\*\*$/g, '')}</strong>
           : <span key={i}>{part}</span>,
       )}
     </p>
@@ -184,7 +186,7 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
         <div className="mt-4 flex items-center justify-between gap-2">
           <Button variant="outline" size="sm" disabled={!n} onClick={() => setN(n - 1)}>Previous</Button>
           {waiting
-            ? <Rich className="text-right text-xs font-medium text-blue-700" text={step.hint ?? ''} />
+            ? <Rich className="text-right text-xs font-medium text-blue-700" boldClassName="text-blue-800" text={step.hint ?? ''} />
             : <Button size="sm" disabled={!canContinue} onClick={advance}>{n === steps.length - 1 ? 'Complete Tutorial' : 'Continue'}</Button>}
         </div>
       </Card>
