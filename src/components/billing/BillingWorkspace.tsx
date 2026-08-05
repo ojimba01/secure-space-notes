@@ -610,8 +610,8 @@ function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[]
       <th className="p-3"><ColumnFilter label="HSP submitted" value={fHsp} onChange={setFHsp} options={['Yes','No','Blanks']}/></th>
       <th className="p-3"><SortHeader label="HSP approval start" keyName="start" asc="Earliest first" desc="Latest first"/></th>
       <th className="p-3"><ColumnFilter label="180-day extension" value={fExt} onChange={setFExt} options={['Approved','N/A','Blanks']}/></th>
-      <th className="p-3 font-semibold text-indigo-900">30-day auth no.</th>
-      <th className="p-3 font-semibold text-indigo-900">150-day auth no.</th>
+      <th className="p-3 font-semibold text-indigo-900">30-day auth #</th>
+      <th className="p-3 font-semibold text-indigo-900">150-day auth&nbsp;</th>
       <th className="p-3 font-semibold text-indigo-900">180-day auth no.</th>
       <th className="p-3"><ColumnFilter label="Reason billing is incomplete" value={fWhy} onChange={setFWhy} options={['In billing',...BLOCKERS]}/></th>
 
