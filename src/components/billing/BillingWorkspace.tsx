@@ -129,15 +129,17 @@ export function BillingWorkspace() {
     .then(()=>{toast.success('Saved. Billing has been updated.'); runDuplicateCheck(id);})
     .catch(e=>toast.error(e.message));
 
+  const reasonOf: Record<'hsp'|'start'|'lon', Blocker> = { hsp:'HSP not submitted', start:'Missing HSP approval start date', lon:'Missing level of need' };
   const setupRows=useMemo(()=>{
-    const rows=setup.filter(c=>setupReason==='all'||(setupReason==='hsp'?blocker(c)==='HSP not submitted':blocker(c)!=='HSP not submitted'));
+    const rows=clients.filter(c=>c.status==='active').filter(c=>setupReason==='all'||(!complete(c)&&blocker(c)===reasonOf[setupReason]));
     // Newly added rows always sit at the top so they are easy to fill in.
     return rows.sort((a,b)=>{
       const an=newRowIds.indexOf(a.id), bn=newRowIds.indexOf(b.id);
       if(an!==bn) return (an===-1?1:0)-(bn===-1?1:0) || an-bn;
       return (b.created_at ?? '').localeCompare(a.created_at ?? '');
     });
-  },[setup,setupReason,newRowIds]);
+  },[clients,setupReason,newRowIds]);
+  const countBlocked=(k:'hsp'|'start'|'lon')=>setup.filter(c=>blocker(c)===reasonOf[k]).length;
 
   const tutorialSteps: BillingTutorialStep[] = useMemo(()=>[
     { title:'Understand the two Billing sections', body:'Billing has two main sections. Current billing deadlines shows the billing work that needs your attention. Add or set up client billing is where you enter or correct the information used to create billing cycles.', cta:'Press Current billing deadlines to continue.', selector:'[data-tour="section-deadlines"]', requireClick:true, before:()=>{setSection('deadlines');setQuery('');} },
