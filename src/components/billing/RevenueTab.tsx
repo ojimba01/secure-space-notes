@@ -343,7 +343,7 @@ export function RevenueTab({ clients, cycles, viewOverride, onViewChange }: {
 
   }
 
-  return <div className="space-y-4">
+  return <div className="space-y-4" data-tour="revenue-section">
     <Card className="p-4">
       <h2 className="font-semibold">Next {REVENUE_MONTHS} months revenue</h2>
       <p className="mt-1 text-sm text-muted-foreground">
@@ -354,6 +354,7 @@ export function RevenueTab({ clients, cycles, viewOverride, onViewChange }: {
     </Card>
 
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
       <Card className="p-4">
         <div className="text-sm text-muted-foreground">Potential 6 month revenue</div>
         <div className="mt-1 text-2xl font-bold">{rangeLabel}</div>
