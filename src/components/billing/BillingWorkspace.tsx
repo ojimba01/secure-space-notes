@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { InfoHint } from '@/components/InfoHint';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
 import { ClientProfileDialog } from '@/components/billing/ClientProfileDialog';
 import { BillingTutorial, BillingTutorialStep } from '@/components/billing/BillingTutorial';
 
@@ -106,6 +108,10 @@ export function BillingWorkspace() {
   const eligible=clients.filter(complete), setup=clients.filter(c=>c.status==='active'&&!complete(c));
   const attentionCount=cycles.filter(attention).length;
   const extensionClients=useMemo(()=>eligible.filter(c=>needsExtensionReview(c)).sort((a,b)=>(daysUntil150End(a)??999)-(daysUntil150End(b)??999)),[eligible]);
+  // Clients ready for billing except for the level of need. They can be finished
+  // here and move straight into the lists above once the level is saved.
+  const lonPending=useMemo(()=>clients.filter(c=>c.status==='active'&&c.hsp_submitted&&!!c.auth_150_start&&!normalizeLevel(c.level_of_need)).filter(c=>matches(c,query)),[clients,query]);
+
 
   // Nearest unresolved final deadline, used to order the full cycle list.
   const nearestDeadline=(c:BillingClient)=>{
@@ -143,13 +149,14 @@ export function BillingWorkspace() {
   const countBlocked=(k:'hsp'|'start'|'lon')=>setup.filter(c=>blocker(c)===reasonOf[k]).length;
 
   const tutorialSteps: BillingTutorialStep[] = useMemo(()=>[
-    { title:'Understand the two Billing sections', body:'Billing has two main sections. Current billing deadlines shows the billing work that needs your attention. Add or set up client billing is where you enter or correct the information used to create billing cycles.', cta:'Press Current billing deadlines to continue.', selector:'[data-tour="section-deadlines"]', requireClick:true, before:()=>{setSection('deadlines');setQuery('');} },
+    { title:'Understand the two Billing sections', body:'Billing has two main sections. Current billing deadlines shows the billing work that needs your attention. Add or set up client billing is where you enter or correct the information used to create billing cycles.', cta:'Press Current billing deadlines to continue.', selector:'[data-tour="sections"]', requireClick:true, before:()=>{setSection('deadlines');setQuery('');} },
     { title:'Find a client', body:'Use the search box to find a specific client. You can search using the client’s name, member ID, or MCO. Only matching clients will appear below the search box.\n\nPress the search box and enter a client’s name, then press Continue.', cta:'Continue', selector:'[data-tour="search"]' },
-    { title:'Review Needs attention', body:'Needs attention shows clients with billing work that requires action. It includes clients whose 30-day cycle end dates are now four weeks away from the final deadline for submitting claims from the full authorization period.\n\nThe number in parentheses shows how many clients currently need attention.', cta:'Press Needs attention to continue.', selector:'[data-tour="filter-attention"]', requireClick:true, before:()=>{setSection('deadlines');setQuery('');} },
-    { title:'View all active billing cycles', body:'All active billing cycles shows every active 30-day cycle in the system, ordered so the cycle with the closest final deadline appears first.', cta:'Press All active billing cycles to continue.', selector:'[data-tour="filter-all"]', requireClick:true },
+    { title:'View all active billing cycles', body:'All active billing cycles shows every active 30-day cycle in the system, ordered so the cycle with the closest final deadline appears first.', cta:'Press All active billing cycles to continue.', selector:'[data-tour="filter-all"]', requireClick:true, before:()=>{setSection('deadlines');setQuery('');} },
+    { title:'Review Needs attention', body:'Needs attention shows clients with billing work that requires action. It includes clients whose 30-day cycle end dates are now four weeks away from the final deadline for submitting claims from the full authorization period.\n\nThe number in parentheses shows how many clients currently need attention. Below it, Please update LON status lists clients who only need a level of need before their billing cycles can be created.', cta:'Press Needs attention to continue.', selector:'[data-tour="filter-attention"]', requireClick:true },
     { title:'Watch for upcoming extensions', body:'Upcoming extensions lists clients whose 150-day authorization ends within 30 days. Confirm the 180-day extension and enter its authorization number so billing continues without a gap.', cta:'Press Upcoming extensions to continue.', selector:'[data-tour="filter-extensions"]', requireClick:true },
     { title:'Open a client’s billing cycles', body:'Press a client’s row to see all of that client’s 30-day billing cycles.\n\nThe first five cycles belong to the client’s 150-day authorization. If a 180-day extension is approved, six additional 30-day cycles will appear.', cta:'Press the highlighted client row to continue.', selector:'[data-tour="client-row"]', requireClick:true, before:()=>{setFilter('all');setOpen(null);} },
-    { title:'Update a billing cycle', body:'Use the billing-cycle table to record the claim status, payment status, and claim number.\n\nUpdate the claim status when a claim is submitted. Add the claim number when one is available. Update the payment status when the claim is paid or denied. Your changes save automatically.', cta:'Press the highlighted claim-status field, then select Submitted to continue.', selector:'[data-tour="claim-status"]', requireClick:true, before:()=>{const first=eligible.find(c=>(cycleByClient.get(c.id)??[]).length); if(first) setOpen(first.id);} },
+    { title:'Update a billing cycle', body:'Use the billing-cycle table to record the claim status, payment status, and claim number.\n\nUpdate the claim status when a claim is submitted. Add the claim number when one is available. Update the payment status when the claim is paid or denied. Your changes save automatically.', cta:'Press the highlighted claim-status field, then select Submitted to continue.', selector:'[data-tour="claim-status"]', requireClick:true, before:()=>{setFilter('all');} },
+
     { title:'Open Add or set up client billing', body:'Use Add or set up client billing to add a client or correct information used to create billing cycles. This section is an editing space, so it looks different from Current billing deadlines.', cta:'Press Add or set up client billing to continue.', selector:'[data-tour="section-setup"]', requireClick:true },
     { title:'Review clients who need setup', body:'Use the filter buttons to see clients whose billing cycles cannot be created yet: the HSP has not been submitted, the HSP approval start date is missing, or the level of need is missing.', cta:'Press HSP not submitted to continue.', selector:'[data-tour="stage-setup"]', requireClick:true, before:()=>{setSection('setup');} },
     { title:'Add a client', body:'Use Add client row to create a blank row at the top of the table. Enter the information you have, then press Save to open the client profile and finish filling it out.', cta:'Press Add client row to complete the tutorial.', selector:'[data-tour="add-client"]', requireClick:true, before:()=>{setSection('setup');setSetupReason('all');} },
@@ -189,7 +196,7 @@ export function BillingWorkspace() {
     </Dialog>
 
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex rounded-lg border bg-white p-1">
+      <div className="flex rounded-lg border bg-white p-1" data-tour="sections">
         <Button data-tour="section-deadlines" variant={section==='deadlines'?'default':'ghost'} onClick={()=>setSection('deadlines')}>Current billing deadlines</Button>
         <Button data-tour="section-setup" variant={section==='setup'?'default':'ghost'} className={section==='setup'?'bg-indigo-600 text-white hover:bg-indigo-700':''} onClick={()=>setSection('setup')}><Pencil className="mr-2 h-4 w-4"/>Add or set up client billing</Button>
       </div>
@@ -212,10 +219,11 @@ export function BillingWorkspace() {
 
     {section==='deadlines' ? <>
       <div className="flex flex-wrap gap-2">
-        <Button data-tour="filter-attention" onClick={()=>setFilter('attention')} className={filter==='attention'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs attention ({attentionCount})</Button>
         <Button data-tour="filter-all" variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All active billing cycles ({cycles.length})</Button>
+        <Button data-tour="filter-attention" onClick={()=>setFilter('attention')} className={filter==='attention'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs attention ({attentionCount})</Button>
         <button data-tour="filter-extensions" onClick={()=>setFilter('extensions')} className={`inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 ${filter==='extensions'?'bg-amber-600 text-white hover:bg-amber-700':'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50'}`}>Upcoming 180-day extensions ({extensionClients.length})</button>
       </div>
+
 
       {filter==='all' && <div className="flex flex-wrap gap-2">
         <Button size="sm" variant={phaseTab==='both'?'secondary':'outline'} className={`h-8 text-sm ${phaseTab!=='both'?'bg-white':''}`} onClick={()=>setPhaseTab('both')}>All authorizations ({eligible.length})</Button>
@@ -248,6 +256,10 @@ export function BillingWorkspace() {
         </div>
         {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={updateCycle} tour={i===0}/>}
       </Card>})}</div>}
+
+      {filter!=='extensions' && lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
+
+
 
     </> : <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -282,6 +294,34 @@ export function BillingWorkspace() {
   </div>;
 }
 
+// Clients with an HSP approval start date but no level of need. Saving the level
+// here creates their billing cycles, which moves them into the lists above.
+function LonQueue({clients,save,openProfile}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;openProfile:(id:string)=>void}){
+  const [picked,setPicked]=useState<Record<string,string>>({});
+  return <Card className="overflow-hidden border-amber-300">
+    <div className="border-b bg-amber-50 p-4">
+      <h3 className="font-semibold text-amber-900">Please update LON status ({clients.length})</h3>
+      <p className="mt-1 text-sm text-amber-900/80">These clients have an HSP approval start date but no level of need, so their billing cycles cannot be created yet. Choose the level of need and press Save. They move into the lists above right away.</p>
+    </div>
+    <div className="divide-y">{clients.map(c=><div key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
+      <div className="flex items-center gap-2">
+        <ProfileIconButton onClick={()=>openProfile(c.id)}/>
+        <b>{c.first_name} {c.last_name}</b>
+        <span className="text-muted-foreground">· HSP approval start {fmt(c.auth_150_start)}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Select value={picked[c.id]} onValueChange={v=>setPicked(p=>({...p,[c.id]:v}))}>
+          <SelectTrigger className={`h-9 w-32 font-medium ${lonClass(picked[c.id] ?? '')}`}><SelectValue placeholder="Level of need"/></SelectTrigger>
+          <SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="High">High</SelectItem></SelectContent>
+        </Select>
+        <Button size="sm" className="bg-indigo-600 text-white hover:bg-indigo-700" disabled={!picked[c.id]} onClick={()=>save(c.id,{level_of_need:picked[c.id]})}>Save</Button>
+      </div>
+    </div>)}</div>
+  </Card>;
+}
+
+
+
 // Clients whose 150-day authorization ends soon and still need a decision on
 // the 180-day extension.
 function ExtensionQueue({clients,save,openProfile}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;openProfile:(id:string)=>void}){
@@ -307,12 +347,24 @@ function ExtensionQueue({clients,save,openProfile}:{clients:BillingClient[];save
 
 const BLOCKERS: Blocker[] = ['HSP not submitted','Missing HSP approval start date','Missing level of need','Missing client name'];
 
-function FilterSelect({value,onChange,options,width='w-36'}:{value:string;onChange:(v:string)=>void;options:string[];width?:string}){
-  return <Select value={value} onValueChange={onChange}>
-    <SelectTrigger className={`mt-1 h-7 ${width} bg-white text-xs font-normal`}><SelectValue/></SelectTrigger>
-    <SelectContent><SelectItem value="all">All</SelectItem>{options.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-  </Select>;
+// Column filter: the header shows a small caret; the options only appear once it is pressed.
+function ColumnFilter({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:string[]}){
+  return <div className="font-semibold text-indigo-900">
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" aria-label={`Filter ${label}`} className="flex items-center gap-1 text-left hover:underline">
+          {label}<ChevronDown className="h-3.5 w-3.5"/>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="bg-white">
+        <DropdownMenuItem onClick={()=>onChange('all')}>All</DropdownMenuItem>
+        {options.map(o=><DropdownMenuItem key={o} onClick={()=>onChange(o)}>{o}</DropdownMenuItem>)}
+      </DropdownMenuContent>
+    </DropdownMenu>
+    {value!=='all' && <div className="text-xs font-normal text-indigo-900/70">{value}</div>}
+  </div>;
 }
+
 
 function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;openProfile:(id:string)=>void;onDelete:(c:BillingClient)=>void}){
   const [sort,setSort]=useState<{key:'name'|'start';dir:'asc'|'desc'}|null>(null);
@@ -328,7 +380,7 @@ function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[]
       (fMco==='all'||(c.insurance ?? '')===fMco)
       &&(fLon==='all'||normalizeLevel(c.level_of_need)===fLon)
       &&(fHsp==='all'||(fHsp==='Yes'?c.hsp_submitted===true:fHsp==='No'?c.hsp_submitted===false:c.hsp_submitted==null))
-      &&(fExt==='all'||(fExt==='Approved'?c.auth_180_approved===true:fExt==='Not approved'?c.auth_180_approved===false:c.auth_180_approved==null))
+      &&(fExt==='all'||(fExt==='Approved'?c.auth_180_approved===true:fExt==='N/A'?c.auth_180_approved===false:c.auth_180_approved==null))
       &&(fWhy==='all'||(fWhy==='In billing'?complete(c):!complete(c)&&blocker(c)===fWhy)));
     if(!sort) return filtered;
     const dir=sort.dir==='asc'?1:-1;
@@ -348,15 +400,16 @@ function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[]
     <table className="w-full min-w-[1850px] text-sm"><thead className="bg-indigo-100 text-left"><tr className="align-top">
       <th className="p-3"><SortHeader label="Client" keyName="name" asc="A–Z" desc="Z–A"/></th>
       <th className="p-3 font-semibold text-indigo-900">Member ID</th>
-      <th className="p-3 font-semibold text-indigo-900">MCO<FilterSelect value={fMco} onChange={setFMco} options={[...MCO_OPTIONS]} width="w-36"/></th>
-      <th className="p-3 font-semibold text-indigo-900">Level of Need<FilterSelect value={fLon} onChange={setFLon} options={['Low','High']} width="w-28"/></th>
-      <th className="p-3 font-semibold text-indigo-900">HSP submitted<FilterSelect value={fHsp} onChange={setFHsp} options={['Yes','No','Not answered']} width="w-32"/></th>
+      <th className="p-3"><ColumnFilter label="MCO" value={fMco} onChange={setFMco} options={[...MCO_OPTIONS]}/></th>
+      <th className="p-3"><ColumnFilter label="Level of Need" value={fLon} onChange={setFLon} options={['Low','High']}/></th>
+      <th className="p-3"><ColumnFilter label="HSP submitted" value={fHsp} onChange={setFHsp} options={['Yes','No','Blanks']}/></th>
       <th className="p-3"><SortHeader label="HSP approval start" keyName="start" asc="Earliest first" desc="Latest first"/></th>
-      <th className="p-3 font-semibold text-indigo-900">180-day extension<FilterSelect value={fExt} onChange={setFExt} options={['Approved','Not approved','Not answered']} width="w-36"/></th>
+      <th className="p-3"><ColumnFilter label="180-day extension" value={fExt} onChange={setFExt} options={['Approved','N/A','Blanks']}/></th>
       <th className="p-3 font-semibold text-indigo-900">30-day auth no.</th>
       <th className="p-3 font-semibold text-indigo-900">150-day auth no.</th>
       <th className="p-3 font-semibold text-indigo-900">180-day auth no.</th>
-      <th className="p-3 font-semibold text-indigo-900 whitespace-pre-line">Reason billing is incomplete{"\n"}<FilterSelect value={fWhy} onChange={setFWhy} options={['In billing',...BLOCKERS]} width="w-52"/></th>
+      <th className="p-3"><ColumnFilter label="Reason billing is incomplete" value={fWhy} onChange={setFWhy} options={['In billing',...BLOCKERS]}/></th>
+
       <th className="p-3 font-semibold text-indigo-900">Save</th>
       <th className="p-3 font-semibold text-indigo-900">Delete</th>
     </tr></thead>
@@ -367,7 +420,7 @@ function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[]
       <td className="p-2"><Select value={normalizeLevel(c.level_of_need) || undefined} onValueChange={v=>save(c.id,{level_of_need:v})}><SelectTrigger className={`w-32 font-medium ${lonClass(normalizeLevel(c.level_of_need))}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="High">High</SelectItem></SelectContent></Select></td>
       <td className="p-2"><Select value={boolValue(c.hsp_submitted)} onValueChange={v=>save(c.id,{hsp_submitted:v==='yes'})}><SelectTrigger className={`w-24 font-medium ${yesNoClass(c.hsp_submitted)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Yes</SelectItem></SelectContent></Select></td>
       <td className="p-2"><Editable type="date" value={c.auth_150_start} onSave={v=>save(c.id,{auth_150_start:v||null})}/></td>
-      <td className="p-2"><Select value={boolValue(c.auth_180_approved)} onValueChange={v=>save(c.id,{auth_180_approved:v==='yes'})}><SelectTrigger className={`w-28 font-medium ${yesNoClass(c.auth_180_approved)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Approved</SelectItem></SelectContent></Select></td>
+      <td className="p-2"><Select value={boolValue(c.auth_180_approved)} onValueChange={v=>save(c.id,{auth_180_approved:v==='yes'})}><SelectTrigger className={`w-28 font-medium ${yesNoClass(c.auth_180_approved)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="no">N/A</SelectItem><SelectItem value="yes">Approved</SelectItem></SelectContent></Select></td>
       <td className="p-2"><Editable value={c.auth_30_number} placeholder="30-day" onSave={v=>save(c.id,{auth_30_number:v||null})}/></td>
       <td className="p-2"><Editable value={c.auth_150_number} placeholder="150-day" onSave={v=>save(c.id,{auth_150_number:v||null})}/></td>
       <td className="p-2"><Editable value={c.auth_180_number} placeholder="180-day" onSave={v=>save(c.id,{auth_180_number:v||null})}/></td>

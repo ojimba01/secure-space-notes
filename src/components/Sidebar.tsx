@@ -190,6 +190,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
               Admin Dashboard
             </Button>
           )}
+          <Button
+            variant={activeView === 'clients' ? 'default' : 'ghost'}
+            className="w-full justify-start gap-2"
+            onClick={() => handleViewChange('clients')}
+            data-tutorial="clients-nav"
+          >
+            <Users className="h-4 w-4" />
+            Clients
+          </Button>
           {isAdmin && !isViewingAs && (
             <Button
               variant="ghost"
@@ -208,15 +217,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             <ClipboardList className="h-4 w-4" />
             Touchpoints
           </Button>
-          <Button
-            variant={activeView === 'clients' ? 'default' : 'ghost'}
-            className="w-full justify-start gap-2"
-            onClick={() => handleViewChange('clients')}
-            data-tutorial="clients-nav"
-          >
-            <Users className="h-4 w-4" />
-            Clients
-          </Button>
+
           <Button
             variant={activeView === 'calendar' ? 'default' : 'ghost'}
             className="w-full justify-start gap-2"
