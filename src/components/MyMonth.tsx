@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import {
   AlertTriangle, CalendarClock, CheckCircle2, ClipboardList, Settings2,
-  ChevronRight, MoveRight, Plus,
+  ChevronRight, MoveRight,
 } from 'lucide-react';
 import { InfoHint } from '@/components/InfoHint';
 import {
@@ -87,54 +87,6 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
   // move dialog
   const [moveTp, setMoveTp] = useState<ScheduledTouchpoint | null>(null);
   const [moveDate, setMoveDate] = useState('');
-
-  // add (ad-hoc) touchpoint dialog — log against any assigned client
-  const [addOpen, setAddOpen] = useState(false);
-  const [addClients, setAddClients] = useState<{ id: string; name: string }[]>([]);
-  const [addClientId, setAddClientId] = useState('');
-  const [addDate, setAddDate] = useState(today);
-  const [addModality, setAddModality] = useState('phone');
-  const [addType, setAddType] = useState('general_checkin');
-  const [addNotes, setAddNotes] = useState('');
-  const [addSaving, setAddSaving] = useState(false);
-
-  const openAdd = async () => {
-    setAddClientId('');
-    setAddDate(today);
-    setAddModality('phone');
-    setAddType('general_checkin');
-    setAddNotes('');
-    setAddOpen(true);
-    if (effectiveProfileId) {
-      const { data } = await supabase
-        .from('clients')
-        .select('id, first_name, last_name')
-        .eq('assigned_employee_id', effectiveProfileId)
-        .eq('status', 'active')
-        .order('last_name');
-      setAddClients((data ?? []).map((c: any) => ({ id: c.id, name: `${c.first_name} ${c.last_name}` })));
-    }
-  };
-
-  const submitAdd = async () => {
-    if (!addClientId) { toast({ title: 'Select a client', variant: 'destructive' }); return; }
-    if (guardWrite()) { setAddOpen(false); return; }
-    if (!myProfileId) { toast({ title: 'Could not identify your profile', variant: 'destructive' }); return; }
-    setAddSaving(true);
-    const { error } = await supabase.from('client_contacts').insert({
-      client_id: addClientId,
-      employee_id: myProfileId,
-      contact_date: addDate,
-      modality: addModality,
-      touchpoint_type: addType,
-      notes: addNotes || null,
-    });
-    setAddSaving(false);
-    if (error) { toast({ title: 'Error logging touchpoint', description: error.message, variant: 'destructive' }); return; }
-    toast({ title: 'Touchpoint logged' });
-    setAddOpen(false);
-    data.refresh();
-  };
 
   // KPI details drawer
   const [detail, setDetail] = useState<KpiKey | null>(null);
@@ -273,22 +225,16 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Touchpoints</h1>
-          <p className="text-muted-foreground">Your work queue and audit-risk view for the current 30-day billing windows.</p>
-        </div>
-        <Button onClick={openAdd} className="shrink-0" data-tutorial="add-touchpoint-btn">
-          <Plus className="h-4 w-4 mr-2" />
-          Add touchpoint
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold">Touchpoints</h1>
+        <p className="text-muted-foreground">Your work queue and audit-risk view for the current 30-day billing windows.</p>
       </div>
 
       {/* reminders */}
       {(remainingCount > 0 || data.unscheduledInPerson > 0) && (
-        <Alert data-tutorial="supervisor-reminders">
+        <Alert>
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Supervisor reminders</AlertTitle>
+          <AlertTitle>Reminders</AlertTitle>
           <AlertDescription>
             <ul className="list-disc pl-5 space-y-0.5">
               {remainingCount > 0 && <li>You have {remainingCount} touchpoint{remainingCount === 1 ? '' : 's'} remaining this week.</li>}
@@ -299,7 +245,7 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
       )}
 
       {/* KPIs — clickable */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3" data-tutorial="tp-top-numbers">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Overdue / audit risk" value={data.overdueClients.length}
           tone="danger" onClick={() => setDetail('overdue')} active={detail === 'overdue'}
           hint="Clients whose current 30-day window is at risk of missing requirements." />
@@ -368,9 +314,8 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
       </Card>
 
       {/* Section 3: Upcoming scheduled touchpoints (next 30 days) */}
-      <div data-tutorial="tp-upcoming-week">
-        <Card>
-          <CardHeader>
+      <Card>
+        <CardHeader>
           <CardTitle className="text-lg">Upcoming scheduled touchpoints</CardTitle>
           <p className="text-sm text-muted-foreground">Scheduled touchpoints over the next 30 days. Full detail is on your calendar.</p>
         </CardHeader>
@@ -380,7 +325,6 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
           ) : data.upcoming.map((t) => tpRow(t))}
         </CardContent>
       </Card>
-      </div>
 
       {/* KPI details drawer */}
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
@@ -441,53 +385,6 @@ export const MyMonth: React.FC<Props> = ({ onOpenClient }) => {
           </div>
           <DialogFooter>
             <Button onClick={submitMove}>Save move</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add (ad-hoc) touchpoint dialog */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add touchpoint</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Client</Label>
-              <Select value={addClientId} onValueChange={setAddClientId}>
-                <SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger>
-                <SelectContent>
-                  {addClients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Input type="date" value={addDate} max={today} onChange={(e) => setAddDate(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Touchpoint type</Label>
-              <Select value={addType} onValueChange={setAddType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TOUCHPOINT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Modality</Label>
-              <Select value={addModality} onValueChange={setAddModality}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MODALITY_OPTIONS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Note (optional)</Label>
-              <Input value={addNotes} onChange={(e) => setAddNotes(e.target.value)} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={submitAdd} disabled={addSaving}>Save touchpoint</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -48,7 +48,6 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
       .from('billing_cycles')
       .select('*')
       .eq('client_id', clientId)
-      .eq('is_active', true)
       .order('cycle_number');
     setClient(c as ClientInfo);
     setCycles((cyc as BillingCycle[]) ?? []);

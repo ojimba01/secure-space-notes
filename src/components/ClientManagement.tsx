@@ -356,7 +356,6 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
             </Button>
             <Button
               size="sm"
-              data-tutorial="add-client-btn"
               className="md:size-default"
               onClick={() => setShowAddDialog(true)}
               disabled={!isAdmin && behindCount >= 5}
@@ -476,7 +475,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           </PopoverContent>
         </Popover>
         <Select value={levelFilter} onValueChange={setLevelFilter}>
-          <SelectTrigger className="w-auto min-w-[150px] shrink-0" data-tutorial="lon-filter">
+          <SelectTrigger className="w-auto min-w-[150px] shrink-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

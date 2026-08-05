@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Stethoscope } from 'lucide-react';
 
 // Set to null to allow any email domain, or specify domain like '@supportivecm.org'
-const ALLOWED_EMAIL_DOMAIN: string | null = '@supportivecm.org';
+const ALLOWED_EMAIL_DOMAIN: string | null = '@comprehensive-carenetwork.com';
 
 const Auth = () => {
   const { user, signIn, signUp, loading } = useAuth();
@@ -246,7 +246,7 @@ const Auth = () => {
                     id="signup-email"
                     name="email"
                     type="email"
-                    placeholder="yourname@supportivecm.org"
+                    placeholder="yourname@comprehensive-carenetwork.com"
                     required
                   />
                 </div>

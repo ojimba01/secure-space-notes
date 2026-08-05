@@ -1,94 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useIsAdmin } from '@/hooks/useIsAdmin';
-import { useBilling } from '@/hooks/useBilling';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { BillingOverview } from '@/components/billing/BillingOverview';
-import { CycleDates } from '@/components/billing/CycleDates';
-import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
-import { usePageTutorial } from '@/components/TutorialProvider';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { BillingWorkspace } from '@/components/billing/BillingWorkspace';
 
-const Billing = () => {
-  usePageTutorial('admin-billing');
-  const { isAdmin, loading } = useIsAdmin();
+export default function Billing() {
   const navigate = useNavigate();
-  const { loading: dataLoading, clients, cycles, regenerate } = useBilling();
-  const [tab, setTab] = useState('overview');
-  const [timelineClientId, setTimelineClientId] = useState<string | null>(null);
-  const [regenerating, setRegenerating] = useState(false);
-  const autoRan = useRef(false);
-
-
-  // Auto-generate all cycles once after initial load so deadlines and billing
-  // details reflect every cycle (not just cycle 1) without a manual refresh.
-  useEffect(() => {
-    if (dataLoading || autoRan.current || clients.length === 0) return;
-    autoRan.current = true;
-    regenerate();
-  }, [dataLoading, clients.length, regenerate]);
-
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading…</div>;
+  const { isAdmin, loading } = useIsAdmin();
+  if (loading) return <div className="min-h-screen grid place-items-center">Loading…</div>;
   if (!isAdmin) return <Navigate to="/" replace />;
-
-  const handleRegenerate = async () => {
-    setRegenerating(true);
-    const r = await regenerate();
-    setRegenerating(false);
-    toast.success(`Regenerated: ${r.created} created, ${r.updated} updated`);
-  };
-
-  const openTimeline = (id: string) => {
-    setTimelineClientId(id);
-    setTab('timeline');
-  };
-
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5" /></Button>
-            <h1 className="text-2xl font-bold whitespace-nowrap">Billing</h1>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <Button onClick={handleRegenerate} disabled={regenerating} className="gap-2 whitespace-nowrap" data-tutorial="regenerate-cycles-btn">
-              <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
-              Regenerate cycles
-            </Button>
-            <p className="text-xs text-muted-foreground max-w-xs text-right">
-              Regenerate cycles updates missing cycle rows and dates without erasing claim or payment history.
-            </p>
-          </div>
-        </div>
-
-
-        {dataLoading ? (
-          <p className="text-muted-foreground">Loading billing data…</p>
-        ) : (
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList>
-              <TabsTrigger value="overview" data-tutorial="billing-overview-tab">Billing overview</TabsTrigger>
-              <TabsTrigger value="cycles" data-tutorial="cycle-dates-tab">Cycle dates</TabsTrigger>
-              <TabsTrigger value="timeline" data-tutorial="client-detail-tab" disabled={!timelineClientId}>Client detail</TabsTrigger>
-            </TabsList>
-            <TabsContent value="overview" className="mt-4">
-              <BillingOverview clients={clients} cycles={cycles} onOpenTimeline={openTimeline} />
-            </TabsContent>
-            <TabsContent value="cycles" className="mt-4">
-              <CycleDates clients={clients} cycles={cycles} onOpenTimeline={openTimeline} />
-            </TabsContent>
-            <TabsContent value="timeline" className="mt-4">
-              {timelineClientId && <ClientBillingTimeline clientId={timelineClientId} />}
-            </TabsContent>
-          </Tabs>
-
-        )}
-      </div>
+  return <main className="min-h-screen bg-slate-50">
+    <div className="mx-auto max-w-[1500px] p-4 md:p-8">
+      <div className="mb-5 flex items-center gap-3"><Button variant="ghost" size="icon" onClick={() => navigate('/')}><ArrowLeft className="h-5 w-5" /></Button><div><h1 className="text-2xl font-bold">Billing</h1><p className="text-sm text-muted-foreground">See what needs attention now, or update client billing information.</p></div></div>
+      <BillingWorkspace />
     </div>
-  );
-};
-
-export default Billing;
+  </main>;
+}

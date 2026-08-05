@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { usePageTutorial } from '@/components/TutorialProvider';
-import { resolveTutorialKey } from '@/lib/tutorials';
-import { useRole } from '@/hooks/useRole';
+import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from "@/components/Sidebar";
 import { ClientManagement } from "@/components/ClientManagement";
 import { NotesHub } from "@/components/NotesHub";
@@ -22,7 +20,6 @@ const Index = () => {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const { isSuperadmin } = useIsSuperadmin();
   const { isViewingAs } = useViewAs();
-  const { role } = useRole();
   const [activeView, setActiveView] = useState<View>('compliance');
   const [clientsKey, setClientsKey] = useState(0);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -109,12 +106,8 @@ const Index = () => {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Admins previewing as staff should get the staff walkthroughs.
-  const effectiveRole = isViewingAs ? 'staff' : role;
-  const tutorialKey = resolveTutorialKey(effectiveRole, '/', activeView);
-
   return (
-    <IndexTutorialBinding tutorialKey={tutorialKey}>
+    <TutorialProvider>
       <div className={`flex h-screen bg-background w-full overflow-hidden ${isViewingAs ? 'pt-9' : ''}`}>
         <Sidebar activeView={activeView} onViewChange={handleViewChange} onOpenNote={handleOpenNote} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
@@ -138,17 +131,8 @@ const Index = () => {
           )}
         </main>
       </div>
-    </IndexTutorialBinding>
+    </TutorialProvider>
   );
-};
-
-/** Registers the active page's tutorial while Index is mounted. */
-const IndexTutorialBinding: React.FC<{
-  tutorialKey: string | null;
-  children: React.ReactNode;
-}> = ({ tutorialKey, children }) => {
-  usePageTutorial(tutorialKey);
-  return <>{children}</>;
 };
 
 export default Index;
