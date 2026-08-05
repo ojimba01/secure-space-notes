@@ -411,10 +411,11 @@ export function RevenueTab({ clients, cycles, viewOverride, onViewChange }: {
     </Card>
 
     <div className="flex flex-wrap gap-3">
-      <Button onClick={() => setView('recovery')} className="bg-blue-600 text-white shadow-sm hover:bg-blue-700">
-        Analyze lost / pending income
+      <Button data-tour="analyze-income" onClick={() => setView('recovery')} className="bg-blue-600 text-white shadow-sm hover:bg-blue-700">
+        Analyze Lost and Pending Income
       </Button>
       <Button variant="outline" disabled>Historical income (coming soon)</Button>
     </div>
+
   </div>;
 }
