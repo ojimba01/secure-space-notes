@@ -128,7 +128,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
     <Card className="overflow-x-auto">
       <table className="w-full min-w-[860px] text-sm">
         <thead className="bg-slate-100 text-left">
-          <tr>{['Month', 'Monthly revenue (Low level assumed)', 'If unknown levels were High', 'Submitted', 'Not accounted for', 'Collected'].map(h => <th key={h} className="p-3 font-semibold">{h}</th>)}</tr>
+          <tr>{['Month', 'Monthly revenue (Low level assumed)', 'If unknown levels were High', 'Submitted', 'Pending', 'Collected'].map(h => <th key={h} className="p-3 font-semibold">{h}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map(r => <tr key={r.key} className="border-t">
