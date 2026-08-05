@@ -136,6 +136,74 @@ export function isBilled(status: BillingStatus): boolean {
   return status === 'Submitted';
 }
 
+// ---- final submission deadline (6 months after the cycle ends) -------
+export function addMonthsISO(s: string, months: number): string {
+  const d = toDate(s);
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, daysInMonth));
+  return fmt(d);
+}
+
+// Only cycles that have already ended have a live final deadline.
+export function finalDeadlineFor(cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline'>): string {
+  return cycle.final_deadline ?? addMonthsISO(cycle.cycle_end, FINAL_DEADLINE_MONTHS);
+}
+
+export function hasCycleEnded(cycle: Pick<BillingCycle, 'cycle_end'>, today = todayAgency()): boolean {
+  return daysBetween(cycle.cycle_end, today) > 0;
+}
+
+// Days until the final deadline; negative means the deadline has passed.
+export function daysToFinalDeadline(
+  cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline'>,
+  today = todayAgency(),
+): number {
+  return daysBetween(today, finalDeadlineFor(cycle));
+}
+
+export function isCycleResolved(cycle: Pick<BillingCycle, 'approval_state'>): boolean {
+  return cycle.approval_state === 'Approved' || cycle.approval_state === 'Closed';
+}
+
+// A cycle needs attention when it has ended, is not yet approved or closed,
+// and its final submission deadline is two weeks or less away (or has passed).
+export function isDeadlineAtRisk(
+  cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline' | 'approval_state'>,
+  today = todayAgency(),
+): boolean {
+  if (isCycleResolved(cycle)) return false;
+  if (!hasCycleEnded(cycle, today)) return false;
+  return daysToFinalDeadline(cycle, today) <= DEADLINE_WARNING_DAYS;
+}
+
+export function deadlineLabel(
+  cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline' | 'approval_state'>,
+  today = todayAgency(),
+): string {
+  if (!hasCycleEnded(cycle, today)) return 'Not yet due';
+  const days = daysToFinalDeadline(cycle, today);
+  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} past deadline`;
+  if (days === 0) return 'Deadline today';
+  return `${days} day${days === 1 ? '' : 's'} left`;
+}
+
+export function approvalBadgeClass(state: ApprovalState | null | undefined): string {
+  switch (state) {
+    case 'Approved':
+      return 'bg-green-600 text-white hover:bg-green-600';
+    case 'Closed':
+      return 'bg-slate-600 text-white hover:bg-slate-600';
+    case 'Denied (will resubmit)':
+      return 'bg-red-600 text-white hover:bg-red-600';
+    default:
+      return 'bg-gray-400 text-white hover:bg-gray-400';
+  }
+}
+
+
 // Payment & billing badge colors, consistent across the app.
 export function paymentBadgeClass(status: PaymentStatus): string {
   switch (status) {
