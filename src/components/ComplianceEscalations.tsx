@@ -9,6 +9,8 @@ import { AlertTriangle, ClipboardCheck, CheckCircle2, ChevronDown, ChevronUp, Ch
 import { useToast } from '@/hooks/use-toast';
 
 const PAGE_SIZE = 10;
+const AUDIT_PREVIEW = 5;
+
 
 interface Escalation {
   id: string;
