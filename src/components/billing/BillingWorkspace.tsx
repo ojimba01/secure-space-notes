@@ -305,28 +305,80 @@ function ExtensionQueue({clients,save,openProfile}:{clients:BillingClient[];save
   </Card>;
 }
 
-function ClientGrid({clients,save,showBlocker,openProfile,onDelete}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;showBlocker:boolean;openProfile:(id:string)=>void;onDelete:(c:BillingClient)=>void}){
-  const headers=['Client','Member ID','MCO','Level of Need','HSP submitted','HSP approval start','180-day extension','30-day auth no.','150-day auth no.','180-day auth no.',showBlocker?'Why not in billing':'Billing stage','Save','Delete'];
+const BLOCKERS: Blocker[] = ['HSP not submitted','Missing HSP approval start date','Missing level of need','Missing client name'];
+
+function FilterSelect({value,onChange,options,width='w-36'}:{value:string;onChange:(v:string)=>void;options:string[];width?:string}){
+  return <Select value={value} onValueChange={onChange}>
+    <SelectTrigger className={`mt-1 h-7 ${width} bg-white text-xs font-normal`}><SelectValue/></SelectTrigger>
+    <SelectContent><SelectItem value="all">All</SelectItem>{options.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+  </Select>;
+}
+
+function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;openProfile:(id:string)=>void;onDelete:(c:BillingClient)=>void}){
+  const [sort,setSort]=useState<{key:'name'|'start';dir:'asc'|'desc'}|null>(null);
+  const [fMco,setFMco]=useState('all');
+  const [fLon,setFLon]=useState('all');
+  const [fHsp,setFHsp]=useState('all');
+  const [fExt,setFExt]=useState('all');
+  const [fWhy,setFWhy]=useState('all');
+  const toggle=(key:'name'|'start')=>setSort(s=>s?.key===key?(s.dir==='asc'?{key,dir:'desc'}:null):{key,dir:'asc'});
+
+  const rows=useMemo(()=>{
+    const filtered=clients.filter(c=>
+      (fMco==='all'||(c.insurance ?? '')===fMco)
+      &&(fLon==='all'||normalizeLevel(c.level_of_need)===fLon)
+      &&(fHsp==='all'||(fHsp==='Yes'?c.hsp_submitted===true:fHsp==='No'?c.hsp_submitted===false:c.hsp_submitted==null))
+      &&(fExt==='all'||(fExt==='Approved'?c.auth_180_approved===true:fExt==='Not approved'?c.auth_180_approved===false:c.auth_180_approved==null))
+      &&(fWhy==='all'||(fWhy==='In billing'?complete(c):!complete(c)&&blocker(c)===fWhy)));
+    if(!sort) return filtered;
+    const dir=sort.dir==='asc'?1:-1;
+    return [...filtered].sort((a,b)=>sort.key==='name'
+      ? dir*`${a.last_name ?? ''} ${a.first_name ?? ''}`.trim().localeCompare(`${b.last_name ?? ''} ${b.first_name ?? ''}`.trim())
+      : dir*((a.auth_150_start ?? '9999').localeCompare(b.auth_150_start ?? '9999')));
+  },[clients,sort,fMco,fLon,fHsp,fExt,fWhy]);
+
+  const SortHeader=({label,keyName,asc,desc}:{label:string;keyName:'name'|'start';asc:string;desc:string})=>(
+    <button type="button" onClick={()=>toggle(keyName)} className="flex items-center gap-1 font-semibold text-indigo-900 hover:underline">
+      {label}<ArrowUpDown className="h-3.5 w-3.5"/>
+      {sort?.key===keyName && <span className="text-xs font-normal">{sort.dir==='asc'?asc:desc}</span>}
+    </button>
+  );
+
   return <Card className="overflow-x-auto border-indigo-200">
-    <table className="w-full min-w-[1750px] text-sm"><thead className="bg-indigo-100 text-left"><tr>{headers.map(x=><th key={x} className="p-3 font-semibold text-indigo-900">{x}</th>)}</tr></thead>
-    <tbody>{clients.map(c=><tr key={c.id} className="border-t border-indigo-100 hover:bg-indigo-50/50">
+    <table className="w-full min-w-[1850px] text-sm"><thead className="bg-indigo-100 text-left"><tr className="align-top">
+      <th className="p-3"><SortHeader label="Client" keyName="name" asc="A–Z" desc="Z–A"/></th>
+      <th className="p-3 font-semibold text-indigo-900">Member ID</th>
+      <th className="p-3 font-semibold text-indigo-900">MCO<FilterSelect value={fMco} onChange={setFMco} options={[...MCO_OPTIONS]} width="w-36"/></th>
+      <th className="p-3 font-semibold text-indigo-900">Level of Need<FilterSelect value={fLon} onChange={setFLon} options={['Low','High']} width="w-28"/></th>
+      <th className="p-3 font-semibold text-indigo-900">HSP submitted<FilterSelect value={fHsp} onChange={setFHsp} options={['Yes','No','Not answered']} width="w-32"/></th>
+      <th className="p-3"><SortHeader label="HSP approval start" keyName="start" asc="Earliest first" desc="Latest first"/></th>
+      <th className="p-3 font-semibold text-indigo-900">180-day extension<FilterSelect value={fExt} onChange={setFExt} options={['Approved','Not approved','Not answered']} width="w-36"/></th>
+      <th className="p-3 font-semibold text-indigo-900">30-day auth no.</th>
+      <th className="p-3 font-semibold text-indigo-900">150-day auth no.</th>
+      <th className="p-3 font-semibold text-indigo-900">180-day auth no.</th>
+      <th className="p-3 font-semibold text-indigo-900">Why not in billing<FilterSelect value={fWhy} onChange={setFWhy} options={['In billing',...BLOCKERS]} width="w-52"/></th>
+      <th className="p-3 font-semibold text-indigo-900">Save</th>
+      <th className="p-3 font-semibold text-indigo-900">Delete</th>
+    </tr></thead>
+    <tbody>{rows.map(c=><tr key={c.id} className="border-t border-indigo-100 hover:bg-indigo-50/50">
       <td className="p-2"><div className="flex items-center gap-1"><ProfileIconButton onClick={()=>openProfile(c.id)}/><EditableText value={c.first_name} placeholder="First name" onSave={v=>save(c.id,{first_name:v})}/><EditableText value={c.last_name} placeholder="Last name" onSave={v=>save(c.id,{last_name:v})}/></div></td>
       <td className="p-2"><Editable value={c.member_id} placeholder="Member ID" onSave={v=>save(c.id,{member_id:v||null})}/></td>
-      <td className="p-2"><Select value={c.insurance ?? ''} onValueChange={v=>save(c.id,{insurance:v})}><SelectTrigger className="w-40 bg-white"><SelectValue placeholder="Choose MCO"/></SelectTrigger><SelectContent>{Array.from(new Set([...MCO_OPTIONS, ...(c.insurance?[c.insurance]:[])])).map(m=><SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select></td>
-      <td className="p-2"><Select value={normalizeLevel(c.level_of_need)} onValueChange={v=>save(c.id,{level_of_need:v})}><SelectTrigger className="w-32 bg-white"><SelectValue placeholder="Choose"/></SelectTrigger><SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="High">High</SelectItem></SelectContent></Select></td>
-      <td className="p-2"><Select value={c.hsp_submitted?'yes':'no'} onValueChange={v=>save(c.id,{hsp_submitted:v==='yes'})}><SelectTrigger className="w-24 bg-white"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Yes</SelectItem></SelectContent></Select></td>
+      <td className="p-2"><Select value={c.insurance ?? undefined} onValueChange={v=>save(c.id,{insurance:v})}><SelectTrigger className={`w-40 font-medium ${mcoClass(c.insurance)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent>{Array.from(new Set([...MCO_OPTIONS, ...(c.insurance?[c.insurance]:[])])).map(m=><SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select></td>
+      <td className="p-2"><Select value={normalizeLevel(c.level_of_need) || undefined} onValueChange={v=>save(c.id,{level_of_need:v})}><SelectTrigger className={`w-32 font-medium ${lonClass(normalizeLevel(c.level_of_need))}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="High">High</SelectItem></SelectContent></Select></td>
+      <td className="p-2"><Select value={boolValue(c.hsp_submitted)} onValueChange={v=>save(c.id,{hsp_submitted:v==='yes'})}><SelectTrigger className={`w-24 font-medium ${yesNoClass(c.hsp_submitted)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Yes</SelectItem></SelectContent></Select></td>
       <td className="p-2"><Editable type="date" value={c.auth_150_start} onSave={v=>save(c.id,{auth_150_start:v||null})}/></td>
-      <td className="p-2"><Select value={c.auth_180_approved?'yes':'no'} onValueChange={v=>save(c.id,{auth_180_approved:v==='yes'})}><SelectTrigger className="w-28 bg-white"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Approved</SelectItem></SelectContent></Select></td>
+      <td className="p-2"><Select value={boolValue(c.auth_180_approved)} onValueChange={v=>save(c.id,{auth_180_approved:v==='yes'})}><SelectTrigger className={`w-28 font-medium ${yesNoClass(c.auth_180_approved)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Approved</SelectItem></SelectContent></Select></td>
       <td className="p-2"><Editable value={c.auth_30_number} placeholder="30-day" onSave={v=>save(c.id,{auth_30_number:v||null})}/></td>
       <td className="p-2"><Editable value={c.auth_150_number} placeholder="150-day" onSave={v=>save(c.id,{auth_150_number:v||null})}/></td>
       <td className="p-2"><Editable value={c.auth_180_number} placeholder="180-day" onSave={v=>save(c.id,{auth_180_number:v||null})}/></td>
-      <td className="p-3">{showBlocker?<span className={`whitespace-nowrap rounded-full px-3 py-1 font-medium ${blockerClass(blocker(c))}`}>{blocker(c)}</span>:<span className="whitespace-nowrap rounded-full bg-green-100 px-3 py-1 font-medium text-green-900">{c.auth_180_approved?'180-day extension':'150-day authorization'}</span>}</td>
-      <td className="p-2"><Button size="sm" variant="outline" className="bg-white" onClick={()=>openProfile(c.id)}>Save</Button></td>
+      <td className="p-3">{!complete(c)?<span className={`whitespace-nowrap rounded-full px-3 py-1 font-medium ${blockerClass(blocker(c))}`}>{blocker(c)}</span>:<span className="whitespace-nowrap rounded-full bg-green-100 px-3 py-1 font-medium text-green-900">In billing · {c.auth_180_approved?'180-day extension':'150-day authorization'}</span>}</td>
+      <td className="p-2"><Button size="sm" className="bg-indigo-600 text-white hover:bg-indigo-700" onClick={()=>openProfile(c.id)}>Save</Button></td>
       <td className="p-2"><Button size="icon" variant="ghost" aria-label="Delete client" title="Delete client" className="h-8 w-8 text-red-600 hover:bg-red-50" onClick={()=>onDelete(c)}><X className="h-4 w-4"/></Button></td>
     </tr>)}</tbody></table>
-    {clients.length===0 && <div className="p-8 text-center text-sm text-muted-foreground">No clients in this list. Press Add client row to create one.</div>}
+    {rows.length===0 && <div className="p-8 text-center text-sm text-muted-foreground">No clients match these filters. Press Add client row to create one.</div>}
   </Card>;
 }
+
 
 // Final deadline cell: shows only the time left; once passed the date is revealed on press.
 function DeadlineCell({cycle}:{cycle:BillingCycle}){
