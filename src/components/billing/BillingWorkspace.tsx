@@ -394,7 +394,7 @@ export function BillingWorkspace() {
         <Button data-tour="section-setup" variant={section==='setup'?'default':'ghost'} className={section==='setup'?'bg-indigo-600 text-white hover:bg-indigo-700':''} onClick={()=>setSection('setup')}><Pencil className="mr-2 h-4 w-4"/>Add or set up client billing</Button>
         {isSuperadmin && <Button variant={section==='revenue'?'default':'ghost'} className={section==='revenue'?'bg-emerald-600 text-white hover:bg-emerald-700':''} onClick={()=>setSection('revenue')}><DollarSign className="mr-2 h-4 w-4"/>Revenue</Button>}
       </div>
-      <Button variant="outline" onClick={()=>setTutorial(true)}><HelpCircle className="mr-2 h-4 w-4"/>Learn how to use Billing</Button>
+      <Button variant="outline" onClick={startTutorial}><HelpCircle className="mr-2 h-4 w-4"/>Learn How to Use Billing</Button>
     </div>
 
     {section!=='revenue' && <Card className="p-4" data-tour="search">
