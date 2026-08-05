@@ -49,37 +49,27 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
     const empty = (key: string): MonthRow => ({ key, expectedLow: 0, expectedHigh: 0, submitted: 0, notSubmitted: 0, collected: 0, assumedClients: 0 });
     const byMonth = new Map(months.map((m) => [m, empty(m)]));
     const inWindow = (key: string) => byMonth.get(key);
+    const assumedIds = new Set<string>();
 
-    // Clients already set up for billing use their real cycles.
+    // Cycles exist for every client with an approval start date, whether or not
+    // a level of need has been chosen. When it is missing the cycle is counted
+    // at the Low rate and the High rate to give a range.
     for (const cycle of cycles) {
       const row = inWindow(monthKey(cycle.cycle_end));
       if (!row) continue;
       const client = clients.find((c) => c.id === cycle.client_id);
-      const fallback = rateForLevel(client?.level_of_need) ?? RATE_LOW;
-      const amount = cycle.billed_amount ?? fallback;
-      row.expectedLow += amount;
-      row.expectedHigh += amount;
+      const known = cycle.billed_amount ?? rateForLevel(client?.level_of_need);
+      const low = known ?? RATE_LOW;
+      const high = known ?? RATE_HIGH;
+      if (known == null && client) { assumedIds.add(client.id); row.assumedClients += 1; }
+      row.expectedLow += low;
+      row.expectedHigh += high;
       row.collected += cycle.paid_amount ?? 0;
-      if (cycle.billing_status === 'Submitted') row.submitted += amount;
-      else if (daysBetween(cycle.cycle_end, today) > 0) row.notSubmitted += amount;
+      if (cycle.billing_status === 'Submitted') row.submitted += low;
+      else if (daysBetween(cycle.cycle_end, today) > 0) row.notSubmitted += low;
     }
 
-    // Clients with an approval start date but no level of need are assumed to be
-    // Low level; the high column shows the ceiling if they were all High level.
-    const assumed = clients.filter((c) => c.status === 'active' && c.hsp_submitted && !!c.auth_150_start && !normalizeLevel(c.level_of_need));
-    for (const client of assumed) {
-      const projected = generateCyclesForClient({ ...client, level_of_need: 'Low Level' });
-      const touched = new Set<string>();
-      for (const cycle of projected) {
-        const row = inWindow(monthKey(cycle.cycle_end));
-        if (!row) continue;
-        row.expectedLow += RATE_LOW;
-        row.expectedHigh += RATE_HIGH;
-        if (!touched.has(row.key)) { row.assumedClients += 1; touched.add(row.key); }
-      }
-    }
-
-    return { rows: months.map((m) => byMonth.get(m)!), assumedClientCount: assumed.length };
+    return { rows: months.map((m) => byMonth.get(m)!), assumedClientCount: assumedIds.size };
   }, [clients, cycles, months, today]);
 
   const total = rows.reduce(
