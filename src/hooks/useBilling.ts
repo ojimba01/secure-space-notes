@@ -9,7 +9,10 @@ export interface BillingClient {
   auth_180_approved: boolean; auth_180_start: string | null; auth_180_end: string | null;
   assigned_employee_id: string | null; assigned_staff_name: string | null;
   billing_tracking_start: string | null;
+  auth_30_start: string | null; auth_30_end: string | null; hsp_due_date: string | null;
+  auth_30_number: string | null; auth_150_number: string | null; auth_180_number: string | null;
 }
+
 
 export function useBilling() {
   const [loading, setLoading] = useState(true);
