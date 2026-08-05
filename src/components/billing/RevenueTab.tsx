@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronRight, Undo2 } from 'lucide-react';
 import { BillingClient } from '@/hooks/useBilling';
 import {
   BillingCycle,
@@ -28,9 +29,28 @@ interface MonthRow {
   expectedLow: number;
   expectedHigh: number;
   submitted: number;
-  notSubmitted: number;
+  pending: number;
   collected: number;
   assumedClients: number;
+}
+
+interface RecoveryItem {
+  cycle: BillingCycle;
+  amount: number;
+  deadline: string;
+  note: string;
+}
+
+interface ClientGroup {
+  clientId: string;
+  total: number;
+  items: RecoveryItem[];
+}
+
+interface MonthGroup {
+  key: string;
+  total: number;
+  clients: ClientGroup[];
 }
 
 // Forward-looking revenue: the current month plus the next five. Historical
@@ -44,15 +64,48 @@ function monthWindow(today = todayAgency()): string[] {
   });
 }
 
+// Roll a flat list of cycles up by month, then by client, keeping the cycle
+// detail underneath so the table can be drilled into.
+function groupByMonth(items: RecoveryItem[]): MonthGroup[] {
+  const months = new Map<string, Map<string, RecoveryItem[]>>();
+  for (const item of items) {
+    const key = monthKey(item.cycle.cycle_end);
+    if (!months.has(key)) months.set(key, new Map());
+    const byClient = months.get(key)!;
+    if (!byClient.has(item.cycle.client_id)) byClient.set(item.cycle.client_id, []);
+    byClient.get(item.cycle.client_id)!.push(item);
+  }
+  return Array.from(months.entries())
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+    .map(([key, byClient]) => {
+      const clients = Array.from(byClient.entries())
+        .map(([clientId, list]) => ({
+          clientId,
+          items: list,
+          total: list.reduce((s, r) => s + r.amount, 0),
+        }))
+        .sort((a, b) => b.total - a.total);
+      return { key, clients, total: clients.reduce((s, c) => s + c.total, 0) };
+    });
+}
+
 export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycles: BillingCycle[] }) {
   const today = todayAgency();
   const months = useMemo(() => monthWindow(today), [today]);
   const [view, setView] = useState<'projection' | 'recovery'>('projection');
+  const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
+  const [openClients, setOpenClients] = useState<Set<string>>(new Set());
+
+  const toggle = (set: Set<string>, apply: (next: Set<string>) => void, key: string) => {
+    const next = new Set(set);
+    next.has(key) ? next.delete(key) : next.add(key);
+    apply(next);
+  };
 
   const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
 
   const { rows, assumedClientCount } = useMemo(() => {
-    const empty = (key: string): MonthRow => ({ key, expectedLow: 0, expectedHigh: 0, submitted: 0, notSubmitted: 0, collected: 0, assumedClients: 0 });
+    const empty = (key: string): MonthRow => ({ key, expectedLow: 0, expectedHigh: 0, submitted: 0, pending: 0, collected: 0, assumedClients: 0 });
     const byMonth = new Map(months.map((m) => [m, empty(m)]));
     const inWindow = (key: string) => byMonth.get(key);
     const assumedIds = new Set<string>();
@@ -71,8 +124,11 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
       row.expectedLow += low;
       row.expectedHigh += high;
       row.collected += cycle.paid_amount ?? 0;
-      if (cycle.billing_status === 'Submitted') row.submitted += low;
-      else if (daysBetween(cycle.cycle_end, today) > 0) row.notSubmitted += low;
+      if (cycle.billing_status === 'Submitted') {
+        row.submitted += low;
+        // Pending = the claim went out but payment has not been marked received.
+        if (cycle.payment_status !== 'Paid') row.pending += Math.max(low - (cycle.paid_amount ?? 0), 0);
+      }
     }
 
     return { rows: months.map((m) => byMonth.get(m)!), assumedClientCount: assumedIds.size };
@@ -81,8 +137,8 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
   // Every cycle whose service window has ended without a submitted claim.
   // Lost: the six month final deadline has also passed. Pending: still claimable.
   const recovery = useMemo(() => {
-    const lost: { cycle: BillingCycle; amount: number; deadline: string; overdueDays: number }[] = [];
-    const pending: { cycle: BillingCycle; amount: number; deadline: string; daysLeft: number }[] = [];
+    const lost: RecoveryItem[] = [];
+    const claimable: RecoveryItem[] = [];
     for (const cycle of cycles) {
       if (cycle.billing_status === 'Submitted') continue;
       if (daysBetween(cycle.cycle_end, today) <= 0) continue; // cycle still running
@@ -90,16 +146,20 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
       const amount = cycle.billed_amount ?? rateForLevel(client?.level_of_need) ?? RATE_LOW;
       const deadline = finalDeadlineFor(cycle);
       const daysLeft = daysBetween(today, deadline);
-      if (daysLeft < 0) lost.push({ cycle, amount, deadline, overdueDays: -daysLeft });
-      else pending.push({ cycle, amount, deadline, daysLeft });
+      if (daysLeft < 0) {
+        const overdue = -daysLeft;
+        lost.push({ cycle, amount, deadline, note: `${overdue} day${overdue === 1 ? '' : 's'} past deadline` });
+      } else {
+        claimable.push({ cycle, amount, deadline, note: `${daysLeft} day${daysLeft === 1 ? '' : 's'} left to bill` });
+      }
     }
-    lost.sort((a, b) => b.overdueDays - a.overdueDays);
-    pending.sort((a, b) => a.daysLeft - b.daysLeft);
     return {
-      lost,
-      pending,
+      lostMonths: groupByMonth(lost),
+      claimableMonths: groupByMonth(claimable),
+      lostCount: lost.length,
+      claimableCount: claimable.length,
       lostTotal: lost.reduce((s, r) => s + r.amount, 0),
-      pendingTotal: pending.reduce((s, r) => s + r.amount, 0),
+      claimableTotal: claimable.reduce((s, r) => s + r.amount, 0),
     };
   }, [clientById, cycles, today]);
 
@@ -108,10 +168,10 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
       expectedLow: a.expectedLow + r.expectedLow,
       expectedHigh: a.expectedHigh + r.expectedHigh,
       submitted: a.submitted + r.submitted,
-      notSubmitted: a.notSubmitted + r.notSubmitted,
+      pending: a.pending + r.pending,
       collected: a.collected + r.collected,
     }),
-    { expectedLow: 0, expectedHigh: 0, submitted: 0, notSubmitted: 0, collected: 0 },
+    { expectedLow: 0, expectedHigh: 0, submitted: 0, pending: 0, collected: 0 },
   );
 
   const allLevelsKnown = assumedClientCount === 0;
@@ -130,64 +190,116 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
   };
 
   if (view === 'recovery') {
+    const sections = [
+      {
+        id: 'lost',
+        title: 'Lost income',
+        empty: 'No cycles have passed their final deadline.',
+        months: recovery.lostMonths,
+        tone: 'text-red-700',
+      },
+      {
+        id: 'claimable',
+        title: 'Pending income (still claimable)',
+        empty: 'No ended cycles are waiting on a claim.',
+        months: recovery.claimableMonths,
+        tone: 'text-amber-700',
+      },
+    ];
+
     return <div className="space-y-4">
       <Card className="p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start gap-3">
+          <Button onClick={() => setView('projection')} className="bg-blue-600 text-white hover:bg-blue-700">
+            <Undo2 className="mr-2 h-4 w-4" /> Back to current revenue
+          </Button>
           <div>
             <h2 className="font-semibold">Lost and pending income</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Cycles that ended with no claim submitted. Lost income is past the six month final deadline. Pending income can still be billed.
+              Cycles that ended with no claim submitted, totalled by month. Open a month to see each client, then open a client to see their cycles.
             </p>
           </div>
-          <Button variant="outline" onClick={() => setView('projection')}>Back current revenue</Button>
         </div>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Lost income</div>
           <div className="mt-1 text-2xl font-bold text-red-700">{formatMoney(recovery.lostTotal)}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{recovery.lost.length} cycle{recovery.lost.length === 1 ? '' : 's'} past the final deadline.</div>
+          <div className="mt-1 text-xs text-muted-foreground">{recovery.lostCount} cycle{recovery.lostCount === 1 ? '' : 's'} past the final deadline.</div>
         </Card>
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Pending income</div>
-          <div className="mt-1 text-2xl font-bold text-amber-700">{formatMoney(recovery.pendingTotal)}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{recovery.pending.length} cycle{recovery.pending.length === 1 ? '' : 's'} still claimable.</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Not accounted for yet</div>
-          <div className="mt-1 text-2xl font-bold text-red-700">{formatMoney(total.notSubmitted)}</div>
-          <div className="mt-1 text-xs text-muted-foreground">Cycles that have ended with no claim submitted.</div>
+          <div className="mt-1 text-2xl font-bold text-amber-700">{formatMoney(recovery.claimableTotal)}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{recovery.claimableCount} cycle{recovery.claimableCount === 1 ? '' : 's'} still claimable.</div>
         </Card>
       </div>
 
-      {([
-        { title: 'Lost income', empty: 'No cycles have passed their final deadline.', items: recovery.lost.map(r => ({ ...r, note: `${r.overdueDays} day${r.overdueDays === 1 ? '' : 's'} past deadline` })), tone: 'text-red-700' },
-        { title: 'Pending income', empty: 'No ended cycles are waiting on a claim.', items: recovery.pending.map(r => ({ ...r, note: `${r.daysLeft} day${r.daysLeft === 1 ? '' : 's'} left to bill` })), tone: 'text-amber-700' },
-      ]).map(section => <Card key={section.title} className="overflow-x-auto">
+      {sections.map(section => <Card key={section.id} className="overflow-x-auto">
         <div className="p-3 font-semibold">{section.title}</div>
-        {section.items.length === 0
+        {section.months.length === 0
           ? <div className="px-3 pb-3 text-sm text-muted-foreground">{section.empty}</div>
           : <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-slate-100 text-left">
                 <tr>
-                  <th className="p-3 font-semibold">Client</th>
-                  <th className="p-3 font-semibold">Cycle</th>
-                  <th className="p-3 font-semibold">Cycle end</th>
-                  <th className="p-3 font-semibold">Final deadline</th>
+                  <th className="p-3 font-semibold">Month</th>
+                  <th className="p-3 font-semibold">Cycles</th>
                   <th className="p-3 text-center font-semibold">Amount</th>
-                  <th className="p-3 font-semibold">Status</th>
+                  <th className="p-3 font-semibold">Details</th>
                 </tr>
               </thead>
               <tbody>
-                {section.items.map(r => <tr key={r.cycle.id} className="border-t">
-                  <td className="p-3 font-medium">{clientName(r.cycle.client_id)}</td>
-                  <td className="p-3">{r.cycle.phase} · Cycle {r.cycle.cycle_number}</td>
-                  <td className="p-3">{dateLabel(r.cycle.cycle_end)}</td>
-                  <td className="p-3">{dateLabel(r.deadline)}</td>
-                  <td className="p-3 text-center">{formatMoney(r.amount)}</td>
-                  <td className={`p-3 font-medium ${section.tone}`}>{r.note}</td>
-                </tr>)}
+                {section.months.map(month => {
+                  const monthKeyId = `${section.id}:${month.key}`;
+                  const monthOpen = openMonths.has(monthKeyId);
+                  const cycleCount = month.clients.reduce((s, c) => s + c.items.length, 0);
+                  return <>
+                    <tr
+                      key={monthKeyId}
+                      className="cursor-pointer border-t bg-slate-50 hover:bg-slate-100"
+                      onClick={() => toggle(openMonths, setOpenMonths, monthKeyId)}
+                    >
+                      <td className="p-3 font-semibold">
+                        <span className="flex items-center gap-2">
+                          {monthOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          {monthLabel(month.key)}
+                        </span>
+                      </td>
+                      <td className="p-3">{cycleCount}</td>
+                      <td className={`p-3 text-center font-semibold ${section.tone}`}>{formatMoney(month.total)}</td>
+                      <td className="p-3 text-muted-foreground">{month.clients.length} client{month.clients.length === 1 ? '' : 's'}</td>
+                    </tr>
+                    {monthOpen && month.clients.map(group => {
+                      const clientKeyId = `${monthKeyId}:${group.clientId}`;
+                      const clientOpen = openClients.has(clientKeyId);
+                      return <>
+                        <tr
+                          key={clientKeyId}
+                          className="cursor-pointer border-t hover:bg-slate-50"
+                          onClick={() => toggle(openClients, setOpenClients, clientKeyId)}
+                        >
+                          <td className="p-3 pl-9 font-medium">
+                            <span className="flex items-center gap-2">
+                              {clientOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              {clientName(group.clientId)}
+                            </span>
+                          </td>
+                          <td className="p-3">{group.items.length}</td>
+                          <td className="p-3 text-center">{formatMoney(group.total)}</td>
+                          <td className="p-3 text-muted-foreground">Open for cycle breakdown</td>
+                        </tr>
+                        {clientOpen && group.items.map(item => <tr key={item.cycle.id} className="border-t bg-white text-muted-foreground">
+                          <td className="p-3 pl-16">{item.cycle.phase} · Cycle {item.cycle.cycle_number}</td>
+                          <td className="p-3">Ended {dateLabel(item.cycle.cycle_end)}</td>
+                          <td className="p-3 text-center">{formatMoney(item.amount)}</td>
+                          <td className={`p-3 font-medium ${section.tone}`}>
+                            {item.note} · deadline {dateLabel(item.deadline)}
+                          </td>
+                        </tr>)}
+                      </>;
+                    })}
+                  </>;
+                })}
               </tbody>
             </table>}
       </Card>)}
@@ -204,16 +316,23 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
       </p>
     </Card>
 
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Card className="p-4">
         <div className="text-sm text-muted-foreground">Potential 6 month revenue</div>
         <div className="mt-1 text-2xl font-bold">{rangeLabel}</div>
-        <div className="mt-1 text-xs text-muted-foreground">&nbsp;</div>
       </Card>
       <Card className="p-4">
-        <div className="text-sm text-muted-foreground">Submitted / collected</div>
+        <div className="text-sm text-muted-foreground">Submitted</div>
         <div className="mt-1 text-2xl font-bold text-green-700">{formatMoney(total.submitted)}</div>
-        <div className="mt-1 text-xs text-muted-foreground">&nbsp;</div>
+      </Card>
+      <Card className="p-4">
+        <div className="text-sm text-muted-foreground">Pending</div>
+        <div className="mt-1 text-2xl font-bold text-amber-700">{formatMoney(total.pending)}</div>
+        <div className="mt-1 text-xs text-muted-foreground">Submitted, payment not marked received.</div>
+      </Card>
+      <Card className="p-4">
+        <div className="text-sm text-muted-foreground">Collected</div>
+        <div className="mt-1 text-2xl font-bold text-green-700">{formatMoney(total.collected)}</div>
       </Card>
     </div>
 
@@ -238,7 +357,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
             <td className="p-3 text-center">{formatMoney(r.expectedLow)}</td>
             <td className="p-3 text-center text-muted-foreground">{highCell(r)}</td>
             <td className="p-3">{formatMoney(r.submitted)}</td>
-            <td className={`p-3 ${r.notSubmitted > 0 ? 'font-medium text-red-700' : ''}`}>{formatMoney(r.notSubmitted)}</td>
+            <td className={`p-3 ${r.pending > 0 ? 'font-medium text-amber-700' : ''}`}>{formatMoney(r.pending)}</td>
             <td className="p-3">{formatMoney(r.collected)}</td>
           </tr>)}
           <tr className="border-t bg-slate-50 font-semibold">
@@ -246,7 +365,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
             <td className="p-3 text-center">{formatMoney(total.expectedLow)}</td>
             <td className="p-3 text-center font-normal text-muted-foreground">{highCell(null)}</td>
             <td className="p-3">{formatMoney(total.submitted)}</td>
-            <td className="p-3 text-red-700">{formatMoney(total.notSubmitted)}</td>
+            <td className="p-3 text-amber-700">{formatMoney(total.pending)}</td>
             <td className="p-3">{formatMoney(total.collected)}</td>
           </tr>
         </tbody>
@@ -254,7 +373,9 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
     </Card>
 
     <div className="flex flex-wrap gap-3">
-      <Button variant="outline" onClick={() => setView('recovery')}>Analyze lost / pending income</Button>
+      <Button onClick={() => setView('recovery')} className="bg-blue-600 text-white shadow-sm hover:bg-blue-700">
+        Analyze lost / pending income
+      </Button>
       <Button variant="outline" disabled>Historical income (coming soon)</Button>
     </div>
   </div>;
