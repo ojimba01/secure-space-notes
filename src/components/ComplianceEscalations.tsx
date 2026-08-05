@@ -28,6 +28,8 @@ export const ComplianceEscalations: React.FC = () => {
   const [names, setNames] = useState<Record<string, string>>({});
   const [auditEnabled, setAuditEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [page, setPage] = useState(0);
 
   const load = async () => {
     setLoading(true);
