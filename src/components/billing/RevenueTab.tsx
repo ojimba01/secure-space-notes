@@ -298,7 +298,37 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
               </tbody>
             </table>}
       </Card>)}
+
+      <Dialog open={detail !== null} onOpenChange={(open) => !open && setDetail(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{detail?.clientName}</DialogTitle>
+            <DialogDescription>{detail?.title}</DialogDescription>
+          </DialogHeader>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-100 text-left">
+                <tr>
+                  <th className="p-2 font-semibold">Cycle</th>
+                  <th className="p-2 font-semibold">Ended</th>
+                  <th className="p-2 text-center font-semibold">Amount</th>
+                  <th className="p-2 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(detail?.items ?? []).map(item => <tr key={item.cycle.id} className="border-t">
+                  <td className="p-2">{item.cycle.phase} · Cycle {item.cycle.cycle_number}</td>
+                  <td className="p-2">{dateLabel(item.cycle.cycle_end)}</td>
+                  <td className="p-2 text-center">{formatMoney(item.amount)}</td>
+                  <td className={`p-2 font-medium ${detail?.tone ?? ''}`}>{item.note} · deadline {dateLabel(item.deadline)}</td>
+                </tr>)}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>;
+
   }
 
   return <div className="space-y-4">
