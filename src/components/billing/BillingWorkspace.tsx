@@ -269,7 +269,7 @@ export function BillingWorkspace() {
       },
       {
         title:'Find a client',
-        body:`Use the search box to find a specific client. You can search using the client’s name, member ID, or MCO. Only matching clients will appear below the search box.\n\nEnter ${practiceFullName} in the search box, then press Continue.`,
+        body:`Use the search box to find a specific client. You can search using the client’s name, member ID, or MCO. Only matching clients will appear below the search box.\n\n**Enter ${practiceFullName} in the search box, then press Continue.**`,
         selector:'[data-tour="search"]',
         gate: !!query.trim() && !!practiceClient && matches(practiceClient, query),
         before:()=>{setSection('deadlines');setQuery('');},
@@ -279,7 +279,7 @@ export function BillingWorkspace() {
         body:'Use these three buttons to choose which billing list to view.\n\nAll Active Billing Cycles shows every active 30-day billing cycle.\n\nNeeds Attention shows clients whose cycle end dates are four weeks away from the final deadline for submitting claims from the full authorization period.\n\nUpcoming 180-Day Extensions shows clients whose 150-day authorization ends within 30 days.\n\nThe number in parentheses shows how many clients or billing cycles are in each list.',
         selector:'[data-tour="filters"]',
         done: filter==='all',
-        hint:'Press All Active Billing Cycles to continue.',
+        hint:'**Press All Active Billing Cycles to continue.**',
         before:()=>{setSection('deadlines');setQuery('');setFilter('attention');setOpen(null);},
       },
       {
@@ -287,15 +287,15 @@ export function BillingWorkspace() {
         body:'Press a client’s row to see all of that client’s 30-day billing cycles.\n\nThe first five cycles belong to the client’s 150-day authorization. Claims from these cycles can be submitted until the final day of the full 150-day authorization period.\n\nIf a 180-day extension is approved, six additional 30-day billing cycles will appear.',
         selector:'[data-tour="client-row"]',
         done: open===PRACTICE_CLIENT_ID,
-        hint:'Press the highlighted practice client row to continue.',
+        hint:'**Press the highlighted practice client row to continue.**',
         before:()=>{setSection('deadlines');setFilter('all');setPhaseTab('both');setQuery('');setOpen(null);},
       },
       {
         title:'Update a billing cycle',
-        body:'Use the billing-cycle table to record the claim status, payment status, and claim number.\n\nChange the claim status when a claim is submitted. Enter the claim number when it is available. Change the payment status when the claim is paid or denied. Changes save automatically.',
+        body:'Use the billing-cycle table to record the claim status, payment status, and claim number.\n\nChange the claim status when a claim is submitted. Enter the claim number when it is available. Change the payment status when the claim is paid or denied. **Changes save automatically.**',
         selector:'[data-tour="claim-status"]',
         done: practiceCycle?.billing_status==='Submitted',
-        hint:'Open the highlighted claim-status dropdown and select Submitted to continue.',
+        hint:'**Open the highlighted claim status dropdown and select Submitted to continue.**',
         before:()=>{setSection('deadlines');setFilter('all');setOpen(PRACTICE_CLIENT_ID);resetPracticeCycles();},
       },
     ];
@@ -307,7 +307,7 @@ export function BillingWorkspace() {
           body:'Use Revenue to review the amount the agency may bill, the amount already submitted, the amount awaiting payment, and the amount collected.\n\nOnly superadmins can view this section.',
           selector:'[data-tour="sections"]',
           done: section==='revenue',
-          hint:'Press Revenue to continue.',
+          hint:'**Press Revenue to continue.**',
           before:()=>{setSection('deadlines');setPracticeRevenueView('projection');},
         },
         {
@@ -316,7 +316,7 @@ export function BillingWorkspace() {
           followUp:'Pending Income shows claims that have not been submitted but can still be submitted before the final authorization deadline.\n\nLost Income shows claims that were not submitted before the final authorization deadline and can no longer be billed.',
           selector:'[data-tour="revenue-section"]',
           done: practiceRevenueView==='recovery',
-          hint:'Press Analyze Lost and Pending Income to continue.',
+          hint:'**Press Analyze Lost and Pending Income to continue.**',
           before:()=>{setSection('revenue');setPracticeRevenueView('projection');},
         },
       );
@@ -330,7 +330,7 @@ export function BillingWorkspace() {
           : 'You have finished reviewing Current Billing Deadlines. Use Add or Set Up Client Billing to add a client or correct the information used to create billing cycles.\n\nYou can save the information you have even when some information is still missing.',
         selector:'[data-tour="sections"]',
         done: section==='setup',
-        hint:'Press Add or Set Up Client Billing to continue.',
+        hint:'**Press Add or Set Up Client Billing to continue.**',
         before:()=>{setSection(isSuperadmin?'revenue':'deadlines');},
       },
       {
@@ -338,7 +338,7 @@ export function BillingWorkspace() {
         body:'These buttons organize clients by their current place in the billing setup process.\n\nNeeds Setup includes clients whose billing cycles cannot be created because required information or an action is still missing. The available filters explain what is needed, including HSP Not Submitted.\n\nThe 150-Day Authorization group shows clients whose initial authorization information has been completed.\n\nThe 180-Day Extension group shows clients whose extension information has been completed or needs to be reviewed.\n\nThe number in parentheses shows how many clients are in each group.',
         selector:'[data-tour="stage-setup"]',
         done: setupReason==='hsp',
-        hint:'Press HSP Not Submitted to continue.',
+        hint:'**Press HSP Not Submitted to continue.**',
         before:()=>{setSection('setup');setSetupReason('all');setQuery('');},
       },
       {
@@ -346,7 +346,7 @@ export function BillingWorkspace() {
         body:'Add Client Row creates a blank row at the top of the table. Enter the information you currently have, then press Save. You can complete the remaining information later.\n\nA partially completed client remains saved in the appropriate setup group. The client must not appear under Current Billing Deadlines until the information required to calculate billing cycles has been entered.\n\nWhen the HSP approval start date and level of need are entered, the system creates the client’s 150-day authorization and five 30-day billing cycles. If a 180-day extension is approved later, the system adds six additional 30-day cycles.',
         selector:'[data-tour="add-client"]',
         done: (practice?.clients.length ?? 0) > 1,
-        hint:'Press Add Client Row to complete the tutorial.',
+        hint:'**Press Add Client Row to complete the tutorial.**',
         before:()=>{setSection('setup');setSetupReason('hsp');setQuery('');removePracticeRows();},
       },
     );
@@ -453,7 +453,7 @@ export function BillingWorkspace() {
           </button>
           <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={i===0}/>
         </div>
-        {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={cycleWriter} tour={i===0}/>}
+        {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={cycleWriter} tour={i===0} practice={!!practice}/>}
       </Card>})}<Pager page={page} setPage={setPage} total={visibleClients.length} label="clients"/></div>}
 
       {filter==='attention' && lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
@@ -649,7 +649,8 @@ function DeadlineCell({cycle}:{cycle:BillingCycle}){
   </button>;
 }
 
-function CycleGrid({client,cycles,updateCycle,tour}:{client:BillingClient;cycles:BillingCycle[];updateCycle:(id:string,p:Partial<BillingCycle>)=>Promise<void>;tour?:boolean}){
+function CycleGrid({client,cycles,updateCycle,tour,practice}:{client:BillingClient;cycles:BillingCycle[];updateCycle:(id:string,p:Partial<BillingCycle>)=>Promise<void>;tour?:boolean;practice?:boolean}){
+  const savedMsg=(what:string)=>practice?'Practice only — nothing was saved.':what;
   const hspDue = client.hsp_due_date ?? hspDueDateFor(client.auth_30_start);
   const allResolved = cycles.length>0 && cycles.every(isCycleResolved);
   const sorted = [...cycles].sort((a,b)=>a.cycle_number-b.cycle_number);
@@ -670,9 +671,9 @@ function CycleGrid({client,cycles,updateCycle,tour}:{client:BillingClient;cycles
         <td className="p-3">{c.cycle_number<=5?'150-day authorization':'180-day extension'}</td>
         <td className="p-3"><DateCell start={c.cycle_start} end={c.cycle_end}/></td>
         <td className="p-3"><DeadlineCell cycle={c}/></td>
-        <td className="p-3"><Select value={c.approval_state ?? 'none'} onValueChange={v=>updateCycle(c.id,{approval_state:v==='none'?null:v as ApprovalState}).then(()=>toast.success('Cycle approval saved.'))}><SelectTrigger className="w-48"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">Not decided</SelectItem>{APPROVAL_STATES.map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
-        <td className="p-3"><Select value={c.billing_status} onValueChange={v=>updateCycle(c.id,{billing_status:v as BillingCycle['billing_status']}).then(()=>toast.success('Billing status saved.'))}><SelectTrigger className="w-36" data-tour={tour&&i===0?'claim-status':undefined}><SelectValue/></SelectTrigger><SelectContent>{['Not Billed','Ready to Bill','Submitted','Denied'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
-        <td className="p-3"><Select value={c.payment_status} onValueChange={v=>updateCycle(c.id,{payment_status:v as BillingCycle['payment_status']}).then(()=>toast.success('Payment status saved.'))}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent>{['Unpaid','Partial','Paid'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
+        <td className="p-3"><Select value={c.approval_state ?? 'none'} onValueChange={v=>updateCycle(c.id,{approval_state:v==='none'?null:v as ApprovalState}).then(()=>toast.success(savedMsg('Cycle approval saved.')))}><SelectTrigger className="w-48"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">Not decided</SelectItem>{APPROVAL_STATES.map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
+        <td className="p-3"><Select value={c.billing_status} onValueChange={v=>updateCycle(c.id,{billing_status:v as BillingCycle['billing_status']}).then(()=>toast.success(savedMsg('Billing status saved.')))}><SelectTrigger className="w-36" data-tour={tour&&i===0?'claim-status':undefined}><SelectValue/></SelectTrigger><SelectContent>{['Not Billed','Ready to Bill','Submitted','Denied'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
+        <td className="p-3"><Select value={c.payment_status} onValueChange={v=>updateCycle(c.id,{payment_status:v as BillingCycle['payment_status']}).then(()=>toast.success(savedMsg('Payment status saved.')))}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent>{['Unpaid','Partial','Paid'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
         <td className="p-3"><Editable value={c.claim_number} placeholder="Enter claim number" onSave={v=>updateCycle(c.id,{claim_number:v||null})}/></td>
       </tr>;
     })}</tbody></table></div></div>;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,40 @@ export interface BillingTutorialStep {
 }
 
 const CARD_WIDTH = 420;
-const CARD_HEIGHT = 300;
+
+// Names of sections, tabs, buttons and columns are bolded automatically so the
+// copy stays plain text but reads like the screen. Longest first so that
+// "Current Billing Deadlines" wins over "Billing".
+const TERMS = [
+  'Analyze Lost and Pending Income', 'Upcoming 180-Day Extensions', 'All Active Billing Cycles',
+  'Add or Set Up Client Billing', 'Current Billing Deadlines', 'Potential 6 Month Revenue',
+  'Learn How to Use Billing', 'HSP approval start date', '150-Day Authorization',
+  'HSP Not Submitted', '180-Day Extension', 'Add Client Row', 'Needs Attention',
+  'level of need', 'Pending Income', 'Lost Income', 'Needs Setup', 'claim number',
+  'claim status', 'payment status', 'member ID', 'Submitted', 'Collected', 'Continue',
+  'Pending', 'Revenue', 'Save', 'MCO',
+].sort((a, b) => b.length - a.length);
+
+const PATTERN = new RegExp(
+  `(\\*\\*[^*]+\\*\\*|${TERMS.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+  'g',
+);
+
+const isBold = (s: string) => /^\*\*[^*]+\*\*$/.test(s) || TERMS.includes(s);
+
+/** Plain copy with UI names and required actions in bold. */
+function Rich({ text, className, boldClassName = 'text-foreground' }: { text: string; className?: string; boldClassName?: string }) {
+  const parts = text.split(PATTERN).filter((p) => p !== '');
+  return (
+    <p className={className}>
+      {parts.map((part, i) =>
+        isBold(part)
+          ? <strong key={i} className={`font-semibold ${boldClassName}`}>{part.replace(/^\*\*|\*\*$/g, '')}</strong>
+          : <span key={i}>{part}</span>,
+      )}
+    </p>
+  );
+}
 
 export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
   steps: BillingTutorialStep[];
@@ -38,6 +71,8 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
   // returning to a previous step never jumps forward again straight away.
   const [armed, setArmed] = useState(false);
   const [phase, setPhase] = useState<'main' | 'followUp'>('main');
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [cardHeight, setCardHeight] = useState(300);
   const step = steps[n];
 
   useEffect(() => {
@@ -45,6 +80,15 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
     setPhase('main');
     step?.before?.();
   }, [n]);
+
+  // Measure the natural copy height once per step so placement is stable even
+  // when the box has to cap its height and scroll.
+  useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const h = el.scrollHeight;
+    setCardHeight((prev) => (Math.abs(h - prev) > 8 ? h : prev));
+  }, [n, phase]);
 
   // Measure and scroll the highlighted area into view.
   useEffect(() => {
@@ -87,7 +131,7 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
         <Card className="absolute w-[min(460px,calc(100vw-32px))] p-6 shadow-2xl" style={{ top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}>
           <h2 className="text-lg font-bold">Billing tutorial complete</h2>
           {completionBody.map((p, i) => (
-            <p key={i} className="mt-2 text-sm leading-6 text-muted-foreground">{p}</p>
+            <Rich key={i} text={p} className="mt-2 text-sm leading-6 text-muted-foreground" />
           ))}
           <div className="mt-5 flex justify-end"><Button onClick={onFinish}>Return to Billing</Button></div>
         </Card>
@@ -98,14 +142,36 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
 
   if (!step) return null;
 
-  // Keep the box near the highlight without covering it.
+  // Place the box in the largest free gap around the highlight, always fully
+  // inside the viewport so Continue is reachable without scrolling.
+  // Place the box in the largest free gap around the highlight, always fully
+  // inside the viewport so Continue is reachable. When the copy is taller than
+  // the gap, the box caps its height and scrolls internally instead of
+  // covering the area it is pointing at.
   const cardStyle: React.CSSProperties = (() => {
     if (!rect) return { top: '50%', left: '50%', transform: 'translate(-50%,-50%)' };
-    const below = rect.bottom + 16;
-    const roomBelow = window.innerHeight - below >= CARD_HEIGHT;
-    const top = roomBelow ? below : Math.max(16, rect.top - CARD_HEIGHT - 16);
-    const left = Math.min(Math.max(16, rect.left), Math.max(16, window.innerWidth - CARD_WIDTH - 16));
-    return { top, left };
+    const gap = 16;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const clampLeft = (l: number) => Math.min(Math.max(gap, l), Math.max(gap, vw - CARD_WIDTH - gap));
+    const clampTop = (t: number, h: number) => Math.min(Math.max(gap, t), Math.max(gap, vh - h - gap));
+
+    const roomBelow = vh - rect.bottom - gap * 2;
+    const roomAbove = rect.top - gap * 2;
+    const roomRight = vw - rect.right - gap * 2;
+    const roomLeft = rect.left - gap * 2;
+
+    if (roomBelow >= cardHeight) return { top: rect.bottom + gap, left: clampLeft(rect.left) };
+    if (roomAbove >= cardHeight) return { top: rect.top - cardHeight - gap, left: clampLeft(rect.left) };
+    if (roomRight >= CARD_WIDTH) return { top: clampTop(rect.top, cardHeight), left: rect.right + gap, maxHeight: vh - gap * 2 };
+    if (roomLeft >= CARD_WIDTH) return { top: clampTop(rect.top, cardHeight), left: rect.left - CARD_WIDTH - gap, maxHeight: vh - gap * 2 };
+    // Nothing fits whole: use the taller vertical gap and scroll inside the box.
+    const useBelow = roomBelow >= roomAbove;
+    const avail = Math.max(160, useBelow ? roomBelow : roomAbove);
+    return {
+      top: useBelow ? rect.bottom + gap : Math.max(gap, rect.top - avail - gap),
+      left: clampLeft(rect.left),
+      maxHeight: avail,
+    };
   })();
 
   const waiting = step.done !== undefined && phase === 'main';
@@ -120,19 +186,22 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
           style={{ top: rect.top - 8, left: rect.left - 8, width: rect.width + 16, height: rect.height + 16, boxShadow: '0 0 0 9999px rgba(2,6,23,0.55)' }}
         />
       )}
-      <Card className="pointer-events-auto absolute w-[min(420px,calc(100vw-32px))] p-5 shadow-2xl" style={cardStyle}>
+      <Card ref={cardRef} className="pointer-events-auto absolute flex w-[min(420px,calc(100vw-32px))] flex-col p-5 shadow-2xl" style={cardStyle}>
         <div className="flex items-start justify-between gap-2">
           <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">Billing tutorial · Step {n + 1} of {steps.length}</span>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmClose(true)}><X className="h-4 w-4" /></Button>
         </div>
         <h2 className="mt-3 text-lg font-bold">{step.title}</h2>
-        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">
-          {phase === 'followUp' ? step.followUp : step.body}
-        </p>
-        <div className="mt-4 flex items-center justify-between gap-2">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <Rich
+            className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground"
+            text={(phase === 'followUp' ? step.followUp : step.body) ?? ''}
+          />
+        </div>
+        <div className="mt-4 flex shrink-0 items-center justify-between gap-2">
           <Button variant="outline" size="sm" disabled={!n} onClick={() => setN(n - 1)}>Previous</Button>
           {waiting
-            ? <span className="text-right text-xs font-medium text-blue-700">{step.hint}</span>
+            ? <Rich className="text-right text-xs font-medium text-blue-700" boldClassName="text-blue-800" text={step.hint ?? ''} />
             : <Button size="sm" disabled={!canContinue} onClick={advance}>{n === steps.length - 1 ? 'Complete Tutorial' : 'Continue'}</Button>}
         </div>
       </Card>
