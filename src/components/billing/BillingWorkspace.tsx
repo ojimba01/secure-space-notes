@@ -24,6 +24,22 @@ const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—
 // A level of need is not needed to build cycles, only to price them.
 const complete = (c: BillingClient) => c.status === 'active' && !!c.hsp_submitted && !!c.auth_150_start;
 
+// Long lists are shown ten at a time so the page stays readable.
+const PAGE_SIZE = 10;
+function Pager({page,setPage,total,label}:{page:number;setPage:(n:number)=>void;total:number;label:string}){
+  const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  if(total<=PAGE_SIZE) return null;
+  const from=page*PAGE_SIZE+1, to=Math.min(total,(page+1)*PAGE_SIZE);
+  return <div className="flex flex-wrap items-center justify-between gap-3 py-1">
+    <span className="text-sm text-muted-foreground">Showing {from}–{to} of {total} {label}</span>
+    <div className="flex items-center gap-2">
+      <Button size="sm" variant="outline" disabled={page===0} onClick={()=>setPage(page-1)}><ChevronLeft className="h-4 w-4"/></Button>
+      <span className="text-sm text-muted-foreground">Page {page+1} of {pages}</span>
+      <Button size="sm" variant="outline" disabled={page>=pages-1} onClick={()=>setPage(page+1)}><ChevronRight className="h-4 w-4"/></Button>
+    </div>
+  </div>;
+}
+
 type Blocker = 'Missing client name' | 'HSP not submitted' | 'Missing HSP approval start date' | 'Missing level of need';
 const blocker = (c: BillingClient): Blocker =>
   !c.first_name?.trim() || !c.last_name?.trim() ? 'Missing client name'
