@@ -254,7 +254,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
     </Card>
 
     <div className="flex flex-wrap gap-3">
-      <Button variant="outline" onClick={() => setView('recovery')}>Analyze lost or pending income</Button>
+      <Button variant="outline" onClick={() => setView('recovery')}>Analyze lost / pending income</Button>
       <Button variant="outline" disabled>Historical income (coming soon)</Button>
     </div>
   </div>;
