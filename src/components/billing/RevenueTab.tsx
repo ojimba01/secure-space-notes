@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, Undo2 } from 'lucide-react';
@@ -253,9 +253,8 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
                   const monthKeyId = `${section.id}:${month.key}`;
                   const monthOpen = openMonths.has(monthKeyId);
                   const cycleCount = month.clients.reduce((s, c) => s + c.items.length, 0);
-                  return <>
+                  return <Fragment key={monthKeyId}>
                     <tr
-                      key={monthKeyId}
                       className="cursor-pointer border-t bg-slate-50 hover:bg-slate-100"
                       onClick={() => toggle(openMonths, setOpenMonths, monthKeyId)}
                     >
@@ -272,9 +271,8 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
                     {monthOpen && month.clients.map(group => {
                       const clientKeyId = `${monthKeyId}:${group.clientId}`;
                       const clientOpen = openClients.has(clientKeyId);
-                      return <>
+                      return <Fragment key={clientKeyId}>
                         <tr
-                          key={clientKeyId}
                           className="cursor-pointer border-t hover:bg-slate-50"
                           onClick={() => toggle(openClients, setOpenClients, clientKeyId)}
                         >
@@ -296,9 +294,9 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
                             {item.note} · deadline {dateLabel(item.deadline)}
                           </td>
                         </tr>)}
-                      </>;
+                      </Fragment>;
                     })}
-                  </>;
+                  </Fragment>;
                 })}
               </tbody>
             </table>}
