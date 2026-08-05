@@ -90,8 +90,8 @@ export function BillingWorkspace() {
   const { loading, clients, deletedClients, cycles, updateClient, addClient, deleteClient, restoreClient, updateCycle } = useBilling();
   const [section,setSection]=useState<'deadlines'|'setup'>('deadlines');
   const [filter,setFilter]=useState<'attention'|'all'|'extensions'>('attention');
-  const [stage,setStage]=useState<'setup'|'150'|'180'>('setup');
-  const [setupReason,setSetupReason]=useState<'all'|'hsp'|'info'>('all');
+  const [phaseTab,setPhaseTab]=useState<'both'|'150'|'180'>('both');
+  const [setupReason,setSetupReason]=useState<'all'|'hsp'|'start'|'lon'>('all');
   const [open,setOpen]=useState<string|null>(null);
   const [query,setQuery]=useState('');
   const [profileId,setProfileId]=useState<string|null>(null);
