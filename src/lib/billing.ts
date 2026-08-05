@@ -342,3 +342,14 @@ export function getNextBillDue(
   const cycle = generated.find((c) => c.cycle_number === cur) ?? generated[generated.length - 1];
   return cycle ? cycle.cycle_end : null;
 }
+
+// ---- the 30-day HSP window (not billable) ---------------------------
+// Every client relationship opens with a 30-day window in which the HSP must
+// be submitted. Its end date is the HSP due date. Billing only starts after
+// the HSP is approved (the 150-day authorization start).
+export const HSP_WINDOW_DAYS = 30;
+
+export function hspDueDateFor(auth30Start: string | null | undefined): string | null {
+  if (!auth30Start) return null;
+  return addDays(auth30Start, HSP_WINDOW_DAYS - 1);
+}
