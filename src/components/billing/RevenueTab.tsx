@@ -91,7 +91,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
       <p className="mt-1 text-sm text-muted-foreground">
         Covers {monthLabel(months[0])} through {monthLabel(months[months.length - 1])}. Historical revenue is not included.
         A Low level cycle bills {formatMoney(RATE_LOW)} and a High level cycle bills {formatMoney(RATE_HIGH)}.
-        {assumedClientCount > 0 && ` ${assumedClientCount} client${assumedClientCount === 1 ? ' is' : 's are'} missing a level of need, so ${assumedClientCount === 1 ? 'it is' : 'they are'} counted as Low level. The higher figure shows what the same cycles would bill if every one of them were High level.`}
+        {assumedClientCount > 0 && ` ${assumedClientCount} client${assumedClientCount === 1 ? '' : 's'} still ${assumedClientCount === 1 ? 'needs' : 'need'} a level of need. Their cycles are counted at the Low rate in the Low column and the High rate in the High column.`}
       </p>
     </Card>
 
