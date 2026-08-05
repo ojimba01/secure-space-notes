@@ -72,6 +72,7 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
   const [armed, setArmed] = useState(false);
   const [phase, setPhase] = useState<'main' | 'followUp'>('main');
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const [cardHeight, setCardHeight] = useState(300);
   const step = steps[n];
 
@@ -111,6 +112,19 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
       window.removeEventListener('resize', measure);
     };
   }, [n, step?.selector, complete]);
+
+  // The box sits on top of the page, so a wheel gesture over it must still move
+  // the page once the copy inside the box has nothing left to scroll.
+  const forwardWheel = (e: React.WheelEvent) => {
+    const body = bodyRef.current;
+    if (body) {
+      const atTop = body.scrollTop <= 0;
+      const atBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 1;
+      const consumes = (e.deltaY < 0 && !atTop) || (e.deltaY > 0 && !atBottom);
+      if (consumes) return;
+    }
+    window.scrollBy({ top: e.deltaY });
+  };
 
   const advance = () => (n === steps.length - 1 ? setComplete(true) : setN(n + 1));
 
@@ -186,13 +200,13 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
           style={{ top: rect.top - 8, left: rect.left - 8, width: rect.width + 16, height: rect.height + 16, boxShadow: '0 0 0 9999px rgba(2,6,23,0.55)' }}
         />
       )}
-      <Card ref={cardRef} className="pointer-events-auto absolute flex w-[min(420px,calc(100vw-32px))] flex-col p-5 shadow-2xl" style={cardStyle}>
+      <Card ref={cardRef} onWheel={forwardWheel} className="pointer-events-auto absolute flex w-[min(420px,calc(100vw-32px))] flex-col p-5 shadow-2xl" style={cardStyle}>
         <div className="flex items-start justify-between gap-2">
           <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">Billing tutorial · Step {n + 1} of {steps.length}</span>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmClose(true)}><X className="h-4 w-4" /></Button>
         </div>
         <h2 className="mt-3 text-lg font-bold">{step.title}</h2>
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <Rich
             className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground"
             text={(phase === 'followUp' ? step.followUp : step.body) ?? ''}
