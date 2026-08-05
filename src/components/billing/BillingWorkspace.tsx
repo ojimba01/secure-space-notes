@@ -250,6 +250,10 @@ export function BillingWorkspace() {
         {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={updateCycle} tour={i===0}/>}
       </Card>})}</div>}
 
+      {filter!=='extensions' && lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
+
+
+
     </> : <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
