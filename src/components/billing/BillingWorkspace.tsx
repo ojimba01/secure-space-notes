@@ -452,7 +452,7 @@ export function BillingWorkspace() {
           </button>
           <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={i===0}/>
         </div>
-        {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={updateCycle} tour={i===0}/>}
+        {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={cycleWriter} tour={i===0}/>}
       </Card>})}<Pager page={page} setPage={setPage} total={visibleClients.length} label="clients"/></div>}
 
       {filter==='attention' && lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
