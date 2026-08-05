@@ -89,8 +89,9 @@ const ProfileIconButton = ({ onClick, tour }: { onClick:()=>void; tour?:boolean 
 
 export function BillingWorkspace() {
   const { user } = useAuth();
+  const { isSuperadmin } = useIsSuperadmin();
   const { loading, clients, deletedClients, cycles, updateClient, addClient, deleteClient, restoreClient, updateCycle } = useBilling();
-  const [section,setSection]=useState<'deadlines'|'setup'>('deadlines');
+  const [section,setSection]=useState<'deadlines'|'setup'|'revenue'>('deadlines');
   const [filter,setFilter]=useState<'attention'|'all'|'extensions'>('attention');
   const [phaseTab,setPhaseTab]=useState<'both'|'150'|'180'>('both');
   const [setupReason,setSetupReason]=useState<'all'|'hsp'|'start'|'lon'>('all');
@@ -106,11 +107,15 @@ export function BillingWorkspace() {
 
   const cycleByClient = useMemo(()=>new Map(clients.map(c=>[c.id, cycles.filter(x=>x.client_id===c.id)])),[clients,cycles]);
   const eligible=clients.filter(complete), setup=clients.filter(c=>c.status==='active'&&!complete(c));
-  const attentionCount=cycles.filter(attention).length;
   const extensionClients=useMemo(()=>eligible.filter(c=>needsExtensionReview(c)).sort((a,b)=>(daysUntil150End(a)??999)-(daysUntil150End(b)??999)),[eligible]);
   // Clients ready for billing except for the level of need. They can be finished
   // here and move straight into the lists above once the level is saved.
-  const lonPending=useMemo(()=>clients.filter(c=>c.status==='active'&&c.hsp_submitted&&!!c.auth_150_start&&!normalizeLevel(c.level_of_need)).filter(c=>matches(c,query)),[clients,query]);
+  const lonAll=useMemo(()=>clients.filter(c=>c.status==='active'&&c.hsp_submitted&&!!c.auth_150_start&&!normalizeLevel(c.level_of_need)),[clients]);
+  const lonPending=useMemo(()=>lonAll.filter(c=>matches(c,query)),[lonAll,query]);
+  // Needs attention counts clients: those with a cycle near its final deadline
+  // plus everyone still waiting on a level of need.
+  const attentionClients=useMemo(()=>eligible.filter(c=>(cycleByClient.get(c.id)??[]).some(attention)),[eligible,cycleByClient]);
+  const attentionCount=attentionClients.length+lonAll.length;
 
 
   // Nearest unresolved final deadline, used to order the full cycle list.
@@ -120,10 +125,15 @@ export function BillingWorkspace() {
     return Math.min(...list.map(x=>{const d=daysToFinalDeadline(x); return d<0?d+100000:d;}));
   };
   const visibleCycles=cycles.filter(c=>filter!=='attention'||attention(c));
-  const visibleClients=useMemo(()=>eligible
-    .filter(c=>filter!=='all'||phaseTab==='both'||(phaseTab==='180'?!!c.auth_180_approved:!c.auth_180_approved))
-    .filter(c=>matches(c,query)&&(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)))
-    .sort((a,b)=>nearestDeadline(a)-nearestDeadline(b)),[eligible,query,cycleByClient,visibleCycles,filter,phaseTab]);
+  const visibleClients=useMemo(()=>{
+    const withCycles=eligible
+      .filter(c=>filter!=='all'||phaseTab==='both'||(phaseTab==='180'?!!c.auth_180_approved:!c.auth_180_approved))
+      .filter(c=>matches(c,query)&&(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)));
+    // Clients awaiting a level of need sit in the list like everyone else.
+    const awaiting=filter==='all'&&phaseTab!=='180'?lonPending:[];
+    return [...withCycles,...awaiting].sort((a,b)=>nearestDeadline(a)-nearestDeadline(b));
+  },[eligible,query,cycleByClient,visibleCycles,filter,phaseTab,lonPending]);
+
   const searchResults = query.trim() ? clients.filter(c=>matches(c,query)).slice(0,8) : [];
 
   const runDuplicateCheck=(id:string)=>{
