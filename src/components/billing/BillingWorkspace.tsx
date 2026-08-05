@@ -115,8 +115,9 @@ export function BillingWorkspace() {
   };
   const visibleCycles=cycles.filter(c=>filter!=='attention'||attention(c));
   const visibleClients=useMemo(()=>eligible
+    .filter(c=>filter!=='all'||phaseTab==='both'||(phaseTab==='180'?!!c.auth_180_approved:!c.auth_180_approved))
     .filter(c=>matches(c,query)&&(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)))
-    .sort((a,b)=>nearestDeadline(a)-nearestDeadline(b)),[eligible,query,cycleByClient,visibleCycles]);
+    .sort((a,b)=>nearestDeadline(a)-nearestDeadline(b)),[eligible,query,cycleByClient,visibleCycles,filter,phaseTab]);
   const searchResults = query.trim() ? clients.filter(c=>matches(c,query)).slice(0,8) : [];
 
   const runDuplicateCheck=(id:string)=>{
