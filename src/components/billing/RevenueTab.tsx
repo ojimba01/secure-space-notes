@@ -139,7 +139,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
               Cycles that ended with no claim submitted. Lost income is past the six month final deadline. Pending income can still be billed.
             </p>
           </div>
-          <Button variant="outline" onClick={() => setView('projection')}>Back to projection</Button>
+          <Button variant="outline" onClick={() => setView('projection')}>Back current revenue</Button>
         </div>
       </Card>
 
