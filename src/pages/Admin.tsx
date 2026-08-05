@@ -472,6 +472,7 @@ const Admin = () => {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TutorialProvider>
   );
 };
 
