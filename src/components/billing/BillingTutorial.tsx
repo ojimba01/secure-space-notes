@@ -82,7 +82,7 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
 
   if (complete) {
     return createPortal(
-      <div className="fixed inset-0 z-[9998]">
+      <div className="fixed inset-0 z-[45]">
         <div className="absolute inset-0 bg-slate-950/60" />
         <Card className="absolute w-[min(460px,calc(100vw-32px))] p-6 shadow-2xl" style={{ top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}>
           <h2 className="text-lg font-bold">Billing tutorial complete</h2>
@@ -112,7 +112,7 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
   const canContinue = step.gate !== false;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9998] pointer-events-none">
+    <div className="fixed inset-0 z-[45] pointer-events-none">
       {!rect && <div className="absolute inset-0 bg-slate-950/55" />}
       {rect && (
         <div
