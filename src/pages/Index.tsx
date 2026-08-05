@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { TutorialProvider } from '@/components/TutorialProvider';
@@ -20,12 +20,23 @@ const Index = () => {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const { isSuperadmin } = useIsSuperadmin();
   const { isViewingAs } = useViewAs();
+  const location = useLocation();
   const [activeView, setActiveView] = useState<View>('compliance');
   const [clientsKey, setClientsKey] = useState(0);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [initialClientId, setInitialClientId] = useState<string | null>(null);
   const [defaultApplied, setDefaultApplied] = useState(false);
   const [wasViewingAs, setWasViewingAs] = useState(false);
+
+  // Honor a view requested by another page (for example the admin sidebar).
+  useEffect(() => {
+    const state = location.state as { view?: View; noteId?: string } | null;
+    if (state?.view) {
+      setActiveView(state.view);
+      setDefaultApplied(true);
+      if (state.noteId) setSelectedNoteId(state.noteId);
+    }
+  }, [location.state]);
 
   // Non-admins land on My Month; admins keep the Clients list as their landing here.
   useEffect(() => {
