@@ -369,7 +369,7 @@ export function BillingWorkspace() {
         <p className="text-sm text-muted-foreground">This client will be removed from billing and the client list. You can recover them from Recently deleted for {RECOVERY_WINDOW_DAYS} days.</p>
         <DialogFooter>
           <Button variant="outline" onClick={()=>setDeleteTarget(null)}>Keep client</Button>
-          <Button className="bg-red-600 text-white hover:bg-red-700" onClick={()=>{const t=deleteTarget; setDeleteTarget(null); if(t) deleteClient(t.id).then(()=>toast.success('Client deleted. You can recover them for 30 days.')).catch(e=>toast.error(e.message));}}>Delete client</Button>
+          <Button className="bg-red-600 text-white hover:bg-red-700" onClick={()=>{const t=deleteTarget; setDeleteTarget(null); if(!t) return; if(practice){ setPractice(p=>p?{...p,clients:p.clients.filter(c=>c.id!==t.id)}:p); toast.success('Practice row removed.'); return; } deleteClient(t.id).then(()=>toast.success('Client deleted. You can recover them for 30 days.')).catch(e=>toast.error(e.message));}}>Delete client</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
