@@ -1,11 +1,51 @@
 // Client-side helper to (re)generate a single client's billing cycles.
-// Cycle generation lives in the database (public.sync_client_billing_cycles),
-// which also runs automatically on every client insert/update. This helper just
-// asks the database to re-sync a single client on demand.
+// Mirrors the per-client logic in useBilling.regenerateClient so it can be
+// called right after a client is created/edited, without loading the whole hook.
 import { supabase } from '@/integrations/supabase/client';
+import { BillingCycle, generateCyclesForClient } from '@/lib/billing';
 
 export async function regenerateClientCycles(clientId: string): Promise<void> {
-  await supabase.rpc('sync_client_billing_cycles', { p_client_id: clientId });
+  const { data: client } = await supabase
+    .from('clients')
+    .select('id, status, level_of_need, auth_150_start, auth_150_end, auth_180_start, auth_180_end')
+    .eq('id', clientId)
+    .maybeSingle();
+
+  if (!client) return;
+  if (client.status !== 'active' || !client.auth_150_start) return;
+
+  const { data: existingRows } = await supabase
+    .from('billing_cycles')
+    .select('*')
+    .eq('client_id', clientId);
+  const existing = (existingRows as BillingCycle[]) ?? [];
+
+  const ideal = generateCyclesForClient(client);
+  const byNumber = new Map(existing.map((c) => [c.cycle_number, c]));
+
+  for (const g of ideal) {
+    const found = byNumber.get(g.cycle_number);
+    if (!found) {
+      await supabase.from('billing_cycles').insert({
+        client_id: clientId,
+        cycle_number: g.cycle_number,
+        phase: g.phase,
+        cycle_start: g.cycle_start,
+        cycle_end: g.cycle_end,
+        billed_amount: g.billed_amount,
+        is_auto_generated: true,
+      });
+    } else if (found.is_auto_generated) {
+      const patch: Record<string, unknown> = {};
+      if (found.phase !== g.phase) patch.phase = g.phase;
+      if (found.cycle_start !== g.cycle_start) patch.cycle_start = g.cycle_start;
+      if (found.cycle_end !== g.cycle_end) patch.cycle_end = g.cycle_end;
+      if ((found.billed_amount ?? null) !== (g.billed_amount ?? null)) patch.billed_amount = g.billed_amount;
+      if (Object.keys(patch).length) {
+        await supabase.from('billing_cycles').update(patch).eq('id', found.id);
+      }
+    }
+  }
 }
 
 // Fetch active case managers (profiles), excluding superadmins.
