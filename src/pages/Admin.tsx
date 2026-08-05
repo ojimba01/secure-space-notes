@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ComplianceEscalations } from '@/components/ComplianceEscalations';
+import { TutorialProvider } from '@/components/TutorialProvider';
+import { Sidebar } from '@/components/Sidebar';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -259,8 +261,15 @@ const Admin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <TutorialProvider>
+    <div className="flex min-h-screen w-full bg-background">
+      <Sidebar
+        activeView={'clients'}
+        onViewChange={(view) => navigate('/', { state: { view } })}
+        onOpenNote={(noteId) => navigate('/', { state: { view: 'notes', noteId } })}
+      />
+      <div className="min-w-0 flex-1 space-y-6 p-6 pt-16 md:pt-6">
+
         {/* Header with Logo */}
         <div className="flex items-center justify-between border-b pb-4">
           <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
@@ -465,6 +474,7 @@ const Admin = () => {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TutorialProvider>
   );
 };
 
