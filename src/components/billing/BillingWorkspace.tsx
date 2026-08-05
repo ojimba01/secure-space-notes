@@ -466,7 +466,7 @@ export function BillingWorkspace() {
           <h2 className="flex items-center gap-2 font-semibold text-indigo-900"><Pencil className="h-4 w-4"/>Edit mode — add or set up client billing</h2>
           <p className="mt-1 text-sm text-indigo-900/70">Everything on this screen is editable and saves as you go. Partial information is kept without creating overdue warnings.</p>
         </div>
-        <Button data-tour="add-client" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>addClient().then(id=>{setSetupReason('all');setNewRowIds(x=>[id,...x]);toast.success('New client row added at the top.');}).catch(e=>toast.error(e.message))}><Plus className="mr-2 h-4 w-4"/>Add client row</Button>
+        <Button data-tour="add-client" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>clientAdder().then(id=>{setSetupReason('all');setNewRowIds(x=>[id,...x]);toast.success(practice?'Practice row added at the top.':'New client row added at the top.');}).catch(e=>toast.error(e.message))}><Plus className="mr-2 h-4 w-4"/>Add client row</Button>
       </div>
 
       <div className="flex flex-wrap gap-2" data-tour="stage-setup">
