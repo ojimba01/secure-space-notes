@@ -38,7 +38,7 @@ export const useIsAdmin = () => {
     };
 
     checkAdmin();
-  }, [user]);
+  }, [user, authLoading]);
 
   return { isAdmin, loading };
 };
