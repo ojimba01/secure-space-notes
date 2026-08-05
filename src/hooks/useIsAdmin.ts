@@ -3,12 +3,18 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useIsAdmin = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkAdmin = async () => {
+      // Stay in the loading state until auth has hydrated, otherwise a direct
+      // page load resolves "not admin" before the session is known.
+      if (authLoading) {
+        setLoading(true);
+        return;
+      }
       if (!user) {
         setIsAdmin(false);
         setLoading(false);
