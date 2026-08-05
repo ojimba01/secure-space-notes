@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { BillingCycle, APPROVAL_STATES, ApprovalState, MCO_OPTIONS, isDeadlineAtRisk, isDeadlinePassed, isCycleResolved, finalDeadlineFor, deadlineLabel, hspDueDateFor, daysToFinalDeadline, normalizeLevel, findPossibleDuplicates, needsExtensionReview, daysUntil150End, projected180Start } from '@/lib/billing';
+import { BillingCycle, APPROVAL_STATES, ApprovalState, MCO_OPTIONS, isDeadlineAtRisk, isDeadlinePassed, isCycleResolved, finalDeadlineFor, deadlineLabel, hspDueDateFor, daysToFinalDeadline, normalizeLevel, findPossibleDuplicates, needsExtensionReview, daysUntil150End, projected180Start, addDays, todayAgency } from '@/lib/billing';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -107,10 +107,41 @@ const ProfileIconButton = ({ onClick, tour }: { onClick:()=>void; tour?:boolean 
   </Button>
 );
 
+// ---- Billing tutorial practice data -------------------------------------
+// The tutorial never touches real records. While it runs, the workspace shows a
+// single practice client with practice cycles, and every change stays in memory.
+const PRACTICE_CLIENT_ID = 'practice-client';
+const PRACTICE_NAME = { first: 'Practice', last: 'Client' };
+function buildPractice(): { clients: BillingClient[]; cycles: BillingCycle[] } {
+  const start = addDays(todayAgency(), -100);
+  const client: BillingClient = {
+    id: PRACTICE_CLIENT_ID, first_name: PRACTICE_NAME.first, last_name: PRACTICE_NAME.last,
+    insurance: 'Aetna', member_id: 'PRACTICE-001', level_of_need: 'Low Level', status: 'active',
+    hsp_submitted: true, auth_150_start: start, auth_150_end: addDays(start, 150),
+    auth_180_approved: false, auth_180_start: null, auth_180_end: null,
+    assigned_employee_id: null, assigned_staff_name: 'Practice staff',
+    billing_tracking_start: start, auth_30_start: addDays(start, -30), auth_30_end: start,
+    hsp_due_date: start, auth_30_number: 'P-30', auth_150_number: 'P-150', auth_180_number: null,
+    created_at: new Date().toISOString(), deleted_at: null,
+  };
+  const cycles: BillingCycle[] = [1,2,3,4,5].map(num=>{
+    const cs = addDays(start, (num-1)*30);
+    return {
+      id: `practice-cycle-${num}`, client_id: PRACTICE_CLIENT_ID, cycle_number: num,
+      phase: '150-day authorization', cycle_start: cs, cycle_end: addDays(cs, 29),
+      billed_amount: null, paid_amount: 0, billing_status: 'Not Billed', payment_status: 'Unpaid',
+      claim_number: null, submitted_date: null, paid_date: null, is_auto_generated: true, notes: null,
+      approval_state: null, is_active: true,
+    };
+  });
+  return { clients: [client], cycles };
+}
+
 export function BillingWorkspace() {
   const { user } = useAuth();
   const { isSuperadmin } = useIsSuperadmin();
-  const { loading, clients, deletedClients, cycles, updateClient, addClient, deleteClient, restoreClient, updateCycle } = useBilling();
+
+  const { loading, clients: realClients, deletedClients: realDeleted, cycles: realCycles, updateClient, addClient: addRealClient, deleteClient, restoreClient, updateCycle: updateRealCycle } = useBilling();
   const [section,setSection]=useState<'deadlines'|'setup'|'revenue'>('deadlines');
   const [filter,setFilter]=useState<'attention'|'all'|'extensions'>('attention');
   const [phaseTab,setPhaseTab]=useState<'both'|'150'|'180'>('both');
@@ -119,11 +150,45 @@ export function BillingWorkspace() {
   const [query,setQuery]=useState('');
   const [profileId,setProfileId]=useState<string|null>(null);
   const [tutorial,setTutorial]=useState(false);
+  const [practice,setPractice]=useState<{ clients: BillingClient[]; cycles: BillingCycle[] }|null>(null);
+  const [practiceRevenueView,setPracticeRevenueView]=useState<'projection'|'recovery'>('projection');
   const [deleteTarget,setDeleteTarget]=useState<BillingClient|null>(null);
   const [duplicate,setDuplicate]=useState<{ row: BillingClient; match: BillingClient }|null>(null);
   const [newRowIds,setNewRowIds]=useState<string[]>([]);
 
-  const finishTutorial=async()=>{ if(user) await supabase.from('user_tutorial_progress').upsert({user_id:user.id,current_step:10,completed:true,completed_at:new Date().toISOString()},{onConflict:'user_id'}); setTutorial(false); toast.success('Billing tutorial completed.'); };
+  // Practice data replaces the live lists while the tutorial is running.
+  const clients = practice ? practice.clients : realClients;
+  const cycles = practice ? practice.cycles : realCycles;
+  const deletedClients = practice ? [] : realDeleted;
+  const practiceClient = practice?.clients.find(c=>c.id===PRACTICE_CLIENT_ID) ?? null;
+  const practiceCycle = practice?.cycles[0] ?? null;
+
+  const startTutorial=()=>{
+    setPractice(buildPractice());
+    setPracticeRevenueView('projection');
+    setSection('deadlines'); setFilter('attention'); setPhaseTab('both'); setSetupReason('all');
+    setQuery(''); setOpen(null); setNewRowIds([]);
+    setTutorial(true);
+  };
+  const stopTutorial=()=>{
+    setTutorial(false); setPractice(null); setNewRowIds([]);
+    setSection('deadlines'); setFilter('attention'); setSetupReason('all'); setQuery(''); setOpen(null);
+  };
+  const finishTutorial=async()=>{ if(user) await supabase.from('user_tutorial_progress').upsert({user_id:user.id,current_step:10,completed:true,completed_at:new Date().toISOString()},{onConflict:'user_id'}); stopTutorial(); toast.success('Billing tutorial complete.'); };
+
+  // Practice-only writers. Nothing reaches the database.
+  const practiceUpdateClient=async(id:string,patch:Partial<BillingClient>)=>{
+    setPractice(p=>p?{...p,clients:p.clients.map(c=>c.id===id?{...c,...patch}:c)}:p);
+  };
+  const practiceUpdateCycle=async(id:string,patch:Partial<BillingCycle>)=>{
+    setPractice(p=>p?{...p,cycles:p.cycles.map(c=>c.id===id?{...c,...patch}:c)}:p);
+  };
+  const practiceAddClient=async()=>{
+    const id=`practice-new-${Date.now()}`;
+    setPractice(p=>p?{...p,clients:[{...buildPractice().clients[0],id,first_name:'',last_name:'',member_id:null,insurance:null,level_of_need:null,hsp_submitted:null,auth_150_start:null,auth_150_end:null,auth_30_number:null,auth_150_number:null,created_at:new Date().toISOString()},...p.clients]}:p);
+    return id;
+  };
+
 
   const cycleByClient = useMemo(()=>new Map(clients.map(c=>[c.id, cycles.filter(x=>x.client_id===c.id)])),[clients,cycles]);
   const eligible=clients.filter(complete), setup=clients.filter(c=>c.status==='active'&&!complete(c));
@@ -166,8 +231,12 @@ export function BillingWorkspace() {
     const match=findPossibleDuplicates(row,clients)[0];
     if(match) setDuplicate({ row, match });
   };
-  const saveClient=(id:string,p:Partial<BillingClient>)=>updateClient(id,p)
-    .then(()=>{toast.success('Saved. Billing has been updated.'); runDuplicateCheck(id);})
+  // While the tutorial runs, every writer points at practice data only.
+  const clientWriter = practice ? practiceUpdateClient : updateClient;
+  const cycleWriter = practice ? practiceUpdateCycle : updateRealCycle;
+  const clientAdder = practice ? practiceAddClient : addRealClient;
+  const saveClient=(id:string,p:Partial<BillingClient>)=>clientWriter(id,p)
+    .then(()=>{toast.success(practice?'Saved to practice data only.':'Saved. Billing has been updated.'); if(!practice) runDuplicateCheck(id);})
     .catch(e=>toast.error(e.message));
 
   const reasonOf: Record<'hsp'|'start'|'lon', Blocker> = { hsp:'HSP not submitted', start:'Missing HSP approval start date', lon:'Missing level of need' };
@@ -182,27 +251,118 @@ export function BillingWorkspace() {
   },[clients,setupReason,newRowIds]);
   const countBlocked=(k:'hsp'|'start'|'lon')=>setup.filter(c=>blocker(c)===reasonOf[k]).length;
 
-  const tutorialSteps: BillingTutorialStep[] = useMemo(()=>[
-    { title:'Understand the two Billing sections', body:'Billing has two main sections. Current billing deadlines shows the billing work that needs your attention. Add or set up client billing is where you enter or correct the information used to create billing cycles.', cta:'Press Current billing deadlines to continue.', selector:'[data-tour="sections"]', requireClick:true, before:()=>{setSection('deadlines');setQuery('');} },
-    { title:'Find a client', body:'Use the search box to find a specific client. You can search using the client’s name, member ID, or MCO. Only matching clients will appear below the search box.\n\nPress the search box and enter a client’s name, then press Continue.', cta:'Continue', selector:'[data-tour="search"]' },
-    { title:'View all active billing cycles', body:'All active billing cycles shows every active 30-day cycle in the system, ordered so the cycle with the closest final deadline appears first.', cta:'Press All active billing cycles to continue.', selector:'[data-tour="filter-all"]', requireClick:true, before:()=>{setSection('deadlines');setQuery('');} },
-    { title:'Review Needs attention', body:'Needs attention shows clients with billing work that requires action. It includes clients whose 30-day cycle end dates are now four weeks away from the final deadline for submitting claims from the full authorization period.\n\nThe number in parentheses shows how many clients currently need attention. Below it, Please update LON status lists clients who only need a level of need before their billing cycles can be created.', cta:'Press Needs attention to continue.', selector:'[data-tour="filter-attention"]', requireClick:true },
-    { title:'Watch for upcoming extensions', body:'Upcoming extensions lists clients whose 150-day authorization ends within 30 days. Confirm the 180-day extension and enter its authorization number so billing continues without a gap.', cta:'Press Upcoming extensions to continue.', selector:'[data-tour="filter-extensions"]', requireClick:true },
-    { title:'Open a client’s billing cycles', body:'Press a client’s row to see all of that client’s 30-day billing cycles.\n\nThe first five cycles belong to the client’s 150-day authorization. If a 180-day extension is approved, six additional 30-day cycles will appear.', cta:'Press the highlighted client row to continue.', selector:'[data-tour="client-row"]', requireClick:true, before:()=>{setFilter('all');setOpen(null);} },
-    { title:'Update a billing cycle', body:'Use the billing-cycle table to record the claim status, payment status, and claim number.\n\nUpdate the claim status when a claim is submitted. Add the claim number when one is available. Update the payment status when the claim is paid or denied. Your changes save automatically.', cta:'Press the highlighted claim-status field, then select Submitted to continue.', selector:'[data-tour="claim-status"]', requireClick:true, before:()=>{setFilter('all');} },
+  const practiceFullName=`${PRACTICE_NAME.first} ${PRACTICE_NAME.last}`;
+  const resetPracticeCycles=()=>setPractice(p=>p?{...p,cycles:p.cycles.map(c=>({...c,billing_status:'Not Billed' as const}))}:p);
+  const removePracticeRows=()=>setPractice(p=>p?{...p,clients:p.clients.filter(c=>c.id===PRACTICE_CLIENT_ID)}:p);
 
-    { title:'Open Add or set up client billing', body:'Use Add or set up client billing to add a client or correct information used to create billing cycles. This section is an editing space, so it looks different from Current billing deadlines.', cta:'Press Add or set up client billing to continue.', selector:'[data-tour="section-setup"]', requireClick:true },
-    { title:'Review clients who need setup', body:'Use the filter buttons to see clients whose billing cycles cannot be created yet: the HSP has not been submitted, the HSP approval start date is missing, or the level of need is missing.', cta:'Press HSP not submitted to continue.', selector:'[data-tour="stage-setup"]', requireClick:true, before:()=>{setSection('setup');} },
-    { title:'Add a client', body:'Use Add client row to create a blank row at the top of the table. Enter the information you have, then press Save to open the client profile and finish filling it out.', cta:'Press Add client row to complete the tutorial.', selector:'[data-tour="add-client"]', requireClick:true, before:()=>{setSection('setup');setSetupReason('all');} },
-  ],[eligible,cycleByClient]);
+  const tutorialSteps: BillingTutorialStep[] = useMemo(()=>{
+    const sectionsList = isSuperadmin
+      ? 'Billing has three main sections.\n\nCurrent Billing Deadlines shows billing work that needs attention.\n\nRevenue shows potential, submitted, pending, collected, and lost income.\n\nAdd or Set Up Client Billing is where you add or correct the information used to create billing cycles.'
+      : 'Billing has two main sections.\n\nCurrent Billing Deadlines shows billing work that needs attention.\n\nAdd or Set Up Client Billing is where you add or correct the information used to create billing cycles.';
 
-  useEffect(()=>{ if(!tutorial) return; document.body.style.overflow='hidden'; return ()=>{document.body.style.overflow='';}; },[tutorial]);
+    const steps: BillingTutorialStep[] = [
+      {
+        title: isSuperadmin ? 'Understand the three Billing sections' : 'Understand the two Billing sections',
+        body: sectionsList,
+        selector:'[data-tour="sections"]',
+        before:()=>{setSection('deadlines');setFilter('attention');setQuery('');setOpen(null);},
+      },
+      {
+        title:'Find a client',
+        body:`Use the search box to find a specific client. You can search using the client’s name, member ID, or MCO. Only matching clients will appear below the search box.\n\nEnter ${practiceFullName} in the search box, then press Continue.`,
+        selector:'[data-tour="search"]',
+        gate: !!query.trim() && !!practiceClient && matches(practiceClient, query),
+        before:()=>{setSection('deadlines');setQuery('');},
+      },
+      {
+        title:'Choose the billing list you need',
+        body:'Use these three buttons to choose which billing list to view.\n\nAll Active Billing Cycles shows every active 30-day billing cycle.\n\nNeeds Attention shows clients whose cycle end dates are four weeks away from the final deadline for submitting claims from the full authorization period.\n\nUpcoming 180-Day Extensions shows clients whose 150-day authorization ends within 30 days.\n\nThe number in parentheses shows how many clients or billing cycles are in each list.',
+        selector:'[data-tour="filters"]',
+        done: filter==='all',
+        hint:'Press All Active Billing Cycles to continue.',
+        before:()=>{setSection('deadlines');setQuery('');setFilter('attention');setOpen(null);},
+      },
+      {
+        title:'Open a client’s billing cycles',
+        body:'Press a client’s row to see all of that client’s 30-day billing cycles.\n\nThe first five cycles belong to the client’s 150-day authorization. Claims from these cycles can be submitted until the final day of the full 150-day authorization period.\n\nIf a 180-day extension is approved, six additional 30-day billing cycles will appear.',
+        selector:'[data-tour="client-row"]',
+        done: open===PRACTICE_CLIENT_ID,
+        hint:'Press the highlighted practice client row to continue.',
+        before:()=>{setSection('deadlines');setFilter('all');setPhaseTab('both');setQuery('');setOpen(null);},
+      },
+      {
+        title:'Update a billing cycle',
+        body:'Use the billing-cycle table to record the claim status, payment status, and claim number.\n\nChange the claim status when a claim is submitted. Enter the claim number when it is available. Change the payment status when the claim is paid or denied. Changes save automatically.',
+        selector:'[data-tour="claim-status"]',
+        done: practiceCycle?.billing_status==='Submitted',
+        hint:'Open the highlighted claim-status dropdown and select Submitted to continue.',
+        before:()=>{setSection('deadlines');setFilter('all');setOpen(PRACTICE_CLIENT_ID);resetPracticeCycles();},
+      },
+    ];
+
+    if (isSuperadmin) {
+      steps.push(
+        {
+          title:'Open Revenue',
+          body:'Use Revenue to review the amount the agency may bill, the amount already submitted, the amount awaiting payment, and the amount collected.\n\nOnly superadmins can view this section.',
+          selector:'[data-tour="sections"]',
+          done: section==='revenue',
+          hint:'Press Revenue to continue.',
+          before:()=>{setSection('deadlines');setPracticeRevenueView('projection');},
+        },
+        {
+          title:'Understand the Revenue section',
+          body:'The Revenue section shows revenue for the current month and the next five months.\n\nPotential 6 Month Revenue is the amount the agency may bill during this period.\n\nSubmitted is the value of claims that have been submitted.\n\nPending is the value of submitted claims for which payment has not been recorded as received.\n\nCollected is the amount recorded as paid.\n\nThe table shows these amounts by month. If a client’s level of need is missing, the system shows a range using both the Low and High billing rates.\n\nUse Analyze Lost and Pending Income to review billing cycles that have ended but were not submitted.',
+          followUp:'Pending Income shows claims that have not been submitted but can still be submitted before the final authorization deadline.\n\nLost Income shows claims that were not submitted before the final authorization deadline and can no longer be billed.',
+          selector:'[data-tour="revenue-section"]',
+          done: practiceRevenueView==='recovery',
+          hint:'Press Analyze Lost and Pending Income to continue.',
+          before:()=>{setSection('revenue');setPracticeRevenueView('projection');},
+        },
+      );
+    }
+
+    steps.push(
+      {
+        title:'Open the client billing setup section',
+        body: isSuperadmin
+          ? 'You have finished reviewing Revenue. Use Add or Set Up Client Billing to add a client or correct the information used to create billing cycles.\n\nYou can save the information you have even when some information is still missing.'
+          : 'You have finished reviewing Current Billing Deadlines. Use Add or Set Up Client Billing to add a client or correct the information used to create billing cycles.\n\nYou can save the information you have even when some information is still missing.',
+        selector:'[data-tour="sections"]',
+        done: section==='setup',
+        hint:'Press Add or Set Up Client Billing to continue.',
+        before:()=>{setSection(isSuperadmin?'revenue':'deadlines');},
+      },
+      {
+        title:'Review the client setup groups',
+        body:'These buttons organize clients by their current place in the billing setup process.\n\nNeeds Setup includes clients whose billing cycles cannot be created because required information or an action is still missing. The available filters explain what is needed, including HSP Not Submitted.\n\nThe 150-Day Authorization group shows clients whose initial authorization information has been completed.\n\nThe 180-Day Extension group shows clients whose extension information has been completed or needs to be reviewed.\n\nThe number in parentheses shows how many clients are in each group.',
+        selector:'[data-tour="stage-setup"]',
+        done: setupReason==='hsp',
+        hint:'Press HSP Not Submitted to continue.',
+        before:()=>{setSection('setup');setSetupReason('all');setQuery('');},
+      },
+      {
+        title:'Add a client',
+        body:'Add Client Row creates a blank row at the top of the table. Enter the information you currently have, then press Save. You can complete the remaining information later.\n\nA partially completed client remains saved in the appropriate setup group. The client must not appear under Current Billing Deadlines until the information required to calculate billing cycles has been entered.\n\nWhen the HSP approval start date and level of need are entered, the system creates the client’s 150-day authorization and five 30-day billing cycles. If a 180-day extension is approved later, the system adds six additional 30-day cycles.',
+        selector:'[data-tour="add-client"]',
+        done: (practice?.clients.length ?? 0) > 1,
+        hint:'Press Add Client Row to complete the tutorial.',
+        before:()=>{setSection('setup');setSetupReason('hsp');setQuery('');removePracticeRows();},
+      },
+    );
+    return steps;
+  },[isSuperadmin,section,filter,setupReason,open,query,practice,practiceClient,practiceCycle,practiceRevenueView]);
+
+  const completionBody = isSuperadmin
+    ? ['You have completed the Billing tutorial.','Begin with Current Billing Deadlines to see which clients require attention. Use Revenue to review billing and payment amounts. Use Add or Set Up Client Billing to add client information or complete missing information.','You can restart the tutorial at any time by pressing Learn How to Use Billing.']
+    : ['You have completed the Billing tutorial.','Begin with Current Billing Deadlines to see which clients require attention. Use Add or Set Up Client Billing to add client information or complete missing information.','You can restart the tutorial at any time by pressing Learn How to Use Billing.'];
 
   if (loading) return <Card className="p-8 text-muted-foreground">Loading billing information…</Card>;
 
   return <div className="space-y-4">
-    {tutorial && <BillingTutorial steps={tutorialSteps} onClose={()=>setTutorial(false)} onFinish={finishTutorial} />}
-    <ClientProfileDialog clientId={profileId} onClose={()=>setProfileId(null)} />
+    {tutorial && <BillingTutorial steps={tutorialSteps} completionBody={completionBody} onClose={stopTutorial} onFinish={finishTutorial} />}
+
+    <ClientProfileDialog clientId={practice?null:profileId} onClose={()=>setProfileId(null)} />
 
     <Dialog open={!!deleteTarget} onOpenChange={(o)=>!o&&setDeleteTarget(null)}>
       <DialogContent>
@@ -210,7 +370,7 @@ export function BillingWorkspace() {
         <p className="text-sm text-muted-foreground">This client will be removed from billing and the client list. You can recover them from Recently deleted for {RECOVERY_WINDOW_DAYS} days.</p>
         <DialogFooter>
           <Button variant="outline" onClick={()=>setDeleteTarget(null)}>Keep client</Button>
-          <Button className="bg-red-600 text-white hover:bg-red-700" onClick={()=>{const t=deleteTarget; setDeleteTarget(null); if(t) deleteClient(t.id).then(()=>toast.success('Client deleted. You can recover them for 30 days.')).catch(e=>toast.error(e.message));}}>Delete client</Button>
+          <Button className="bg-red-600 text-white hover:bg-red-700" onClick={()=>{const t=deleteTarget; setDeleteTarget(null); if(!t) return; if(practice){ setPractice(p=>p?{...p,clients:p.clients.filter(c=>c.id!==t.id)}:p); toast.success('Practice row removed.'); return; } deleteClient(t.id).then(()=>toast.success('Client deleted. You can recover them for 30 days.')).catch(e=>toast.error(e.message));}}>Delete client</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -235,7 +395,7 @@ export function BillingWorkspace() {
         <Button data-tour="section-setup" variant={section==='setup'?'default':'ghost'} className={section==='setup'?'bg-indigo-600 text-white hover:bg-indigo-700':''} onClick={()=>setSection('setup')}><Pencil className="mr-2 h-4 w-4"/>Add or set up client billing</Button>
         {isSuperadmin && <Button variant={section==='revenue'?'default':'ghost'} className={section==='revenue'?'bg-emerald-600 text-white hover:bg-emerald-700':''} onClick={()=>setSection('revenue')}><DollarSign className="mr-2 h-4 w-4"/>Revenue</Button>}
       </div>
-      <Button variant="outline" onClick={()=>setTutorial(true)}><HelpCircle className="mr-2 h-4 w-4"/>Learn how to use Billing</Button>
+      <Button variant="outline" onClick={startTutorial}><HelpCircle className="mr-2 h-4 w-4"/>Learn How to Use Billing</Button>
     </div>
 
     {section!=='revenue' && <Card className="p-4" data-tour="search">
@@ -252,9 +412,10 @@ export function BillingWorkspace() {
       </div>}
     </Card>}
 
-    {section==='revenue' ? <RevenueTab clients={clients} cycles={cycles}/>
+    {section==='revenue' ? <RevenueTab clients={clients} cycles={cycles} viewOverride={practice?practiceRevenueView:undefined} onViewChange={practice?setPracticeRevenueView:undefined}/>
     : section==='deadlines' ? <>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" data-tour="filters">
+
         <Button data-tour="filter-all" variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All active billing cycles ({eligible.length})</Button>
         <Button data-tour="filter-attention" onClick={()=>setFilter('attention')} className={filter==='attention'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs attention ({attentionCount})</Button>
         <button data-tour="filter-extensions" onClick={()=>setFilter('extensions')} className={`inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 ${filter==='extensions'?'bg-amber-600 text-white hover:bg-amber-700':'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50'}`}>Upcoming 180-day extensions ({extensionClients.length})</button>
@@ -277,8 +438,9 @@ export function BillingWorkspace() {
         const allResolved=all.length>0&&all.every(isCycleResolved);
         const level=normalizeLevel(c.level_of_need);
         return <Card key={c.id} className={`overflow-hidden ${atRisk?'border-red-400':''}`}>
-        <div className="flex items-center gap-2 pr-4">
-          <button className="flex flex-1 items-center gap-3 p-4 text-left hover:bg-slate-50" data-tour={i===0?'client-row':undefined} onClick={()=>setOpen(open===c.id?null:c.id)}>
+        <div className="flex items-center gap-2 pr-4" data-tour={i===0?'client-row':undefined}>
+          <button className="flex flex-1 items-center gap-3 p-4 text-left hover:bg-slate-50" onClick={()=>setOpen(open===c.id?null:c.id)}>
+
             {open===c.id?<ChevronDown/>:<ChevronRight/>}
             <div className="flex-1">
               <span className="flex items-center gap-2"><b>{c.first_name} {c.last_name}</b><InfoHint text={HOW_TO_READ}/></span>
@@ -291,7 +453,7 @@ export function BillingWorkspace() {
           </button>
           <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={i===0}/>
         </div>
-        {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={updateCycle} tour={i===0}/>}
+        {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={cycleWriter} tour={i===0}/>}
       </Card>})}<Pager page={page} setPage={setPage} total={visibleClients.length} label="clients"/></div>}
 
       {filter==='attention' && lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
@@ -305,7 +467,7 @@ export function BillingWorkspace() {
           <h2 className="flex items-center gap-2 font-semibold text-indigo-900"><Pencil className="h-4 w-4"/>Edit mode — add or set up client billing</h2>
           <p className="mt-1 text-sm text-indigo-900/70">Everything on this screen is editable and saves as you go. Partial information is kept without creating overdue warnings.</p>
         </div>
-        <Button data-tour="add-client" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>addClient().then(id=>{setSetupReason('all');setNewRowIds(x=>[id,...x]);toast.success('New client row added at the top.');}).catch(e=>toast.error(e.message))}><Plus className="mr-2 h-4 w-4"/>Add client row</Button>
+        <Button data-tour="add-client" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>clientAdder().then(id=>{setSetupReason('all');setNewRowIds(x=>[id,...x]);toast.success(practice?'Practice row added at the top.':'New client row added at the top.');}).catch(e=>toast.error(e.message))}><Plus className="mr-2 h-4 w-4"/>Add client row</Button>
       </div>
 
       <div className="flex flex-wrap gap-2" data-tour="stage-setup">

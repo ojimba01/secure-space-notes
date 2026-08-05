@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -91,12 +91,22 @@ function groupByMonth(items: RecoveryItem[]): MonthGroup[] {
     });
 }
 
-export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycles: BillingCycle[] }) {
+export function RevenueTab({ clients, cycles, viewOverride, onViewChange }: {
+  clients: BillingClient[];
+  cycles: BillingCycle[];
+  /** The Billing tutorial drives the view so it can restore a practice step. */
+  viewOverride?: 'projection' | 'recovery';
+  onViewChange?: (view: 'projection' | 'recovery') => void;
+}) {
   const today = todayAgency();
   const months = useMemo(() => monthWindow(today), [today]);
-  const [view, setView] = useState<'projection' | 'recovery'>('projection');
+  const [viewState, setViewState] = useState<'projection' | 'recovery'>('projection');
+  const view = viewState;
+  const setView = (v: 'projection' | 'recovery') => { setViewState(v); onViewChange?.(v); };
+  useEffect(() => { if (viewOverride) setViewState(viewOverride); }, [viewOverride]);
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
   const [detail, setDetail] = useState<{ title: string; clientName: string; tone: string; items: RecoveryItem[] } | null>(null);
+
 
 
   const toggle = (set: Set<string>, apply: (next: Set<string>) => void, key: string) => {
@@ -333,7 +343,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
 
   }
 
-  return <div className="space-y-4">
+  return <div className="space-y-4" data-tour="revenue-section">
     <Card className="p-4">
       <h2 className="font-semibold">Next {REVENUE_MONTHS} months revenue</h2>
       <p className="mt-1 text-sm text-muted-foreground">
@@ -344,6 +354,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
     </Card>
 
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
       <Card className="p-4">
         <div className="text-sm text-muted-foreground">Potential 6 month revenue</div>
         <div className="mt-1 text-2xl font-bold">{rangeLabel}</div>
@@ -400,10 +411,11 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
     </Card>
 
     <div className="flex flex-wrap gap-3">
-      <Button onClick={() => setView('recovery')} className="bg-blue-600 text-white shadow-sm hover:bg-blue-700">
-        Analyze lost / pending income
+      <Button data-tour="analyze-income" onClick={() => setView('recovery')} className="bg-blue-600 text-white shadow-sm hover:bg-blue-700">
+        Analyze Lost and Pending Income
       </Button>
       <Button variant="outline" disabled>Historical income (coming soon)</Button>
     </div>
+
   </div>;
 }
