@@ -154,6 +154,10 @@ export function BillingWorkspace() {
       .sort((a,b)=>nearestDeadline(a)-nearestDeadline(b)),
   [eligible,query,cycleByClient,visibleCycles,filter,phaseTab]);
 
+  const [page,setPage]=useState(0);
+  useEffect(()=>{setPage(0);},[filter,phaseTab,query]);
+  const pagedClients=visibleClients.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
+
   const searchResults = query.trim() ? clients.filter(c=>matches(c,query)).slice(0,8) : [];
 
   const runDuplicateCheck=(id:string)=>{
