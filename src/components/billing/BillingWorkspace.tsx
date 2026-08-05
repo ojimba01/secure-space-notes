@@ -247,22 +247,18 @@ export function BillingWorkspace() {
           <h2 className="flex items-center gap-2 font-semibold text-indigo-900"><Pencil className="h-4 w-4"/>Edit mode — add or set up client billing</h2>
           <p className="mt-1 text-sm text-indigo-900/70">Everything on this screen is editable and saves as you go. Partial information is kept without creating overdue warnings.</p>
         </div>
-        <Button data-tour="add-client" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>addClient().then(id=>{setStage('setup');setSetupReason('all');setNewRowIds(x=>[id,...x]);toast.success('New client row added at the top.');}).catch(e=>toast.error(e.message))}><Plus className="mr-2 h-4 w-4"/>Add client row</Button>
+        <Button data-tour="add-client" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>addClient().then(id=>{setSetupReason('all');setNewRowIds(x=>[id,...x]);toast.success('New client row added at the top.');}).catch(e=>toast.error(e.message))}><Plus className="mr-2 h-4 w-4"/>Add client row</Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button data-tour="stage-setup" onClick={()=>{setStage('setup');setSetupReason('all');}} className={stage==='setup'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs set-up ({setup.length})</Button>
-        <Button variant={stage==='150'?'default':'outline'} className={stage!=='150'?'bg-white':''} onClick={()=>setStage('150')}>150-day authorization ({eligible.filter(c=>!c.auth_180_approved).length})</Button>
-        <Button variant={stage==='180'?'default':'outline'} className={stage!=='180'?'bg-white':''} onClick={()=>setStage('180')}>180-day extension ({eligible.filter(c=>c.auth_180_approved).length})</Button>
+      <div className="flex flex-wrap gap-2" data-tour="stage-setup">
+        <Button size="sm" variant={setupReason==='all'?'secondary':'outline'} className={setupReason!=='all'?'bg-white':''} onClick={()=>setSetupReason('all')}>All clients ({clients.filter(c=>c.status==='active').length})</Button>
+        <Button size="sm" onClick={()=>setSetupReason('hsp')} className={setupReason==='hsp'?'bg-amber-600 text-white hover:bg-amber-700':'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50'}>HSP not submitted ({countBlocked('hsp')})</Button>
+        <Button size="sm" onClick={()=>setSetupReason('start')} className={setupReason==='start'?'bg-orange-600 text-white hover:bg-orange-700':'border border-orange-300 bg-white text-orange-800 hover:bg-orange-50'}>Missing HSP approval start date ({countBlocked('start')})</Button>
+        <Button size="sm" onClick={()=>setSetupReason('lon')} className={setupReason==='lon'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Missing level of need ({countBlocked('lon')})</Button>
       </div>
 
-      {stage==='setup' && <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant={setupReason==='all'?'secondary':'outline'} className={setupReason!=='all'?'bg-white':''} onClick={()=>setSetupReason('all')}>All ({setup.length})</Button>
-        <Button size="sm" variant={setupReason==='hsp'?'secondary':'outline'} className={setupReason!=='hsp'?'bg-white':''} onClick={()=>setSetupReason('hsp')}>HSP not submitted ({setup.filter(c=>blocker(c)==='HSP not submitted').length})</Button>
-        <Button size="sm" variant={setupReason==='info'?'secondary':'outline'} className={setupReason!=='info'?'bg-white':''} onClick={()=>setSetupReason('info')}>Missing level of need or HSP approval start date ({setup.filter(c=>blocker(c)!=='HSP not submitted').length})</Button>
-      </div>}
+      <ClientGrid clients={setupRows.filter(c=>matches(c,query))} save={saveClient} openProfile={setProfileId} onDelete={setDeleteTarget}/>
 
-      <ClientGrid clients={(stage==='setup'?setupRows:eligible.filter(c=>stage==='180'?c.auth_180_approved:!c.auth_180_approved)).filter(c=>matches(c,query))} save={saveClient} showBlocker={stage==='setup'} openProfile={setProfileId} onDelete={setDeleteTarget}/>
 
       {deletedClients.length>0 && <Card className="p-4">
         <h3 className="font-semibold">Recently deleted</h3>
