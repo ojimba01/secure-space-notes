@@ -270,7 +270,7 @@ export function BillingWorkspace() {
 
       {filter==='extensions' ? <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>
       : visibleClients.length===0 ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No billable clients match that search':'Nothing needs attention right now'}</h3><p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'A client appears here when a finished cycle is within four weeks of its final submission deadline.'}</p></Card>
-      : <div className="space-y-3">{visibleClients.map((c,i)=>{
+      : <div className="space-y-3"><Pager page={page} setPage={setPage} total={visibleClients.length} label="clients"/>{pagedClients.map((c,i)=>{
         const all=cycleByClient.get(c.id)??[];
         const cc=all.filter(x=>filter==='all'||attention(x));
         const atRisk=all.filter(attention).length;
