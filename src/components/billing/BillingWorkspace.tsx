@@ -117,9 +117,12 @@ export function BillingWorkspace() {
   const lonAll=useMemo(()=>clients.filter(c=>c.status==='active'&&c.hsp_submitted&&!!c.auth_150_start&&!normalizeLevel(c.level_of_need)),[clients]);
   const lonPending=useMemo(()=>lonAll.filter(c=>matches(c,query)),[lonAll,query]);
   // Needs attention counts clients: those with a cycle near its final deadline
-  // plus everyone still waiting on a level of need.
+  // plus everyone still waiting on a level of need (counted once).
   const attentionClients=useMemo(()=>eligible.filter(c=>(cycleByClient.get(c.id)??[]).some(attention)),[eligible,cycleByClient]);
-  const attentionCount=attentionClients.length+lonAll.length;
+  const attentionCount=useMemo(()=>{
+    const ids=new Set(attentionClients.map(c=>c.id));
+    return ids.size+lonAll.filter(c=>!ids.has(c.id)).length;
+  },[attentionClients,lonAll]);
 
 
   // Nearest unresolved final deadline, used to order the full cycle list.
@@ -129,14 +132,11 @@ export function BillingWorkspace() {
     return Math.min(...list.map(x=>{const d=daysToFinalDeadline(x); return d<0?d+100000:d;}));
   };
   const visibleCycles=cycles.filter(c=>filter!=='attention'||attention(c));
-  const visibleClients=useMemo(()=>{
-    const withCycles=eligible
+  const visibleClients=useMemo(()=>eligible
       .filter(c=>filter!=='all'||phaseTab==='both'||(phaseTab==='180'?!!c.auth_180_approved:!c.auth_180_approved))
-      .filter(c=>matches(c,query)&&(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)));
-    // Clients awaiting a level of need sit in the list like everyone else.
-    const awaiting=filter==='all'&&phaseTab!=='180'?lonPending:[];
-    return [...withCycles,...awaiting].sort((a,b)=>nearestDeadline(a)-nearestDeadline(b));
-  },[eligible,query,cycleByClient,visibleCycles,filter,phaseTab,lonPending]);
+      .filter(c=>matches(c,query)&&(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)))
+      .sort((a,b)=>nearestDeadline(a)-nearestDeadline(b)),
+  [eligible,query,cycleByClient,visibleCycles,filter,phaseTab]);
 
   const searchResults = query.trim() ? clients.filter(c=>matches(c,query)).slice(0,8) : [];
 
