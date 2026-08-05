@@ -212,11 +212,12 @@ export function BillingWorkspace() {
       <div className="flex rounded-lg border bg-white p-1" data-tour="sections">
         <Button data-tour="section-deadlines" variant={section==='deadlines'?'default':'ghost'} onClick={()=>setSection('deadlines')}>Current billing deadlines</Button>
         <Button data-tour="section-setup" variant={section==='setup'?'default':'ghost'} className={section==='setup'?'bg-indigo-600 text-white hover:bg-indigo-700':''} onClick={()=>setSection('setup')}><Pencil className="mr-2 h-4 w-4"/>Add or set up client billing</Button>
+        {isSuperadmin && <Button variant={section==='revenue'?'default':'ghost'} className={section==='revenue'?'bg-emerald-600 text-white hover:bg-emerald-700':''} onClick={()=>setSection('revenue')}><DollarSign className="mr-2 h-4 w-4"/>Revenue</Button>}
       </div>
       <Button variant="outline" onClick={()=>setTutorial(true)}><HelpCircle className="mr-2 h-4 w-4"/>Learn how to use Billing</Button>
     </div>
 
-    <Card className="p-4" data-tour="search">
+    {section!=='revenue' && <Card className="p-4" data-tour="search">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input className="pl-9" placeholder="Search clients by name, member ID, or MCO…" value={query} onChange={e=>setQuery(e.target.value)} />
@@ -228,19 +229,20 @@ export function BillingWorkspace() {
           <span className="flex items-center gap-1 text-xs font-medium text-primary"><UserRound className="h-3.5 w-3.5"/>View profile</span>
         </button>)}
       </div>}
-    </Card>
+    </Card>}
 
-    {section==='deadlines' ? <>
+    {section==='revenue' ? <RevenueTab clients={clients} cycles={cycles}/>
+    : section==='deadlines' ? <>
       <div className="flex flex-wrap gap-2">
-        <Button data-tour="filter-all" variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All active billing cycles ({cycles.length})</Button>
+        <Button data-tour="filter-all" variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All active billing cycles ({eligible.length+lonAll.length})</Button>
         <Button data-tour="filter-attention" onClick={()=>setFilter('attention')} className={filter==='attention'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs attention ({attentionCount})</Button>
         <button data-tour="filter-extensions" onClick={()=>setFilter('extensions')} className={`inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 ${filter==='extensions'?'bg-amber-600 text-white hover:bg-amber-700':'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50'}`}>Upcoming 180-day extensions ({extensionClients.length})</button>
       </div>
 
 
       {filter==='all' && <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant={phaseTab==='both'?'secondary':'outline'} className={`h-8 text-sm ${phaseTab!=='both'?'bg-white':''}`} onClick={()=>setPhaseTab('both')}>All authorizations ({eligible.length})</Button>
-        <Button size="sm" variant={phaseTab==='150'?'default':'outline'} className={`h-8 text-sm ${phaseTab!=='150'?'bg-white':''}`} onClick={()=>setPhaseTab('150')}>150-day authorization ({eligible.filter(c=>!c.auth_180_approved).length})</Button>
+        <Button size="sm" variant={phaseTab==='both'?'secondary':'outline'} className={`h-8 text-sm ${phaseTab!=='both'?'bg-white':''}`} onClick={()=>setPhaseTab('both')}>All authorizations ({eligible.length+lonAll.length})</Button>
+        <Button size="sm" variant={phaseTab==='150'?'default':'outline'} className={`h-8 text-sm ${phaseTab!=='150'?'bg-white':''}`} onClick={()=>setPhaseTab('150')}>150-day authorization ({eligible.filter(c=>!c.auth_180_approved).length+lonAll.length})</Button>
         <Button size="sm" variant={phaseTab==='180'?'default':'outline'} className={`h-8 text-sm ${phaseTab!=='180'?'bg-white':''}`} onClick={()=>setPhaseTab('180')}>180-day extension ({eligible.filter(c=>c.auth_180_approved).length})</Button>
       </div>}
 
@@ -252,17 +254,18 @@ export function BillingWorkspace() {
         const cc=all.filter(x=>filter==='all'||attention(x));
         const atRisk=all.filter(attention).length;
         const allResolved=all.length>0&&all.every(isCycleResolved);
+        const level=normalizeLevel(c.level_of_need);
         return <Card key={c.id} className={`overflow-hidden ${atRisk?'border-red-400':''}`}>
         <div className="flex items-center gap-2 pr-4">
           <button className="flex flex-1 items-center gap-3 p-4 text-left hover:bg-slate-50" data-tour={i===0?'client-row':undefined} onClick={()=>setOpen(open===c.id?null:c.id)}>
             {open===c.id?<ChevronDown/>:<ChevronRight/>}
             <div className="flex-1">
               <span className="flex items-center gap-2"><b>{c.first_name} {c.last_name}</b><InfoHint text={HOW_TO_READ}/></span>
-              <div className="text-sm text-muted-foreground">{normalizeLevel(c.level_of_need)} level · {c.auth_180_approved?'180-day extension':'150-day authorization'}</div>
+              <div className="text-sm text-muted-foreground">{level?`${level} level`:'Level of need needed'} · {c.auth_180_approved?'180-day extension':'150-day authorization'}</div>
             </div>
             <div className="text-right">
               <b>{cc.length} cycle{cc.length===1?'':'s'}</b>
-              <div className={`text-sm ${atRisk?'font-medium text-red-600':allResolved?'font-medium text-green-700':'text-muted-foreground'}`}>{atRisk?`${atRisk} cycle(s) near final deadline`:allResolved?'All cycles approved or closed':'Open to review'}</div>
+              <div className={`text-sm ${atRisk?'font-medium text-red-600':allResolved?'font-medium text-green-700':'text-muted-foreground'}`}>{atRisk?`${atRisk} cycle(s) near final deadline`:!level?'Add a level of need to create cycles':allResolved?'All cycles approved or closed':'Open to review'}</div>
             </div>
           </button>
           <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={i===0}/>
@@ -270,7 +273,8 @@ export function BillingWorkspace() {
         {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={updateCycle} tour={i===0}/>}
       </Card>})}</div>}
 
-      {filter!=='extensions' && lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
+      {filter==='attention' && lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
+
 
 
 
