@@ -66,6 +66,7 @@ export type Database = {
       }
       billing_cycles: {
         Row: {
+          approval_state: string | null
           billed_amount: number | null
           billing_status: string
           claim_number: string | null
@@ -74,6 +75,7 @@ export type Database = {
           cycle_end: string
           cycle_number: number
           cycle_start: string
+          final_deadline: string | null
           id: string
           is_active: boolean
           is_auto_generated: boolean
@@ -86,6 +88,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approval_state?: string | null
           billed_amount?: number | null
           billing_status?: string
           claim_number?: string | null
@@ -94,6 +97,7 @@ export type Database = {
           cycle_end: string
           cycle_number: number
           cycle_start: string
+          final_deadline?: string | null
           id?: string
           is_active?: boolean
           is_auto_generated?: boolean
@@ -106,6 +110,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approval_state?: string | null
           billed_amount?: number | null
           billing_status?: string
           claim_number?: string | null
@@ -114,6 +119,7 @@ export type Database = {
           cycle_end?: string
           cycle_number?: number
           cycle_start?: string
+          final_deadline?: string | null
           id?: string
           is_active?: boolean
           is_auto_generated?: boolean
