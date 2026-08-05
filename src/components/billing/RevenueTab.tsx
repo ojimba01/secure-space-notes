@@ -192,20 +192,21 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
   if (view === 'recovery') {
     const sections = [
       {
-        id: 'lost',
-        title: 'Lost income',
-        empty: 'No cycles have passed their final deadline.',
-        months: recovery.lostMonths,
-        tone: 'text-red-700',
-      },
-      {
         id: 'claimable',
         title: 'Pending income (still claimable)',
         empty: 'No ended cycles are waiting on a claim.',
         months: recovery.claimableMonths,
         tone: 'text-amber-700',
       },
+      {
+        id: 'lost',
+        title: 'Lost income',
+        empty: 'No cycles have passed their final deadline.',
+        months: recovery.lostMonths,
+        tone: 'text-red-700',
+      },
     ];
+
 
     return <div className="space-y-4">
       <Card className="p-4">
