@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ComplianceEscalations } from '@/components/ComplianceEscalations';
+import { TutorialProvider } from '@/components/TutorialProvider';
+import { Sidebar } from '@/components/Sidebar';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
