@@ -141,12 +141,16 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
 
   // Place the box in the largest free gap around the highlight, always fully
   // inside the viewport so Continue is reachable without scrolling.
+  // Place the box in the largest free gap around the highlight, always fully
+  // inside the viewport so Continue is reachable. When the copy is taller than
+  // the gap, the box caps its height and scrolls internally instead of
+  // covering the area it is pointing at.
   const cardStyle: React.CSSProperties = (() => {
     if (!rect) return { top: '50%', left: '50%', transform: 'translate(-50%,-50%)' };
     const gap = 16;
     const vw = window.innerWidth, vh = window.innerHeight;
     const clampLeft = (l: number) => Math.min(Math.max(gap, l), Math.max(gap, vw - CARD_WIDTH - gap));
-    const clampTop = (t: number) => Math.min(Math.max(gap, t), Math.max(gap, vh - cardHeight - gap));
+    const clampTop = (t: number, h: number) => Math.min(Math.max(gap, t), Math.max(gap, vh - h - gap));
 
     const roomBelow = vh - rect.bottom - gap * 2;
     const roomAbove = rect.top - gap * 2;
@@ -155,10 +159,16 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
 
     if (roomBelow >= cardHeight) return { top: rect.bottom + gap, left: clampLeft(rect.left) };
     if (roomAbove >= cardHeight) return { top: rect.top - cardHeight - gap, left: clampLeft(rect.left) };
-    if (roomRight >= CARD_WIDTH) return { top: clampTop(rect.top), left: rect.right + gap };
-    if (roomLeft >= CARD_WIDTH) return { top: clampTop(rect.top), left: rect.left - CARD_WIDTH - gap };
-    // Nothing fits beside the highlight: sit on whichever side has more space.
-    return { top: clampTop(roomBelow >= roomAbove ? vh - cardHeight - gap : gap), left: clampLeft(rect.left) };
+    if (roomRight >= CARD_WIDTH) return { top: clampTop(rect.top, cardHeight), left: rect.right + gap, maxHeight: vh - gap * 2 };
+    if (roomLeft >= CARD_WIDTH) return { top: clampTop(rect.top, cardHeight), left: rect.left - CARD_WIDTH - gap, maxHeight: vh - gap * 2 };
+    // Nothing fits whole: use the taller vertical gap and scroll inside the box.
+    const useBelow = roomBelow >= roomAbove;
+    const avail = Math.max(160, useBelow ? roomBelow : roomAbove);
+    return {
+      top: useBelow ? rect.bottom + gap : Math.max(gap, rect.top - avail - gap),
+      left: clampLeft(rect.left),
+      maxHeight: avail,
+    };
   })();
 
   const waiting = step.done !== undefined && phase === 'main';
@@ -173,7 +183,7 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
           style={{ top: rect.top - 8, left: rect.left - 8, width: rect.width + 16, height: rect.height + 16, boxShadow: '0 0 0 9999px rgba(2,6,23,0.55)' }}
         />
       )}
-      <Card ref={cardRef} className="pointer-events-auto absolute max-h-[calc(100vh-32px)] w-[min(420px,calc(100vw-32px))] overflow-y-auto p-5 shadow-2xl" style={cardStyle}>
+      <Card ref={cardRef} className="pointer-events-auto absolute w-[min(420px,calc(100vw-32px))] overflow-y-auto p-5 shadow-2xl" style={cardStyle}>
         <div className="flex items-start justify-between gap-2">
           <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">Billing tutorial · Step {n + 1} of {steps.length}</span>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmClose(true)}><X className="h-4 w-4" /></Button>
