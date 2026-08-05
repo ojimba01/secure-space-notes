@@ -97,7 +97,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
 
     <div className="grid gap-3 sm:grid-cols-3">
       <Card className="p-4">
-        <div className="text-sm text-muted-foreground">Potential revenue</div>
+        <div className="text-sm text-muted-foreground">Potential 6 month revenue</div>
         <div className="mt-1 text-2xl font-bold">{rangeLabel}</div>
         <div className="mt-1 text-xs text-muted-foreground">Every active cycle ending in the window.</div>
       </Card>
