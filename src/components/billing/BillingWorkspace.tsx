@@ -361,7 +361,7 @@ export function BillingWorkspace() {
   return <div className="space-y-4">
     {tutorial && <BillingTutorial steps={tutorialSteps} completionBody={completionBody} onClose={stopTutorial} onFinish={finishTutorial} />}
 
-    <ClientProfileDialog clientId={profileId} onClose={()=>setProfileId(null)} />
+    <ClientProfileDialog clientId={practice?null:profileId} onClose={()=>setProfileId(null)} />
 
     <Dialog open={!!deleteTarget} onOpenChange={(o)=>!o&&setDeleteTarget(null)}>
       <DialogContent>
