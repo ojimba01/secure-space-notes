@@ -138,7 +138,21 @@ export const ComplianceEscalations: React.FC = () => {
                 </Button>
               </div>
             ))}
+            {pageCount > 1 && (
+              <div className="flex items-center justify-between pt-1">
+                <Button size="sm" variant="outline" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Showing {safePage * PAGE_SIZE + 1}–{Math.min(emergencies.length, safePage * PAGE_SIZE + PAGE_SIZE)} of {emergencies.length}
+                </span>
+                <Button size="sm" variant="outline" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)}>
+                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
           </CardContent>
+          )}
         </Card>
       )}
 
