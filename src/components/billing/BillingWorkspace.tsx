@@ -99,8 +99,8 @@ export function BillingWorkspace() {
       <Card className="p-5">
         <h2 className="font-semibold">What am I looking at?</h2>
         <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-          <li><b className="text-red-600">Needs attention</b> — only the cycles you must act on now: ready to bill, due within 48 hours, or past due and not yet submitted.</li>
-          <li><b className="text-foreground">All clients and cycles</b> — every 30-day cycle for every billable client, including future and already-submitted cycles. Use it to review history, not for daily work.</li>
+          <li><b className="text-red-600">Needs attention</b> — cycles that have already ended, are not yet approved or closed, and whose final submission deadline is {DEADLINE_WARNING_DAYS} days or less away. The final deadline is 6 months after the cycle end date, so these are the claims you can still lose money on.</li>
+          <li><b className="text-foreground">All clients and cycles</b> — every 30-day cycle for every billable client, including future cycles and cycles already approved or closed. Use it to review history, not for daily work.</li>
         </ul>
         <p className="mt-2 text-sm text-muted-foreground">Clients with missing information never appear here. They stay in “Add or update clients” until their billing dates can be calculated.</p>
       </Card>
@@ -108,18 +108,27 @@ export function BillingWorkspace() {
         <Button data-tour="filter-attention" onClick={()=>setFilter('attention')} className={filter==='attention'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs attention ({attentionCount})</Button>
         <Button data-tour="filter-all" variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All clients and cycles ({cycles.length})</Button>
       </div>
-      {visibleClients.length===0 ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No billable clients match that search':'Nothing needs attention right now'}</h3><p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'Billing will place a client here when a cycle is due soon or ready to submit.'}</p></Card>
-      : <div className="space-y-3">{visibleClients.map((c,i)=>{const cc=(cycleByClient.get(c.id)??[]).filter(x=>filter==='all'||attention(x));return <Card key={c.id} className="overflow-hidden" data-tour={i===0?'client-row':undefined}>
+      {visibleClients.length===0 ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No billable clients match that search':'Nothing needs attention right now'}</h3><p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'A client appears here when a finished cycle is within two weeks of its final submission deadline.'}</p></Card>
+      : <div className="space-y-3">{visibleClients.map((c,i)=>{
+        const all=cycleByClient.get(c.id)??[];
+        const cc=all.filter(x=>filter==='all'||attention(x));
+        const atRisk=all.filter(attention).length;
+        const allResolved=all.length>0&&all.every(isCycleResolved);
+        return <Card key={c.id} className={`overflow-hidden ${atRisk?'border-red-400':''}`} data-tour={i===0?'client-row':undefined}>
         <div className="flex items-center gap-2 pr-4">
           <button className="flex flex-1 items-center gap-3 p-4 text-left hover:bg-slate-50" onClick={()=>setOpen(open===c.id?null:c.id)}>
             {open===c.id?<ChevronDown/>:<ChevronRight/>}
             <div className="flex-1"><b>{c.first_name} {c.last_name}</b><div className="text-sm text-muted-foreground">{c.level_of_need?.replace(' Level','')} level · {c.auth_180_approved?'180-day extension':'150-day authorization'}</div></div>
-            <div className="text-right"><b>{cc.length} cycle{cc.length===1?'':'s'}</b><div className="text-sm text-muted-foreground">Open to review</div></div>
+            <div className="text-right">
+              <b>{cc.length} cycle{cc.length===1?'':'s'}</b>
+              <div className={`text-sm ${atRisk?'font-medium text-red-600':allResolved?'font-medium text-green-700':'text-muted-foreground'}`}>{atRisk?`${atRisk} near final deadline`:allResolved?'All cycles approved or closed':'Open to review'}</div>
+            </div>
           </button>
           <Button variant="outline" size="sm" data-tour={i===0?'profile-btn':undefined} onClick={()=>setProfileId(c.id)}><UserRound className="mr-2 h-4 w-4"/>Client profile</Button>
         </div>
-        {open===c.id&&<CycleGrid cycles={cycleByClient.get(c.id)??[]} updateCycle={updateCycle} tour={i===0}/>}
+        {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={updateCycle} tour={i===0}/>}
       </Card>})}</div>}
+
     </> : <>
       <Card className="p-5"><h2 className="font-semibold">Add information as you receive it</h2><p className="mt-1 text-sm text-muted-foreground">Needs set-up is separate because these clients do not yet have enough information to calculate billing. Partial information is saved without creating overdue warnings.</p></Card>
       <div className="flex flex-wrap gap-2">
