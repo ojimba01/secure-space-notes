@@ -16,6 +16,15 @@ export const PAYMENT_STATUSES = ['Unpaid', 'Partial', 'Paid'] as const;
 export type BillingStatus = (typeof BILLING_STATUSES)[number];
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
+// Cycle-level claim resolution. A cycle is finished once it is Approved or Closed.
+export const APPROVAL_STATES = ['Approved', 'Closed', 'Denied (will resubmit)'] as const;
+export type ApprovalState = (typeof APPROVAL_STATES)[number];
+
+// Claims must be submitted within 6 months of the cycle end date.
+export const FINAL_DEADLINE_MONTHS = 6;
+// A cycle enters "needs attention" this many days before its final deadline.
+export const DEADLINE_WARNING_DAYS = 14;
+
 export interface BillingCycle {
   id: string;
   client_id: string;
@@ -32,9 +41,13 @@ export interface BillingCycle {
   paid_date: string | null;
   is_auto_generated: boolean;
   notes: string | null;
+  approval_state?: ApprovalState | null;
+  final_deadline?: string | null;
+  is_active?: boolean;
   created_at?: string;
   updated_at?: string;
 }
+
 
 // ---- date helpers ---------------------------------------------------
 export function toDate(s: string): Date {
