@@ -230,8 +230,12 @@ export function BillingWorkspace() {
     const match=findPossibleDuplicates(row,clients)[0];
     if(match) setDuplicate({ row, match });
   };
-  const saveClient=(id:string,p:Partial<BillingClient>)=>updateClient(id,p)
-    .then(()=>{toast.success('Saved. Billing has been updated.'); runDuplicateCheck(id);})
+  // While the tutorial runs, every writer points at practice data only.
+  const clientWriter = practice ? practiceUpdateClient : updateClient;
+  const cycleWriter = practice ? practiceUpdateCycle : updateRealCycle;
+  const clientAdder = practice ? practiceAddClient : addRealClient;
+  const saveClient=(id:string,p:Partial<BillingClient>)=>clientWriter(id,p)
+    .then(()=>{toast.success(practice?'Saved to practice data only.':'Saved. Billing has been updated.'); if(!practice) runDuplicateCheck(id);})
     .catch(e=>toast.error(e.message));
 
   const reasonOf: Record<'hsp'|'start'|'lon', Blocker> = { hsp:'HSP not submitted', start:'Missing HSP approval start date', lon:'Missing level of need' };
@@ -246,26 +250,117 @@ export function BillingWorkspace() {
   },[clients,setupReason,newRowIds]);
   const countBlocked=(k:'hsp'|'start'|'lon')=>setup.filter(c=>blocker(c)===reasonOf[k]).length;
 
-  const tutorialSteps: BillingTutorialStep[] = useMemo(()=>[
-    { title:'Understand the two Billing sections', body:'Billing has two main sections. Current billing deadlines shows the billing work that needs your attention. Add or set up client billing is where you enter or correct the information used to create billing cycles.', cta:'Press Current billing deadlines to continue.', selector:'[data-tour="sections"]', requireClick:true, before:()=>{setSection('deadlines');setQuery('');} },
-    { title:'Find a client', body:'Use the search box to find a specific client. You can search using the client’s name, member ID, or MCO. Only matching clients will appear below the search box.\n\nPress the search box and enter a client’s name, then press Continue.', cta:'Continue', selector:'[data-tour="search"]' },
-    { title:'View all active billing cycles', body:'All active billing cycles shows every active 30-day cycle in the system, ordered so the cycle with the closest final deadline appears first.', cta:'Press All active billing cycles to continue.', selector:'[data-tour="filter-all"]', requireClick:true, before:()=>{setSection('deadlines');setQuery('');} },
-    { title:'Review Needs attention', body:'Needs attention shows clients with billing work that requires action. It includes clients whose 30-day cycle end dates are now four weeks away from the final deadline for submitting claims from the full authorization period.\n\nThe number in parentheses shows how many clients currently need attention. Below it, Please update LON status lists clients who only need a level of need before their billing cycles can be created.', cta:'Press Needs attention to continue.', selector:'[data-tour="filter-attention"]', requireClick:true },
-    { title:'Watch for upcoming extensions', body:'Upcoming extensions lists clients whose 150-day authorization ends within 30 days. Confirm the 180-day extension and enter its authorization number so billing continues without a gap.', cta:'Press Upcoming extensions to continue.', selector:'[data-tour="filter-extensions"]', requireClick:true },
-    { title:'Open a client’s billing cycles', body:'Press a client’s row to see all of that client’s 30-day billing cycles.\n\nThe first five cycles belong to the client’s 150-day authorization. If a 180-day extension is approved, six additional 30-day cycles will appear.', cta:'Press the highlighted client row to continue.', selector:'[data-tour="client-row"]', requireClick:true, before:()=>{setFilter('all');setOpen(null);} },
-    { title:'Update a billing cycle', body:'Use the billing-cycle table to record the claim status, payment status, and claim number.\n\nUpdate the claim status when a claim is submitted. Add the claim number when one is available. Update the payment status when the claim is paid or denied. Your changes save automatically.', cta:'Press the highlighted claim-status field, then select Submitted to continue.', selector:'[data-tour="claim-status"]', requireClick:true, before:()=>{setFilter('all');} },
+  const practiceFullName=`${PRACTICE_NAME.first} ${PRACTICE_NAME.last}`;
+  const resetPracticeCycles=()=>setPractice(p=>p?{...p,cycles:p.cycles.map(c=>({...c,billing_status:'Not Billed' as const}))}:p);
+  const removePracticeRows=()=>setPractice(p=>p?{...p,clients:p.clients.filter(c=>c.id===PRACTICE_CLIENT_ID)}:p);
 
-    { title:'Open Add or set up client billing', body:'Use Add or set up client billing to add a client or correct information used to create billing cycles. This section is an editing space, so it looks different from Current billing deadlines.', cta:'Press Add or set up client billing to continue.', selector:'[data-tour="section-setup"]', requireClick:true },
-    { title:'Review clients who need setup', body:'Use the filter buttons to see clients whose billing cycles cannot be created yet: the HSP has not been submitted, the HSP approval start date is missing, or the level of need is missing.', cta:'Press HSP not submitted to continue.', selector:'[data-tour="stage-setup"]', requireClick:true, before:()=>{setSection('setup');} },
-    { title:'Add a client', body:'Use Add client row to create a blank row at the top of the table. Enter the information you have, then press Save to open the client profile and finish filling it out.', cta:'Press Add client row to complete the tutorial.', selector:'[data-tour="add-client"]', requireClick:true, before:()=>{setSection('setup');setSetupReason('all');} },
-  ],[eligible,cycleByClient]);
+  const tutorialSteps: BillingTutorialStep[] = useMemo(()=>{
+    const sectionsList = isSuperadmin
+      ? 'Billing has three main sections.\n\nCurrent Billing Deadlines shows billing work that needs attention.\n\nRevenue shows potential, submitted, pending, collected, and lost income.\n\nAdd or Set Up Client Billing is where you add or correct the information used to create billing cycles.'
+      : 'Billing has two main sections.\n\nCurrent Billing Deadlines shows billing work that needs attention.\n\nAdd or Set Up Client Billing is where you add or correct the information used to create billing cycles.';
 
-  useEffect(()=>{ if(!tutorial) return; document.body.style.overflow='hidden'; return ()=>{document.body.style.overflow='';}; },[tutorial]);
+    const steps: BillingTutorialStep[] = [
+      {
+        title: isSuperadmin ? 'Understand the three Billing sections' : 'Understand the two Billing sections',
+        body: sectionsList,
+        selector:'[data-tour="sections"]',
+        before:()=>{setSection('deadlines');setFilter('attention');setQuery('');setOpen(null);},
+      },
+      {
+        title:'Find a client',
+        body:`Use the search box to find a specific client. You can search using the client’s name, member ID, or MCO. Only matching clients will appear below the search box.\n\nEnter ${practiceFullName} in the search box, then press Continue.`,
+        selector:'[data-tour="search"]',
+        gate: !!query.trim() && !!practiceClient && matches(practiceClient, query),
+        before:()=>{setSection('deadlines');setQuery('');},
+      },
+      {
+        title:'Choose the billing list you need',
+        body:'Use these three buttons to choose which billing list to view.\n\nAll Active Billing Cycles shows every active 30-day billing cycle.\n\nNeeds Attention shows clients whose cycle end dates are four weeks away from the final deadline for submitting claims from the full authorization period.\n\nUpcoming 180-Day Extensions shows clients whose 150-day authorization ends within 30 days.\n\nThe number in parentheses shows how many clients or billing cycles are in each list.',
+        selector:'[data-tour="filters"]',
+        done: filter==='all',
+        hint:'Press All Active Billing Cycles to continue.',
+        before:()=>{setSection('deadlines');setQuery('');setFilter('attention');setOpen(null);},
+      },
+      {
+        title:'Open a client’s billing cycles',
+        body:'Press a client’s row to see all of that client’s 30-day billing cycles.\n\nThe first five cycles belong to the client’s 150-day authorization. Claims from these cycles can be submitted until the final day of the full 150-day authorization period.\n\nIf a 180-day extension is approved, six additional 30-day billing cycles will appear.',
+        selector:'[data-tour="client-row"]',
+        done: open===PRACTICE_CLIENT_ID,
+        hint:'Press the highlighted practice client row to continue.',
+        before:()=>{setSection('deadlines');setFilter('all');setPhaseTab('both');setQuery('');setOpen(null);},
+      },
+      {
+        title:'Update a billing cycle',
+        body:'Use the billing-cycle table to record the claim status, payment status, and claim number.\n\nChange the claim status when a claim is submitted. Enter the claim number when it is available. Change the payment status when the claim is paid or denied. Changes save automatically.',
+        selector:'[data-tour="claim-status"]',
+        done: practiceCycle?.billing_status==='Submitted',
+        hint:'Open the highlighted claim-status dropdown and select Submitted to continue.',
+        before:()=>{setSection('deadlines');setFilter('all');setOpen(PRACTICE_CLIENT_ID);resetPracticeCycles();},
+      },
+    ];
+
+    if (isSuperadmin) {
+      steps.push(
+        {
+          title:'Open Revenue',
+          body:'Use Revenue to review the amount the agency may bill, the amount already submitted, the amount awaiting payment, and the amount collected.\n\nOnly superadmins can view this section.',
+          selector:'[data-tour="sections"]',
+          done: section==='revenue',
+          hint:'Press Revenue to continue.',
+          before:()=>{setSection('deadlines');setPracticeRevenueView('projection');},
+        },
+        {
+          title:'Understand the Revenue section',
+          body:'The Revenue section shows revenue for the current month and the next five months.\n\nPotential 6 Month Revenue is the amount the agency may bill during this period.\n\nSubmitted is the value of claims that have been submitted.\n\nPending is the value of submitted claims for which payment has not been recorded as received.\n\nCollected is the amount recorded as paid.\n\nThe table shows these amounts by month. If a client’s level of need is missing, the system shows a range using both the Low and High billing rates.\n\nUse Analyze Lost and Pending Income to review billing cycles that have ended but were not submitted.',
+          followUp:'Pending Income shows claims that have not been submitted but can still be submitted before the final authorization deadline.\n\nLost Income shows claims that were not submitted before the final authorization deadline and can no longer be billed.',
+          selector:'[data-tour="revenue-section"]',
+          done: practiceRevenueView==='recovery',
+          hint:'Press Analyze Lost and Pending Income to continue.',
+          before:()=>{setSection('revenue');setPracticeRevenueView('projection');},
+        },
+      );
+    }
+
+    steps.push(
+      {
+        title:'Open the client billing setup section',
+        body: isSuperadmin
+          ? 'You have finished reviewing Revenue. Use Add or Set Up Client Billing to add a client or correct the information used to create billing cycles.\n\nYou can save the information you have even when some information is still missing.'
+          : 'You have finished reviewing Current Billing Deadlines. Use Add or Set Up Client Billing to add a client or correct the information used to create billing cycles.\n\nYou can save the information you have even when some information is still missing.',
+        selector:'[data-tour="sections"]',
+        done: section==='setup',
+        hint:'Press Add or Set Up Client Billing to continue.',
+        before:()=>{setSection(isSuperadmin?'revenue':'deadlines');},
+      },
+      {
+        title:'Review the client setup groups',
+        body:'These buttons organize clients by their current place in the billing setup process.\n\nNeeds Setup includes clients whose billing cycles cannot be created because required information or an action is still missing. The available filters explain what is needed, including HSP Not Submitted.\n\nThe 150-Day Authorization group shows clients whose initial authorization information has been completed.\n\nThe 180-Day Extension group shows clients whose extension information has been completed or needs to be reviewed.\n\nThe number in parentheses shows how many clients are in each group.',
+        selector:'[data-tour="stage-setup"]',
+        done: setupReason==='hsp',
+        hint:'Press HSP Not Submitted to continue.',
+        before:()=>{setSection('setup');setSetupReason('all');setQuery('');},
+      },
+      {
+        title:'Add a client',
+        body:'Add Client Row creates a blank row at the top of the table. Enter the information you currently have, then press Save. You can complete the remaining information later.\n\nA partially completed client remains saved in the appropriate setup group. The client must not appear under Current Billing Deadlines until the information required to calculate billing cycles has been entered.\n\nWhen the HSP approval start date and level of need are entered, the system creates the client’s 150-day authorization and five 30-day billing cycles. If a 180-day extension is approved later, the system adds six additional 30-day cycles.',
+        selector:'[data-tour="add-client"]',
+        done: (practice?.clients.length ?? 0) > 1,
+        hint:'Press Add Client Row to complete the tutorial.',
+        before:()=>{setSection('setup');setSetupReason('hsp');setQuery('');removePracticeRows();},
+      },
+    );
+    return steps;
+  },[isSuperadmin,section,filter,setupReason,open,query,practice,practiceClient,practiceCycle,practiceRevenueView]);
+
+  const completionBody = isSuperadmin
+    ? ['You have completed the Billing tutorial.','Begin with Current Billing Deadlines to see which clients require attention. Use Revenue to review billing and payment amounts. Use Add or Set Up Client Billing to add client information or complete missing information.','You can restart the tutorial at any time by pressing Learn How to Use Billing.']
+    : ['You have completed the Billing tutorial.','Begin with Current Billing Deadlines to see which clients require attention. Use Add or Set Up Client Billing to add client information or complete missing information.','You can restart the tutorial at any time by pressing Learn How to Use Billing.'];
 
   if (loading) return <Card className="p-8 text-muted-foreground">Loading billing information…</Card>;
 
   return <div className="space-y-4">
-    {tutorial && <BillingTutorial steps={tutorialSteps} onClose={()=>setTutorial(false)} onFinish={finishTutorial} />}
+    {tutorial && <BillingTutorial steps={tutorialSteps} completionBody={completionBody} onClose={stopTutorial} onFinish={finishTutorial} />}
+
     <ClientProfileDialog clientId={profileId} onClose={()=>setProfileId(null)} />
 
     <Dialog open={!!deleteTarget} onOpenChange={(o)=>!o&&setDeleteTarget(null)}>
