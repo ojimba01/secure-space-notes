@@ -99,7 +99,7 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
 
   return <div className="space-y-4">
     <Card className="p-4">
-      <h2 className="font-semibold">Revenue — next {REVENUE_MONTHS} months</h2>
+      <h2 className="font-semibold">Next {REVENUE_MONTHS} months revenue</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Covers {monthLabel(months[0])} through {monthLabel(months[months.length - 1])}. Historical revenue is not included.
         A Low level cycle bills {formatMoney(RATE_LOW)} and a High level cycle bills {formatMoney(RATE_HIGH)}.
