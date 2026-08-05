@@ -99,17 +99,32 @@ export const ComplianceEscalations: React.FC = () => {
   const emergencies = escalations.filter((e) => e.kind === 'emergency_incomplete');
   const audits = escalations.filter((e) => e.kind === 'weekly_audit');
 
+  const pageCount = Math.max(1, Math.ceil(emergencies.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageItems = emergencies.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
   return (
     <div className="space-y-4">
       {emergencies.length > 0 && (
         <Card className="border-red-500">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" /> Month-end compliance issues ({emergencies.length})
-            </CardTitle>
+          <CardHeader className="py-3">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 text-left"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              <CardTitle className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="h-5 w-5" /> Month-end compliance issues ({emergencies.length})
+              </CardTitle>
+              <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                {expanded ? 'Hide' : 'Show'}
+                {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </span>
+            </button>
           </CardHeader>
+          {expanded && (
           <CardContent className="space-y-3">
-            {emergencies.map((e) => (
+            {pageItems.map((e) => (
               <div key={e.id} className="rounded-md border border-red-200 bg-red-50 p-3 flex items-start justify-between gap-3">
                 <div className="text-sm">
                   <div className="font-medium">
