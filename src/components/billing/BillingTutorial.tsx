@@ -186,17 +186,19 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
           style={{ top: rect.top - 8, left: rect.left - 8, width: rect.width + 16, height: rect.height + 16, boxShadow: '0 0 0 9999px rgba(2,6,23,0.55)' }}
         />
       )}
-      <Card ref={cardRef} className="pointer-events-auto absolute w-[min(420px,calc(100vw-32px))] overflow-y-auto p-5 shadow-2xl" style={cardStyle}>
+      <Card ref={cardRef} className="pointer-events-auto absolute flex w-[min(420px,calc(100vw-32px))] flex-col p-5 shadow-2xl" style={cardStyle}>
         <div className="flex items-start justify-between gap-2">
           <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">Billing tutorial · Step {n + 1} of {steps.length}</span>
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setConfirmClose(true)}><X className="h-4 w-4" /></Button>
         </div>
         <h2 className="mt-3 text-lg font-bold">{step.title}</h2>
-        <Rich
-          className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground"
-          text={(phase === 'followUp' ? step.followUp : step.body) ?? ''}
-        />
-        <div className="mt-4 flex items-center justify-between gap-2">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <Rich
+            className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground"
+            text={(phase === 'followUp' ? step.followUp : step.body) ?? ''}
+          />
+        </div>
+        <div className="mt-4 flex shrink-0 items-center justify-between gap-2">
           <Button variant="outline" size="sm" disabled={!n} onClick={() => setN(n - 1)}>Previous</Button>
           {waiting
             ? <Rich className="text-right text-xs font-medium text-blue-700" boldClassName="text-blue-800" text={step.hint ?? ''} />
