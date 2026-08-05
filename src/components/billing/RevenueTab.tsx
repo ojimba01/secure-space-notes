@@ -270,34 +270,28 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
                       <td className={`p-3 text-center font-semibold ${section.tone}`}>{formatMoney(month.total)}</td>
                       <td className="p-3 text-muted-foreground">{month.clients.length} client{month.clients.length === 1 ? '' : 's'}</td>
                     </tr>
-                    {monthOpen && month.clients.map(group => {
-                      const clientKeyId = `${monthKeyId}:${group.clientId}`;
-                      const clientOpen = openClients.has(clientKeyId);
-                      return <Fragment key={clientKeyId}>
-                        <tr
-                          className="cursor-pointer border-t hover:bg-slate-50"
-                          onClick={() => toggle(openClients, setOpenClients, clientKeyId)}
-                        >
-                          <td className="p-3 pl-9 font-medium">
-                            <span className="flex items-center gap-2">
-                              {clientOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                              {clientName(group.clientId)}
-                            </span>
-                          </td>
-                          <td className="p-3">{group.items.length}</td>
-                          <td className="p-3 text-center">{formatMoney(group.total)}</td>
-                          <td className="p-3 text-muted-foreground">Open for cycle breakdown</td>
-                        </tr>
-                        {clientOpen && group.items.map(item => <tr key={item.cycle.id} className="border-t bg-white text-muted-foreground">
-                          <td className="p-3 pl-16">{item.cycle.phase} · Cycle {item.cycle.cycle_number}</td>
-                          <td className="p-3">Ended {dateLabel(item.cycle.cycle_end)}</td>
-                          <td className="p-3 text-center">{formatMoney(item.amount)}</td>
-                          <td className={`p-3 font-medium ${section.tone}`}>
-                            {item.note} · deadline {dateLabel(item.deadline)}
-                          </td>
-                        </tr>)}
-                      </Fragment>;
-                    })}
+                    {monthOpen && month.clients.map(group => (
+                      <tr key={`${monthKeyId}:${group.clientId}`} className="border-t hover:bg-slate-50">
+                        <td className="p-3 pl-9 font-medium">{clientName(group.clientId)}</td>
+                        <td className="p-3">{group.items.length}</td>
+                        <td className="p-3 text-center">{formatMoney(group.total)}</td>
+                        <td className="p-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setDetail({
+                              title: `${section.title} · ${monthLabel(month.key)}`,
+                              clientName: clientName(group.clientId),
+                              tone: section.tone,
+                              items: group.items,
+                            })}
+                          >
+                            Open cycle breakdown
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+
                   </Fragment>;
                 })}
               </tbody>
