@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { InfoHint } from '@/components/InfoHint';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
 import { ClientProfileDialog } from '@/components/billing/ClientProfileDialog';
 import { BillingTutorial, BillingTutorialStep } from '@/components/billing/BillingTutorial';
 
