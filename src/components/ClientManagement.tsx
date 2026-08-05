@@ -178,6 +178,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       const { data, error } = await supabase
         .from('clients')
         .select('*')
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
