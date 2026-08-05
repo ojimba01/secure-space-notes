@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ChevronDown, ChevronRight, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, ChevronRight, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
@@ -18,13 +18,30 @@ import { BillingTutorial, BillingTutorialStep } from '@/components/billing/Billi
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
 const complete = (c: BillingClient) => c.status === 'active' && c.hsp_submitted && !!c.auth_150_start && !!normalizeLevel(c.level_of_need);
 
-type Blocker = 'Missing client name' | 'HSP not submitted' | 'Missing level of need' | 'Missing HSP approval start date';
+type Blocker = 'Missing client name' | 'HSP not submitted' | 'Missing HSP approval start date' | 'Missing level of need';
 const blocker = (c: BillingClient): Blocker =>
   !c.first_name?.trim() || !c.last_name?.trim() ? 'Missing client name'
   : !c.hsp_submitted ? 'HSP not submitted'
-  : !normalizeLevel(c.level_of_need) ? 'Missing level of need'
-  : 'Missing HSP approval start date';
-const blockerClass = (label: Blocker) => label === 'HSP not submitted' ? 'bg-amber-100 text-amber-900' : 'bg-red-100 text-red-800';
+  : !c.auth_150_start ? 'Missing HSP approval start date'
+  : 'Missing level of need';
+const blockerClass = (label: Blocker) =>
+  label === 'HSP not submitted' ? 'bg-amber-100 text-amber-900'
+  : label === 'Missing HSP approval start date' ? 'bg-orange-100 text-orange-900'
+  : label === 'Missing level of need' ? 'bg-red-100 text-red-800'
+  : 'bg-rose-200 text-rose-900';
+
+// Selected dropdown values get their own colour so the grid is readable at a glance.
+const MCO_COLORS: Record<string, string> = {
+  Aetna: 'border-blue-300 bg-blue-100 text-blue-900',
+  Horizon: 'border-sky-300 bg-sky-100 text-sky-900',
+  Wellpoint: 'border-violet-300 bg-violet-100 text-violet-900',
+  'United Health': 'border-teal-300 bg-teal-100 text-teal-900',
+  Fidelis: 'border-orange-300 bg-orange-100 text-orange-900',
+};
+const mcoClass = (v?: string | null) => (v ? MCO_COLORS[v] ?? 'border-slate-300 bg-slate-100 text-slate-900' : 'bg-white');
+const lonClass = (v: string) => (v === 'Low' ? 'border-emerald-300 bg-emerald-100 text-emerald-900' : v === 'High' ? 'border-purple-300 bg-purple-100 text-purple-900' : 'bg-white');
+const yesNoClass = (v: boolean | null | undefined) => (v === true ? 'border-green-300 bg-green-100 text-green-900' : v === false ? 'border-slate-300 bg-slate-100 text-slate-800' : 'bg-white');
+const boolValue = (v: boolean | null | undefined) => (v === true ? 'yes' : v === false ? 'no' : undefined);
 
 const HOW_TO_READ = 'The 30-day HSP window (Cycle 0) comes first and is not billable. Cycles 1–5 are the 150-day authorization. Cycles 6–11 are the 180-day extension. A claim must be submitted within 6 months of a cycle end date — that is the final deadline.';
 
@@ -73,8 +90,8 @@ export function BillingWorkspace() {
   const { loading, clients, deletedClients, cycles, updateClient, addClient, deleteClient, restoreClient, updateCycle } = useBilling();
   const [section,setSection]=useState<'deadlines'|'setup'>('deadlines');
   const [filter,setFilter]=useState<'attention'|'all'|'extensions'>('attention');
-  const [stage,setStage]=useState<'setup'|'150'|'180'>('setup');
-  const [setupReason,setSetupReason]=useState<'all'|'hsp'|'info'>('all');
+  const [phaseTab,setPhaseTab]=useState<'both'|'150'|'180'>('both');
+  const [setupReason,setSetupReason]=useState<'all'|'hsp'|'start'|'lon'>('all');
   const [open,setOpen]=useState<string|null>(null);
   const [query,setQuery]=useState('');
   const [profileId,setProfileId]=useState<string|null>(null);
@@ -98,8 +115,9 @@ export function BillingWorkspace() {
   };
   const visibleCycles=cycles.filter(c=>filter!=='attention'||attention(c));
   const visibleClients=useMemo(()=>eligible
+    .filter(c=>filter!=='all'||phaseTab==='both'||(phaseTab==='180'?!!c.auth_180_approved:!c.auth_180_approved))
     .filter(c=>matches(c,query)&&(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)))
-    .sort((a,b)=>nearestDeadline(a)-nearestDeadline(b)),[eligible,query,cycleByClient,visibleCycles]);
+    .sort((a,b)=>nearestDeadline(a)-nearestDeadline(b)),[eligible,query,cycleByClient,visibleCycles,filter,phaseTab]);
   const searchResults = query.trim() ? clients.filter(c=>matches(c,query)).slice(0,8) : [];
 
   const runDuplicateCheck=(id:string)=>{
@@ -112,15 +130,17 @@ export function BillingWorkspace() {
     .then(()=>{toast.success('Saved. Billing has been updated.'); runDuplicateCheck(id);})
     .catch(e=>toast.error(e.message));
 
+  const reasonOf: Record<'hsp'|'start'|'lon', Blocker> = { hsp:'HSP not submitted', start:'Missing HSP approval start date', lon:'Missing level of need' };
   const setupRows=useMemo(()=>{
-    const rows=setup.filter(c=>setupReason==='all'||(setupReason==='hsp'?blocker(c)==='HSP not submitted':blocker(c)!=='HSP not submitted'));
+    const rows=clients.filter(c=>c.status==='active').filter(c=>setupReason==='all'||(!complete(c)&&blocker(c)===reasonOf[setupReason]));
     // Newly added rows always sit at the top so they are easy to fill in.
     return rows.sort((a,b)=>{
       const an=newRowIds.indexOf(a.id), bn=newRowIds.indexOf(b.id);
       if(an!==bn) return (an===-1?1:0)-(bn===-1?1:0) || an-bn;
       return (b.created_at ?? '').localeCompare(a.created_at ?? '');
     });
-  },[setup,setupReason,newRowIds]);
+  },[clients,setupReason,newRowIds]);
+  const countBlocked=(k:'hsp'|'start'|'lon')=>setup.filter(c=>blocker(c)===reasonOf[k]).length;
 
   const tutorialSteps: BillingTutorialStep[] = useMemo(()=>[
     { title:'Understand the two Billing sections', body:'Billing has two main sections. Current billing deadlines shows the billing work that needs your attention. Add or set up client billing is where you enter or correct the information used to create billing cycles.', cta:'Press Current billing deadlines to continue.', selector:'[data-tour="section-deadlines"]', requireClick:true, before:()=>{setSection('deadlines');setQuery('');} },
@@ -131,8 +151,8 @@ export function BillingWorkspace() {
     { title:'Open a client’s billing cycles', body:'Press a client’s row to see all of that client’s 30-day billing cycles.\n\nThe first five cycles belong to the client’s 150-day authorization. If a 180-day extension is approved, six additional 30-day cycles will appear.', cta:'Press the highlighted client row to continue.', selector:'[data-tour="client-row"]', requireClick:true, before:()=>{setFilter('all');setOpen(null);} },
     { title:'Update a billing cycle', body:'Use the billing-cycle table to record the claim status, payment status, and claim number.\n\nUpdate the claim status when a claim is submitted. Add the claim number when one is available. Update the payment status when the claim is paid or denied. Your changes save automatically.', cta:'Press the highlighted claim-status field, then select Submitted to continue.', selector:'[data-tour="claim-status"]', requireClick:true, before:()=>{const first=eligible.find(c=>(cycleByClient.get(c.id)??[]).length); if(first) setOpen(first.id);} },
     { title:'Open Add or set up client billing', body:'Use Add or set up client billing to add a client or correct information used to create billing cycles. This section is an editing space, so it looks different from Current billing deadlines.', cta:'Press Add or set up client billing to continue.', selector:'[data-tour="section-setup"]', requireClick:true },
-    { title:'Review clients who need setup', body:'Needs set-up includes clients whose billing cycles cannot be created yet. Each row explains what is still needed: the HSP has not been submitted, the level of need is missing, or the HSP approval start date has not been entered.', cta:'Press Needs set-up to continue.', selector:'[data-tour="stage-setup"]', requireClick:true, before:()=>{setSection('setup');} },
-    { title:'Add a client', body:'Use Add client row to create a blank row at the top of the table. Enter the information you have, then press Save to open the client profile and finish filling it out.', cta:'Press Add client row to complete the tutorial.', selector:'[data-tour="add-client"]', requireClick:true, before:()=>{setSection('setup');setStage('setup');} },
+    { title:'Review clients who need setup', body:'Use the filter buttons to see clients whose billing cycles cannot be created yet: the HSP has not been submitted, the HSP approval start date is missing, or the level of need is missing.', cta:'Press HSP not submitted to continue.', selector:'[data-tour="stage-setup"]', requireClick:true, before:()=>{setSection('setup');} },
+    { title:'Add a client', body:'Use Add client row to create a blank row at the top of the table. Enter the information you have, then press Save to open the client profile and finish filling it out.', cta:'Press Add client row to complete the tutorial.', selector:'[data-tour="add-client"]', requireClick:true, before:()=>{setSection('setup');setSetupReason('all');} },
   ],[eligible,cycleByClient]);
 
   useEffect(()=>{ if(!tutorial) return; document.body.style.overflow='hidden'; return ()=>{document.body.style.overflow='';}; },[tutorial]);
@@ -197,6 +217,13 @@ export function BillingWorkspace() {
         <button data-tour="filter-extensions" onClick={()=>setFilter('extensions')} className={`inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 ${filter==='extensions'?'bg-amber-600 text-white hover:bg-amber-700':'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50'}`}>Upcoming 180-day extensions ({extensionClients.length})</button>
       </div>
 
+      {filter==='all' && <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant={phaseTab==='both'?'secondary':'outline'} className={`h-8 text-sm ${phaseTab!=='both'?'bg-white':''}`} onClick={()=>setPhaseTab('both')}>All authorizations ({eligible.length})</Button>
+        <Button size="sm" variant={phaseTab==='150'?'default':'outline'} className={`h-8 text-sm ${phaseTab!=='150'?'bg-white':''}`} onClick={()=>setPhaseTab('150')}>150-day authorization ({eligible.filter(c=>!c.auth_180_approved).length})</Button>
+        <Button size="sm" variant={phaseTab==='180'?'default':'outline'} className={`h-8 text-sm ${phaseTab!=='180'?'bg-white':''}`} onClick={()=>setPhaseTab('180')}>180-day extension ({eligible.filter(c=>c.auth_180_approved).length})</Button>
+      </div>}
+
+
       {filter==='extensions' ? <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>
       : visibleClients.length===0 ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No billable clients match that search':'Nothing needs attention right now'}</h3><p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'A client appears here when a finished cycle is within four weeks of its final submission deadline.'}</p></Card>
       : <div className="space-y-3">{visibleClients.map((c,i)=>{
@@ -228,22 +255,18 @@ export function BillingWorkspace() {
           <h2 className="flex items-center gap-2 font-semibold text-indigo-900"><Pencil className="h-4 w-4"/>Edit mode — add or set up client billing</h2>
           <p className="mt-1 text-sm text-indigo-900/70">Everything on this screen is editable and saves as you go. Partial information is kept without creating overdue warnings.</p>
         </div>
-        <Button data-tour="add-client" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>addClient().then(id=>{setStage('setup');setSetupReason('all');setNewRowIds(x=>[id,...x]);toast.success('New client row added at the top.');}).catch(e=>toast.error(e.message))}><Plus className="mr-2 h-4 w-4"/>Add client row</Button>
+        <Button data-tour="add-client" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>addClient().then(id=>{setSetupReason('all');setNewRowIds(x=>[id,...x]);toast.success('New client row added at the top.');}).catch(e=>toast.error(e.message))}><Plus className="mr-2 h-4 w-4"/>Add client row</Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button data-tour="stage-setup" onClick={()=>{setStage('setup');setSetupReason('all');}} className={stage==='setup'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs set-up ({setup.length})</Button>
-        <Button variant={stage==='150'?'default':'outline'} className={stage!=='150'?'bg-white':''} onClick={()=>setStage('150')}>150-day authorization ({eligible.filter(c=>!c.auth_180_approved).length})</Button>
-        <Button variant={stage==='180'?'default':'outline'} className={stage!=='180'?'bg-white':''} onClick={()=>setStage('180')}>180-day extension ({eligible.filter(c=>c.auth_180_approved).length})</Button>
+      <div className="flex flex-wrap gap-2" data-tour="stage-setup">
+        <Button size="sm" variant={setupReason==='all'?'secondary':'outline'} className={setupReason!=='all'?'bg-white':''} onClick={()=>setSetupReason('all')}>All clients ({clients.filter(c=>c.status==='active').length})</Button>
+        <Button size="sm" onClick={()=>setSetupReason('hsp')} className={setupReason==='hsp'?'bg-amber-600 text-white hover:bg-amber-700':'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50'}>HSP not submitted ({countBlocked('hsp')})</Button>
+        <Button size="sm" onClick={()=>setSetupReason('start')} className={setupReason==='start'?'bg-orange-600 text-white hover:bg-orange-700':'border border-orange-300 bg-white text-orange-800 hover:bg-orange-50'}>Missing HSP approval start date ({countBlocked('start')})</Button>
+        <Button size="sm" onClick={()=>setSetupReason('lon')} className={setupReason==='lon'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Missing level of need ({countBlocked('lon')})</Button>
       </div>
 
-      {stage==='setup' && <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant={setupReason==='all'?'secondary':'outline'} className={setupReason!=='all'?'bg-white':''} onClick={()=>setSetupReason('all')}>All ({setup.length})</Button>
-        <Button size="sm" variant={setupReason==='hsp'?'secondary':'outline'} className={setupReason!=='hsp'?'bg-white':''} onClick={()=>setSetupReason('hsp')}>HSP not submitted ({setup.filter(c=>blocker(c)==='HSP not submitted').length})</Button>
-        <Button size="sm" variant={setupReason==='info'?'secondary':'outline'} className={setupReason!=='info'?'bg-white':''} onClick={()=>setSetupReason('info')}>Missing level of need or HSP approval start date ({setup.filter(c=>blocker(c)!=='HSP not submitted').length})</Button>
-      </div>}
+      <ClientGrid clients={setupRows.filter(c=>matches(c,query))} save={saveClient} openProfile={setProfileId} onDelete={setDeleteTarget}/>
 
-      <ClientGrid clients={(stage==='setup'?setupRows:eligible.filter(c=>stage==='180'?c.auth_180_approved:!c.auth_180_approved)).filter(c=>matches(c,query))} save={saveClient} showBlocker={stage==='setup'} openProfile={setProfileId} onDelete={setDeleteTarget}/>
 
       {deletedClients.length>0 && <Card className="p-4">
         <h3 className="font-semibold">Recently deleted</h3>
@@ -282,28 +305,80 @@ function ExtensionQueue({clients,save,openProfile}:{clients:BillingClient[];save
   </Card>;
 }
 
-function ClientGrid({clients,save,showBlocker,openProfile,onDelete}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;showBlocker:boolean;openProfile:(id:string)=>void;onDelete:(c:BillingClient)=>void}){
-  const headers=['Client','Member ID','MCO','Level of Need','HSP submitted','HSP approval start','180-day extension','30-day auth no.','150-day auth no.','180-day auth no.',showBlocker?'Why not in billing':'Billing stage','Save','Delete'];
+const BLOCKERS: Blocker[] = ['HSP not submitted','Missing HSP approval start date','Missing level of need','Missing client name'];
+
+function FilterSelect({value,onChange,options,width='w-36'}:{value:string;onChange:(v:string)=>void;options:string[];width?:string}){
+  return <Select value={value} onValueChange={onChange}>
+    <SelectTrigger className={`mt-1 h-7 ${width} bg-white text-xs font-normal`}><SelectValue/></SelectTrigger>
+    <SelectContent><SelectItem value="all">All</SelectItem>{options.map(o=><SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+  </Select>;
+}
+
+function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;openProfile:(id:string)=>void;onDelete:(c:BillingClient)=>void}){
+  const [sort,setSort]=useState<{key:'name'|'start';dir:'asc'|'desc'}|null>(null);
+  const [fMco,setFMco]=useState('all');
+  const [fLon,setFLon]=useState('all');
+  const [fHsp,setFHsp]=useState('all');
+  const [fExt,setFExt]=useState('all');
+  const [fWhy,setFWhy]=useState('all');
+  const toggle=(key:'name'|'start')=>setSort(s=>s?.key===key?(s.dir==='asc'?{key,dir:'desc'}:null):{key,dir:'asc'});
+
+  const rows=useMemo(()=>{
+    const filtered=clients.filter(c=>
+      (fMco==='all'||(c.insurance ?? '')===fMco)
+      &&(fLon==='all'||normalizeLevel(c.level_of_need)===fLon)
+      &&(fHsp==='all'||(fHsp==='Yes'?c.hsp_submitted===true:fHsp==='No'?c.hsp_submitted===false:c.hsp_submitted==null))
+      &&(fExt==='all'||(fExt==='Approved'?c.auth_180_approved===true:fExt==='Not approved'?c.auth_180_approved===false:c.auth_180_approved==null))
+      &&(fWhy==='all'||(fWhy==='In billing'?complete(c):!complete(c)&&blocker(c)===fWhy)));
+    if(!sort) return filtered;
+    const dir=sort.dir==='asc'?1:-1;
+    return [...filtered].sort((a,b)=>sort.key==='name'
+      ? dir*`${a.last_name ?? ''} ${a.first_name ?? ''}`.trim().localeCompare(`${b.last_name ?? ''} ${b.first_name ?? ''}`.trim())
+      : dir*((a.auth_150_start ?? '9999').localeCompare(b.auth_150_start ?? '9999')));
+  },[clients,sort,fMco,fLon,fHsp,fExt,fWhy]);
+
+  const SortHeader=({label,keyName,asc,desc}:{label:string;keyName:'name'|'start';asc:string;desc:string})=>(
+    <button type="button" onClick={()=>toggle(keyName)} className="flex items-center gap-1 font-semibold text-indigo-900 hover:underline">
+      {label}<ArrowUpDown className="h-3.5 w-3.5"/>
+      {sort?.key===keyName && <span className="text-xs font-normal">{sort.dir==='asc'?asc:desc}</span>}
+    </button>
+  );
+
   return <Card className="overflow-x-auto border-indigo-200">
-    <table className="w-full min-w-[1750px] text-sm"><thead className="bg-indigo-100 text-left"><tr>{headers.map(x=><th key={x} className="p-3 font-semibold text-indigo-900">{x}</th>)}</tr></thead>
-    <tbody>{clients.map(c=><tr key={c.id} className="border-t border-indigo-100 hover:bg-indigo-50/50">
+    <table className="w-full min-w-[1850px] text-sm"><thead className="bg-indigo-100 text-left"><tr className="align-top">
+      <th className="p-3"><SortHeader label="Client" keyName="name" asc="A–Z" desc="Z–A"/></th>
+      <th className="p-3 font-semibold text-indigo-900">Member ID</th>
+      <th className="p-3 font-semibold text-indigo-900">MCO<FilterSelect value={fMco} onChange={setFMco} options={[...MCO_OPTIONS]} width="w-36"/></th>
+      <th className="p-3 font-semibold text-indigo-900">Level of Need<FilterSelect value={fLon} onChange={setFLon} options={['Low','High']} width="w-28"/></th>
+      <th className="p-3 font-semibold text-indigo-900">HSP submitted<FilterSelect value={fHsp} onChange={setFHsp} options={['Yes','No','Not answered']} width="w-32"/></th>
+      <th className="p-3"><SortHeader label="HSP approval start" keyName="start" asc="Earliest first" desc="Latest first"/></th>
+      <th className="p-3 font-semibold text-indigo-900">180-day extension<FilterSelect value={fExt} onChange={setFExt} options={['Approved','Not approved','Not answered']} width="w-36"/></th>
+      <th className="p-3 font-semibold text-indigo-900">30-day auth no.</th>
+      <th className="p-3 font-semibold text-indigo-900">150-day auth no.</th>
+      <th className="p-3 font-semibold text-indigo-900">180-day auth no.</th>
+      <th className="p-3 font-semibold text-indigo-900">Why not in billing<FilterSelect value={fWhy} onChange={setFWhy} options={['In billing',...BLOCKERS]} width="w-52"/></th>
+      <th className="p-3 font-semibold text-indigo-900">Save</th>
+      <th className="p-3 font-semibold text-indigo-900">Delete</th>
+    </tr></thead>
+    <tbody>{rows.map(c=><tr key={c.id} className="border-t border-indigo-100 hover:bg-indigo-50/50">
       <td className="p-2"><div className="flex items-center gap-1"><ProfileIconButton onClick={()=>openProfile(c.id)}/><EditableText value={c.first_name} placeholder="First name" onSave={v=>save(c.id,{first_name:v})}/><EditableText value={c.last_name} placeholder="Last name" onSave={v=>save(c.id,{last_name:v})}/></div></td>
       <td className="p-2"><Editable value={c.member_id} placeholder="Member ID" onSave={v=>save(c.id,{member_id:v||null})}/></td>
-      <td className="p-2"><Select value={c.insurance ?? ''} onValueChange={v=>save(c.id,{insurance:v})}><SelectTrigger className="w-40 bg-white"><SelectValue placeholder="Choose MCO"/></SelectTrigger><SelectContent>{Array.from(new Set([...MCO_OPTIONS, ...(c.insurance?[c.insurance]:[])])).map(m=><SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select></td>
-      <td className="p-2"><Select value={normalizeLevel(c.level_of_need)} onValueChange={v=>save(c.id,{level_of_need:v})}><SelectTrigger className="w-32 bg-white"><SelectValue placeholder="Choose"/></SelectTrigger><SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="High">High</SelectItem></SelectContent></Select></td>
-      <td className="p-2"><Select value={c.hsp_submitted?'yes':'no'} onValueChange={v=>save(c.id,{hsp_submitted:v==='yes'})}><SelectTrigger className="w-24 bg-white"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Yes</SelectItem></SelectContent></Select></td>
+      <td className="p-2"><Select value={c.insurance ?? undefined} onValueChange={v=>save(c.id,{insurance:v})}><SelectTrigger className={`w-40 font-medium ${mcoClass(c.insurance)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent>{Array.from(new Set([...MCO_OPTIONS, ...(c.insurance?[c.insurance]:[])])).map(m=><SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select></td>
+      <td className="p-2"><Select value={normalizeLevel(c.level_of_need) || undefined} onValueChange={v=>save(c.id,{level_of_need:v})}><SelectTrigger className={`w-32 font-medium ${lonClass(normalizeLevel(c.level_of_need))}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="High">High</SelectItem></SelectContent></Select></td>
+      <td className="p-2"><Select value={boolValue(c.hsp_submitted)} onValueChange={v=>save(c.id,{hsp_submitted:v==='yes'})}><SelectTrigger className={`w-24 font-medium ${yesNoClass(c.hsp_submitted)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Yes</SelectItem></SelectContent></Select></td>
       <td className="p-2"><Editable type="date" value={c.auth_150_start} onSave={v=>save(c.id,{auth_150_start:v||null})}/></td>
-      <td className="p-2"><Select value={c.auth_180_approved?'yes':'no'} onValueChange={v=>save(c.id,{auth_180_approved:v==='yes'})}><SelectTrigger className="w-28 bg-white"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Approved</SelectItem></SelectContent></Select></td>
+      <td className="p-2"><Select value={boolValue(c.auth_180_approved)} onValueChange={v=>save(c.id,{auth_180_approved:v==='yes'})}><SelectTrigger className={`w-28 font-medium ${yesNoClass(c.auth_180_approved)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Approved</SelectItem></SelectContent></Select></td>
       <td className="p-2"><Editable value={c.auth_30_number} placeholder="30-day" onSave={v=>save(c.id,{auth_30_number:v||null})}/></td>
       <td className="p-2"><Editable value={c.auth_150_number} placeholder="150-day" onSave={v=>save(c.id,{auth_150_number:v||null})}/></td>
       <td className="p-2"><Editable value={c.auth_180_number} placeholder="180-day" onSave={v=>save(c.id,{auth_180_number:v||null})}/></td>
-      <td className="p-3">{showBlocker?<span className={`whitespace-nowrap rounded-full px-3 py-1 font-medium ${blockerClass(blocker(c))}`}>{blocker(c)}</span>:<span className="whitespace-nowrap rounded-full bg-green-100 px-3 py-1 font-medium text-green-900">{c.auth_180_approved?'180-day extension':'150-day authorization'}</span>}</td>
-      <td className="p-2"><Button size="sm" variant="outline" className="bg-white" onClick={()=>openProfile(c.id)}>Save</Button></td>
+      <td className="p-3">{!complete(c)?<span className={`whitespace-nowrap rounded-full px-3 py-1 font-medium ${blockerClass(blocker(c))}`}>{blocker(c)}</span>:<span className="whitespace-nowrap rounded-full bg-green-100 px-3 py-1 font-medium text-green-900">In billing · {c.auth_180_approved?'180-day extension':'150-day authorization'}</span>}</td>
+      <td className="p-2"><Button size="sm" className="bg-indigo-600 text-white hover:bg-indigo-700" onClick={()=>openProfile(c.id)}>Save</Button></td>
       <td className="p-2"><Button size="icon" variant="ghost" aria-label="Delete client" title="Delete client" className="h-8 w-8 text-red-600 hover:bg-red-50" onClick={()=>onDelete(c)}><X className="h-4 w-4"/></Button></td>
     </tr>)}</tbody></table>
-    {clients.length===0 && <div className="p-8 text-center text-sm text-muted-foreground">No clients in this list. Press Add client row to create one.</div>}
+    {rows.length===0 && <div className="p-8 text-center text-sm text-muted-foreground">No clients match these filters. Press Add client row to create one.</div>}
   </Card>;
 }
+
 
 // Final deadline cell: shows only the time left; once passed the date is revealed on press.
 function DeadlineCell({cycle}:{cycle:BillingCycle}){

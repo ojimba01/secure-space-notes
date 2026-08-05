@@ -188,8 +188,8 @@ export function ClientProfileDialog({ clientId, onClose }: { clientId: string | 
             <section className="rounded-lg border p-4">
               <h3 className="mb-3 text-sm font-semibold">Billing setup</h3>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="HSP submitted" value={client.hsp_submitted ? 'Yes' : 'No'} />
-                <Field label="180-day extension" value={client.auth_180_approved ? 'Approved' : 'Not approved'} />
+                <Field label="HSP submitted" value={client.hsp_submitted == null ? '—' : client.hsp_submitted ? 'Yes' : 'No'} />
+                <Field label="180-day extension" value={client.auth_180_approved == null ? '—' : client.auth_180_approved ? 'Approved' : 'Not approved'} />
                 <Field label="HSP approval start" value={fmt(client.auth_150_start)} />
                 <Field label="150-day end" value={fmt(client.auth_150_end)} />
                 <Field label="180-day start" value={fmt(client.auth_180_start)} />

@@ -5,8 +5,8 @@ import { BillingCycle } from '@/lib/billing';
 export interface BillingClient {
   id: string; first_name: string; last_name: string; insurance: string | null;
   member_id: string | null; level_of_need: string | null; status: string | null;
-  hsp_submitted: boolean; auth_150_start: string | null; auth_150_end: string | null;
-  auth_180_approved: boolean; auth_180_start: string | null; auth_180_end: string | null;
+  hsp_submitted: boolean | null; auth_150_start: string | null; auth_150_end: string | null;
+  auth_180_approved: boolean | null; auth_180_start: string | null; auth_180_end: string | null;
   assigned_employee_id: string | null; assigned_staff_name: string | null;
   billing_tracking_start: string | null;
   auth_30_start: string | null; auth_30_end: string | null; hsp_due_date: string | null;
