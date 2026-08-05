@@ -175,7 +175,8 @@ export const ComplianceEscalations: React.FC = () => {
           {audits.length === 0 ? (
             <p className="text-sm text-muted-foreground">No open audits.</p>
           ) : (
-            audits.map((e) => (
+            <>
+            {(showAllAudits ? audits : audits.slice(0, AUDIT_PREVIEW)).map((e) => (
               <div key={e.id} className="rounded-md border p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="font-medium">{names[e.employee_id ?? ''] || 'Case manager'}</div>
@@ -198,8 +199,19 @@ export const ComplianceEscalations: React.FC = () => {
                   <CheckCircle2 className="h-4 w-4 mr-1" /> Mark reviewed
                 </Button>
               </div>
-            ))
+            ))}
+            {audits.length > AUDIT_PREVIEW && (
+              <Button variant="outline" size="sm" className="w-full" onClick={() => setShowAllAudits((v) => !v)}>
+                {showAllAudits ? (
+                  <><ChevronUp className="h-4 w-4 mr-1" /> Show fewer</>
+                ) : (
+                  <><ChevronDown className="h-4 w-4 mr-1" /> View more ({audits.length - AUDIT_PREVIEW} more)</>
+                )}
+              </Button>
+            )}
+            </>
           )}
+
         </CardContent>
       </Card>
     </div>
