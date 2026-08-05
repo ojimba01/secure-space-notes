@@ -139,8 +139,8 @@ function buildPractice(): { clients: BillingClient[]; cycles: BillingCycle[] } {
 
 export function BillingWorkspace() {
   const { user } = useAuth();
-  const { isSuperadmin: realSuper } = useIsSuperadmin();
-  const isSuperadmin = realSuper && !new URLSearchParams(window.location.search).has("employeeTutorialTest");
+  const { isSuperadmin } = useIsSuperadmin();
+
   const { loading, clients: realClients, deletedClients: realDeleted, cycles: realCycles, updateClient, addClient: addRealClient, deleteClient, restoreClient, updateCycle: updateRealCycle } = useBilling();
   const [section,setSection]=useState<'deadlines'|'setup'|'revenue'>('deadlines');
   const [filter,setFilter]=useState<'attention'|'all'|'extensions'>('attention');
