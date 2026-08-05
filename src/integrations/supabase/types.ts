@@ -557,6 +557,7 @@ export type Database = {
           county: string | null
           created_at: string | null
           date_of_birth: string | null
+          deleted_at: string | null
           email: string | null
           first_name: string
           housing_stabilization_plan_date: string | null
@@ -599,6 +600,7 @@ export type Database = {
           county?: string | null
           created_at?: string | null
           date_of_birth?: string | null
+          deleted_at?: string | null
           email?: string | null
           first_name: string
           housing_stabilization_plan_date?: string | null
@@ -641,6 +643,7 @@ export type Database = {
           county?: string | null
           created_at?: string | null
           date_of_birth?: string | null
+          deleted_at?: string | null
           email?: string | null
           first_name?: string
           housing_stabilization_plan_date?: string | null
