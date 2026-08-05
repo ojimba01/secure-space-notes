@@ -225,16 +225,17 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Lost income</div>
-          <div className="mt-1 text-2xl font-bold text-red-700">{formatMoney(recovery.lostTotal)}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{recovery.lostCount} cycle{recovery.lostCount === 1 ? '' : 's'} past the final deadline.</div>
-        </Card>
-        <Card className="p-4">
           <div className="text-sm text-muted-foreground">Pending income</div>
           <div className="mt-1 text-2xl font-bold text-amber-700">{formatMoney(recovery.claimableTotal)}</div>
           <div className="mt-1 text-xs text-muted-foreground">{recovery.claimableCount} cycle{recovery.claimableCount === 1 ? '' : 's'} still claimable.</div>
         </Card>
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Lost income</div>
+          <div className="mt-1 text-2xl font-bold text-red-700">{formatMoney(recovery.lostTotal)}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{recovery.lostCount} cycle{recovery.lostCount === 1 ? '' : 's'} past the final deadline.</div>
+        </Card>
       </div>
+
 
       {sections.map(section => <Card key={section.id} className="overflow-x-auto">
         <div className="p-3 font-semibold">{section.title}</div>
