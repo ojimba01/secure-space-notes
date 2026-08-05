@@ -1,6 +1,8 @@
 import { Fragment, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 import { ChevronDown, ChevronRight, Undo2 } from 'lucide-react';
 import { BillingClient } from '@/hooks/useBilling';
 import {
@@ -94,7 +96,8 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
   const months = useMemo(() => monthWindow(today), [today]);
   const [view, setView] = useState<'projection' | 'recovery'>('projection');
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
-  const [openClients, setOpenClients] = useState<Set<string>>(new Set());
+  const [detail, setDetail] = useState<{ title: string; clientName: string; tone: string; items: RecoveryItem[] } | null>(null);
+
 
   const toggle = (set: Set<string>, apply: (next: Set<string>) => void, key: string) => {
     const next = new Set(set);
@@ -192,20 +195,21 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
   if (view === 'recovery') {
     const sections = [
       {
-        id: 'lost',
-        title: 'Lost income',
-        empty: 'No cycles have passed their final deadline.',
-        months: recovery.lostMonths,
-        tone: 'text-red-700',
-      },
-      {
         id: 'claimable',
         title: 'Pending income (still claimable)',
         empty: 'No ended cycles are waiting on a claim.',
         months: recovery.claimableMonths,
         tone: 'text-amber-700',
       },
+      {
+        id: 'lost',
+        title: 'Lost income',
+        empty: 'No cycles have passed their final deadline.',
+        months: recovery.lostMonths,
+        tone: 'text-red-700',
+      },
     ];
+
 
     return <div className="space-y-4">
       <Card className="p-4">
@@ -224,16 +228,17 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Lost income</div>
-          <div className="mt-1 text-2xl font-bold text-red-700">{formatMoney(recovery.lostTotal)}</div>
-          <div className="mt-1 text-xs text-muted-foreground">{recovery.lostCount} cycle{recovery.lostCount === 1 ? '' : 's'} past the final deadline.</div>
-        </Card>
-        <Card className="p-4">
           <div className="text-sm text-muted-foreground">Pending income</div>
           <div className="mt-1 text-2xl font-bold text-amber-700">{formatMoney(recovery.claimableTotal)}</div>
           <div className="mt-1 text-xs text-muted-foreground">{recovery.claimableCount} cycle{recovery.claimableCount === 1 ? '' : 's'} still claimable.</div>
         </Card>
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Lost income</div>
+          <div className="mt-1 text-2xl font-bold text-red-700">{formatMoney(recovery.lostTotal)}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{recovery.lostCount} cycle{recovery.lostCount === 1 ? '' : 's'} past the final deadline.</div>
+        </Card>
       </div>
+
 
       {sections.map(section => <Card key={section.id} className="overflow-x-auto">
         <div className="p-3 font-semibold">{section.title}</div>
@@ -268,40 +273,64 @@ export function RevenueTab({ clients, cycles }: { clients: BillingClient[]; cycl
                       <td className={`p-3 text-center font-semibold ${section.tone}`}>{formatMoney(month.total)}</td>
                       <td className="p-3 text-muted-foreground">{month.clients.length} client{month.clients.length === 1 ? '' : 's'}</td>
                     </tr>
-                    {monthOpen && month.clients.map(group => {
-                      const clientKeyId = `${monthKeyId}:${group.clientId}`;
-                      const clientOpen = openClients.has(clientKeyId);
-                      return <Fragment key={clientKeyId}>
-                        <tr
-                          className="cursor-pointer border-t hover:bg-slate-50"
-                          onClick={() => toggle(openClients, setOpenClients, clientKeyId)}
-                        >
-                          <td className="p-3 pl-9 font-medium">
-                            <span className="flex items-center gap-2">
-                              {clientOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                              {clientName(group.clientId)}
-                            </span>
-                          </td>
-                          <td className="p-3">{group.items.length}</td>
-                          <td className="p-3 text-center">{formatMoney(group.total)}</td>
-                          <td className="p-3 text-muted-foreground">Open for cycle breakdown</td>
-                        </tr>
-                        {clientOpen && group.items.map(item => <tr key={item.cycle.id} className="border-t bg-white text-muted-foreground">
-                          <td className="p-3 pl-16">{item.cycle.phase} · Cycle {item.cycle.cycle_number}</td>
-                          <td className="p-3">Ended {dateLabel(item.cycle.cycle_end)}</td>
-                          <td className="p-3 text-center">{formatMoney(item.amount)}</td>
-                          <td className={`p-3 font-medium ${section.tone}`}>
-                            {item.note} · deadline {dateLabel(item.deadline)}
-                          </td>
-                        </tr>)}
-                      </Fragment>;
-                    })}
+                    {monthOpen && month.clients.map(group => (
+                      <tr key={`${monthKeyId}:${group.clientId}`} className="border-t hover:bg-slate-50">
+                        <td className="p-3 pl-9 font-medium">{clientName(group.clientId)}</td>
+                        <td className="p-3">{group.items.length}</td>
+                        <td className="p-3 text-center">{formatMoney(group.total)}</td>
+                        <td className="p-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setDetail({
+                              title: `${section.title} · ${monthLabel(month.key)}`,
+                              clientName: clientName(group.clientId),
+                              tone: section.tone,
+                              items: group.items,
+                            })}
+                          >
+                            Open cycle breakdown
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+
                   </Fragment>;
                 })}
               </tbody>
             </table>}
       </Card>)}
+
+      <Dialog open={detail !== null} onOpenChange={(open) => !open && setDetail(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{detail?.clientName}</DialogTitle>
+            <DialogDescription>{detail?.title}</DialogDescription>
+          </DialogHeader>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-100 text-left">
+                <tr>
+                  <th className="p-2 font-semibold">Cycle</th>
+                  <th className="p-2 font-semibold">Ended</th>
+                  <th className="p-2 text-center font-semibold">Amount</th>
+                  <th className="p-2 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(detail?.items ?? []).map(item => <tr key={item.cycle.id} className="border-t">
+                  <td className="p-2">{item.cycle.phase} · Cycle {item.cycle.cycle_number}</td>
+                  <td className="p-2">{dateLabel(item.cycle.cycle_end)}</td>
+                  <td className="p-2 text-center">{formatMoney(item.amount)}</td>
+                  <td className={`p-2 font-medium ${detail?.tone ?? ''}`}>{item.note} · deadline {dateLabel(item.deadline)}</td>
+                </tr>)}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>;
+
   }
 
   return <div className="space-y-4">
