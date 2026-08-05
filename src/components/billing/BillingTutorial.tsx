@@ -81,11 +81,14 @@ export function BillingTutorial({ steps, completionBody, onClose, onFinish }: {
     step?.before?.();
   }, [n]);
 
-  // Keep the measured card height current so the box never lands off screen.
+  // Measure the natural copy height once per step so placement is stable even
+  // when the box has to cap its height and scroll.
   useLayoutEffect(() => {
-    const h = cardRef.current?.offsetHeight;
-    if (h && Math.abs(h - cardHeight) > 4) setCardHeight(h);
-  });
+    const el = cardRef.current;
+    if (!el) return;
+    const h = el.scrollHeight;
+    setCardHeight((prev) => (Math.abs(h - prev) > 8 ? h : prev));
+  }, [n, phase]);
 
   // Measure and scroll the highlighted area into view.
   useEffect(() => {
