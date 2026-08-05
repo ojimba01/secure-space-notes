@@ -214,7 +214,7 @@ export function BillingWorkspace() {
             </div>
             <div className="text-right">
               <b>{cc.length} cycle{cc.length===1?'':'s'}</b>
-              <div className={`text-sm ${atRisk?'font-medium text-red-600':allResolved?'font-medium text-green-700':'text-muted-foreground'}`}>{atRisk?`${atRisk} near final deadline`:allResolved?'All cycles approved or closed':'Open to review'}</div>
+              <div className={`text-sm ${atRisk?'font-medium text-red-600':allResolved?'font-medium text-green-700':'text-muted-foreground'}`}>{atRisk?`${atRisk} cycle(s) near final deadline`:allResolved?'All cycles approved or closed':'Open to review'}</div>
             </div>
           </button>
           <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={i===0}/>
