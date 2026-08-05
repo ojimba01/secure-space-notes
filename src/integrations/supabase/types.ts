@@ -545,7 +545,7 @@ export type Database = {
           auth_150_end: string | null
           auth_150_number: string | null
           auth_150_start: string | null
-          auth_180_approved: boolean
+          auth_180_approved: boolean | null
           auth_180_end: string | null
           auth_180_number: string | null
           auth_180_start: string | null
@@ -564,7 +564,7 @@ export type Database = {
           hsp_150_date: string | null
           hsp_180_date: string | null
           hsp_due_date: string | null
-          hsp_submitted: boolean
+          hsp_submitted: boolean | null
           iat_date: string | null
           id: string
           insurance: string | null
@@ -588,7 +588,7 @@ export type Database = {
           auth_150_end?: string | null
           auth_150_number?: string | null
           auth_150_start?: string | null
-          auth_180_approved?: boolean
+          auth_180_approved?: boolean | null
           auth_180_end?: string | null
           auth_180_number?: string | null
           auth_180_start?: string | null
@@ -607,7 +607,7 @@ export type Database = {
           hsp_150_date?: string | null
           hsp_180_date?: string | null
           hsp_due_date?: string | null
-          hsp_submitted?: boolean
+          hsp_submitted?: boolean | null
           iat_date?: string | null
           id?: string
           insurance?: string | null
@@ -631,7 +631,7 @@ export type Database = {
           auth_150_end?: string | null
           auth_150_number?: string | null
           auth_150_start?: string | null
-          auth_180_approved?: boolean
+          auth_180_approved?: boolean | null
           auth_180_end?: string | null
           auth_180_number?: string | null
           auth_180_start?: string | null
@@ -650,7 +650,7 @@ export type Database = {
           hsp_150_date?: string | null
           hsp_180_date?: string | null
           hsp_due_date?: string | null
-          hsp_submitted?: boolean
+          hsp_submitted?: boolean | null
           iat_date?: string | null
           id?: string
           insurance?: string | null
