@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
-import { ChevronDown, ChevronRight, HelpCircle, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, HelpCircle, Plus, Search, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
@@ -10,35 +10,24 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ClientProfileDialog } from '@/components/billing/ClientProfileDialog';
+import { BillingTutorial, BillingTutorialStep } from '@/components/billing/BillingTutorial';
 
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
 const complete = (c: BillingClient) => c.status === 'active' && c.hsp_submitted && !!c.auth_150_start && ['Low','Low Level','High','High Level'].includes(c.level_of_need ?? '');
 const blocker = (c: BillingClient) => !c.first_name || !c.last_name || !c.level_of_need ? 'Missing information' : !c.hsp_submitted ? 'HSP not submitted' : !c.auth_150_start ? 'Waiting for HSP approval' : 'Missing information';
 const in48 = (d: string) => differenceInCalendarDays(parseISO(d), new Date()) <= 2;
 const attention = (c: BillingCycle) => c.billing_status === 'Ready to Bill' || (c.billing_status !== 'Submitted' && in48(c.cycle_end));
+const matches = (c: BillingClient, q: string) => {
+  const t = q.trim().toLowerCase();
+  if (!t) return true;
+  return `${c.first_name ?? ''} ${c.last_name ?? ''}`.toLowerCase().includes(t) || (c.member_id ?? '').toLowerCase().includes(t) || (c.insurance ?? '').toLowerCase().includes(t);
+};
 
 const Editable = ({ value, type='text', onSave, className='' }: { value: string | null; type?: string; onSave:(v:string)=>void; className?:string }) => {
   const [v,setV]=useState(value ?? '');
   return <Input type={type} value={v} className={`h-9 min-w-32 border-transparent bg-transparent hover:border-input focus:bg-white ${className}`} onChange={e=>setV(e.target.value)} onBlur={()=>v !== (value ?? '') && onSave(v)} />;
 };
-
-function Tutorial({ close, finish }: { close:()=>void; finish:()=>void }) {
-  const steps = [
-    ['Start with Current Billing deadlines','This page shows only work that is due soon, overdue, or ready to bill. Clients with missing setup information do not appear here.'],
-    ['Open a client','Press the highlighted client row. You will see all of that client’s 30-day cycles without opening a separate spreadsheet.'],
-    ['Understand the 150-day authorization','The first five cycles are 30 days each. Together, they cover the 150-day authorization.'],
-    ['Understand the 180-day extension','When an extension is approved, six more 30-day cycles appear. They continue directly after Cycle 5.'],
-    ['Update client setup','Open Add or update clients. Needs Setup contains only clients whose billing dates cannot be calculated yet.'],
-    ['Read the reason','Each incomplete row says what is blocking billing: missing information, HSP not submitted, or waiting for HSP approval.'],
-    ['Save partial information','You can enter what you know now. The client stays out of deadlines until all required billing information is present.'],
-    ['Finish setup','Mark HSP submitted, choose the Level of Need, and add the HSP approval start date. Five cycles are then created automatically.'],
-    ['Record the extension','Turn on the 180-day extension only after it is approved. Six more cycles are created automatically.'],
-    ['You are ready','Use Current Billing deadlines for daily work and Add or update clients when new information arrives. Tutorial practice never changes a real client.'],
-  ];
-  const actions = ['Open the practice client','Show the practice cycles','Highlight Cycles 1–5','Add the practice extension','Open practice setup','Show Denise’s reason','Save a practice phone number','Complete the practice setup','Approve the practice extension','Finish tutorial'];
-  const [n,setN]=useState(0);
-  return <div className="fixed inset-0 z-50 bg-slate-950/55 grid place-items-center p-4"><Card className="w-full max-w-xl p-6 shadow-2xl"><div className="flex justify-between"><span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800">Practice tutorial · {n+1} of {steps.length}</span><Button variant="ghost" size="icon" onClick={close}><X className="h-4 w-4" /></Button></div><h2 className="mt-5 text-xl font-bold">{steps[n][0]}</h2><p className="mt-3 text-base leading-7 text-slate-600">{steps[n][1]}</p><div className="mt-5 rounded-lg border-2 border-blue-500 bg-blue-50 p-4"><p className="mb-3 text-sm text-blue-900">Practice mode uses sample information. Press this button to try the action. It will not change a real client.</p><Button className="w-full" onClick={()=>n===steps.length-1?finish():setN(n+1)}>{actions[n]}</Button></div><div className="mt-5 flex justify-between"><Button variant="outline" disabled={!n} onClick={()=>setN(n-1)}>Back</Button><Button variant="ghost" onClick={close}>Exit practice</Button></div></Card></div>;
-}
 
 export function BillingWorkspace() {
   const { user } = useAuth();
@@ -47,34 +36,105 @@ export function BillingWorkspace() {
   const [filter,setFilter]=useState<'attention'|'all'>('attention');
   const [stage,setStage]=useState<'setup'|'150'|'180'>('setup');
   const [open,setOpen]=useState<string|null>(null);
+  const [query,setQuery]=useState('');
+  const [profileId,setProfileId]=useState<string|null>(null);
   const [tutorial,setTutorial]=useState(false);
-  const finishTutorial=async()=>{ if(user) await supabase.from('user_tutorial_progress').upsert({user_id:user.id,current_step:10,completed:true,completed_at:new Date().toISOString()},{onConflict:'user_id'}); setTutorial(false); toast.success('Billing tutorial completed.'); };
+
+  const finishTutorial=async()=>{ if(user) await supabase.from('user_tutorial_progress').upsert({user_id:user.id,current_step:10,completed:true,completed_at:new Date().toISOString()},{onConflict:'user_id'}); setTutorial(false); toast.success('Billing walkthrough completed.'); };
+
   const cycleByClient = useMemo(()=>new Map(clients.map(c=>[c.id, cycles.filter(x=>x.client_id===c.id)])),[clients,cycles]);
   const eligible=clients.filter(complete), setup=clients.filter(c=>c.status==='active'&&!complete(c));
+  const attentionCount=cycles.filter(attention).length;
   const visibleCycles=cycles.filter(c=>filter==='all'||attention(c));
-  const visibleClients=eligible.filter(c=>(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)));
+  const visibleClients=eligible.filter(c=>matches(c,query)&&(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)));
+  const searchResults = query.trim() ? clients.filter(c=>matches(c,query)).slice(0,8) : [];
   const saveClient=(id:string,p:Partial<BillingClient>)=>updateClient(id,p).then(()=>toast.success('Saved. Billing has been updated.')).catch(e=>toast.error(e.message));
+
+  const tutorialSteps: BillingTutorialStep[] = useMemo(()=>[
+    { title:'Two views, two jobs', body:'“Current billing deadlines” is the daily work list. “Add or update clients” is where you fill in missing billing information. Press the highlighted button to stay on the deadlines view.', cta:'Open current billing deadlines', selector:'[data-tour="section-deadlines"]', before:()=>{setSection('deadlines');setQuery('');} },
+    { title:'Search for a client', body:'Type any name, member ID, or MCO here to jump straight to a client. Results appear underneath and open the client profile.', cta:'Next', selector:'[data-tour="search"]' },
+    { title:'Needs attention', body:'This red button shows only cycles that are ready to bill, due within 48 hours, or already past due. It is the shortest list of work you must act on today.', cta:'Show needs attention', selector:'[data-tour="filter-attention"]', before:()=>setFilter('attention') },
+    { title:'All clients and cycles', body:'This shows every 30-day cycle for every billable client, including cycles that are far in the future or already submitted. Use it for review, not for daily work.', cta:'Show all clients and cycles', selector:'[data-tour="filter-all"]', before:()=>setFilter('all') },
+    { title:'Open a client row', body:'Press a client row to expand every one of their 30-day cycles. Cycles 1–5 cover the 150-day authorization; cycles 6–11 appear when the 180-day extension is approved.', cta:'Expand the first client', selector:'[data-tour="client-row"]', before:()=>{const first=eligible.find(c=>(cycleByClient.get(c.id)??[]).length); if(first) setOpen(first.id);} },
+    { title:'Open the client profile card', body:'The profile button on each row opens the full client card over this page. Close it with the X and you return exactly where you were.', cta:'Next', selector:'[data-tour="profile-btn"]' },
+    { title:'Update statuses in place', body:'Change billing status, payment status, and claim number directly in the cycle table. Each change saves immediately.', cta:'Next', selector:'[data-tour="cycle-table"]' },
+    { title:'Fix missing setup', body:'Switch to “Add or update clients” when a client cannot be billed yet.', cta:'Open add or update clients', selector:'[data-tour="section-setup"]', before:()=>setSection('setup') },
+    { title:'Needs set-up is red for a reason', body:'These clients are blocked. Each row states what is missing: information, HSP submission, or HSP approval. Fill it in and cycles are created automatically.', cta:'Show needs set-up', selector:'[data-tour="stage-setup"]', before:()=>{setSection('setup');setStage('setup');} },
+    { title:'Add a client row', body:'The green button adds a blank client row you can fill in immediately. That is the whole billing workflow.', cta:'Finish walkthrough', selector:'[data-tour="add-client"]', before:()=>setSection('setup') },
+  ],[eligible,cycleByClient]);
+
+  useEffect(()=>{ if(!tutorial) return; document.body.style.overflow='hidden'; return ()=>{document.body.style.overflow='';}; },[tutorial]);
+
   if (loading) return <Card className="p-8 text-muted-foreground">Loading billing information…</Card>;
+
   return <div className="space-y-4">
-    {tutorial && <Tutorial close={()=>setTutorial(false)} finish={finishTutorial} />}
-    <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex rounded-lg border bg-white p-1"><Button variant={section==='deadlines'?'default':'ghost'} onClick={()=>setSection('deadlines')}>Current Billing deadlines</Button><Button variant={section==='setup'?'default':'ghost'} onClick={()=>setSection('setup')}>Add or update clients</Button></div><Button variant="outline" onClick={()=>setTutorial(true)}><HelpCircle className="mr-2 h-4 w-4"/>Show me how Billing works</Button></div>
+    {tutorial && <BillingTutorial steps={tutorialSteps} onClose={()=>setTutorial(false)} onFinish={finishTutorial} />}
+    <ClientProfileDialog clientId={profileId} onClose={()=>setProfileId(null)} />
+
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex rounded-lg border bg-white p-1">
+        <Button data-tour="section-deadlines" variant={section==='deadlines'?'default':'ghost'} onClick={()=>setSection('deadlines')}>Current billing deadlines</Button>
+        <Button data-tour="section-setup" variant={section==='setup'?'default':'ghost'} onClick={()=>setSection('setup')}>Add or update clients</Button>
+      </div>
+      <Button variant="outline" onClick={()=>setTutorial(true)}><HelpCircle className="mr-2 h-4 w-4"/>Show me how billing works</Button>
+    </div>
+
+    <Card className="p-4" data-tour="search">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input className="pl-9" placeholder="Search clients by name, member ID, or MCO…" value={query} onChange={e=>setQuery(e.target.value)} />
+        {query && <button className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={()=>setQuery('')}><X className="h-4 w-4"/></button>}
+      </div>
+      {searchResults.length>0 && <div className="mt-3 divide-y rounded-md border">
+        {searchResults.map(c=><button key={c.id} className="flex w-full items-center justify-between gap-3 p-3 text-left text-sm hover:bg-slate-50" onClick={()=>setProfileId(c.id)}>
+          <span><b>{c.first_name} {c.last_name}</b><span className="text-muted-foreground"> · {c.member_id ?? 'No member ID'} · {c.insurance ?? 'No MCO'}</span></span>
+          <span className="flex items-center gap-1 text-xs font-medium text-primary"><UserRound className="h-3.5 w-3.5"/>Open profile</span>
+        </button>)}
+      </div>}
+    </Card>
+
     {section==='deadlines' ? <>
-      <Card className="p-5"><h2 className="font-semibold">Start here</h2><p className="mt-1 text-sm text-muted-foreground">Open the first client below and complete the action shown. Clients with missing information are kept in Add or update clients until their billing dates can be calculated.</p></Card>
-      <div className="flex gap-2"><Button variant={filter==='attention'?'default':'outline'} onClick={()=>setFilter('attention')}>Needs Attention ({cycles.filter(attention).length})</Button><Button variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All clients and cycles</Button></div>
-      {visibleClients.length===0 ? <Card className="p-10 text-center"><h3 className="font-semibold">Nothing needs attention right now</h3><p className="mt-1 text-sm text-muted-foreground">Billing will place a client here when a cycle is due soon or ready to submit.</p></Card> : <div className="space-y-3">{visibleClients.map(c=>{const cc=(cycleByClient.get(c.id)??[]).filter(x=>filter==='all'||attention(x));return <Card key={c.id} className="overflow-hidden"><button className="flex w-full items-center gap-3 p-4 text-left hover:bg-slate-50" onClick={()=>setOpen(open===c.id?null:c.id)}>{open===c.id?<ChevronDown/>:<ChevronRight/>}<div className="flex-1"><b>{c.first_name} {c.last_name}</b><div className="text-sm text-muted-foreground">{c.level_of_need?.replace(' Level','')} level · {c.auth_180_approved?'180-day extension':'150-day authorization'}</div></div><div className="text-right"><b>{cc.length} cycle{cc.length===1?'':'s'}</b><div className="text-sm text-muted-foreground">Open to review</div></div></button>{open===c.id&&<CycleGrid cycles={cycleByClient.get(c.id)??[]} updateCycle={updateCycle}/>}</Card>})}</div>}
+      <Card className="p-5">
+        <h2 className="font-semibold">What am I looking at?</h2>
+        <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+          <li><b className="text-red-600">Needs attention</b> — only the cycles you must act on now: ready to bill, due within 48 hours, or past due and not yet submitted.</li>
+          <li><b className="text-foreground">All clients and cycles</b> — every 30-day cycle for every billable client, including future and already-submitted cycles. Use it to review history, not for daily work.</li>
+        </ul>
+        <p className="mt-2 text-sm text-muted-foreground">Clients with missing information never appear here. They stay in “Add or update clients” until their billing dates can be calculated.</p>
+      </Card>
+      <div className="flex flex-wrap gap-2">
+        <Button data-tour="filter-attention" onClick={()=>setFilter('attention')} className={filter==='attention'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs attention ({attentionCount})</Button>
+        <Button data-tour="filter-all" variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All clients and cycles ({cycles.length})</Button>
+      </div>
+      {visibleClients.length===0 ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No billable clients match that search':'Nothing needs attention right now'}</h3><p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'Billing will place a client here when a cycle is due soon or ready to submit.'}</p></Card>
+      : <div className="space-y-3">{visibleClients.map((c,i)=>{const cc=(cycleByClient.get(c.id)??[]).filter(x=>filter==='all'||attention(x));return <Card key={c.id} className="overflow-hidden" data-tour={i===0?'client-row':undefined}>
+        <div className="flex items-center gap-2 pr-4">
+          <button className="flex flex-1 items-center gap-3 p-4 text-left hover:bg-slate-50" onClick={()=>setOpen(open===c.id?null:c.id)}>
+            {open===c.id?<ChevronDown/>:<ChevronRight/>}
+            <div className="flex-1"><b>{c.first_name} {c.last_name}</b><div className="text-sm text-muted-foreground">{c.level_of_need?.replace(' Level','')} level · {c.auth_180_approved?'180-day extension':'150-day authorization'}</div></div>
+            <div className="text-right"><b>{cc.length} cycle{cc.length===1?'':'s'}</b><div className="text-sm text-muted-foreground">Open to review</div></div>
+          </button>
+          <Button variant="outline" size="sm" data-tour={i===0?'profile-btn':undefined} onClick={()=>setProfileId(c.id)}><UserRound className="mr-2 h-4 w-4"/>Client profile</Button>
+        </div>
+        {open===c.id&&<CycleGrid cycles={cycleByClient.get(c.id)??[]} updateCycle={updateCycle} tour={i===0}/>}
+      </Card>})}</div>}
     </> : <>
-      <Card className="p-5"><h2 className="font-semibold">Add information as you receive it</h2><p className="mt-1 text-sm text-muted-foreground">Needs Setup is separate because these clients do not yet have enough information to calculate billing. Partial information is saved without creating overdue warnings.</p></Card>
-      <div className="flex flex-wrap gap-2"><Button variant={stage==='setup'?'default':'outline'} onClick={()=>setStage('setup')}>Needs Setup ({setup.length})</Button><Button variant={stage==='150'?'default':'outline'} onClick={()=>setStage('150')}>150-Day Authorization ({eligible.filter(c=>!c.auth_180_approved).length})</Button><Button variant={stage==='180'?'default':'outline'} onClick={()=>setStage('180')}>180-Day Extension ({eligible.filter(c=>c.auth_180_approved).length})</Button></div>
-      <ClientGrid clients={stage==='setup'?setup:eligible.filter(c=>stage==='180'?c.auth_180_approved:!c.auth_180_approved)} save={saveClient} showBlocker={stage==='setup'} />
-      <Button variant="outline" onClick={()=>addClient().then(()=>toast.success('New client row added.')).catch(e=>toast.error(e.message))}><Plus className="mr-2 h-4 w-4"/>Add client row</Button>
+      <Card className="p-5"><h2 className="font-semibold">Add information as you receive it</h2><p className="mt-1 text-sm text-muted-foreground">Needs set-up is separate because these clients do not yet have enough information to calculate billing. Partial information is saved without creating overdue warnings.</p></Card>
+      <div className="flex flex-wrap gap-2">
+        <Button data-tour="stage-setup" onClick={()=>setStage('setup')} className={stage==='setup'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs set-up ({setup.length})</Button>
+        <Button variant={stage==='150'?'default':'outline'} onClick={()=>setStage('150')}>150-day authorization ({eligible.filter(c=>!c.auth_180_approved).length})</Button>
+        <Button variant={stage==='180'?'default':'outline'} onClick={()=>setStage('180')}>180-day extension ({eligible.filter(c=>c.auth_180_approved).length})</Button>
+        <Button data-tour="add-client" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>addClient().then(()=>toast.success('New client row added.')).catch(e=>toast.error(e.message))}><Plus className="mr-2 h-4 w-4"/>Add client row</Button>
+      </div>
+      <ClientGrid clients={(stage==='setup'?setup:eligible.filter(c=>stage==='180'?c.auth_180_approved:!c.auth_180_approved)).filter(c=>matches(c,query))} save={saveClient} showBlocker={stage==='setup'} openProfile={setProfileId} />
     </>}
   </div>;
 }
 
-function ClientGrid({clients,save,showBlocker}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;showBlocker:boolean}){
-  return <Card className="overflow-x-auto"><table className="w-full min-w-[1050px] text-sm"><thead className="bg-slate-100 text-left"><tr>{['Client','Member ID','MCO','Level of Need','HSP submitted','HSP approval start','180-day extension',showBlocker?'Why not in Billing':'Billing stage'].map(x=><th key={x} className="p-3 font-semibold">{x}</th>)}</tr></thead><tbody>{clients.map(c=><tr key={c.id} className="border-t"><td className="p-2"><div className="flex gap-1"><Editable value={c.first_name} onSave={v=>save(c.id,{first_name:v})}/><Editable value={c.last_name} onSave={v=>save(c.id,{last_name:v})}/></div></td><td className="p-2"><Editable value={c.member_id} onSave={v=>save(c.id,{member_id:v||null})}/></td><td className="p-2"><Editable value={c.insurance} onSave={v=>save(c.id,{insurance:v||null})}/></td><td className="p-2"><Select value={c.level_of_need??''} onValueChange={v=>save(c.id,{level_of_need:v})}><SelectTrigger className="w-36"><SelectValue placeholder="Choose"/></SelectTrigger><SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="High">High</SelectItem></SelectContent></Select></td><td className="p-2"><Select value={c.hsp_submitted?'yes':'no'} onValueChange={v=>save(c.id,{hsp_submitted:v==='yes'})}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Yes</SelectItem></SelectContent></Select></td><td className="p-2"><Editable type="date" value={c.auth_150_start} onSave={v=>save(c.id,{auth_150_start:v||null})}/></td><td className="p-2"><Select value={c.auth_180_approved?'yes':'no'} onValueChange={v=>save(c.id,{auth_180_approved:v==='yes'})}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Approved</SelectItem></SelectContent></Select></td><td className="p-3"><span className={`rounded-full px-3 py-1 font-medium ${showBlocker?'bg-amber-100 text-amber-900':'bg-green-100 text-green-900'}`}>{showBlocker?blocker(c):(c.auth_180_approved?'180-Day Extension':'150-Day Authorization')}</span></td></tr>)}</tbody></table></Card>;
+function ClientGrid({clients,save,showBlocker,openProfile}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;showBlocker:boolean;openProfile:(id:string)=>void}){
+  return <Card className="overflow-x-auto"><table className="w-full min-w-[1150px] text-sm"><thead className="bg-slate-100 text-left"><tr>{['Client','Member ID','MCO','Level of Need','HSP submitted','HSP approval start','180-day extension',showBlocker?'Why not in billing':'Billing stage','Profile'].map(x=><th key={x} className="p-3 font-semibold">{x}</th>)}</tr></thead><tbody>{clients.map(c=><tr key={c.id} className="border-t"><td className="p-2"><div className="flex gap-1"><Editable value={c.first_name} onSave={v=>save(c.id,{first_name:v})}/><Editable value={c.last_name} onSave={v=>save(c.id,{last_name:v})}/></div></td><td className="p-2"><Editable value={c.member_id} onSave={v=>save(c.id,{member_id:v||null})}/></td><td className="p-2"><Editable value={c.insurance} onSave={v=>save(c.id,{insurance:v||null})}/></td><td className="p-2"><Select value={c.level_of_need??''} onValueChange={v=>save(c.id,{level_of_need:v})}><SelectTrigger className="w-36"><SelectValue placeholder="Choose"/></SelectTrigger><SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="High">High</SelectItem></SelectContent></Select></td><td className="p-2"><Select value={c.hsp_submitted?'yes':'no'} onValueChange={v=>save(c.id,{hsp_submitted:v==='yes'})}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Yes</SelectItem></SelectContent></Select></td><td className="p-2"><Editable type="date" value={c.auth_150_start} onSave={v=>save(c.id,{auth_150_start:v||null})}/></td><td className="p-2"><Select value={c.auth_180_approved?'yes':'no'} onValueChange={v=>save(c.id,{auth_180_approved:v==='yes'})}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Approved</SelectItem></SelectContent></Select></td><td className="p-3"><span className={`rounded-full px-3 py-1 font-medium ${showBlocker?'bg-red-100 text-red-800':'bg-green-100 text-green-900'}`}>{showBlocker?blocker(c):(c.auth_180_approved?'180-day extension':'150-day authorization')}</span></td><td className="p-2"><Button variant="outline" size="sm" onClick={()=>openProfile(c.id)}><UserRound className="mr-2 h-4 w-4"/>Open</Button></td></tr>)}</tbody></table></Card>;
 }
 
-function CycleGrid({cycles,updateCycle}:{cycles:BillingCycle[];updateCycle:(id:string,p:Partial<BillingCycle>)=>Promise<void>}){
-  return <div className="border-t bg-white p-4"><div className="mb-3 text-sm"><b>How to read this:</b> Cycles 1–5 are the 150-day authorization. Cycles 6–11 are the 180-day extension.</div><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-sm"><thead><tr className="bg-slate-100">{['Cycle','Authorization','Dates','Billing status','Payment status','Claim number'].map(x=><th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>{cycles.map(c=><tr key={c.id} className="border-t"><td className="p-3 font-semibold">Cycle {c.cycle_number}</td><td className="p-3">{c.cycle_number<=5?'150-day authorization':'180-day extension'}</td><td className="p-3">{fmt(c.cycle_start)} – {fmt(c.cycle_end)}</td><td className="p-3"><Select value={c.billing_status} onValueChange={v=>updateCycle(c.id,{billing_status:v as BillingCycle['billing_status']}).then(()=>toast.success('Billing status saved.'))}><SelectTrigger className="w-36"><SelectValue/></SelectTrigger><SelectContent>{['Not Billed','Ready to Bill','Submitted','Denied'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td><td className="p-3"><Select value={c.payment_status} onValueChange={v=>updateCycle(c.id,{payment_status:v as BillingCycle['payment_status']}).then(()=>toast.success('Payment status saved.'))}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent>{['Unpaid','Partial','Paid'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td><td className="p-3"><Editable value={c.claim_number} onSave={v=>updateCycle(c.id,{claim_number:v||null})}/></td></tr>)}</tbody></table></div></div>;
+function CycleGrid({cycles,updateCycle,tour}:{cycles:BillingCycle[];updateCycle:(id:string,p:Partial<BillingCycle>)=>Promise<void>;tour?:boolean}){
+  return <div className="border-t bg-white p-4" data-tour={tour?'cycle-table':undefined}><div className="mb-3 text-sm"><b>How to read this:</b> Cycles 1–5 are the 150-day authorization. Cycles 6–11 are the 180-day extension.</div><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-sm"><thead><tr className="bg-slate-100">{['Cycle','Authorization','Dates','Billing status','Payment status','Claim number'].map(x=><th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>{cycles.map(c=><tr key={c.id} className="border-t"><td className="p-3 font-semibold">Cycle {c.cycle_number}</td><td className="p-3">{c.cycle_number<=5?'150-day authorization':'180-day extension'}</td><td className="p-3">{fmt(c.cycle_start)} – {fmt(c.cycle_end)}</td><td className="p-3"><Select value={c.billing_status} onValueChange={v=>updateCycle(c.id,{billing_status:v as BillingCycle['billing_status']}).then(()=>toast.success('Billing status saved.'))}><SelectTrigger className="w-36"><SelectValue/></SelectTrigger><SelectContent>{['Not Billed','Ready to Bill','Submitted','Denied'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td><td className="p-3"><Select value={c.payment_status} onValueChange={v=>updateCycle(c.id,{payment_status:v as BillingCycle['payment_status']}).then(()=>toast.success('Payment status saved.'))}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent>{['Unpaid','Partial','Paid'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td><td className="p-3"><Editable value={c.claim_number} onSave={v=>updateCycle(c.id,{claim_number:v||null})}/></td></tr>)}</tbody></table></div></div>;
 }
