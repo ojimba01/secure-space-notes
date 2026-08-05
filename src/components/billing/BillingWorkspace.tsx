@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useBilling, BillingClient } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { BillingCycle } from '@/lib/billing';
+import { BillingCycle, APPROVAL_STATES, ApprovalState, isDeadlineAtRisk, isCycleResolved, finalDeadlineFor, deadlineLabel, hspDueDateFor, DEADLINE_WARNING_DAYS } from '@/lib/billing';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
