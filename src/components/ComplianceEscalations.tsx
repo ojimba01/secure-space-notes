@@ -5,8 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, ClipboardCheck, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, ClipboardCheck, CheckCircle2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+const PAGE_SIZE = 10;
 
 interface Escalation {
   id: string;
