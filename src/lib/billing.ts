@@ -169,7 +169,7 @@ export function isCycleResolved(cycle: Pick<BillingCycle, 'approval_state'>): bo
 }
 
 // A cycle needs attention when it has ended, is not yet approved or closed,
-// and its final submission deadline is two weeks or less away (or has passed).
+// and its final submission deadline is four weeks or less away (or has passed).
 export function isDeadlineAtRisk(
   cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline' | 'approval_state'>,
   today = todayAgency(),
