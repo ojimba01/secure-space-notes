@@ -32,6 +32,8 @@ export const ComplianceEscalations: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [page, setPage] = useState(0);
+  const [showAllAudits, setShowAllAudits] = useState(false);
+
 
   const load = async () => {
     setLoading(true);
