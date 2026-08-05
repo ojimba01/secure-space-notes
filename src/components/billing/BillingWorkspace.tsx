@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { differenceInCalendarDays, format, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ChevronDown, ChevronRight, HelpCircle, Plus, Search, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient } from '@/hooks/useBilling';
