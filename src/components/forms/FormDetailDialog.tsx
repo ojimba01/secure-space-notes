@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { stampApproval, FORM_STATUS_LABEL } from '@/lib/formSigning';
+import { FORM_STATUS_LABEL } from '@/lib/formSigning';
 import { Check, Download, RotateCcw } from 'lucide-react';
 import type { FormRow } from '@/components/forms/FormsHub';
 
@@ -43,33 +43,15 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
     : 'Unknown client';
 
   const approve = async () => {
-    if (!form.file_path) return;
     setBusy(true);
     try {
-      // Stamp the approval onto a new copy so the stored signed file stays intact.
-      const { data: blob, error: dlError } = await supabase.storage
-        .from('client-files')
-        .download(form.file_path);
-      if (dlError) throw dlError;
-
-      const stamped = await stampApproval(await blob.arrayBuffer(), approverName);
-      const approvedPath = form.file_path.replace(/[^/]+$/, `approved-${Date.now()}.pdf`);
-      const { error: upError } = await supabase.storage
-        .from('client-files')
-        .upload(
-          approvedPath,
-          new Blob([stamped as unknown as BlobPart], { type: 'application/pdf' }),
-          { contentType: 'application/pdf' },
-        );
-      if (upError) throw upError;
-
       const { error } = await supabase
         .from('client_forms')
-        .update({ status: 'approved', file_path: approvedPath, review_note: note || null })
+        .update({ status: 'approved', review_note: note || null })
         .eq('id', form.id);
       if (error) throw error;
 
-      toast({ title: 'Form approved', description: `${clientName} — ${form.title}` });
+      toast({ title: 'Form approved', description: `${clientName} — ${form.form_type}` });
       onChanged();
       onClose();
     } catch (err: any) {
@@ -105,7 +87,7 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{form.title}</DialogTitle>
+          <DialogTitle>{form.form_type}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3 text-sm">
@@ -133,14 +115,6 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
             <div>
               <div className="text-muted-foreground text-xs">Status</div>
               <div>{FORM_STATUS_LABEL[form.status] ?? form.status}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground text-xs">Signed</div>
-              <div>
-                {form.signed_at
-                  ? `${form.signature_name ?? ''} — ${new Date(form.signed_at).toLocaleString()}`
-                  : 'Not signed'}
-              </div>
             </div>
             {form.approved_at && (
               <div className="col-span-2">
