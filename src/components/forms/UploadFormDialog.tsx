@@ -208,7 +208,14 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
                 ))}
               </SelectContent>
             </Select>
+            {clients.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No clients are assigned to you yet, so there is nothing to file a form
+                against. Ask an administrator to assign a client.
+              </p>
+            )}
           </div>
+
 
           <div className="space-y-2">
             <Label htmlFor="form-file">Completed PDF</Label>
