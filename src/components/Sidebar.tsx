@@ -15,7 +15,8 @@ import {
   Play,
   Menu,
   X,
-  DollarSign
+  DollarSign,
+  FilePlus2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useTutorial } from '@/components/TutorialProvider';
@@ -30,8 +31,8 @@ import { AdvancedTools } from '@/components/AdvancedTools';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
-  activeView: 'compliance' | 'clients' | 'notes' | 'calendar';
-  onViewChange: (view: 'compliance' | 'clients' | 'notes' | 'calendar') => void;
+  activeView: 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms';
+  onViewChange: (view: 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms') => void;
   onOpenNote?: (noteId: string) => void;
 }
 
@@ -54,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
   }, [user]);
 
   // Close sidebar when view changes on mobile
-  const handleViewChange = (view: 'compliance' | 'clients' | 'notes' | 'calendar') => {
+  const handleViewChange = (view: 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms') => {
     onViewChange(view);
     if (isMobile) setIsOpen(false);
   };
@@ -198,6 +199,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
           >
             <Users className="h-4 w-4" />
             Clients
+          </Button>
+          <Button
+            variant={activeView === 'forms' ? 'default' : 'ghost'}
+            className="w-full justify-start gap-2"
+            onClick={() => handleViewChange('forms')}
+            data-tutorial="forms-nav"
+          >
+            <FilePlus2 className="h-4 w-4" />
+            Forms
           </Button>
           {isAdmin && !isViewingAs && (
             <Button

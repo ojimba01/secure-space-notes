@@ -381,6 +381,95 @@ export type Database = {
           },
         ]
       }
+      client_forms: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          client_id: string
+          created_at: string
+          employee_id: string
+          file_path: string | null
+          file_size: number | null
+          form_type: string
+          id: string
+          original_file_path: string | null
+          review_note: string | null
+          signature_name: string | null
+          signed_at: string | null
+          signed_by: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          client_id: string
+          created_at?: string
+          employee_id: string
+          file_path?: string | null
+          file_size?: number | null
+          form_type: string
+          id?: string
+          original_file_path?: string | null
+          review_note?: string | null
+          signature_name?: string | null
+          signed_at?: string | null
+          signed_by?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          client_id?: string
+          created_at?: string
+          employee_id?: string
+          file_path?: string | null
+          file_size?: number | null
+          form_type?: string
+          id?: string
+          original_file_path?: string | null
+          review_note?: string | null
+          signature_name?: string | null
+          signed_at?: string | null
+          signed_by?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_forms_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_forms_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_forms_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_forms_signed_by_fkey"
+            columns: ["signed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_month_compliance: {
         Row: {
           activities_done: Json
