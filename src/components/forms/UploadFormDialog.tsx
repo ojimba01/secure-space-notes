@@ -156,11 +156,15 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
       onSubmitted();
       onClose();
     } catch (err: any) {
+      const raw = err?.message ?? '';
       toast({
         title: 'Could not submit the form',
-        description: err.message,
+        description: raw.includes('row-level security')
+          ? 'You can only submit forms for clients assigned to you. Ask an administrator to assign this client to you first.'
+          : raw,
         variant: 'destructive',
       });
+
     } finally {
       setSaving(false);
     }
