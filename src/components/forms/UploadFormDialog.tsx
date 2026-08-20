@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
+
 import { FORM_TYPES } from '@/lib/formSigning';
 import { Upload } from 'lucide-react';
 
@@ -52,7 +54,9 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
   onSubmitted,
 }) => {
   const { toast } = useToast();
+  const { isAdmin } = useIsAdmin();
   const [clients, setClients] = useState<ClientOption[]>([]);
+
   const [clientId, setClientId] = useState('');
   const [formType, setFormType] = useState<string>(FORM_TYPES[0]);
   const [file, setFile] = useState<File | null>(null);
@@ -62,14 +66,23 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('clients')
         .select('id, first_name, last_name')
         .is('deleted_at', null)
         .order('last_name');
+
+      // Employees can only file forms for clients assigned to them, so keep the
+      // dropdown in sync with what the database will actually accept.
+      if (!isAdmin && profileId) {
+        query = query.eq('assigned_employee_id', profileId);
+      }
+
+      const { data } = await query;
       setClients(data ?? []);
     })();
-  }, [open]);
+  }, [open, isAdmin, profileId]);
+
 
   const reset = () => {
     setClientId('');
