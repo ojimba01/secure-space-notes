@@ -8,12 +8,13 @@ import { ClientManagement } from "@/components/ClientManagement";
 import { NotesHub } from "@/components/NotesHub";
 import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
 import { MyMonth } from "@/components/MyMonth";
+import { FormsHub } from "@/components/forms/FormsHub";
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { SuperadminTouchpoints } from '@/components/SuperadminTouchpoints';
 import { useViewAs } from '@/components/ViewAsProvider';
 
-type View = 'compliance' | 'clients' | 'notes' | 'calendar';
+type View = 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms';
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -132,6 +133,8 @@ const Index = () => {
               initialClientId={initialClientId}
               onConsumeInitialClient={() => setInitialClientId(null)}
             />
+          ) : activeView === 'forms' ? (
+            <FormsHub />
           ) : activeView === 'calendar' ? (
             <CaseManagerCalendar />
           ) : (
