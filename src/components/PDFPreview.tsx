@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { Document, Page } from 'react-pdf';
+import '@/lib/pdfWorker';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
-
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PDFPreviewProps {
   fileUrl: string;
