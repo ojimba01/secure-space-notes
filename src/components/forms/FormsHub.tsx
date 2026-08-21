@@ -23,9 +23,14 @@ import {
   Plus,
   Search,
 } from 'lucide-react';
-import { FORM_STATUS_LABEL, FORM_TYPES } from '@/lib/formSigning';
+import { FORM_STATUS_LABEL, FORM_TYPES, type FormType } from '@/lib/formSigning';
 import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
 import { FormDetailDialog } from '@/components/forms/FormDetailDialog';
+import {
+  PDF_TEMPLATES,
+  TemplateViewerDialog,
+  type PdfTemplate,
+} from '@/components/forms/TemplateViewerDialog';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
@@ -75,6 +80,8 @@ export const FormsHub: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadFormType, setUploadFormType] = useState<string | undefined>(undefined);
+  const [viewingTemplate, setViewingTemplate] = useState<PdfTemplate | null>(null);
   const [detail, setDetail] = useState<FormRow | null>(null);
   const [preview, setPreview] = useState<{
     id: string;
@@ -198,10 +205,45 @@ export const FormsHub: React.FC = () => {
               : 'Upload and track your completed forms.'}
           </p>
         </div>
-        <Button onClick={() => setUploadOpen(true)} disabled={!profileId}>
+        <Button
+          onClick={() => {
+            setUploadFormType(undefined);
+            setUploadOpen(true);
+          }}
+          disabled={!profileId}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Upload Form
         </Button>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        {PDF_TEMPLATES.map((t) => (
+          <Card key={t.formType} className="p-4 flex flex-col gap-2">
+            <div className="flex items-start gap-2">
+              <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+              <div>
+                <div className="text-sm font-medium leading-tight">{t.formType}</div>
+                <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
+              </div>
+            </div>
+            <div className="mt-auto flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setViewingTemplate(t)}
+              >
+                Fill in browser
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <a href={t.file} download aria-label={`Download blank ${t.formType}`}>
+                  <Download className="h-4 w-4" />
+                </a>
+              </Button>
+            </div>
+          </Card>
+        ))}
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -335,6 +377,18 @@ export const FormsHub: React.FC = () => {
         </div>
       )}
 
+      {viewingTemplate && (
+        <TemplateViewerDialog
+          template={viewingTemplate}
+          onClose={() => setViewingTemplate(null)}
+          onUpload={(formType: FormType) => {
+            setViewingTemplate(null);
+            setUploadFormType(formType);
+            setUploadOpen(true);
+          }}
+        />
+      )}
+
       {uploadOpen && profileId && (
         <UploadFormDialog
           open={uploadOpen}
@@ -342,6 +396,7 @@ export const FormsHub: React.FC = () => {
           profileId={profileId}
           signerName={signerName}
           onSubmitted={fetchForms}
+          initialFormType={uploadFormType}
         />
       )}
 
