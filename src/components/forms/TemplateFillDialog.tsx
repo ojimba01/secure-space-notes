@@ -82,6 +82,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const docRef = useRef<pdfjs.PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [scale, setScale] = useState(1);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [clientId, setClientId] = useState('');
   const [attested, setAttested] = useState(false);
@@ -249,10 +250,13 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
               docRef.current = doc;
               setNumPages(doc.numPages);
             }}
+            onLoadError={(err) => setLoadError(err?.message ?? String(err))}
+            onSourceError={(err) => setLoadError(err?.message ?? String(err))}
             loading={<div className="p-8 text-center text-sm text-muted-foreground">Loading form...</div>}
             error={
-              <div className="p-8 text-center text-sm text-destructive">
-                Failed to load the form. Try downloading the blank copy instead.
+              <div className="p-8 text-center text-sm text-destructive space-y-1">
+                <p>Failed to load the form. Try downloading the blank copy instead.</p>
+                {loadError && <p className="text-xs opacity-80">Details: {loadError}</p>}
               </div>
             }
           >
