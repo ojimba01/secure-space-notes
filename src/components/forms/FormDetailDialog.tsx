@@ -23,6 +23,8 @@ interface FormDetailDialogProps {
   onChanged: () => void;
   onDownload: (form: FormRow) => void;
   onPreview: (form: FormRow) => void;
+  /** Employee action: reopen a changes-requested submission for correction. */
+  onEdit?: (form: FormRow) => void;
 }
 
 export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
@@ -33,6 +35,7 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
   onChanged,
   onDownload,
   onPreview,
+  onEdit,
 }) => {
   const { toast } = useToast();
   const [note, setNote] = useState(form.review_note ?? '');
@@ -125,9 +128,20 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
           </div>
 
           {form.review_note && form.status === 'changes_requested' && (
-            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
+            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
               <div className="text-xs font-medium">Reviewer note</div>
               <p className="text-sm">{form.review_note}</p>
+              {!isAdmin && onEdit && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    onEdit(form);
+                  }}
+                >
+                  Edit & resubmit
+                </Button>
+              )}
             </div>
           )}
 
