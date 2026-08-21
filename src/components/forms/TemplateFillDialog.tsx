@@ -23,6 +23,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useViewAs } from '@/components/ViewAsProvider';
 import { Download, Upload, ZoomIn, ZoomOut } from 'lucide-react';
 import type { FormType } from '@/lib/formSigning';
 import type { FormRow } from '@/components/forms/FormsHub';
@@ -89,6 +90,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
 }) => {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
+  const { isViewingAs } = useViewAs();
   const docRef = useRef<pdfjs.PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [scale, setScale] = useState(1);
@@ -118,15 +120,17 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         .order('last_name');
 
       // Employees can only file forms for clients assigned to them, so keep the
-      // dropdown in sync with what the database will actually accept.
-      if (!isAdmin && profileId) {
+      // dropdown in sync with what the database will actually accept. Admins
+      // previewing as an employee get that employee's list, not their own
+      // all-clients view, so the preview matches the real experience.
+      if ((!isAdmin || isViewingAs) && profileId) {
         query = query.eq('assigned_employee_id', profileId);
       }
 
       const { data } = await query;
       setClients(data ?? []);
     })();
-  }, [existing, isAdmin, profileId]);
+  }, [existing, isAdmin, isViewingAs, profileId]);
 
   // Resubmit mode: pull the previously submitted PDF back out of storage.
   useEffect(() => {
