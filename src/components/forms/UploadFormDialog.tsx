@@ -20,8 +20,9 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { SignaturePad } from '@/components/forms/SignaturePad';
-import { FORM_TYPES, signPdf } from '@/lib/formSigning';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
+
+import { FORM_TYPES } from '@/lib/formSigning';
 import { Upload } from 'lucide-react';
 
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -29,7 +30,6 @@ const MAX_BYTES = 20 * 1024 * 1024;
 const schema = z.object({
   client_id: z.string().uuid('Select a client'),
   form_type: z.enum(FORM_TYPES),
-  title: z.string().trim().min(1, 'Title is required').max(200),
 });
 
 interface UploadFormDialogProps {
@@ -57,33 +57,40 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
   initialFormType,
 }) => {
   const { toast } = useToast();
+  const { isAdmin } = useIsAdmin();
   const [clients, setClients] = useState<ClientOption[]>([]);
+
   const [clientId, setClientId] = useState('');
   const [formType, setFormType] = useState<string>(initialFormType ?? FORM_TYPES[0]);
-  const [title, setTitle] = useState<string>(initialFormType ?? FORM_TYPES[0]);
   const [file, setFile] = useState<File | null>(null);
-  const [signature, setSignature] = useState<string | null>(null);
   const [attested, setAttested] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('clients')
         .select('id, first_name, last_name')
         .is('deleted_at', null)
         .order('last_name');
+
+      // Employees can only file forms for clients assigned to them, so keep the
+      // dropdown in sync with what the database will actually accept.
+      if (!isAdmin && profileId) {
+        query = query.eq('assigned_employee_id', profileId);
+      }
+
+      const { data } = await query;
       setClients(data ?? []);
     })();
-  }, [open]);
+  }, [open, isAdmin, profileId]);
+
 
   const reset = () => {
     setClientId('');
     setFormType(FORM_TYPES[0]);
-    setTitle(FORM_TYPES[0]);
     setFile(null);
-    setSignature(null);
     setAttested(false);
   };
 
@@ -93,7 +100,7 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
   };
 
   const handleSubmit = async () => {
-    const parsed = schema.safeParse({ client_id: clientId, form_type: formType, title });
+    const parsed = schema.safeParse({ client_id: clientId, form_type: formType });
     if (!parsed.success) {
       toast({
         title: 'Check the form',
@@ -114,10 +121,6 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
       toast({ title: 'File is larger than 20 MB', variant: 'destructive' });
       return;
     }
-    if (!signature) {
-      toast({ title: 'Add your signature before submitting', variant: 'destructive' });
-      return;
-    }
     if (!attested) {
       toast({ title: 'Confirm the attestation to submit', variant: 'destructive' });
       return;
@@ -125,37 +128,22 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
 
     setSaving(true);
     try {
-      const signedBytes = await signPdf(file, {
-        signatureDataUrl: signature,
-        signerName,
-      });
       const folder = `forms/${clientId}/${crypto.randomUUID()}`;
-      const signedPath = `${folder}/signed.pdf`;
-      const originalPath = `${folder}/original.pdf`;
+      const filePath = `${folder}/form.pdf`;
 
-      const signedBlob = new Blob([signedBytes as unknown as BlobPart], {
-        type: 'application/pdf',
-      });
-
-      const uploads = await Promise.all([
-        supabase.storage
-          .from('client-files')
-          .upload(signedPath, signedBlob, { contentType: 'application/pdf' }),
-        supabase.storage
-          .from('client-files')
-          .upload(originalPath, file, { contentType: 'application/pdf' }),
-      ]);
-      const uploadError = uploads.find((u) => u.error)?.error;
+      const { error: uploadError } = await supabase.storage
+        .from('client-files')
+        .upload(filePath, file, { contentType: 'application/pdf' });
       if (uploadError) throw uploadError;
 
       const { error } = await supabase.from('client_forms').insert({
         client_id: clientId,
         employee_id: profileId,
         form_type: formType,
-        title: parsed.data.title,
-        file_path: signedPath,
-        original_file_path: originalPath,
-        file_size: signedBlob.size,
+        title: formType,
+        file_path: filePath,
+        original_file_path: filePath,
+        file_size: file.size,
         status: 'submitted',
         signature_name: signerName,
         signed_by: profileId,
@@ -165,17 +153,21 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
 
       toast({
         title: 'Form submitted',
-        description: 'Your signed form is now awaiting manager approval.',
+        description: 'Your form is now awaiting manager approval.',
       });
       reset();
       onSubmitted();
       onClose();
     } catch (err: any) {
+      const raw = err?.message ?? '';
       toast({
         title: 'Could not submit the form',
-        description: err.message,
+        description: raw.includes('row-level security')
+          ? 'You can only submit forms for clients assigned to you. Ask an administrator to assign this client to you first.'
+          : raw,
         variant: 'destructive',
       });
+
     } finally {
       setSaving(false);
     }
@@ -191,13 +183,7 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Form type</Label>
-            <Select
-              value={formType}
-              onValueChange={(v) => {
-                setFormType(v);
-                if (FORM_TYPES.includes(title as never) || !title) setTitle(v);
-              }}
-            >
+            <Select value={formType} onValueChange={setFormType}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -225,17 +211,14 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
                 ))}
               </SelectContent>
             </Select>
+            {clients.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No clients are assigned to you yet, so there is nothing to file a form
+                against. Ask an administrator to assign a client.
+              </p>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="form-title">Title</Label>
-            <Input
-              id="form-title"
-              value={title}
-              maxLength={200}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="form-file">Completed PDF</Label>
@@ -245,10 +228,11 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
               accept="application/pdf"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
-            <p className="text-xs text-muted-foreground">PDF only, up to 20 MB.</p>
+            <p className="text-xs text-muted-foreground">
+              PDF only, up to 20 MB. The file is stored exactly as you upload it — sign it before
+              uploading if a signature is required.
+            </p>
           </div>
-
-          <SignaturePad onChange={setSignature} />
 
           <label className="flex items-start gap-2 text-sm">
             <Checkbox
@@ -266,7 +250,7 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
             <Upload className="h-4 w-4 mr-2" />
-            {saving ? 'Submitting...' : 'Sign and submit'}
+            {saving ? 'Submitting...' : 'Submit form'}
           </Button>
         </DialogFooter>
       </DialogContent>

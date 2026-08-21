@@ -176,7 +176,7 @@ export const FormsHub: React.FC = () => {
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${form.title.replace(/[^\w\- ]+/g, '')}.pdf`;
+      a.download = `${form.form_type.replace(/[^\w\- ]+/g, '')}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -188,7 +188,7 @@ export const FormsHub: React.FC = () => {
     if (!form.file_path) return;
     setPreview({
       id: form.id,
-      file_name: `${form.title}.pdf`,
+      file_name: `${form.form_type}.pdf`,
       file_path: form.file_path,
       file_type: 'application/pdf',
     });
@@ -202,7 +202,7 @@ export const FormsHub: React.FC = () => {
           <p className="text-sm text-muted-foreground">
             {reviewMode
               ? 'Review signed forms submitted by your team.'
-              : 'Upload, sign and track your completed forms.'}
+              : 'Upload and track your completed forms.'}
           </p>
         </div>
         <Button
@@ -322,9 +322,6 @@ export const FormsHub: React.FC = () => {
                       <FileText className="h-4 w-4 text-muted-foreground" />
                       <span>{form.form_type}</span>
                     </div>
-                    {form.title !== form.form_type && (
-                      <div className="text-xs text-muted-foreground">{form.title}</div>
-                    )}
                   </td>
                   {reviewMode && (
                     <td className="px-3 py-2">
