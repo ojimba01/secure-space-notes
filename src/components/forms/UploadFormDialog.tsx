@@ -21,6 +21,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useViewAs } from '@/components/ViewAsProvider';
 
 import { FORM_TYPES } from '@/lib/formSigning';
 import { Upload } from 'lucide-react';
@@ -58,6 +59,7 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
 }) => {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
+  const { isViewingAs } = useViewAs();
   const [clients, setClients] = useState<ClientOption[]>([]);
 
   const [clientId, setClientId] = useState('');
@@ -76,15 +78,17 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
         .order('last_name');
 
       // Employees can only file forms for clients assigned to them, so keep the
-      // dropdown in sync with what the database will actually accept.
-      if (!isAdmin && profileId) {
+      // dropdown in sync with what the database will actually accept. Admins
+      // previewing as an employee get that employee's list, not their own
+      // all-clients view, so the preview matches the real experience.
+      if ((!isAdmin || isViewingAs) && profileId) {
         query = query.eq('assigned_employee_id', profileId);
       }
 
       const { data } = await query;
       setClients(data ?? []);
     })();
-  }, [open, isAdmin, profileId]);
+  }, [open, isAdmin, isViewingAs, profileId]);
 
 
   const reset = () => {

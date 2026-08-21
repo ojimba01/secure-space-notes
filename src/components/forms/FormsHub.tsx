@@ -81,6 +81,7 @@ export const FormsHub: React.FC = () => {
   const [page, setPage] = useState(0);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [fillingTemplate, setFillingTemplate] = useState<PdfTemplate | null>(null);
+  const [editingForm, setEditingForm] = useState<FormRow | null>(null);
   const [detail, setDetail] = useState<FormRow | null>(null);
   const [preview, setPreview] = useState<{
     id: string;
@@ -334,6 +335,11 @@ export const FormsHub: React.FC = () => {
                       <Button variant="outline" size="sm" onClick={() => setDetail(form)}>
                         {reviewMode && form.status !== 'approved' ? 'Review' : 'Details'}
                       </Button>
+                      {!reviewMode && form.status === 'changes_requested' && (
+                        <Button size="sm" onClick={() => setEditingForm(form)}>
+                          Edit & resubmit
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" onClick={() => handleDownload(form)}>
                         <Download className="h-4 w-4" />
                       </Button>
@@ -380,6 +386,16 @@ export const FormsHub: React.FC = () => {
         />
       )}
 
+      {editingForm && profileId && (
+        <TemplateFillDialog
+          existing={editingForm}
+          profileId={profileId}
+          signerName={signerName}
+          onClose={() => setEditingForm(null)}
+          onSubmitted={fetchForms}
+        />
+      )}
+
       {uploadOpen && profileId && (
         <UploadFormDialog
           open={uploadOpen}
@@ -399,6 +415,7 @@ export const FormsHub: React.FC = () => {
           onChanged={fetchForms}
           onDownload={handleDownload}
           onPreview={openPreview}
+          onEdit={setEditingForm}
         />
       )}
 
