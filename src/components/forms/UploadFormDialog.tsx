@@ -38,6 +38,8 @@ interface UploadFormDialogProps {
   profileId: string;
   signerName: string;
   onSubmitted: () => void;
+  /** Pre-selects the form type, e.g. when arriving from a template viewer. */
+  initialFormType?: string;
 }
 
 interface ClientOption {
@@ -52,12 +54,13 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
   profileId,
   signerName,
   onSubmitted,
+  initialFormType,
 }) => {
   const { toast } = useToast();
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [clientId, setClientId] = useState('');
-  const [formType, setFormType] = useState<string>(FORM_TYPES[0]);
-  const [title, setTitle] = useState<string>(FORM_TYPES[0]);
+  const [formType, setFormType] = useState<string>(initialFormType ?? FORM_TYPES[0]);
+  const [title, setTitle] = useState<string>(initialFormType ?? FORM_TYPES[0]);
   const [file, setFile] = useState<File | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
   const [attested, setAttested] = useState(false);
