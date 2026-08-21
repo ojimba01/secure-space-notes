@@ -390,7 +390,6 @@ export type Database = {
           employee_id: string
           file_path: string | null
           file_size: number | null
-          form_data: Json | null
           form_type: string
           id: string
           original_file_path: string | null
@@ -410,7 +409,6 @@ export type Database = {
           employee_id: string
           file_path?: string | null
           file_size?: number | null
-          form_data?: Json | null
           form_type: string
           id?: string
           original_file_path?: string | null
@@ -430,7 +428,6 @@ export type Database = {
           employee_id?: string
           file_path?: string | null
           file_size?: number | null
-          form_data?: Json | null
           form_type?: string
           id?: string
           original_file_path?: string | null

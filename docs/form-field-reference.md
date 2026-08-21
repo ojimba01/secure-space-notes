@@ -1,10 +1,9 @@
 # NJ Housing Supports — Form Field Reference
 
-Parsed from the February 2026 program PDFs. These are the source documents for the
-structured templates in `src/lib/formTemplates.ts`, which employees fill out from
-the Forms hub (**Fill Out Form**). Data is stored as JSON in
-`client_forms.form_data` and goes through the existing submit → review → approve
-workflow.
+Parsed from the February 2026 program PDFs. The blank fillable copies live in
+`public/form-templates/` and are embedded in the Forms hub, where employees fill
+them in the browser's PDF viewer, download the completed copy, and submit it
+through the existing upload → sign → review → approve workflow.
 
 ---
 

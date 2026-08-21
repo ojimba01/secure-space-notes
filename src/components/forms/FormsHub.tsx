@@ -25,14 +25,12 @@ import {
 } from 'lucide-react';
 import { FORM_STATUS_LABEL, FORM_TYPES, type FormType } from '@/lib/formSigning';
 import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
-import { FillFormDialog } from '@/components/forms/FillFormDialog';
 import { FormDetailDialog } from '@/components/forms/FormDetailDialog';
 import {
   PDF_TEMPLATES,
   TemplateViewerDialog,
   type PdfTemplate,
 } from '@/components/forms/TemplateViewerDialog';
-import type { FormDataMap } from '@/lib/formTemplates';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
@@ -44,7 +42,6 @@ export interface FormRow {
   title: string;
   file_path: string | null;
   original_file_path: string | null;
-  form_data: FormDataMap | null;
   status: string;
   signature_name: string | null;
   signed_at: string | null;
@@ -85,8 +82,6 @@ export const FormsHub: React.FC = () => {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFormType, setUploadFormType] = useState<string | undefined>(undefined);
   const [viewingTemplate, setViewingTemplate] = useState<PdfTemplate | null>(null);
-  const [fillOpen, setFillOpen] = useState(false);
-  const [editing, setEditing] = useState<FormRow | null>(null);
   const [detail, setDetail] = useState<FormRow | null>(null);
   const [preview, setPreview] = useState<{
     id: string;
@@ -210,23 +205,16 @@ export const FormsHub: React.FC = () => {
               : 'Upload, sign and track your completed forms.'}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setFillOpen(true)} disabled={!profileId}>
-            <Plus className="h-4 w-4 mr-2" />
-            Fill Out Form
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setUploadFormType(undefined);
-              setUploadOpen(true);
-            }}
-            disabled={!profileId}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Upload PDF
-          </Button>
-        </div>
+        <Button
+          onClick={() => {
+            setUploadFormType(undefined);
+            setUploadOpen(true);
+          }}
+          disabled={!profileId}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Upload Form
+        </Button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -356,18 +344,9 @@ export const FormsHub: React.FC = () => {
                       <Button variant="outline" size="sm" onClick={() => setDetail(form)}>
                         {reviewMode && form.status !== 'approved' ? 'Review' : 'Details'}
                       </Button>
-                      {!reviewMode &&
-                        form.form_data &&
-                        ['draft', 'changes_requested'].includes(form.status) && (
-                          <Button variant="outline" size="sm" onClick={() => setEditing(form)}>
-                            Edit
-                          </Button>
-                        )}
-                      {form.file_path && (
-                        <Button variant="outline" size="sm" onClick={() => handleDownload(form)}>
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button variant="outline" size="sm" onClick={() => handleDownload(form)}>
+                        <Download className="h-4 w-4" />
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -421,20 +400,6 @@ export const FormsHub: React.FC = () => {
           signerName={signerName}
           onSubmitted={fetchForms}
           initialFormType={uploadFormType}
-        />
-      )}
-
-      {(fillOpen || editing) && profileId && (
-        <FillFormDialog
-          open
-          onClose={() => {
-            setFillOpen(false);
-            setEditing(null);
-          }}
-          profileId={profileId}
-          signerName={signerName}
-          onSubmitted={fetchForms}
-          existing={editing}
         />
       )}
 

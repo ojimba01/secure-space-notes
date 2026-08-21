@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import { stampApproval, FORM_STATUS_LABEL } from '@/lib/formSigning';
 import { Check, Download, RotateCcw } from 'lucide-react';
 import type { FormRow } from '@/components/forms/FormsHub';
-import { FormDataSummary } from '@/components/forms/FillFormDialog';
 
 interface FormDetailDialogProps {
   form: FormRow;
@@ -44,27 +43,25 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
     : 'Unknown client';
 
   const approve = async () => {
+    if (!form.file_path) return;
     setBusy(true);
     try {
-      let approvedPath = form.file_path;
-      if (form.file_path) {
-        // Stamp the approval onto a new copy so the stored signed file stays intact.
-        const { data: blob, error: dlError } = await supabase.storage
-          .from('client-files')
-          .download(form.file_path);
-        if (dlError) throw dlError;
+      // Stamp the approval onto a new copy so the stored signed file stays intact.
+      const { data: blob, error: dlError } = await supabase.storage
+        .from('client-files')
+        .download(form.file_path);
+      if (dlError) throw dlError;
 
-        const stamped = await stampApproval(await blob.arrayBuffer(), approverName);
-        approvedPath = form.file_path.replace(/[^/]+$/, `approved-${Date.now()}.pdf`);
-        const { error: upError } = await supabase.storage
-          .from('client-files')
-          .upload(
-            approvedPath,
-            new Blob([stamped as unknown as BlobPart], { type: 'application/pdf' }),
-            { contentType: 'application/pdf' },
-          );
-        if (upError) throw upError;
-      }
+      const stamped = await stampApproval(await blob.arrayBuffer(), approverName);
+      const approvedPath = form.file_path.replace(/[^/]+$/, `approved-${Date.now()}.pdf`);
+      const { error: upError } = await supabase.storage
+        .from('client-files')
+        .upload(
+          approvedPath,
+          new Blob([stamped as unknown as BlobPart], { type: 'application/pdf' }),
+          { contentType: 'application/pdf' },
+        );
+      if (upError) throw upError;
 
       const { error } = await supabase
         .from('client_forms')
@@ -106,7 +103,7 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{form.title}</DialogTitle>
         </DialogHeader>
@@ -160,23 +157,15 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
             </div>
           )}
 
-          {form.file_path && (
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => onPreview(form)}>
-                Preview PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => onDownload(form)}>
-                <Download className="h-4 w-4 mr-1" />
-                Download
-              </Button>
-            </div>
-          )}
-
-          {form.form_data && (
-            <div className="border-t pt-3">
-              <FormDataSummary formType={form.form_type} data={form.form_data} />
-            </div>
-          )}
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => onPreview(form)}>
+              Preview PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => onDownload(form)}>
+              <Download className="h-4 w-4 mr-1" />
+              Download
+            </Button>
+          </div>
 
           {isAdmin && form.status !== 'approved' && (
             <div className="space-y-2 border-t pt-3">
