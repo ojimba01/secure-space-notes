@@ -150,3 +150,75 @@ export function nextAction(
   }
   return { kind: 'none', label: 'Up to date', detail: 'No outstanding lifecycle task.' };
 }
+
+// ---------------------------------------------------------------------------
+// Continuation package (LoN + HSP)
+//
+// Internal review and the MCO's decision are tracked separately, so the packet
+// has two dimensions: have we signed off on it, and where does it sit with the
+// MCO. The package is only ever "ready to send" once BOTH documents are
+// internally approved.
+// ---------------------------------------------------------------------------
+
+export const CONTINUATION_PACKAGE_FORMS = [
+  'Level of Need Assessment Tool',
+  'Housing Stabilization Plan',
+] as const;
+
+export type PackageState =
+  | 'incomplete'
+  | 'ready_to_send'
+  | 'sent'
+  | 'awaiting_mco'
+  | 'authorized'
+  | 'denied';
+
+export const PACKAGE_STATE_LABEL: Record<PackageState, string> = {
+  incomplete: 'Incomplete',
+  ready_to_send: 'Ready to send',
+  sent: 'Sent to MCO',
+  awaiting_mco: 'Awaiting MCO response',
+  authorized: 'Authorization received',
+  denied: 'Denied',
+};
+
+export const PACKAGE_STATE_CLASS: Record<PackageState, string> = {
+  incomplete: 'bg-muted text-muted-foreground',
+  ready_to_send: 'bg-blue-100 text-blue-900',
+  sent: 'bg-blue-100 text-blue-900',
+  awaiting_mco: 'bg-amber-100 text-amber-900',
+  authorized: 'bg-green-100 text-green-800',
+  denied: 'bg-red-100 text-red-800',
+};
+
+export interface PackageForm {
+  form_type: string;
+  status: string;
+  external_status?: string | null;
+  created_at?: string;
+}
+
+/**
+ * @param forms all forms for the client, newest first.
+ */
+export function continuationPackageState(forms: PackageForm[]): {
+  state: PackageState;
+  missing: string[];
+} {
+  const latest = (type: string) => forms.find((f) => f.form_type === type);
+  const parts = CONTINUATION_PACKAGE_FORMS.map((type) => ({ type, form: latest(type) }));
+
+  const missing = parts
+    .filter(({ form }) => !form || form.status !== 'approved')
+    .map(({ type }) => type);
+
+  const externals = parts.map(({ form }) => form?.external_status ?? 'not_sent');
+
+  if (externals.includes('denied')) return { state: 'denied', missing };
+  if (externals.every((e) => e === 'accepted')) return { state: 'authorized', missing };
+  if (missing.length) return { state: 'incomplete', missing };
+  if (externals.includes('awaiting_response')) return { state: 'awaiting_mco', missing };
+  if (externals.includes('sent_to_mco')) return { state: 'sent', missing };
+  return { state: 'ready_to_send', missing };
+}
+

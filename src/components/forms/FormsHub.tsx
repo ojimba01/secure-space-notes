@@ -23,7 +23,14 @@ import {
   Plus,
   Search,
 } from 'lucide-react';
-import { FORM_STATUS_LABEL, FORM_TYPES } from '@/lib/formSigning';
+import {
+  EXTERNAL_STATUS_CLASS,
+  EXTERNAL_STATUS_LABEL,
+  FORM_STATUS_CLASS,
+  FORM_STATUS_LABEL,
+  FORM_STATUS_SHORT_LABEL,
+  FORM_TYPES,
+} from '@/lib/formSigning';
 import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
 import { FormDetailDialog } from '@/components/forms/FormDetailDialog';
 import {
@@ -42,7 +49,17 @@ export interface FormRow {
   title: string;
   file_path: string | null;
   original_file_path: string | null;
+  /** Internal review status only — never an MCO decision. */
   status: string;
+  external_status?: string | null;
+  sent_to_mco_at?: string | null;
+  mco_response_at?: string | null;
+  due_date?: string | null;
+  workflow_purpose?: string | null;
+  source?: string | null;
+  source_filename?: string | null;
+  template_version?: string | null;
+  authorization_id?: string | null;
   signature_name: string | null;
   signed_at: string | null;
   approved_at: string | null;
@@ -54,18 +71,8 @@ export interface FormRow {
 
 const PAGE_SIZE = 10;
 
-const statusVariant = (status: string) => {
-  switch (status) {
-    case 'approved':
-      return 'bg-green-100 text-green-800';
-    case 'changes_requested':
-      return 'bg-red-100 text-red-800';
-    case 'submitted':
-      return 'bg-amber-100 text-amber-900';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
-};
+const statusVariant = (status: string) => FORM_STATUS_CLASS[status] ?? 'bg-muted text-muted-foreground';
+
 
 export const FormsHub: React.FC = () => {
   const { toast } = useToast();
@@ -286,20 +293,22 @@ export const FormsHub: React.FC = () => {
               <th className="px-3 py-2 font-medium">Form Type</th>
               {reviewMode && <th className="px-3 py-2 font-medium">Employee</th>}
               <th className="px-3 py-2 font-medium">Submitted</th>
-              <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2 font-medium">Internal review</th>
+              <th className="px-3 py-2 font-medium">MCO status</th>
+
               <th className="px-3 py-2 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
                   Loading forms...
                 </td>
               </tr>
             ) : current.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
                   No forms yet.
                 </td>
               </tr>
@@ -327,9 +336,18 @@ export const FormsHub: React.FC = () => {
                   <td className="px-3 py-2">{new Date(form.created_at).toLocaleDateString()}</td>
                   <td className="px-3 py-2">
                     <Badge variant="secondary" className={statusVariant(form.status)}>
-                      {FORM_STATUS_LABEL[form.status] ?? form.status}
+                      {FORM_STATUS_SHORT_LABEL[form.status] ?? form.status}
                     </Badge>
                   </td>
+                  <td className="px-3 py-2">
+                    <Badge
+                      variant="secondary"
+                      className={EXTERNAL_STATUS_CLASS[form.external_status ?? 'not_sent'] ?? ''}
+                    >
+                      {EXTERNAL_STATUS_LABEL[form.external_status ?? 'not_sent']}
+                    </Badge>
+                  </td>
+
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={() => setDetail(form)}>

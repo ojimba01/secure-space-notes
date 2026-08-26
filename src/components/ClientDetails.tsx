@@ -16,6 +16,8 @@ import { NotesSection } from '@/components/NotesSection';
 import { CalendarView } from '@/components/CalendarView';
 import { MilestoneTracker } from '@/components/MilestoneTracker';
 import { ClientWorkflowCard } from '@/components/ClientWorkflowCard';
+import { AuthorizationsSection } from '@/components/AuthorizationsSection';
+
 import { serviceStartDate } from '@/lib/workflow';
 import { ComplianceCard } from '@/components/ComplianceCard';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
@@ -233,6 +235,9 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </Card>
 
         <ClientWorkflowCard client={client} onUpdate={onUpdate} />
+
+        <AuthorizationsSection clientId={client.id} onUpdate={onUpdate} />
+
 
         <MilestoneTracker
           clientId={client.id}
