@@ -567,13 +567,12 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         onOpenChange={setShowReferralDialog}
         onCreated={async (id) => {
           await fetchClients();
-          setClients((list) => {
-            const match = list.find((c) => c.id === id);
-            if (match) setSelectedClient(match);
-            return list;
-          });
+          // Drop straight onto the new record — the IAT is the next step.
+          const { data } = await supabase.from('clients').select('*').eq('id', id).maybeSingle();
+          if (data) setSelectedClient(data as Client);
         }}
       />
+
 
       <AddClientDialog
         open={showAddDialog}
