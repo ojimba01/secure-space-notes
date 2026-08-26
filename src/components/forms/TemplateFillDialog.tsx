@@ -27,6 +27,12 @@ import { useViewAs } from '@/components/ViewAsProvider';
 import { Download, Upload, ZoomIn, ZoomOut } from 'lucide-react';
 import type { FormType } from '@/lib/formSigning';
 import type { FormRow } from '@/components/forms/FormsHub';
+import {
+  formDownloadName,
+  prefillTemplate,
+  type AutofillClient,
+} from '@/lib/formAutofill';
+import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
 
 export interface PdfTemplate {
   formType: FormType;
@@ -108,6 +114,11 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const [existingBytes, setExistingBytes] = useState<Uint8Array | null>(null);
   const [hasFields, setHasFields] = useState<boolean | null>(null);
   const [replacementFile, setReplacementFile] = useState<File | null>(null);
+  // New-form mode: template pre-filled with the client's identity fields.
+  const [prefilledBytes, setPrefilledBytes] = useState<Uint8Array | null>(null);
+  const [clientRecord, setClientRecord] = useState<
+    (AutofillClient & { id: string }) | null
+  >(null);
 
   const formType = existing ? existing.form_type : template?.formType ?? '';
   const clientName = existing?.clients
@@ -152,11 +163,59 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     })();
   }, [existing?.file_path]);
 
+  // New submissions: once a client is chosen, load their record and rewrite the
+  // blank template's identity fields (name, DOB, IDs, MCO, case manager) so
+  // nobody retypes data the app already knows. Only runs before anything has
+  // been typed into the viewer — a prefill never overwrites user entries.
+  useEffect(() => {
+    if (existing || !template || !clientId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const modified =
+          ((docRef.current as unknown as { annotationStorage?: { size?: number } } | null)
+            ?.annotationStorage?.size ?? 0) > 0;
+        if (modified) return;
+
+        const { data: client, error } = await supabase
+          .from('clients')
+          .select(
+            'id, first_name, last_name, date_of_birth, phone, email, member_id, insurance, county, njhmis_id',
+          )
+          .eq('id', clientId)
+          .maybeSingle();
+        if (error) throw error;
+        if (!client || cancelled) return;
+        setClientRecord(client as AutofillClient & { id: string });
+
+        const res = await fetch(template.file);
+        if (!res.ok) throw new Error(`Could not load the blank template (${res.status}).`);
+        const bytes = await prefillTemplate(await res.arrayBuffer(), template.formType, client, {
+          name: signerName,
+        });
+        if (!cancelled) setPrefilledBytes(bytes);
+      } catch (err: any) {
+        // The blank template still works; pre-fill is a convenience.
+        if (!cancelled) {
+          toast({
+            title: 'Could not pre-fill the form',
+            description: `${err.message ?? err} — the blank template opened instead.`,
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existing, template, clientId, signerName]);
+
   // Stable identity so react-pdf doesn't reload the document on re-renders.
   const documentFile = useMemo(() => {
     if (existing) return existingBytes ? { data: existingBytes } : null;
+    if (prefilledBytes) return { data: prefilledBytes };
     return template?.file ?? null;
-  }, [existing, existingBytes, template?.file]);
+  }, [existing, existingBytes, prefilledBytes, template?.file]);
 
   /** The current PDF bytes including everything typed into the form fields. */
   const collectFilledPdf = async (): Promise<Blob> => {
@@ -172,7 +231,11 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${formType.replace(/[^\w\- ]+/g, '')}.pdf`;
+      a.download = formDownloadName(
+        clientRecord?.first_name ?? existing?.clients?.first_name,
+        clientRecord?.last_name ?? existing?.clients?.last_name,
+        formType,
+      );
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -212,12 +275,14 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
 
       const folder = `forms/${clientId}/${crypto.randomUUID()}`;
       const filePath = `${folder}/form.pdf`;
+      const fileHash = await sha256Hex(await blob.arrayBuffer());
 
       const { error: uploadError } = await supabase.storage
         .from('client-files')
         .upload(filePath, blob, { contentType: 'application/pdf' });
       if (uploadError) throw uploadError;
 
+      let formId: string;
       if (existing) {
         // Repoint the same row at the corrected file; the previously
         // submitted file stays in storage as history. original_file_path
@@ -227,6 +292,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           .update({
             file_path: filePath,
             file_size: blob.size,
+            file_hash: fileHash,
             status: 'submitted',
             signature_name: signerName,
             signed_by: profileId,
@@ -234,21 +300,47 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           })
           .eq('id', existing.id);
         if (error) throw error;
+        formId = existing.id;
       } else {
-        const { error } = await supabase.from('client_forms').insert({
-          client_id: clientId,
-          employee_id: profileId,
-          form_type: formType,
-          title: formType,
-          file_path: filePath,
-          original_file_path: filePath,
-          file_size: blob.size,
-          status: 'submitted',
-          signature_name: signerName,
-          signed_by: profileId,
-          signed_at: new Date().toISOString(),
-        });
+        const { data: inserted, error } = await supabase
+          .from('client_forms')
+          .insert({
+            client_id: clientId,
+            employee_id: profileId,
+            form_type: formType,
+            title: formType,
+            file_path: filePath,
+            original_file_path: filePath,
+            file_size: blob.size,
+            file_hash: fileHash,
+            status: 'submitted',
+            signature_name: signerName,
+            signed_by: profileId,
+            signed_at: new Date().toISOString(),
+          })
+          .select('id')
+          .single();
         if (error) throw error;
+        formId = inserted.id;
+      }
+
+      // Every file the form has ever pointed at stays downloadable from
+      // history; a failed version write is surfaced, never swallowed.
+      try {
+        await recordFormVersion({
+          clientFormId: formId,
+          filePath,
+          versionType: existing ? 'corrected' : 'submitted',
+          createdBy: profileId,
+          fileHash,
+          fileSize: blob.size,
+        });
+      } catch (versionErr: any) {
+        toast({
+          title: 'Form saved, but version history was not updated',
+          description: versionErr.message,
+          variant: 'destructive',
+        });
       }
 
       toast({

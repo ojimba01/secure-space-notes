@@ -38,6 +38,7 @@ import {
   TemplateFillDialog,
   type PdfTemplate,
 } from '@/components/forms/TemplateFillDialog';
+import { formDownloadName } from '@/lib/formAutofill';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
@@ -183,7 +184,12 @@ export const FormsHub: React.FC = () => {
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${form.form_type.replace(/[^\w\- ]+/g, '')}.pdf`;
+      a.download = formDownloadName(
+        form.clients?.first_name,
+        form.clients?.last_name,
+        form.form_type,
+        form.created_at,
+      );
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
