@@ -22,7 +22,7 @@ import { BillingTutorial, BillingTutorialStep } from '@/components/billing/Billi
 
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
 // A level of need is not needed to build cycles, only to price them.
-const complete = (c: BillingClient) => c.status === 'active' && !!c.hsp_submitted && !!c.auth_150_start;
+const complete = (c: BillingClient) => c.status === 'active' && (!!c.auth_30_start || !!c.auth_150_start);
 
 // Long lists are shown ten at a time so the page stays readable.
 const PAGE_SIZE = 10;
@@ -40,15 +40,15 @@ function Pager({page,setPage,total,label}:{page:number;setPage:(n:number)=>void;
   </div>;
 }
 
-type Blocker = 'Missing client name' | 'HSP not submitted' | 'Missing HSP approval start date' | 'Missing level of need';
+type Blocker = 'Missing client name' | 'No authorization start date' | 'Missing level of need';
+// Cycles are built from an authorization start date — the initial 30-day one or
+// the 150-day one. The level of need only prices them.
 const blocker = (c: BillingClient): Blocker =>
   !c.first_name?.trim() || !c.last_name?.trim() ? 'Missing client name'
-  : !c.hsp_submitted ? 'HSP not submitted'
-  : !c.auth_150_start ? 'Missing HSP approval start date'
+  : !c.auth_30_start && !c.auth_150_start ? 'No authorization start date'
   : 'Missing level of need';
 const blockerClass = (label: Blocker) =>
-  label === 'HSP not submitted' ? 'bg-amber-100 text-amber-900'
-  : label === 'Missing HSP approval start date' ? 'bg-orange-100 text-orange-900'
+  label === 'No authorization start date' ? 'bg-orange-100 text-orange-900'
   : label === 'Missing level of need' ? 'bg-red-100 text-red-800'
   : 'bg-rose-200 text-rose-900';
 
@@ -65,7 +65,7 @@ const lonClass = (v: string) => (v === 'Low' ? 'border-emerald-300 bg-emerald-10
 const yesNoClass = (v: boolean | null | undefined) => (v === true ? 'border-green-300 bg-green-100 text-green-900' : v === false ? 'border-slate-300 bg-slate-100 text-slate-800' : 'bg-white');
 const boolValue = (v: boolean | null | undefined) => (v === true ? 'yes' : v === false ? 'no' : undefined);
 
-const HOW_TO_READ = 'The 30-day HSP window (Cycle 0) comes first and is not billable. Cycles 1–5 are the 150-day authorization. Cycles 6–11 are the 180-day extension. A claim must be submitted within 6 months of a cycle end date — that is the final deadline.';
+const HOW_TO_READ = 'Cycle 1 is the initial 30-day authorization and is billable. The 150-day authorization follows it, then the 180-day extension. Each cycle shows which authorization it belongs to. A claim must be submitted within 6 months of a cycle end date — that is the final deadline.';
 
 // Needs attention = an ended cycle whose 6-month final submission deadline is
 // four weeks or less away (or already passed) and that is not approved or closed.
@@ -195,7 +195,7 @@ export function BillingWorkspace() {
   const extensionClients=useMemo(()=>eligible.filter(c=>needsExtensionReview(c)).sort((a,b)=>(daysUntil150End(a)??999)-(daysUntil150End(b)??999)),[eligible]);
   // Clients ready for billing except for the level of need. They can be finished
   // here and move straight into the lists above once the level is saved.
-  const lonAll=useMemo(()=>clients.filter(c=>c.status==='active'&&c.hsp_submitted&&!!c.auth_150_start&&!normalizeLevel(c.level_of_need)),[clients]);
+  const lonAll=useMemo(()=>clients.filter(c=>c.status==='active'&&(!!c.auth_30_start||!!c.auth_150_start)&&!normalizeLevel(c.level_of_need)),[clients]);
   const lonPending=useMemo(()=>lonAll.filter(c=>matches(c,query)),[lonAll,query]);
   // Needs attention counts clients: those with a cycle near its final deadline
   // plus everyone still waiting on a level of need (counted once).
@@ -239,7 +239,7 @@ export function BillingWorkspace() {
     .then(()=>{toast.success(practice?'Saved to practice data only.':'Saved. Billing has been updated.'); if(!practice) runDuplicateCheck(id);})
     .catch(e=>toast.error(e.message));
 
-  const reasonOf: Record<'hsp'|'start'|'lon', Blocker> = { hsp:'HSP not submitted', start:'Missing HSP approval start date', lon:'Missing level of need' };
+  const reasonOf: Record<'start'|'lon', Blocker> = { start:'No authorization start date', lon:'Missing level of need' };
   const setupRows=useMemo(()=>{
     const rows=clients.filter(c=>c.status==='active').filter(c=>setupReason==='all'||(!complete(c)&&blocker(c)===reasonOf[setupReason]));
     // Newly added rows always sit at the top so they are easy to fill in.
@@ -249,7 +249,7 @@ export function BillingWorkspace() {
       return (b.created_at ?? '').localeCompare(a.created_at ?? '');
     });
   },[clients,setupReason,newRowIds]);
-  const countBlocked=(k:'hsp'|'start'|'lon')=>setup.filter(c=>blocker(c)===reasonOf[k]).length;
+  const countBlocked=(k:'start'|'lon')=>setup.filter(c=>blocker(c)===reasonOf[k]).length;
 
   const practiceFullName=`${PRACTICE_NAME.first} ${PRACTICE_NAME.last}`;
   const resetPracticeCycles=()=>setPractice(p=>p?{...p,cycles:p.cycles.map(c=>({...c,billing_status:'Not Billed' as const}))}:p);
@@ -472,8 +472,7 @@ export function BillingWorkspace() {
 
       <div className="flex flex-wrap gap-2" data-tour="stage-setup">
         <Button size="sm" variant={setupReason==='all'?'secondary':'outline'} className={setupReason!=='all'?'bg-white':''} onClick={()=>setSetupReason('all')}>All clients ({clients.filter(c=>c.status==='active').length})</Button>
-        <Button size="sm" onClick={()=>setSetupReason('hsp')} className={setupReason==='hsp'?'bg-amber-600 text-white hover:bg-amber-700':'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50'}>HSP not submitted ({countBlocked('hsp')})</Button>
-        <Button size="sm" onClick={()=>setSetupReason('start')} className={setupReason==='start'?'bg-orange-600 text-white hover:bg-orange-700':'border border-orange-300 bg-white text-orange-800 hover:bg-orange-50'}>Missing HSP approval start date ({countBlocked('start')})</Button>
+        <Button size="sm" onClick={()=>setSetupReason('start')} className={setupReason==='start'?'bg-orange-600 text-white hover:bg-orange-700':'border border-orange-300 bg-white text-orange-800 hover:bg-orange-50'}>No authorization start date ({countBlocked('start')})</Button>
         <Button size="sm" onClick={()=>setSetupReason('lon')} className={setupReason==='lon'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Missing level of need ({countBlocked('lon')})</Button>
       </div>
 
@@ -550,7 +549,7 @@ function ExtensionQueue({clients,save,openProfile}:{clients:BillingClient[];save
   </Card>;
 }
 
-const BLOCKERS: Blocker[] = ['HSP not submitted','Missing HSP approval start date','Missing level of need','Missing client name'];
+const BLOCKERS: Blocker[] = ['No authorization start date','Missing level of need','Missing client name'];
 
 // Column filter: the header shows a small caret; the options only appear once it is pressed.
 function ColumnFilter({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:string[]}){
@@ -657,18 +656,12 @@ function CycleGrid({client,cycles,updateCycle,tour,practice}:{client:BillingClie
   return <div className="border-t bg-white p-4" data-tour={tour?'cycle-table':undefined}>
     {allResolved && <div className="mb-3 rounded-md border border-green-300 bg-green-50 p-3 text-sm font-medium text-green-800">Every cycle is approved or closed. Nothing else is outstanding for this client.</div>}
     <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-sm"><thead><tr className="bg-slate-100">{['Cycle','Authorization','End date','Final deadline','Approved?','Billing status','Payment status','Claim number'].map(x=><th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>
-      <tr className="border-t bg-slate-50/60 text-muted-foreground">
-        <td className="p-3 font-semibold">Cycle 0</td>
-        <td className="p-3">30-day HSP window</td>
-        <td className="p-3"><DateCell start={client.auth_30_start} end={hspDue}/></td>
-        <td className="p-3"></td><td className="p-3"></td><td className="p-3"></td><td className="p-3"></td><td className="p-3"></td>
-      </tr>
       {sorted.map((c,i)=>{
       const risk=isDeadlineAtRisk(c);
       const passed=isDeadlinePassed(c);
       return <tr key={c.id} className={`border-t ${passed?'bg-slate-100 text-muted-foreground':risk?'bg-red-50':''}`}>
         <td className={`p-3 font-semibold ${risk&&!passed?'text-red-700':''}`}>Cycle {c.cycle_number}</td>
-        <td className="p-3">{c.cycle_number<=5?'150-day authorization':'180-day extension'}</td>
+        <td className="p-3">{c.phase==='Initial 30-Day'?'Initial 30-day authorization':c.phase==='150-Day'?'150-day authorization':'180-day extension'}</td>
         <td className="p-3"><DateCell start={c.cycle_start} end={c.cycle_end}/></td>
         <td className="p-3"><DeadlineCell cycle={c}/></td>
         <td className="p-3"><Select value={c.approval_state ?? 'none'} onValueChange={v=>updateCycle(c.id,{approval_state:v==='none'?null:v as ApprovalState}).then(()=>toast.success(savedMsg('Cycle approval saved.')))}><SelectTrigger className="w-48"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">Not decided</SelectItem>{APPROVAL_STATES.map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
