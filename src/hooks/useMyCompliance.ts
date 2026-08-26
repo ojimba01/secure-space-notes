@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { serviceStartDate } from '@/lib/workflow';
 import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 import {
@@ -85,7 +86,7 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
 
     const { data: cls } = await supabase
       .from('clients')
-      .select('id, first_name, last_name, level_of_need, hsp_150_date, status')
+      .select('id, first_name, last_name, level_of_need, auth_30_start, auth_150_start, hsp_150_date, status')
       .eq('assigned_employee_id', profileId)
       .eq('status', 'active');
     const list = cls ?? [];
@@ -115,14 +116,15 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
 
     for (const c of list) {
       const name = `${c.first_name} ${c.last_name}`;
-      const missingDate = !c.hsp_150_date;
+      const serviceStart = serviceStartDate(c as any);
+      const missingDate = !serviceStart;
       const missingLon = !hasValidTier(c.level_of_need);
       if (missingDate || missingLon) {
         missingSetupClients.push({ id: c.id, client_name: name, missingDate, missingLevelOfNeed: missingLon });
         continue;
       }
       caseload += 1;
-      const window = currentBillingWindow(c.hsp_150_date, today);
+      const window = currentBillingWindow(serviceStart, today);
       if (!window) continue;
       const req = requirementsForTier(c.level_of_need);
       const winContacts = contactsInWindow(contactsByClient[c.id] ?? [], window);

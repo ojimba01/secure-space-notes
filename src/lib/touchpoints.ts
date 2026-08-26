@@ -1,5 +1,6 @@
 // Auto-scheduled touchpoints derived from a client's rolling 30-day billing window.
-// Anchored to the client's HSP / authorization / touchpoint start date (hsp_150_date)
+// Anchored to the date services actually started (the initial 30-day
+// authorization, falling back to the 150-day authorization — see serviceStartDate)
 // and the client's level of need. Events land in calendar_events with
 // event_type 'touch_point'. Manually moved events (is_manually_adjusted = true) are
 // preserved and never overwritten by regeneration.
@@ -21,6 +22,7 @@ import {
   ContactRow,
   BillingWindow,
 } from '@/lib/compliance';
+import { serviceStartDate } from '@/lib/workflow';
 
 export interface TouchpointDate {
   date: string; // YYYY-MM-DD
@@ -33,6 +35,8 @@ interface TouchpointClient {
   last_name: string;
   status: string;
   level_of_need?: string | null;
+  auth_30_start?: string | null;
+  auth_150_start?: string | null;
   hsp_150_date?: string | null;
   assigned_employee_id?: string | null;
 }
@@ -128,7 +132,7 @@ export function generateTouchpointDates(
 
 async function loadContext(client: TouchpointClient) {
   const today = todayAgency();
-  const window = currentBillingWindow(client.hsp_150_date, today);
+  const window = currentBillingWindow(serviceStartDate(client), today);
   const { data: cts } = await supabase
     .from('client_contacts')
     .select('id, contact_date, modality')
@@ -164,7 +168,7 @@ async function insertTouchpoints(client: TouchpointClient, seed: number, window:
   }
 
   if (client.status !== 'active') return;
-  if (!client.hsp_150_date || !hasValidTier(client.level_of_need)) return;
+  if (!serviceStartDate(client) || !hasValidTier(client.level_of_need)) return;
   if (!client.assigned_employee_id) return;
 
   // Preserved manual events feed into the coverage calculation.
@@ -173,7 +177,7 @@ async function insertTouchpoints(client: TouchpointClient, seed: number, window:
     .map((e) => ({ date: e.start_time.slice(0, 10), modality: (e.modality as Modality) ?? 'phone' }));
 
   const dates = generateTouchpointDates(
-    client.hsp_150_date,
+    serviceStartDate(client)!,
     client.level_of_need,
     contacts,
     manualEvents,
@@ -206,7 +210,7 @@ async function insertTouchpoints(client: TouchpointClient, seed: number, window:
 export async function regenerateTouchpointsForClient(clientId: string): Promise<void> {
   const { data: client } = await supabase
     .from('clients')
-    .select('id, first_name, last_name, status, level_of_need, hsp_150_date, assigned_employee_id')
+    .select('id, first_name, last_name, status, level_of_need, auth_30_start, auth_150_start, hsp_150_date, assigned_employee_id')
     .eq('id', clientId)
     .maybeSingle();
   if (!client) return;
@@ -219,7 +223,7 @@ export async function regenerateTouchpointsForStaff(employeeId: string | null | 
   if (!employeeId) return;
   const { data: clients } = await supabase
     .from('clients')
-    .select('id, first_name, last_name, status, level_of_need, hsp_150_date, assigned_employee_id')
+    .select('id, first_name, last_name, status, level_of_need, auth_30_start, auth_150_start, hsp_150_date, assigned_employee_id')
     .eq('assigned_employee_id', employeeId)
     .eq('status', 'active');
 
