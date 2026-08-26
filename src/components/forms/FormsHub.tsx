@@ -336,9 +336,18 @@ export const FormsHub: React.FC = () => {
                   <td className="px-3 py-2">{new Date(form.created_at).toLocaleDateString()}</td>
                   <td className="px-3 py-2">
                     <Badge variant="secondary" className={statusVariant(form.status)}>
-                      {FORM_STATUS_LABEL[form.status] ?? form.status}
+                      {FORM_STATUS_SHORT_LABEL[form.status] ?? form.status}
                     </Badge>
                   </td>
+                  <td className="px-3 py-2">
+                    <Badge
+                      variant="secondary"
+                      className={EXTERNAL_STATUS_CLASS[form.external_status ?? 'not_sent'] ?? ''}
+                    >
+                      {EXTERNAL_STATUS_LABEL[form.external_status ?? 'not_sent']}
+                    </Badge>
+                  </td>
+
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={() => setDetail(form)}>
