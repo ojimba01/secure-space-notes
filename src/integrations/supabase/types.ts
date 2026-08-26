@@ -67,6 +67,7 @@ export type Database = {
       billing_cycles: {
         Row: {
           approval_state: string | null
+          authorization_id: string | null
           billed_amount: number | null
           billing_status: string
           claim_number: string | null
@@ -91,6 +92,7 @@ export type Database = {
         }
         Insert: {
           approval_state?: string | null
+          authorization_id?: string | null
           billed_amount?: number | null
           billing_status?: string
           claim_number?: string | null
@@ -115,6 +117,7 @@ export type Database = {
         }
         Update: {
           approval_state?: string | null
+          authorization_id?: string | null
           billed_amount?: number | null
           billing_status?: string
           claim_number?: string | null
@@ -138,6 +141,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "billing_cycles_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "billing_cycles_client_id_fkey"
             columns: ["client_id"]
@@ -282,6 +292,97 @@ export type Database = {
           },
         ]
       }
+      client_authorizations: {
+        Row: {
+          authorization_number: string | null
+          authorization_type: string
+          billing_modifier: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          end_date: string | null
+          id: string
+          level_of_need: string | null
+          lon_score: number | null
+          mco: string | null
+          notes: string | null
+          received_at: string | null
+          sequence_number: number
+          service_type: string | null
+          source_document_id: string | null
+          source_document_path: string | null
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          authorization_number?: string | null
+          authorization_type: string
+          billing_modifier?: string | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          id?: string
+          level_of_need?: string | null
+          lon_score?: number | null
+          mco?: string | null
+          notes?: string | null
+          received_at?: string | null
+          sequence_number?: number
+          service_type?: string | null
+          source_document_id?: string | null
+          source_document_path?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          authorization_number?: string | null
+          authorization_type?: string
+          billing_modifier?: string | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          id?: string
+          level_of_need?: string | null
+          lon_score?: number | null
+          mco?: string | null
+          notes?: string | null
+          received_at?: string | null
+          sequence_number?: number
+          service_type?: string | null
+          source_document_id?: string | null
+          source_document_path?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_authorizations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_authorizations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_authorizations_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "client_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_contacts: {
         Row: {
           calendar_event_id: string | null
@@ -391,59 +492,86 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          authorization_id: string | null
           client_id: string
           created_at: string
+          due_date: string | null
           employee_id: string
+          external_status: string
           file_path: string | null
           file_size: number | null
           form_type: string
           id: string
+          mco_response_at: string | null
           original_file_path: string | null
           review_note: string | null
+          sent_to_mco_at: string | null
           signature_name: string | null
           signed_at: string | null
           signed_by: string | null
+          source: string
+          source_filename: string | null
           status: string
+          template_version: string | null
           title: string
           updated_at: string
+          workflow_purpose: string | null
         }
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          authorization_id?: string | null
           client_id: string
           created_at?: string
+          due_date?: string | null
           employee_id: string
+          external_status?: string
           file_path?: string | null
           file_size?: number | null
           form_type: string
           id?: string
+          mco_response_at?: string | null
           original_file_path?: string | null
           review_note?: string | null
+          sent_to_mco_at?: string | null
           signature_name?: string | null
           signed_at?: string | null
           signed_by?: string | null
+          source?: string
+          source_filename?: string | null
           status?: string
+          template_version?: string | null
           title: string
           updated_at?: string
+          workflow_purpose?: string | null
         }
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          authorization_id?: string | null
           client_id?: string
           created_at?: string
+          due_date?: string | null
           employee_id?: string
+          external_status?: string
           file_path?: string | null
           file_size?: number | null
           form_type?: string
           id?: string
+          mco_response_at?: string | null
           original_file_path?: string | null
           review_note?: string | null
+          sent_to_mco_at?: string | null
           signature_name?: string | null
           signed_at?: string | null
           signed_by?: string | null
+          source?: string
+          source_filename?: string | null
           status?: string
+          template_version?: string | null
           title?: string
           updated_at?: string
+          workflow_purpose?: string | null
         }
         Relationships: [
           {
@@ -451,6 +579,13 @@ export type Database = {
             columns: ["approved_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_forms_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: false
+            referencedRelation: "client_authorizations"
             referencedColumns: ["id"]
           },
           {
