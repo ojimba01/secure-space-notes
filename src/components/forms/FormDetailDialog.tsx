@@ -62,7 +62,10 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
         .eq('id', form.id);
       if (error) throw error;
 
-      toast({ title: 'Form approved', description: `${clientName} — ${form.form_type}` });
+      toast({
+        title: 'Internally approved — ready to send',
+        description: `${clientName} — ${form.form_type}`,
+      });
       onChanged();
       onClose();
     } catch (err: any) {
@@ -94,6 +97,38 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
     }
   };
 
+  /** External/MCO status is a separate track from our internal sign-off. */
+  const setExternal = async (
+    external_status: string,
+    stamp: 'sent' | 'response' | null,
+    successTitle: string,
+  ) => {
+    setBusy(true);
+    try {
+      const now = new Date().toISOString();
+      const payload: Record<string, unknown> = { external_status };
+      if (stamp === 'sent') payload.sent_to_mco_at = now;
+      if (stamp === 'response') payload.mco_response_at = now;
+
+      const { error } = await supabase.from('client_forms').update(payload).eq('id', form.id);
+      if (error) throw error;
+      toast({ title: successTitle, description: `${clientName} — ${form.form_type}` });
+      onChanged();
+      onClose();
+    } catch (err: any) {
+      toast({
+        title: 'Could not update the MCO status',
+        description: err.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const externalStatus = form.external_status ?? 'not_sent';
+  const internallyApproved = form.status === 'approved';
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
@@ -101,7 +136,7 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
           <DialogTitle>{form.form_type}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3 text-sm">
+        <div className="space-y-4 text-sm">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <div className="text-muted-foreground text-xs">Client</div>
@@ -123,35 +158,129 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
               <div className="text-muted-foreground text-xs">Submitted</div>
               <div>{new Date(form.created_at).toLocaleString()}</div>
             </div>
-            <div>
-              <div className="text-muted-foreground text-xs">Status</div>
-              <div>{FORM_STATUS_LABEL[form.status] ?? form.status}</div>
-            </div>
-            {form.approved_at && (
-              <div className="col-span-2">
-                <div className="text-muted-foreground text-xs">Approved</div>
-                <div>{new Date(form.approved_at).toLocaleString()}</div>
+            {form.workflow_purpose && (
+              <div>
+                <div className="text-muted-foreground text-xs">Purpose</div>
+                <div>
+                  {WORKFLOW_PURPOSE_LABEL[form.workflow_purpose] ?? form.workflow_purpose}
+                </div>
+              </div>
+            )}
+            {form.due_date && (
+              <div>
+                <div className="text-muted-foreground text-xs">Due</div>
+                <div>{new Date(`${form.due_date}T00:00:00`).toLocaleDateString()}</div>
               </div>
             )}
           </div>
 
-          {form.review_note && form.status === 'changes_requested' && (
-            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
-              <div className="text-xs font-medium">Reviewer note</div>
-              <p className="text-sm">{form.review_note}</p>
-              {!isAdmin && onEdit && (
+          {/* Internal review — our own sign-off chain only. */}
+          <div className="rounded-md border p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold uppercase text-muted-foreground">
+                Internal review
+              </div>
+              <Badge variant="secondary" className={FORM_STATUS_CLASS[form.status] ?? ''}>
+                {FORM_STATUS_LABEL[form.status] ?? form.status}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This is our sign-off only. It does not mean the MCO has approved anything.
+            </p>
+            {form.approved_at && (
+              <div className="text-xs">
+                Internally approved {new Date(form.approved_at).toLocaleString()}
+              </div>
+            )}
+            {form.review_note && form.status === 'changes_requested' && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+                <div className="text-xs font-medium">Reviewer note</div>
+                <p className="text-sm">{form.review_note}</p>
+                {!isAdmin && onEdit && (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      onClose();
+                      onEdit(form);
+                    }}
+                  >
+                    Edit &amp; resubmit
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* External / MCO status — tracked entirely separately. */}
+          <div className="rounded-md border p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold uppercase text-muted-foreground">
+                MCO / external status
+              </div>
+              <Badge variant="secondary" className={EXTERNAL_STATUS_CLASS[externalStatus] ?? ''}>
+                {EXTERNAL_STATUS_LABEL[externalStatus] ?? externalStatus}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <div className="text-muted-foreground">Sent to MCO</div>
+                <div>
+                  {form.sent_to_mco_at ? new Date(form.sent_to_mco_at).toLocaleString() : '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">MCO responded</div>
+                <div>
+                  {form.mco_response_at ? new Date(form.mco_response_at).toLocaleString() : '—'}
+                </div>
+              </div>
+            </div>
+
+            {isAdmin && (
+              <div className="flex flex-wrap gap-2 pt-1">
                 <Button
                   size="sm"
-                  onClick={() => {
-                    onClose();
-                    onEdit(form);
-                  }}
+                  variant="outline"
+                  disabled={busy || !internallyApproved}
+                  onClick={() => setExternal('sent_to_mco', 'sent', 'Marked as sent to the MCO')}
                 >
-                  Edit & resubmit
+                  <Send className="h-4 w-4 mr-1" />
+                  Mark sent to MCO
                 </Button>
-              )}
-            </div>
-          )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setExternal('awaiting_response', null, 'Marked awaiting response')}
+                >
+                  Awaiting response
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setExternal('accepted', 'response', 'MCO response recorded')}
+                >
+                  <ThumbsUp className="h-4 w-4 mr-1" />
+                  Accepted
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setExternal('denied', 'response', 'MCO denial recorded')}
+                >
+                  <ThumbsDown className="h-4 w-4 mr-1" />
+                  Denied
+                </Button>
+              </div>
+            )}
+            {isAdmin && !internallyApproved && (
+              <p className="text-xs text-muted-foreground">
+                Approve the form internally before marking it sent.
+              </p>
+            )}
+          </div>
 
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => onPreview(form)}>
@@ -186,7 +315,7 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
               </Button>
               <Button onClick={approve} disabled={busy}>
                 <Check className="h-4 w-4 mr-2" />
-                {busy ? 'Working...' : 'Approve'}
+                {busy ? 'Working...' : 'Approve internally'}
               </Button>
             </>
           ) : (
@@ -199,3 +328,4 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
     </Dialog>
   );
 };
+
