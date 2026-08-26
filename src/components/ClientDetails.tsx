@@ -234,6 +234,9 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
 
         <ClientWorkflowCard client={client} onUpdate={onUpdate} />
 
+        <AuthorizationsSection clientId={client.id} onUpdate={onUpdate} />
+
+
         <MilestoneTracker
           clientId={client.id}
           iatDate={client.iat_date || client.housing_stabilization_plan_date}
