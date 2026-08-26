@@ -15,6 +15,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { NotesSection } from '@/components/NotesSection';
 import { CalendarView } from '@/components/CalendarView';
 import { MilestoneTracker } from '@/components/MilestoneTracker';
+import { ClientWorkflowCard } from '@/components/ClientWorkflowCard';
+import { serviceStartDate } from '@/lib/workflow';
 import { ComplianceCard } from '@/components/ComplianceCard';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -40,6 +42,13 @@ interface Client {
   iat_date?: string;
   hsp_150_date?: string;
   hsp_180_date?: string;
+  workflow_stage?: string | null;
+  intake_status?: string | null;
+  auth_30_start?: string | null;
+  auth_30_number?: string | null;
+  auth_150_start?: string | null;
+  auth_150_number?: string | null;
+  hsp_submitted?: boolean | null;
   notes?: string;
   assigned_employee_id?: string;
 }
@@ -223,6 +232,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           </CardContent>
         </Card>
 
+        <ClientWorkflowCard client={client} onUpdate={onUpdate} />
+
         <MilestoneTracker
           clientId={client.id}
           iatDate={client.iat_date || client.housing_stabilization_plan_date}
@@ -236,7 +247,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             clientId={client.id}
             clientName={`${client.first_name} ${client.last_name}`}
             levelOfNeed={client.level_of_need}
-            hspStartDate={(client as any).hsp_150_date}
+            hspStartDate={serviceStartDate(client)}
             assignedEmployeeId={client.assigned_employee_id}
             clientCreatedAt={(client as any).created_at}
             onChanged={onUpdate}

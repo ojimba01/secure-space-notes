@@ -58,6 +58,8 @@ const clientSchema = z.object({
   closed_date: z.string().optional(),
   reason_closed: z.string().trim().max(100).optional(),
   auth_30_number: z.string().trim().max(100).optional(),
+  auth_30_start: z.string().optional(),
+  auth_30_end: z.string().optional(),
   auth_150_number: z.string().trim().max(100).optional(),
   auth_180_number: z.string().trim().max(100).optional(),
   auth_150_start: z.string().optional(),
@@ -99,6 +101,8 @@ interface Client {
   closed_date?: string;
   reason_closed?: string;
   auth_30_number?: string;
+  auth_30_start?: string;
+  auth_30_end?: string;
   auth_150_number?: string;
   auth_180_number?: string;
   notes?: string;
@@ -147,6 +151,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       closed_date: client.closed_date || '',
       reason_closed: client.reason_closed || '',
       auth_30_number: client.auth_30_number || '',
+      auth_30_start: client.auth_30_start || '',
+      auth_30_end: client.auth_30_end || '',
       auth_150_number: client.auth_150_number || '',
       auth_180_number: client.auth_180_number || '',
       auth_150_start: client.auth_150_start || '',
@@ -193,6 +199,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           closed_date: data.closed_date || null,
           reason_closed: data.reason_closed || null,
           auth_30_number: data.auth_30_number || null,
+          auth_30_start: data.auth_30_start || null,
+          auth_30_end: data.auth_30_end || null,
           auth_150_number: data.auth_150_number || null,
           auth_180_number: data.auth_180_number || null,
           auth_150_start: data.auth_150_start || null,
@@ -208,6 +216,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
       // Refresh billing cycles if auth dates or level of need changed.
       const billingChanged =
+        (data.auth_30_start || '') !== (client.auth_30_start || '') ||
+        (data.auth_30_end || '') !== (client.auth_30_end || '') ||
         (data.auth_150_start || '') !== (client.auth_150_start || '') ||
         (data.auth_150_end || '') !== (client.auth_150_end || '') ||
         (data.auth_180_start || '') !== (client.auth_180_start || '') ||
@@ -216,20 +226,30 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       if (billingChanged) {
         try {
           await regenerateClientCycles(client.id);
-        } catch {
-          /* non-fatal */
+        } catch (err: any) {
+          toast({
+            title: 'Billing cycles were not rebuilt',
+            description: `${err.message} — save again to retry.`,
+            variant: 'destructive',
+          });
         }
       }
 
       // Regenerate touch-points if the HSP 150-day date or level of need changed.
       const touchpointsChanged =
+        (data.auth_30_start || '') !== (client.auth_30_start || '') ||
+        (data.auth_150_start || '') !== (client.auth_150_start || '') ||
         (data.hsp_150_date || '') !== (client.hsp_150_date || '') ||
         (data.level_of_need || '') !== (client.level_of_need || '');
       if (touchpointsChanged) {
         try {
           await regenerateTouchpointsForClient(client.id);
-        } catch {
-          /* non-fatal */
+        } catch (err: any) {
+          toast({
+            title: 'Touchpoints were not rescheduled',
+            description: err.message,
+            variant: 'destructive',
+          });
         }
       }
 
@@ -581,6 +601,36 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                 )} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="auth_30_start"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Initial 30-Day Start</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        The date services began. Anchors the first billing cycle and the
+                        touchpoint schedule.
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="auth_30_end"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Initial 30-Day End</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}

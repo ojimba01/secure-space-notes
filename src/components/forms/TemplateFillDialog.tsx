@@ -76,6 +76,9 @@ interface TemplateFillDialogProps {
   existing?: FormRow | null;
   profileId: string;
   signerName: string;
+  /** Filing for one specific client (e.g. straight from their record). */
+  lockedClientId?: string;
+  lockedClientName?: string;
   onClose: () => void;
   onSubmitted: () => void;
 }
@@ -85,6 +88,8 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   existing,
   profileId,
   signerName,
+  lockedClientId,
+  lockedClientName,
   onClose,
   onSubmitted,
 }) => {
@@ -96,7 +101,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const [scale, setScale] = useState(1);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [clients, setClients] = useState<ClientOption[]>([]);
-  const [clientId, setClientId] = useState(existing?.client_id ?? '');
+  const [clientId, setClientId] = useState(existing?.client_id ?? lockedClientId ?? '');
   const [attested, setAttested] = useState(false);
   const [saving, setSaving] = useState(false);
   // Resubmit mode only:
@@ -107,11 +112,11 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const formType = existing ? existing.form_type : template?.formType ?? '';
   const clientName = existing?.clients
     ? `${existing.clients.last_name}, ${existing.clients.first_name}`
-    : null;
+    : lockedClientName ?? null;
 
   // New submissions: pick from the clients this employee can file against.
   useEffect(() => {
-    if (existing) return;
+    if (existing || lockedClientId) return;
     (async () => {
       let query = supabase
         .from('clients')
@@ -130,7 +135,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       const { data } = await query;
       setClients(data ?? []);
     })();
-  }, [existing, isAdmin, isViewingAs, profileId]);
+  }, [existing, lockedClientId, isAdmin, isViewingAs, profileId]);
 
   // Resubmit mode: pull the previously submitted PDF back out of storage.
   useEffect(() => {
@@ -285,7 +290,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         )}
 
         <div className="flex flex-wrap items-end justify-between gap-3">
-          {existing ? (
+          {existing || lockedClientId ? (
             <div className="space-y-1.5">
               <Label>Client</Label>
               <div className="text-sm font-medium">{clientName ?? '—'}</div>

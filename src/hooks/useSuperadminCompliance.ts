@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { serviceStartDate } from '@/lib/workflow';
 import {
   ContactRow, requirementsForTier, hasValidTier,
   todayAgency, startOfWeek, endOfWeek, daysBetween,
@@ -67,7 +68,7 @@ export function useSuperadminCompliance(): SuperadminComplianceData {
 
     const { data: cls } = await supabase
       .from('clients')
-      .select('id, first_name, last_name, level_of_need, hsp_150_date, status, assigned_employee_id')
+      .select('id, first_name, last_name, level_of_need, auth_30_start, auth_150_start, hsp_150_date, status, assigned_employee_id')
       .eq('status', 'active')
       .not('assigned_employee_id', 'is', null);
     const list = cls ?? [];
@@ -97,7 +98,8 @@ export function useSuperadminCompliance(): SuperadminComplianceData {
     for (const c of list) {
       const name = `${c.first_name} ${c.last_name}`;
       const staffName = c.assigned_employee_id ? (staffById[c.assigned_employee_id] ?? 'Unassigned') : 'Unassigned';
-      const missingDate = !c.hsp_150_date;
+      const serviceStart = serviceStartDate(c as any);
+      const missingDate = !serviceStart;
       const missingLon = !hasValidTier(c.level_of_need);
       if (missingDate || missingLon) {
         missingRows.push({
@@ -106,7 +108,7 @@ export function useSuperadminCompliance(): SuperadminComplianceData {
         });
         continue;
       }
-      const window = currentBillingWindow(c.hsp_150_date, today);
+      const window = currentBillingWindow(serviceStart, today);
       if (!window) continue;
       const req = requirementsForTier(c.level_of_need);
       const winContacts = contactsInWindow(contactsByClient[c.id] ?? [], window);

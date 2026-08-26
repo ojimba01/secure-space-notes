@@ -12,6 +12,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
+import { NewReferralDialog } from '@/components/NewReferralDialog';
+import { STAGE_LABEL, WORKFLOW_STAGES } from '@/lib/workflow';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useMyCompliance } from '@/hooks/useMyCompliance';
@@ -34,6 +36,7 @@ interface Client {
   hsp_150_date?: string | null;
   hsp_180_date?: string | null;
   level_of_need?: string | null;
+  workflow_stage?: string | null;
 }
 
 interface ManagerOption {
@@ -105,6 +108,8 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showReferralDialog, setShowReferralDialog] = useState(false);
+  const [stageFilter, setStageFilter] = useState<string>('all');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkReassign, setShowBulkReassign] = useState(false);
@@ -212,6 +217,8 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
 
     const matchesStatus = selectedStatuses.has(getMilestoneStatus(client));
 
+    const matchesStage = stageFilter === 'all' || (client.workflow_stage ?? 'referred') === stageFilter;
+
     const lon = client.level_of_need;
     const matchesLevel =
       levelFilter === 'all' ||
@@ -219,10 +226,10 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
 
     // View-as: show only the previewed employee's caseload.
     if (isViewingAs) {
-      return matchesSearch && matchesStatus && matchesLevel && client.assigned_employee_id === viewAsEmployeeId;
+      return matchesSearch && matchesStatus && matchesLevel && matchesStage && client.assigned_employee_id === viewAsEmployeeId;
     }
 
-    if (!isAdmin) return matchesSearch && matchesStatus && matchesLevel;
+    if (!isAdmin) return matchesSearch && matchesStatus && matchesLevel && matchesStage;
 
 
     // A client counts as "assigned" only if its manager is a valid, selectable
@@ -234,7 +241,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       ? selectedManagerIds.has(client.assigned_employee_id as string)
       : includeUnassigned;
 
-    return matchesSearch && matchesManager && matchesStatus && matchesLevel;
+    return matchesSearch && matchesManager && matchesStatus && matchesLevel && matchesStage;
   });
 
   const allStatusesSelected = selectedStatuses.size === MILESTONE_STATUS_OPTIONS.length;
@@ -349,22 +356,30 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           <h1 className="text-xl md:text-3xl font-bold truncate">Clients</h1>
           <p className="text-sm text-muted-foreground hidden md:block">View client records, assignments, milestones, and documentation.</p>
         </div>
-        {isAdmin && !selectionMode && !isViewingAs && (
+        {!selectionMode && !isViewingAs && (
           <div className="flex items-center gap-2 shrink-0">
-            <Button size="sm" variant="outline" onClick={() => setSelectionMode(true)}>
-              <CheckSquare className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Select</span>
-            </Button>
+            {isAdmin && (
+              <Button size="sm" variant="outline" onClick={() => setSelectionMode(true)}>
+                <CheckSquare className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Select</span>
+              </Button>
+            )}
             <Button
               size="sm"
               className="md:size-default"
-              onClick={() => setShowAddDialog(true)}
+              onClick={() => setShowReferralDialog(true)}
               disabled={!isAdmin && behindCount >= 5}
-              title={!isAdmin && behindCount >= 5 ? "You have 5 or more clients needing attention. Complete those touchpoints to drop below 5 before adding new clients." : undefined}
+              title={!isAdmin && behindCount >= 5 ? "You have 5 or more clients needing attention. Complete those touchpoints to drop below 5 before taking new referrals." : undefined}
             >
               <Plus className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Add Client</span>
+              <span className="hidden md:inline">New Referral</span>
             </Button>
+            {isAdmin && (
+              <Button size="sm" variant="outline" onClick={() => setShowAddDialog(true)}>
+                <span className="hidden md:inline">Full client record</span>
+                <span className="md:hidden">Full</span>
+              </Button>
+            )}
           </div>
         )}
         {isAdmin && selectionMode && (
@@ -444,6 +459,17 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
             </PopoverContent>
           </Popover>
         )}
+        <Select value={stageFilter} onValueChange={setStageFilter}>
+          <SelectTrigger className="w-[210px] shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All lifecycle stages</SelectItem>
+            {WORKFLOW_STAGES.map((st) => (
+              <SelectItem key={st} value={st}>{STAGE_LABEL[st]}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="shrink-0">
@@ -536,11 +562,24 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         </div>
       )}
 
+      <NewReferralDialog
+        open={showReferralDialog}
+        onOpenChange={setShowReferralDialog}
+        onCreated={async (id) => {
+          await fetchClients();
+          // Drop straight onto the new record — the IAT is the next step.
+          const { data } = await supabase.from('clients').select('*').eq('id', id).maybeSingle();
+          if (data) setSelectedClient(data as Client);
+        }}
+      />
+
+
       <AddClientDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
         onClientAdded={fetchClients}
       />
+
 
       <BulkReassignDialog
         open={showBulkReassign}
