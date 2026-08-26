@@ -7,12 +7,19 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { FORM_STATUS_LABEL } from '@/lib/formSigning';
-import { Check, Download, RotateCcw } from 'lucide-react';
+import {
+  EXTERNAL_STATUS_CLASS,
+  EXTERNAL_STATUS_LABEL,
+  FORM_STATUS_CLASS,
+  FORM_STATUS_LABEL,
+  WORKFLOW_PURPOSE_LABEL,
+} from '@/lib/formSigning';
+import { Check, Download, RotateCcw, Send, ThumbsDown, ThumbsUp } from 'lucide-react';
 import type { FormRow } from '@/components/forms/FormsHub';
 
 interface FormDetailDialogProps {
@@ -26,6 +33,7 @@ interface FormDetailDialogProps {
   /** Employee action: reopen a changes-requested submission for correction. */
   onEdit?: (form: FormRow) => void;
 }
+
 
 export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
   form,
