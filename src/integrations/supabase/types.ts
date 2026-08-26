@@ -1115,6 +1115,10 @@ export type Database = {
         Args: { p_client_id: string }
         Returns: number
       }
+      sync_client_billing_cycles_authorized: {
+        Args: { p_client_id: string }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "employee" | "superadmin"
