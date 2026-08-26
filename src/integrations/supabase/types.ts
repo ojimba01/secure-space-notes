@@ -76,10 +76,12 @@ export type Database = {
           cycle_number: number
           cycle_start: string
           final_deadline: string | null
+          hold_reason: string | null
           id: string
           is_active: boolean
           is_auto_generated: boolean
           notes: string | null
+          on_hold: boolean
           paid_amount: number
           paid_date: string | null
           payment_status: string
@@ -98,10 +100,12 @@ export type Database = {
           cycle_number: number
           cycle_start: string
           final_deadline?: string | null
+          hold_reason?: string | null
           id?: string
           is_active?: boolean
           is_auto_generated?: boolean
           notes?: string | null
+          on_hold?: boolean
           paid_amount?: number
           paid_date?: string | null
           payment_status?: string
@@ -120,10 +124,12 @@ export type Database = {
           cycle_number?: number
           cycle_start?: string
           final_deadline?: string | null
+          hold_reason?: string | null
           id?: string
           is_active?: boolean
           is_auto_generated?: boolean
           notes?: string | null
+          on_hold?: boolean
           paid_amount?: number
           paid_date?: string | null
           payment_status?: string
@@ -643,10 +649,12 @@ export type Database = {
           auth_30_start: string | null
           billing_tracking_start: string
           closed_date: string | null
+          continuation_authorization_status: string | null
           county: string | null
           created_at: string | null
           date_of_birth: string | null
           deleted_at: string | null
+          diagnosis_code: string | null
           email: string | null
           first_name: string
           housing_stabilization_plan_date: string | null
@@ -656,18 +664,30 @@ export type Database = {
           hsp_submitted: boolean | null
           iat_date: string | null
           id: string
+          initial_authorization_status: string | null
           insurance: string | null
+          intake_completed_at: string | null
           intake_date: string | null
+          intake_status: string
           last_name: string
           level_of_need: string | null
+          lon_score: number | null
           mco_housing_manager: string | null
           member_id: string | null
           next_action_due_date: string | null
+          njhmis_id: string | null
           notes: string | null
           phone: string | null
           reason_closed: string | null
+          referral_channel: string | null
+          referral_received_date: string | null
+          referral_source: string | null
+          referred_by: string | null
+          service_type: string | null
           status: string | null
           updated_at: string | null
+          workflow_stage: string
+          workflow_stage_updated_at: string | null
         }
         Insert: {
           address?: string | null
@@ -686,10 +706,12 @@ export type Database = {
           auth_30_start?: string | null
           billing_tracking_start?: string
           closed_date?: string | null
+          continuation_authorization_status?: string | null
           county?: string | null
           created_at?: string | null
           date_of_birth?: string | null
           deleted_at?: string | null
+          diagnosis_code?: string | null
           email?: string | null
           first_name: string
           housing_stabilization_plan_date?: string | null
@@ -699,18 +721,30 @@ export type Database = {
           hsp_submitted?: boolean | null
           iat_date?: string | null
           id?: string
+          initial_authorization_status?: string | null
           insurance?: string | null
+          intake_completed_at?: string | null
           intake_date?: string | null
+          intake_status?: string
           last_name: string
           level_of_need?: string | null
+          lon_score?: number | null
           mco_housing_manager?: string | null
           member_id?: string | null
           next_action_due_date?: string | null
+          njhmis_id?: string | null
           notes?: string | null
           phone?: string | null
           reason_closed?: string | null
+          referral_channel?: string | null
+          referral_received_date?: string | null
+          referral_source?: string | null
+          referred_by?: string | null
+          service_type?: string | null
           status?: string | null
           updated_at?: string | null
+          workflow_stage?: string
+          workflow_stage_updated_at?: string | null
         }
         Update: {
           address?: string | null
@@ -729,10 +763,12 @@ export type Database = {
           auth_30_start?: string | null
           billing_tracking_start?: string
           closed_date?: string | null
+          continuation_authorization_status?: string | null
           county?: string | null
           created_at?: string | null
           date_of_birth?: string | null
           deleted_at?: string | null
+          diagnosis_code?: string | null
           email?: string | null
           first_name?: string
           housing_stabilization_plan_date?: string | null
@@ -742,18 +778,30 @@ export type Database = {
           hsp_submitted?: boolean | null
           iat_date?: string | null
           id?: string
+          initial_authorization_status?: string | null
           insurance?: string | null
+          intake_completed_at?: string | null
           intake_date?: string | null
+          intake_status?: string
           last_name?: string
           level_of_need?: string | null
+          lon_score?: number | null
           mco_housing_manager?: string | null
           member_id?: string | null
           next_action_due_date?: string | null
+          njhmis_id?: string | null
           notes?: string | null
           phone?: string | null
           reason_closed?: string | null
+          referral_channel?: string | null
+          referral_received_date?: string | null
+          referral_source?: string | null
+          referred_by?: string | null
+          service_type?: string | null
           status?: string | null
           updated_at?: string | null
+          workflow_stage?: string
+          workflow_stage_updated_at?: string | null
         }
         Relationships: [
           {
