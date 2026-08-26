@@ -293,7 +293,9 @@ export const FormsHub: React.FC = () => {
               <th className="px-3 py-2 font-medium">Form Type</th>
               {reviewMode && <th className="px-3 py-2 font-medium">Employee</th>}
               <th className="px-3 py-2 font-medium">Submitted</th>
-              <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2 font-medium">Internal review</th>
+              <th className="px-3 py-2 font-medium">MCO status</th>
+
               <th className="px-3 py-2 font-medium text-right">Actions</th>
             </tr>
           </thead>
