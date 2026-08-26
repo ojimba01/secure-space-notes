@@ -562,11 +562,25 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         </div>
       )}
 
+      <NewReferralDialog
+        open={showReferralDialog}
+        onOpenChange={setShowReferralDialog}
+        onCreated={async (id) => {
+          await fetchClients();
+          setClients((list) => {
+            const match = list.find((c) => c.id === id);
+            if (match) setSelectedClient(match);
+            return list;
+          });
+        }}
+      />
+
       <AddClientDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
         onClientAdded={fetchClients}
       />
+
 
       <BulkReassignDialog
         open={showBulkReassign}
