@@ -38,7 +38,8 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
   const [open, setOpen] = useState(false);
 
   const load = useCallback(async () => {
-    await regenerateClientCycles(clientId);
+    // Non-fatal: the timeline still renders the stored cycles if the rebuild fails.
+    await regenerateClientCycles(clientId).catch(() => {});
     const { data: c } = await supabase
       .from('clients')
       .select('first_name, last_name, insurance, member_id, level_of_need, auth_150_start')
