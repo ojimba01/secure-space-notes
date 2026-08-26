@@ -176,6 +176,12 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         reason_closed: data.reason_closed || null,
         notes: data.notes || null,
         assigned_employee_id: assignedId,
+        // Place the record in the lifecycle from the authorizations entered.
+        workflow_stage: data.auth_150_start
+          ? 'active_authorization'
+          : data.auth_30_start
+            ? 'initial_30_active'
+            : 'referred',
       };
 
 
@@ -187,12 +193,16 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
 
       if (error) throw error;
 
-      // Auto-generate billing cycles right away if there's a 150-day start.
-      if (inserted?.id && clientData.auth_150_start) {
+      // Build billing cycles as soon as any authorization start date exists.
+      if (inserted?.id && (clientData.auth_30_start || clientData.auth_150_start)) {
         try {
           await regenerateClientCycles(inserted.id);
-        } catch {
-          /* non-fatal */
+        } catch (err: any) {
+          toast({
+            title: 'Billing cycles were not created',
+            description: `${err.message} — open the client and save again to retry.`,
+            variant: 'destructive',
+          });
         }
       }
 
@@ -202,8 +212,12 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         try {
           await regenerateTouchpointsForClient(inserted.id);
           if (assignedId) await regenerateTouchpointsForStaff(assignedId);
-        } catch {
-          /* non-fatal */
+        } catch (err: any) {
+          toast({
+            title: 'Touchpoints were not scheduled',
+            description: err.message,
+            variant: 'destructive',
+          });
         }
       }
 

@@ -208,6 +208,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
       // Refresh billing cycles if auth dates or level of need changed.
       const billingChanged =
+        (data.auth_30_start || '') !== ((client as any).auth_30_start || '') ||
+        (data.auth_30_end || '') !== ((client as any).auth_30_end || '') ||
         (data.auth_150_start || '') !== (client.auth_150_start || '') ||
         (data.auth_150_end || '') !== (client.auth_150_end || '') ||
         (data.auth_180_start || '') !== (client.auth_180_start || '') ||
@@ -216,20 +218,30 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       if (billingChanged) {
         try {
           await regenerateClientCycles(client.id);
-        } catch {
-          /* non-fatal */
+        } catch (err: any) {
+          toast({
+            title: 'Billing cycles were not rebuilt',
+            description: `${err.message} — save again to retry.`,
+            variant: 'destructive',
+          });
         }
       }
 
       // Regenerate touch-points if the HSP 150-day date or level of need changed.
       const touchpointsChanged =
+        (data.auth_30_start || '') !== ((client as any).auth_30_start || '') ||
+        (data.auth_150_start || '') !== (client.auth_150_start || '') ||
         (data.hsp_150_date || '') !== (client.hsp_150_date || '') ||
         (data.level_of_need || '') !== (client.level_of_need || '');
       if (touchpointsChanged) {
         try {
           await regenerateTouchpointsForClient(client.id);
-        } catch {
-          /* non-fatal */
+        } catch (err: any) {
+          toast({
+            title: 'Touchpoints were not rescheduled',
+            description: err.message,
+            variant: 'destructive',
+          });
         }
       }
 
