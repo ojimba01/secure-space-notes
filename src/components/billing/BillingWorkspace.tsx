@@ -145,7 +145,7 @@ export function BillingWorkspace() {
   const [section,setSection]=useState<'deadlines'|'setup'|'revenue'>('deadlines');
   const [filter,setFilter]=useState<'attention'|'all'|'extensions'>('attention');
   const [phaseTab,setPhaseTab]=useState<'both'|'150'|'180'>('both');
-  const [setupReason,setSetupReason]=useState<'all'|'hsp'|'start'|'lon'>('all');
+  const [setupReason,setSetupReason]=useState<'all'|'start'|'lon'>('all');
   const [open,setOpen]=useState<string|null>(null);
   const [query,setQuery]=useState('');
   const [profileId,setProfileId]=useState<string|null>(null);
