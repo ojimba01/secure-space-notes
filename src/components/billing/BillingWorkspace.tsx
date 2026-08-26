@@ -335,19 +335,19 @@ export function BillingWorkspace() {
       },
       {
         title:'Review the client setup groups',
-        body:'These buttons organize clients by their current place in the billing setup process.\n\nNeeds Setup includes clients whose billing cycles cannot be created because required information or an action is still missing. The available filters explain what is needed, including HSP Not Submitted.\n\nThe 150-Day Authorization group shows clients whose initial authorization information has been completed.\n\nThe 180-Day Extension group shows clients whose extension information has been completed or needs to be reviewed.\n\nThe number in parentheses shows how many clients are in each group.',
+        body:'These buttons organize clients by their current place in the billing setup process.\n\nNeeds Setup includes clients whose billing cycles cannot be created because required information or an action is still missing. The available filters explain what is needed, including No Authorization Start Date.\n\nThe 150-Day Authorization group shows clients whose initial authorization information has been completed.\n\nThe 180-Day Extension group shows clients whose extension information has been completed or needs to be reviewed.\n\nThe number in parentheses shows how many clients are in each group.',
         selector:'[data-tour="stage-setup"]',
-        done: setupReason==='hsp',
-        hint:'**Press HSP Not Submitted to continue.**',
+        done: setupReason==='start',
+        hint:'**Press No Authorization Start Date to continue.**',
         before:()=>{setSection('setup');setSetupReason('all');setQuery('');},
       },
       {
         title:'Add a client',
-        body:'Add Client Row creates a blank row at the top of the table. Enter the information you currently have, then press Save. You can complete the remaining information later.\n\nA partially completed client remains saved in the appropriate setup group. The client must not appear under Current Billing Deadlines until the information required to calculate billing cycles has been entered.\n\nWhen the HSP approval start date and level of need are entered, the system creates the client’s 150-day authorization and five 30-day billing cycles. If a 180-day extension is approved later, the system adds six additional 30-day cycles.',
+        body:'Add Client Row creates a blank row at the top of the table. Enter the information you currently have, then press Save. You can complete the remaining information later.\n\nA partially completed client remains saved in the appropriate setup group. The client must not appear under Current Billing Deadlines until the information required to calculate billing cycles has been entered.\n\nWhen an authorization start date is entered, the system creates the billing cycles: the initial 30-day authorization first, then the 150-day authorization. If a 180-day extension is approved later, the system adds the extension cycles. The level of need is only needed to price them.',
         selector:'[data-tour="add-client"]',
         done: (practice?.clients.length ?? 0) > 1,
         hint:'**Press Add Client Row to complete the tutorial.**',
-        before:()=>{setSection('setup');setSetupReason('hsp');setQuery('');removePracticeRows();},
+        before:()=>{setSection('setup');setSetupReason('start');setQuery('');removePracticeRows();},
       },
     );
     return steps;
@@ -650,7 +650,6 @@ function DeadlineCell({cycle}:{cycle:BillingCycle}){
 
 function CycleGrid({client,cycles,updateCycle,tour,practice}:{client:BillingClient;cycles:BillingCycle[];updateCycle:(id:string,p:Partial<BillingCycle>)=>Promise<void>;tour?:boolean;practice?:boolean}){
   const savedMsg=(what:string)=>practice?'Practice only — nothing was saved.':what;
-  const hspDue = client.hsp_due_date ?? hspDueDateFor(client.auth_30_start);
   const allResolved = cycles.length>0 && cycles.every(isCycleResolved);
   const sorted = [...cycles].sort((a,b)=>a.cycle_number-b.cycle_number);
   return <div className="border-t bg-white p-4" data-tour={tour?'cycle-table':undefined}>
