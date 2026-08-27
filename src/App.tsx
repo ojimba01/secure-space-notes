@@ -14,6 +14,12 @@ import AuditLogs from "./pages/AuditLogs";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { lazy, Suspense } from "react";
+
+// The migration tooling pulls in ZIP/spreadsheet parsing, so it is only
+// fetched when an admin actually opens Advanced Tools.
+const AdvancedToolsPage = lazy(() => import("./pages/AdvancedToolsPage"));
 
 const queryClient = new QueryClient();
 
@@ -22,6 +28,15 @@ const queryClient = new QueryClient();
 const SuperadminRoute = ({ children }: { children: JSX.Element }) => {
   const { isViewingAs } = useViewAs();
   return isViewingAs ? <Navigate to="/" replace /> : children;
+};
+
+// Migration utilities are Admin/Superadmin only, and are hidden during an
+// employee preview for the same reason.
+const AdminRoute = ({ children }: { children: JSX.Element }) => {
+  const { isViewingAs } = useViewAs();
+  const { isAdmin, loading } = useIsAdmin();
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  return isAdmin && !isViewingAs ? children : <Navigate to="/" replace />;
 };
 
 const App = () => (
@@ -39,6 +54,22 @@ const App = () => (
               <Route path="/admin" element={<SuperadminRoute><Admin /></SuperadminRoute>} />
               <Route path="/billing" element={<SuperadminRoute><Billing /></SuperadminRoute>} />
               <Route path="/audit-logs" element={<SuperadminRoute><AuditLogs /></SuperadminRoute>} />
+              <Route
+                path="/advanced-tools"
+                element={
+                  <AdminRoute>
+                    <Suspense
+                      fallback={
+                        <div className="flex items-center justify-center min-h-screen">
+                          Loading...
+                        </div>
+                      }
+                    >
+                      <AdvancedToolsPage />
+                    </Suspense>
+                  </AdminRoute>
+                }
+              />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="*" element={<NotFound />} />
