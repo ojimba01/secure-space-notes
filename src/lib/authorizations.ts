@@ -227,6 +227,81 @@ export async function recordAuthorization(
   return { authorization: inserted as ClientAuthorization, sequenceNumber };
 }
 
+export interface UpdateAuthorizationInput {
+  id: string;
+  clientId: string;
+  type: AuthorizationType;
+  startDate: string;
+  endDate?: string | null;
+  authorizationNumber?: string | null;
+  status: string;
+  mco?: string | null;
+  serviceType?: string | null;
+  levelOfNeed?: string | null;
+  billingModifier?: string | null;
+}
+
+/**
+ * Edit an existing authorization.
+ *
+ * Billing cycles and touchpoint windows are still generated from the legacy
+ * `clients` columns, so a correction here has to reach those columns too —
+ * otherwise fixing a wrong start date updates the history but leaves billing
+ * running on the old one. Only the operative row of a type is mirrored:
+ * editing a superseded record is a history correction and must not overwrite
+ * the dates currently in force.
+ *
+ * @returns whether the legacy columns were touched, so the caller knows
+ *          whether billing cycles need rebuilding.
+ */
+export async function updateAuthorization(
+  input: UpdateAuthorizationInput,
+): Promise<{ mirrored: boolean }> {
+  const end = input.endDate || defaultEndDate(input.type, input.startDate);
+
+  const { error } = await supabase
+    .from('client_authorizations')
+    .update({
+      authorization_type: input.type,
+      authorization_number: input.authorizationNumber || null,
+      start_date: input.startDate,
+      end_date: end,
+      status: input.status,
+      mco: input.mco || null,
+      service_type: input.serviceType || null,
+      level_of_need: input.levelOfNeed || null,
+      billing_modifier: input.billingModifier || null,
+    })
+    .eq('id', input.id);
+  if (error) throw new Error(error.message);
+
+  // Is this the operative authorization of its type? The newest sequence
+  // number wins, matching how recordAuthorization supersedes earlier rows.
+  const { data: siblings, error: siblingError } = await supabase
+    .from('client_authorizations')
+    .select('id, sequence_number')
+    .eq('client_id', input.clientId)
+    .eq('authorization_type', input.type)
+    .order('sequence_number', { ascending: false })
+    .limit(1);
+  if (siblingError) throw new Error(siblingError.message);
+
+  const isOperative = !siblings?.length || siblings[0].id === input.id;
+  // A cancelled or denied authorization is not in force, so it should not be
+  // the one billing reads from.
+  const inForce = input.status !== 'cancelled' && input.status !== 'denied';
+
+  if (isOperative && inForce) {
+    await mirrorAuthorizationToLegacyColumns(input.clientId, input.type, {
+      authorizationNumber: input.authorizationNumber || null,
+      startDate: input.startDate,
+      endDate: end,
+    });
+    return { mirrored: true };
+  }
+  return { mirrored: false };
+}
+
 /**
  * Copy the confirmed authorization values into the legacy `clients` columns
  * that billing cycles and touchpoint generation still read from.

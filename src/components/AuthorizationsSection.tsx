@@ -22,7 +22,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
-import { supabase } from '@/integrations/supabase/client';
 import { ShieldCheck, Plus } from 'lucide-react';
 import {
   AUTHORIZATION_STATUSES,
@@ -30,10 +29,10 @@ import {
   AUTHORIZATION_STATUS_LABEL,
   AUTHORIZATION_TYPES,
   AUTHORIZATION_TYPE_LABEL,
-  defaultEndDate,
   fetchClientAuthorizations,
   formatAuthDate,
   recordAuthorization,
+  updateAuthorization,
   type AuthorizationType,
   type ClientAuthorization,
 } from '@/lib/authorizations';
@@ -142,22 +141,40 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
     setSaving(true);
     try {
       if (editing) {
-        const { error } = await supabase
-          .from('client_authorizations')
-          .update({
-            authorization_type: form.authorization_type,
-            authorization_number: form.authorization_number || null,
-            start_date: form.start_date,
-            end_date: form.end_date || defaultEndDate(form.authorization_type, form.start_date),
-            status: form.status,
-            mco: form.mco || null,
-            service_type: form.service_type || null,
-            level_of_need: form.level_of_need || null,
-            billing_modifier: form.billing_modifier || null,
-          })
-          .eq('id', editing.id);
-        if (error) throw new Error(error.message);
-        toast({ title: 'Authorization updated' });
+        const { mirrored } = await updateAuthorization({
+          id: editing.id,
+          clientId,
+          type: form.authorization_type,
+          startDate: form.start_date,
+          endDate: form.end_date || null,
+          authorizationNumber: form.authorization_number || null,
+          status: form.status,
+          mco: form.mco || null,
+          serviceType: form.service_type || null,
+          levelOfNeed: form.level_of_need || null,
+          billingModifier: form.billing_modifier || null,
+        });
+
+        // Billing reads the legacy columns, so a correction that reached them
+        // has to rebuild the cycles as well — otherwise the dates and the
+        // cycles disagree with no sign that anything is wrong.
+        if (mirrored) {
+          try {
+            await regenerateClientCycles(clientId);
+          } catch (err: any) {
+            toast({
+              title: 'Billing cycles were not rebuilt',
+              description: `${err.message} — save the authorization again to retry.`,
+              variant: 'destructive',
+            });
+          }
+        }
+        toast({
+          title: 'Authorization updated',
+          description: mirrored
+            ? 'Billing and touchpoint windows were updated to match.'
+            : 'History corrected. The authorization currently in force was left unchanged.',
+        });
       } else {
         await recordAuthorization({
           clientId,
