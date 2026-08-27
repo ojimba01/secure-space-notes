@@ -83,15 +83,16 @@ function pickDates(from: string, to: string, count: number, used: Set<string>, s
 
 // Compute the touchpoints that still need to be auto-scheduled for the current window.
 export function generateTouchpointDates(
-  hsp150: string,
+  /** The service start date — NOT the HSP submission date. */
+  serviceStart: string,
   tier: string | null | undefined,
   loggedContacts: ContactRow[],
   manualEvents: { date: string; modality: Modality }[],
   today: string,
   seed = 0,
 ): TouchpointDate[] {
-  if (!hasValidTier(tier) || !hsp150) return [];
-  const window = currentBillingWindow(hsp150, today);
+  if (!hasValidTier(tier) || !serviceStart) return [];
+  const window = currentBillingWindow(serviceStart, today);
   if (!window) return [];
   const req = requirementsForTier(tier);
 

@@ -32,11 +32,11 @@ import {
   fetchClientAuthorizations,
   formatAuthDate,
   recordAuthorization,
+  resyncDerivedSchedules,
   updateAuthorization,
   type AuthorizationType,
   type ClientAuthorization,
 } from '@/lib/authorizations';
-import { regenerateClientCycles } from '@/lib/billingSync';
 
 interface Props {
   clientId: string;
@@ -160,10 +160,10 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
         // cycles disagree with no sign that anything is wrong.
         if (mirrored) {
           try {
-            await regenerateClientCycles(clientId);
+            await resyncDerivedSchedules(clientId);
           } catch (err: any) {
             toast({
-              title: 'Billing cycles were not rebuilt',
+              title: 'Billing and touchpoints were not rebuilt',
               description: `${err.message} — save the authorization again to retry.`,
               variant: 'destructive',
             });
@@ -172,7 +172,7 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
         toast({
           title: 'Authorization updated',
           description: mirrored
-            ? 'Billing and touchpoint windows were updated to match.'
+            ? 'Billing cycles and touchpoint windows were updated to match.'
             : 'History corrected. The authorization currently in force was left unchanged.',
         });
       } else {
@@ -188,10 +188,10 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
           createdBy: profileId ?? null,
         });
         try {
-          await regenerateClientCycles(clientId);
+          await resyncDerivedSchedules(clientId);
         } catch (err: any) {
           toast({
-            title: 'Billing cycles were not rebuilt',
+            title: 'Billing and touchpoints were not rebuilt',
             description: `${err.message} — save the authorization again to retry.`,
             variant: 'destructive',
           });

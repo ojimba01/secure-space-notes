@@ -9,6 +9,8 @@
 // is ALSO mirrored into those columns (most recent reauthorization wins). That
 // keeps the transition non-destructive in both directions.
 import { supabase } from '@/integrations/supabase/client';
+import { regenerateClientCycles } from '@/lib/billingSync';
+import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 
 export const AUTHORIZATION_TYPES = [
   'initial_30',
@@ -353,6 +355,36 @@ export async function mirrorAuthorizationToLegacyColumns(
 
 export const formatAuthDate = (d?: string | null) =>
   d ? new Date(`${d}T00:00:00`).toLocaleDateString() : '—';
+
+/**
+ * Rebuild everything derived from a client's service chronology.
+ *
+ * Billing cycles and touchpoint windows are both anchored on the service
+ * start date, so a change to an authorization has to rebuild both. Keeping
+ * them behind one call is deliberate: when they were two separate calls,
+ * several screens remembered one and forgot the other, leaving the compliance
+ * schedule on a window the authorization no longer covered.
+ */
+export async function resyncDerivedSchedules(clientId: string): Promise<void> {
+  // Both are attempted even if the first fails. They are independent, and a
+  // billing RPC that is refused must not also cost the client their
+  // compliance schedule. Whatever failed is reported afterwards.
+  const failures: string[] = [];
+
+  try {
+    await regenerateClientCycles(clientId);
+  } catch (err) {
+    failures.push(`billing cycles (${err instanceof Error ? err.message : String(err)})`);
+  }
+
+  try {
+    await regenerateTouchpointsForClient(clientId);
+  } catch (err) {
+    failures.push(`touchpoints (${err instanceof Error ? err.message : String(err)})`);
+  }
+
+  if (failures.length) throw new Error(`Could not rebuild ${failures.join(' and ')}`);
+}
 
 /** The legacy `clients` columns that still drive billing and touchpoints. */
 const LEGACY_AUTH_COLUMNS = [

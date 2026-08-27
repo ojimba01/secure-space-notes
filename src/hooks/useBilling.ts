@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { BillingCycle } from '@/lib/billing';
 import {
+  resyncDerivedSchedules,
   syncAuthorizationsFromLegacyColumns,
   touchesAuthorizationData,
 } from '@/lib/authorizations';
-import { regenerateClientCycles } from '@/lib/billingSync';
 
 export interface BillingClient {
   id: string; first_name: string; last_name: string; insurance: string | null;
@@ -70,7 +70,7 @@ export function useBilling() {
     let followUpError: unknown = null;
     try {
       if (touchedAuth) await syncAuthorizationsFromLegacyColumns(id);
-      if (touchedAuth || 'level_of_need' in databasePatch) await regenerateClientCycles(id);
+      if (touchedAuth || 'level_of_need' in databasePatch) await resyncDerivedSchedules(id);
     } catch (err) {
       // The column write already succeeded, so the list still has to refresh
       // to show it. The failure is re-thrown afterwards so the caller can

@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { hspDueDateFor } from '@/lib/billing';
-import { syncAuthorizationsFromLegacyColumns } from '@/lib/authorizations';
-import { regenerateClientCycles } from '@/lib/billingSync';
+import {
+  resyncDerivedSchedules,
+  syncAuthorizationsFromLegacyColumns,
+} from '@/lib/authorizations';
 
 interface ClientRow {
   id: string;
@@ -120,7 +122,7 @@ export function ClientProfileDialog({ clientId, onClose }: { clientId: string | 
     // otherwise disagree with the cycles and nothing would say so.
     try {
       await syncAuthorizationsFromLegacyColumns(clientId);
-      await regenerateClientCycles(clientId);
+      await resyncDerivedSchedules(clientId);
       toast.success('Client profile saved.');
     } catch (err) {
       toast.error(
