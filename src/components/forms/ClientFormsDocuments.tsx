@@ -34,7 +34,12 @@ const GROUPS: { title: string; match: (f: FormRow) => boolean }[] = [
   { title: 'Housing Stabilization Plan', match: (f) => f.form_type === 'Housing Stabilization Plan' },
   {
     title: 'MCO referrals / authorizations',
-    match: (f) => f.workflow_purpose === 'initial_authorization' && f.form_type === 'Other',
+    // Imported authorization paperwork arrives as "Other" with no workflow
+    // purpose, so the filename/title is the only signal available.
+    match: (f) =>
+      f.form_type === 'Other' &&
+      (f.workflow_purpose === 'initial_authorization' ||
+        /authorization|referral|auth\b/i.test(`${f.title} ${f.source_filename ?? ''}`)),
   },
   { title: 'Other documents', match: () => true },
 ];

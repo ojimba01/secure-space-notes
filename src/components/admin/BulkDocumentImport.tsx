@@ -584,8 +584,11 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
           <p className="text-xs text-muted-foreground">
             A manifest makes matching deterministic. Recommended columns: source_file (required),
             first_name, last_name, date_of_birth, member_id, mco, form_type, form_date,
-            external_status, notes.
-            {manifestName && ` — loaded ${manifestName} (${manifest.length} rows)`}
+            external_status, notes.{' '}
+            <a href="/import-manifest-template.csv" download className="underline">
+              Download a template
+            </a>
+            .{manifestName && ` — loaded ${manifestName} (${manifest.length} rows)`}
           </p>
         </div>
 
