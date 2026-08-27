@@ -33,11 +33,13 @@ ALTER TABLE public.client_form_versions ENABLE ROW LEVEL SECURITY;
 
 -- Versions are visible wherever the parent form is visible; they are append
 -- only from the app (no update/delete policies on purpose).
+DROP POLICY IF EXISTS "Admins manage form versions" ON public.client_form_versions;
 CREATE POLICY "Admins manage form versions"
   ON public.client_form_versions FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Employees view versions of their own forms" ON public.client_form_versions;
 CREATE POLICY "Employees view versions of their own forms"
   ON public.client_form_versions FOR SELECT TO authenticated
   USING (EXISTS (
@@ -46,6 +48,7 @@ CREATE POLICY "Employees view versions of their own forms"
     WHERE f.id = client_form_id AND p.user_id = auth.uid()
   ));
 
+DROP POLICY IF EXISTS "Employees add versions to their own forms" ON public.client_form_versions;
 CREATE POLICY "Employees add versions to their own forms"
   ON public.client_form_versions FOR INSERT TO authenticated
   WITH CHECK (EXISTS (
@@ -114,19 +117,23 @@ GRANT ALL ON public.form_template_registry TO service_role;
 
 ALTER TABLE public.form_template_registry ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Everyone signed in can read the registry" ON public.form_template_registry;
 CREATE POLICY "Everyone signed in can read the registry"
   ON public.form_template_registry FOR SELECT TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Admins manage the registry" ON public.form_template_registry;
 CREATE POLICY "Admins manage the registry"
   ON public.form_template_registry FOR INSERT TO authenticated
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins update the registry" ON public.form_template_registry;
 CREATE POLICY "Admins update the registry"
   ON public.form_template_registry FOR UPDATE TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins delete from the registry" ON public.form_template_registry;
 CREATE POLICY "Admins delete from the registry"
   ON public.form_template_registry FOR DELETE TO authenticated
   USING (public.is_admin(auth.uid()));

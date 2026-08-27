@@ -65,11 +65,13 @@ ALTER TABLE public.document_import_batches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.document_import_items ENABLE ROW LEVEL SECURITY;
 
 -- Migration tooling is Admin/Superadmin only; staff never see these tables.
+DROP POLICY IF EXISTS "Admins manage import batches" ON public.document_import_batches;
 CREATE POLICY "Admins manage import batches"
   ON public.document_import_batches FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
+DROP POLICY IF EXISTS "Admins manage import items" ON public.document_import_items;
 CREATE POLICY "Admins manage import items"
   ON public.document_import_items FOR ALL TO authenticated
   USING (public.is_admin(auth.uid()))
