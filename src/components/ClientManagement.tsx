@@ -11,9 +11,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { AddClientDialog } from '@/components/AddClientDialog';
 import { NewReferralDialog } from '@/components/NewReferralDialog';
-import { STAGE_LABEL, WORKFLOW_STAGES } from '@/lib/workflow';
+import { STAGE_LABEL, WORKFLOW_STAGES, isSetupComplete } from '@/lib/workflow';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useMyCompliance } from '@/hooks/useMyCompliance';
@@ -100,14 +99,13 @@ interface ClientManagementProps {
 export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClientId, onConsumeInitialClient }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isAdmin } = useIsAdmin();
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
   const { isViewingAs, viewAsEmployeeId } = useViewAs();
-  const { behindCount } = useMyCompliance();
+  const { overdueCount: behindCount } = useMyCompliance();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [showAddDialog, setShowAddDialog] = useState(false);
   const [showReferralDialog, setShowReferralDialog] = useState(false);
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [selectionMode, setSelectionMode] = useState(false);
@@ -125,11 +123,13 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
 
 
 
+  // Wait for the role to resolve: the list is filtered by it, and fetching
+  // before it is known would leave an admin looking at a staff-shaped list.
   useEffect(() => {
-    if (user) {
+    if (user && !adminLoading) {
       fetchClients();
     }
-  }, [user]);
+  }, [user, adminLoading, isAdmin]);
 
   useEffect(() => {
     if (initialClientId && clients.length) {
@@ -187,7 +187,12 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      const list = data || [];
+      // Staff work setup-complete clients only. A client still missing an HSP
+      // submission, an approval start date, or a level of need is Admin work,
+      // and showing it here would put a "fix this" task in a staff view that
+      // cannot fix it.
+      const all = data || [];
+      const list = isAdmin ? all : all.filter((c) => isSetupComplete(c));
       setClients(list);
       // Keep the currently open client detail in sync with the latest data
       setSelectedClient((current) =>
@@ -374,12 +379,6 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               <Plus className="h-4 w-4 md:mr-2" />
               <span className="hidden md:inline">New Referral</span>
             </Button>
-            {isAdmin && (
-              <Button size="sm" variant="outline" onClick={() => setShowAddDialog(true)}>
-                <span className="hidden md:inline">Full client record</span>
-                <span className="md:hidden">Full</span>
-              </Button>
-            )}
           </div>
         )}
         {isAdmin && selectionMode && (
@@ -464,7 +463,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All lifecycle stages</SelectItem>
+            <SelectItem value="all">All case stages</SelectItem>
             {WORKFLOW_STAGES.map((st) => (
               <SelectItem key={st} value={st}>{STAGE_LABEL[st]}</SelectItem>
             ))}
@@ -573,12 +572,6 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         }}
       />
 
-
-      <AddClientDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-        onClientAdded={fetchClients}
-      />
 
 
       <BulkReassignDialog

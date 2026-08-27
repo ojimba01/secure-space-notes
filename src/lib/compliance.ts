@@ -1,5 +1,6 @@
-// Monthly touch-point compliance logic (shared by client checklist + My Month dashboard)
-// All date math uses a single agency time zone (America/New_York) via plain YYYY-MM-DD strings.
+// Rolling 30-day touchpoint compliance logic (shared by the client checklist,
+// the staff work queue, and oversight). All date math uses a single agency
+// time zone (America/New_York) via plain YYYY-MM-DD strings.
 
 export type Modality = 'phone' | 'virtual' | 'in_person';
 export type ComplianceStatus = 'on_track' | 'behind' | 'complete' | 'incomplete_escalated';
@@ -25,7 +26,7 @@ export const SUPPORT_ACTIVITIES: SupportActivity[] = [
 export const MODALITY_LABELS: Record<Modality, string> = {
   phone: 'Phone',
   virtual: 'Virtual',
-  in_person: 'In-Person',
+  in_person: 'In person',
 };
 
 export interface ContactRow {
@@ -42,10 +43,10 @@ export interface Requirements {
 
 export function requirementsForTier(tier: string | null | undefined): Requirements {
   if (tier === 'High Level') {
-    // 4 touchpoints per 30-day window, at least 2 face-to-face
+    // 4 touchpoints per 30-day cycle, at least 2 in person
     return { requiredContacts: 4, requiredInPerson: 2, requiredActivities: 2 };
   }
-  // Low Level: 2 touchpoints per 30-day window, at least 1 face-to-face
+  // Low Level: 2 touchpoints per 30-day cycle, at least 1 in person
   return { requiredContacts: 2, requiredInPerson: 1, requiredActivities: 0 };
 }
 
@@ -291,7 +292,7 @@ export function windowProgress(req: Requirements, contacts: ContactRow[]): Windo
   };
 }
 
-// Plain-English reasons a client is at audit risk in the current window.
+// Plain-English reasons the current cycle is overdue.
 export function overdueReasons(
   req: Requirements,
   window: BillingWindow,
@@ -321,10 +322,10 @@ export function overdueReasons(
     reasons.push('Not enough days left in billing window');
   }
 
-  // required face-to-face can no longer be completed
+  // required in-person touchpoint can no longer be completed
   if (prog.remainingInPerson > 0) {
     const need = (prog.remainingInPerson - 1) * MIN_SPACING_DAYS;
-    if (need > daysLeft) reasons.push('Required face-to-face touchpoint can no longer be completed');
+    if (need > daysLeft) reasons.push('Required in-person touchpoint can no longer be completed');
   }
 
   if (prog.contactDays < req.requiredContacts && daysLeft <= 5) {
@@ -345,6 +346,61 @@ export function windowStatus(
   return overdueReasons(req, window, windowContacts, today).length > 0 ? 'overdue' : 'on_track';
 }
 
+// ---- "start today" go-live floor ------------------------------------
+// Touchpoint cycles are anchored to the client's HSP approval / authorization
+// start date, so a client onboarded today may be mid-cycle. Nothing that
+// happened before the agency went live should push staff around: cycles that
+// began before the go-live date are shown for reference and can be worked, but
+// they are never overdue and never fill the work queue as urgent.
+
+/** Did this cycle begin before the agency started using the queue? */
+export function isPreGoLiveCycle(window: BillingWindow, goLive: string | null): boolean {
+  if (!goLive) return false;
+  return daysBetween(goLive, window.start) < 0;
+}
+
+/** The earliest date a new touchpoint may be scheduled on. */
+export function schedulingFloor(today: string, goLive: string | null): string {
+  if (!goLive) return today;
+  return daysBetween(goLive, today) > 0 ? today : goLive;
+}
+
+/** Status shown on a cycle in the staff work queue. */
+export type CycleStatus = 'completed' | 'overdue' | 'due_soon' | 'incomplete';
+
+export const CYCLE_STATUS_LABEL: Record<CycleStatus, string> = {
+  completed: 'Completed',
+  overdue: 'Overdue',
+  due_soon: 'Due soon',
+  incomplete: 'Incomplete',
+};
+
+export const DUE_SOON_DAYS = 7;
+
+export function cycleStatus(
+  req: Requirements,
+  window: BillingWindow,
+  windowContacts: ContactRow[],
+  today: string,
+  goLive: string | null,
+): CycleStatus {
+  const prog = windowProgress(req, windowContacts);
+  if (prog.isComplete) return 'completed';
+  if (!isPreGoLiveCycle(window, goLive) && overdueReasons(req, window, windowContacts, today).length > 0) {
+    return 'overdue';
+  }
+  const daysLeft = daysBetween(today, window.end);
+  if (daysLeft >= 0 && daysLeft <= DUE_SOON_DAYS) return 'due_soon';
+  return 'incomplete';
+}
+
+export const CYCLE_STATUS_CLASS: Record<CycleStatus, string> = {
+  completed: 'bg-green-600 text-white hover:bg-green-600',
+  overdue: 'bg-red-600 text-white hover:bg-red-600',
+  due_soon: 'bg-amber-500 text-white hover:bg-amber-500',
+  incomplete: 'bg-muted text-muted-foreground hover:bg-muted',
+};
+
 // ---- rule-based suggested touchpoint type ---------------------------
 // Uses only structured data — never invents facts.
 export function suggestTouchpointType(
@@ -352,52 +408,83 @@ export function suggestTouchpointType(
   windowContacts: ContactRow[],
 ): string {
   const prog = windowProgress(req, windowContacts);
-  if (prog.contactDays === 0) return 'Initial check-in for this 30-day window';
-  if (prog.remainingInPerson > 0) return 'Face-to-face visit';
-  return 'Phone, text, email, or virtual follow-up';
+  if (prog.contactDays === 0) return 'Initial check-in for this 30-day cycle';
+  if (prog.remainingInPerson > 0) return 'In-person visit';
+  return 'Phone, text, email, or video follow-up';
 }
 
 // ---- Touchpoint classification -------------------------------------
-// Modality answers "how did the contact happen?" (kept separate from type).
+// Contact method answers "how did the contact happen?" (kept separate from type).
 // The core scheduling/counting logic still uses the Modality type above;
-// these are the selectable options in the Log Touchpoint dialog.
-export interface ModalityOption { value: string; label: string; inPerson: boolean }
-export const MODALITY_OPTIONS: ModalityOption[] = [
+// these are the selectable options in the Add touchpoint modal.
+export interface ContactMethodOption { value: string; label: string; inPerson: boolean }
+export const CONTACT_METHOD_OPTIONS: ContactMethodOption[] = [
+  { value: 'in_person', label: 'In person', inPerson: true },
   { value: 'phone', label: 'Phone', inPerson: false },
   { value: 'text', label: 'Text', inPerson: false },
   { value: 'email', label: 'Email', inPerson: false },
-  { value: 'virtual', label: 'Video / virtual', inPerson: false },
-  { value: 'in_person', label: 'Face-to-face / in-person', inPerson: true },
+  { value: 'virtual', label: 'Video', inPerson: false },
+  { value: 'other', label: 'Other', inPerson: false },
 ];
 
+/** Legacy alias — the same list under its old name. */
+export const MODALITY_OPTIONS = CONTACT_METHOD_OPTIONS;
+
+export function contactMethodLabel(value: string | null | undefined): string {
+  if (!value) return '';
+  return CONTACT_METHOD_OPTIONS.find((m) => m.value === value)?.label ?? value;
+}
+
+/** Only an in-person contact satisfies the in-person requirement. */
+export function isInPersonMethod(value: string | null | undefined): boolean {
+  return CONTACT_METHOD_OPTIONS.find((m) => m.value === value)?.inPerson ?? false;
+}
+
 // Touchpoint type answers "what kind of case-management work happened?"
+// This is the staff-facing list. HSP work is deliberately absent — that
+// belongs to the Admin and Superadmin workflows, not the staff queue.
 export interface TouchpointTypeOption { value: string; label: string }
 export const TOUCHPOINT_TYPES: TouchpointTypeOption[] = [
-  { value: 'general_checkin', label: 'General member check-in' },
-  { value: 'housing_search', label: 'Housing search / application follow-up' },
-  { value: 'hsp_goal', label: 'Housing Stabilization Plan goal follow-up' },
-  { value: 'landlord_tenant', label: 'Landlord / tenant coordination' },
-  { value: 'lease_issue', label: 'Lease issue / tenancy concern' },
-  { value: 'eviction_prevention', label: 'Eviction prevention / lease violation response' },
-  { value: 'voucher_application', label: 'Housing subsidy / voucher application' },
-  { value: 'voucher_recert', label: 'Subsidy or voucher recertification' },
-  { value: 'benefits_docs', label: 'Benefits / income / documentation support' },
-  { value: 'resource_linkage', label: 'Transportation or basic-needs resource linkage' },
-  { value: 'bh_medical', label: 'Behavioral health / SUD / medical coordination' },
-  { value: 'legal_aid', label: 'Legal aid coordination' },
-  { value: 'supportive_housing', label: 'Supportive housing program coordination' },
-  { value: 'reassessment', label: 'Reassessment of housing stability / risk factors' },
+  { value: 'general_checkin', label: 'General check-in' },
+  { value: 'landlord_tenant', label: 'Landlord coordination' },
+  { value: 'housing_application', label: 'Housing application' },
+  { value: 'voucher_support', label: 'Voucher support' },
+  { value: 'recertification', label: 'Recertification' },
+  { value: 'benefits_income', label: 'Benefits or income support' },
+  { value: 'basic_needs', label: 'Basic needs' },
+  { value: 'care_coordination', label: 'Care coordination' },
+  { value: 'legal_aid', label: 'Legal aid' },
+  { value: 'supportive_housing', label: 'Supportive housing' },
+  { value: 'reassessment', label: 'Reassessment' },
   { value: 'crisis_followup', label: 'Crisis follow-up' },
   { value: 'other', label: 'Other' },
 ];
 
+// Values written before the list above was adopted. Kept for display only —
+// they are never offered as choices, so nothing new lands here.
+const RETIRED_TOUCHPOINT_TYPE_LABELS: Record<string, string> = {
+  housing_search: 'Housing application',
+  hsp_goal: 'Housing Stabilization Plan goal follow-up',
+  lease_issue: 'Landlord coordination',
+  eviction_prevention: 'Landlord coordination',
+  voucher_application: 'Voucher support',
+  voucher_recert: 'Recertification',
+  benefits_docs: 'Benefits or income support',
+  resource_linkage: 'Basic needs',
+  bh_medical: 'Care coordination',
+};
+
 export function touchpointTypeLabel(value: string | null | undefined): string {
   if (!value) return '';
-  return TOUCHPOINT_TYPES.find((t) => t.value === value)?.label ?? value;
+  return (
+    TOUCHPOINT_TYPES.find((t) => t.value === value)?.label ??
+    RETIRED_TOUCHPOINT_TYPE_LABELS[value] ??
+    value
+  );
 }
 
 // Suggest a touchpoint type from structured client fields + whether any
-// contact has been logged in the current window. Never invents facts.
+// contact has been logged in the current cycle. Never invents facts.
 export function suggestTouchpointTypeFromClient(client: {
   level_of_need?: string | null;
   housing_status?: string | null;
@@ -406,8 +493,73 @@ export function suggestTouchpointTypeFromClient(client: {
   const hs = (client.housing_status ?? '').toLowerCase();
   const vs = (client.voucher_status ?? '').toLowerCase();
   if (!hasContactThisWindow) return 'general_checkin';
-  if (hs.includes('search')) return 'housing_search';
-  if (vs.includes('active') || vs.includes('pending')) return 'voucher_application';
+  if (hs.includes('search')) return 'housing_application';
+  if (vs.includes('active') || vs.includes('pending')) return 'voucher_support';
   if (client.level_of_need === 'High Level') return 'reassessment';
   return 'general_checkin';
+}
+
+// The order auto-generated touchpoints cycle through, so a client is never
+// handed the same suggested type twice inside one 30-day cycle.
+export const AUTO_TOUCHPOINT_TYPE_ROTATION = [
+  'general_checkin',
+  'care_coordination',
+  'landlord_tenant',
+  'basic_needs',
+] as const;
+
+// ---- NJHMIS progress note entry -------------------------------------
+// Field values copied from the NJHMIS progress note screen. Saving a
+// touchpoint stages a record in these terms; nothing is sent to NJHMIS.
+export const NJHMIS_SERVICE_TYPES: string[] = [
+  'Other Service Type',
+  'Home Modifications & Remediation',
+  'Move-In Supports',
+  'Pre-tenancy services - higher level of need',
+  'Pre-tenancy services - lower level of need',
+  'Tenancy sustaining services - higher level of need',
+  'Tenancy sustaining services - lower level of need',
+];
+
+export const NJHMIS_LOCATIONS: string[] = [
+  'This Program Site',
+  'Consumer Residence',
+  'Consumer Workplace',
+  'Other Program Site',
+  'Other Service Provider',
+  'Hospital',
+  'Jail',
+  'Other Site',
+  'Telehealth',
+];
+
+export const NJHMIS_NOTE_TYPES: string[] = [
+  'General Chart Note',
+  'Initial Assessment',
+  'Criteria for Discharge',
+  'Hospitalization Referral',
+  'Collateral Contact',
+  'Service Plan Linked',
+  'Periodic Summary Note',
+  'Medication Monitoring',
+  "Nurse's Note",
+  "Psychiatrist's Note",
+  'AWOL Status',
+];
+
+export const NJHMIS_DEFAULT_NOTE_TYPE = 'General Chart Note';
+
+/**
+ * The service type NJHMIS expects for a tenancy-sustaining touchpoint at this
+ * client's tier. Only a starting point — staff can change it.
+ */
+export function defaultNjhmisServiceType(tier: string | null | undefined): string {
+  return tier === 'High Level'
+    ? 'Tenancy sustaining services - higher level of need'
+    : 'Tenancy sustaining services - lower level of need';
+}
+
+/** In person happens at the consumer's residence by default; everything else is telehealth. */
+export function defaultNjhmisLocation(method: string | null | undefined): string {
+  return isInPersonMethod(method) ? 'Consumer Residence' : 'Telehealth';
 }

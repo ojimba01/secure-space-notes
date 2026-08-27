@@ -389,6 +389,7 @@ export type Database = {
           client_id: string
           contact_date: string
           created_at: string
+          duration_minutes: number | null
           employee_id: string
           id: string
           modality: string
@@ -400,6 +401,7 @@ export type Database = {
           client_id: string
           contact_date?: string
           created_at?: string
+          duration_minutes?: number | null
           employee_id: string
           id?: string
           modality: string
@@ -411,6 +413,7 @@ export type Database = {
           client_id?: string
           contact_date?: string
           created_at?: string
+          duration_minutes?: number | null
           employee_id?: string
           id?: string
           modality?: string
@@ -1310,6 +1313,82 @@ export type Database = {
           {
             foreignKeyName: "form_template_registry_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      njhmis_progress_notes: {
+        Row: {
+          client_id: string
+          contact_id: string | null
+          contact_method: string | null
+          created_at: string
+          duration_minutes: number
+          employee_id: string
+          entry_status: string
+          face_to_face: boolean
+          id: string
+          location: string
+          note_date: string
+          note_text: string | null
+          note_type: string
+          service_type: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          contact_id?: string | null
+          contact_method?: string | null
+          created_at?: string
+          duration_minutes?: number
+          employee_id: string
+          entry_status?: string
+          face_to_face?: boolean
+          id?: string
+          location: string
+          note_date: string
+          note_text?: string | null
+          note_type?: string
+          service_type: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          contact_id?: string | null
+          contact_method?: string | null
+          created_at?: string
+          duration_minutes?: number
+          employee_id?: string
+          entry_status?: string
+          face_to_face?: boolean
+          id?: string
+          location?: string
+          note_date?: string
+          note_text?: string | null
+          note_type?: string
+          service_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "njhmis_progress_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "njhmis_progress_notes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "njhmis_progress_notes_employee_id_fkey"
+            columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

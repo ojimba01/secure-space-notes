@@ -52,6 +52,8 @@ interface EditCalendarEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   event: CalendarEvent | null;
+  /** Whether this user may delete events at all. Staff may not. */
+  canDelete?: boolean;
   onEventUpdated: () => void;
 }
 
@@ -59,6 +61,7 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
   open,
   onOpenChange,
   event,
+  canDelete = true,
   onEventUpdated,
 }) => {
   const { toast } = useToast();
@@ -192,6 +195,9 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
       setLoading(false);
     }
   };
+
+  const isTouchpoint = (event?.event_type ?? formData.event_type) === 'touch_point';
+  const showDelete = canDelete || !isTouchpoint;
 
   const handleDelete = async () => {
     if (!event) return;
@@ -381,6 +387,7 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
           </div>
 
           <div className="flex justify-between gap-2 pt-4">
+            {showDelete ? (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button type="button" variant="destructive" disabled={deleting}>
@@ -404,6 +411,11 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            ) : (
+              <p className="text-xs text-muted-foreground self-center max-w-[16rem]">
+                Scheduled touchpoints can be rescheduled but not deleted.
+              </p>
+            )}
 
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

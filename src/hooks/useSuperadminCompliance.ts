@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { serviceStartDate } from '@/lib/workflow';
+import { serviceStartDate, isSetupComplete, missingSetupParts } from '@/lib/workflow';
+import { loadTouchpointSettings } from '@/lib/touchpointSettings';
 import {
-  ContactRow, requirementsForTier, hasValidTier,
+  ContactRow, requirementsForTier,
   todayAgency, startOfWeek, endOfWeek, daysBetween,
   currentBillingWindow, contactsInWindow, windowProgress, overdueReasons,
+  isPreGoLiveCycle,
 } from '@/lib/compliance';
 
 export interface StaffOverdueRow {
@@ -27,12 +29,17 @@ export interface StaffMissingRow {
   client_name: string;
   staff_name: string;
   staff_id: string;
-  missingDate: boolean;
-  missingLevelOfNeed: boolean;
+  /** Plain-English list of what setup is still missing. */
+  missing: string[];
 }
 
 export interface SuperadminComplianceData {
   loading: boolean;
+  goLiveDate: string;
+  /** Admin opt-in: cycles that closed before go-live are listed too. */
+  showHistorical: boolean;
+  /** Overdue cycles suppressed by the go-live floor. */
+  preGoLiveCount: number;
   overdueRows: StaffOverdueRow[];
   missingRows: StaffMissingRow[];
   scheduledThisWeek: number;
@@ -44,6 +51,9 @@ export interface SuperadminComplianceData {
 export function useSuperadminCompliance(): SuperadminComplianceData {
   const [loading, setLoading] = useState(true);
   const [state, setState] = useState<Omit<SuperadminComplianceData, 'loading' | 'refresh'>>({
+    goLiveDate: todayAgency(),
+    showHistorical: false,
+    preGoLiveCount: 0,
     overdueRows: [],
     missingRows: [],
     scheduledThisWeek: 0,
@@ -57,6 +67,8 @@ export function useSuperadminCompliance(): SuperadminComplianceData {
 
   const load = useCallback(async () => {
     setLoading(true);
+    const settings = await loadTouchpointSettings();
+    const goLive = settings.goLiveDate;
 
     const { data: profiles } = await supabase
       .from('profiles')
@@ -68,7 +80,7 @@ export function useSuperadminCompliance(): SuperadminComplianceData {
 
     const { data: cls } = await supabase
       .from('clients')
-      .select('id, first_name, last_name, level_of_need, auth_30_start, auth_150_start, hsp_150_date, status, assigned_employee_id')
+      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_30_start, auth_150_start, hsp_150_date, status, assigned_employee_id')
       .eq('status', 'active')
       .not('assigned_employee_id', 'is', null);
     const list = cls ?? [];
@@ -94,25 +106,30 @@ export function useSuperadminCompliance(): SuperadminComplianceData {
 
     const overdueRows: StaffOverdueRow[] = [];
     const missingRows: StaffMissingRow[] = [];
+    let preGoLiveCount = 0;
 
     for (const c of list) {
       const name = `${c.first_name} ${c.last_name}`;
       const staffName = c.assigned_employee_id ? (staffById[c.assigned_employee_id] ?? 'Unassigned') : 'Unassigned';
-      const serviceStart = serviceStartDate(c as any);
-      const missingDate = !serviceStart;
-      const missingLon = !hasValidTier(c.level_of_need);
-      if (missingDate || missingLon) {
+      if (!isSetupComplete(c)) {
         missingRows.push({
           id: c.id, client_name: name, staff_name: staffName, staff_id: c.assigned_employee_id ?? '',
-          missingDate, missingLevelOfNeed: missingLon,
+          missing: missingSetupParts(c),
         });
         continue;
       }
-      const window = currentBillingWindow(serviceStart, today);
+      const window = currentBillingWindow(serviceStartDate(c), today);
       if (!window) continue;
       const req = requirementsForTier(c.level_of_need);
       const winContacts = contactsInWindow(contactsByClient[c.id] ?? [], window);
       const reasons = overdueReasons(req, window, winContacts, today);
+      // Cycles that began before go-live are reference-only. They are counted
+      // so the number is visible, but they never drive follow-up unless an
+      // admin deliberately asks to see historical items.
+      if (reasons.length && isPreGoLiveCycle(window, goLive)) {
+        preGoLiveCount += 1;
+        if (!settings.showHistorical) continue;
+      }
       if (reasons.length) {
         const prog = windowProgress(req, winContacts);
         overdueRows.push({
@@ -150,7 +167,12 @@ export function useSuperadminCompliance(): SuperadminComplianceData {
       else remainingThisWeek += 1;
     });
 
-    setState({ overdueRows, missingRows, scheduledThisWeek, completedThisWeek, remainingThisWeek });
+    setState({
+      goLiveDate: goLive,
+      showHistorical: settings.showHistorical,
+      preGoLiveCount,
+      overdueRows, missingRows, scheduledThisWeek, completedThisWeek, remainingThisWeek,
+    });
     setLoading(false);
   }, [today, wkStart, wkEnd]);
 

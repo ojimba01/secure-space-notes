@@ -21,6 +21,9 @@ import {
 } from '@/lib/formSigning';
 import { Check, Download, RotateCcw, Send, ThumbsDown, ThumbsUp } from 'lucide-react';
 import type { FormRow } from '@/components/forms/FormsHub';
+import { FormVersionHistory } from '@/components/forms/FormVersionHistory';
+import { FormSyncPanel } from '@/components/forms/FormSyncPanel';
+import { recordFormVersion } from '@/lib/formVersions';
 
 interface FormDetailDialogProps {
   form: FormRow;
@@ -112,6 +115,25 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
 
       const { error } = await supabase.from('client_forms').update(payload).eq('id', form.id);
       if (error) throw error;
+
+      // Snapshot exactly which file went to the MCO so it stays retrievable
+      // even after later corrections repoint the form.
+      if (stamp === 'sent' && form.file_path) {
+        try {
+          await recordFormVersion({
+            clientFormId: form.id,
+            filePath: form.file_path,
+            versionType: 'sent_to_mco',
+          });
+        } catch (versionErr: any) {
+          toast({
+            title: 'Status saved, but the sent version was not snapshotted',
+            description: versionErr.message,
+            variant: 'destructive',
+          });
+        }
+      }
+
       toast({ title: successTitle, description: `${clientName} — ${form.form_type}` });
       onChanged();
       onClose();
@@ -281,6 +303,15 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
               </p>
             )}
           </div>
+
+          {isAdmin && <FormSyncPanel form={form} onApplied={onChanged} />}
+
+          <FormVersionHistory
+            clientFormId={form.id}
+            formType={form.form_type}
+            clientFirstName={form.clients?.first_name}
+            clientLastName={form.clients?.last_name}
+          />
 
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => onPreview(form)}>

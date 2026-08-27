@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ComplianceEscalations } from '@/components/ComplianceEscalations';
+import { TouchpointSettings } from '@/components/admin/TouchpointSettings';
 import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from '@/components/Sidebar';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
@@ -264,7 +265,6 @@ const Admin = () => {
     <TutorialProvider>
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar
-        activeView={'clients'}
         onViewChange={(view) => navigate('/', { state: { view } })}
         onOpenNote={(noteId) => navigate('/', { state: { view: 'notes', noteId } })}
       />
@@ -295,7 +295,7 @@ const Admin = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
@@ -328,16 +328,6 @@ const Admin = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total staff</CardTitle>
-              <Shield className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalEmployees}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active staff</CardTitle>
               <UserCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -348,6 +338,8 @@ const Admin = () => {
         </div>
 
         {/* Compliance escalations */}
+        <TouchpointSettings />
+
         <ComplianceEscalations />
 
         {/* Employees List */}

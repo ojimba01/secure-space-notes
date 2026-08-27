@@ -10,6 +10,49 @@ import { useToast } from '@/hooks/use-toast';
 
 const PAGE_SIZE = 10;
 const AUDIT_PREVIEW = 5;
+/** Beyond this many names the row stops being scannable, so the rest collapse. */
+const CHIP_LIMIT = 6;
+
+/**
+ * A labelled row of client chips. The contact count rides on the chip so
+ * "(3)" is never left to the reader to interpret.
+ */
+const ClientChips: React.FC<{
+  label: string;
+  clients: { name: string; contacts: number }[];
+  tone: 'amber' | 'muted';
+}> = ({ label, clients, tone }) => {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? clients : clients.slice(0, CHIP_LIMIT);
+  const hidden = clients.length - shown.length;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-muted-foreground w-[104px] shrink-0">{label}</span>
+      {shown.map((c, i) => (
+        <Badge
+          key={`${c.name}-${i}`}
+          variant="secondary"
+          className={tone === 'amber' ? 'bg-amber-100 text-amber-900 font-normal' : 'font-normal'}
+        >
+          {c.name}
+          <span className="ml-1 opacity-70">
+            {c.contacts} contact{c.contacts !== 1 ? 's' : ''}
+          </span>
+        </Badge>
+      ))}
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="text-xs text-muted-foreground underline"
+        >
+          +{hidden} more
+        </button>
+      )}
+    </div>
+  );
+};
 
 
 interface Escalation {
@@ -74,35 +117,43 @@ export const ComplianceEscalations: React.FC = () => {
   };
 
 
-  const formatOutstanding = (outstanding: any): string => {
-    if (!outstanding) return 'None.';
-    if (Array.isArray(outstanding) && outstanding.length === 0) return 'None.';
-    if (!Array.isArray(outstanding) && typeof outstanding === 'object') {
-      const parts: string[] = [];
-      if ((outstanding.touchpoints ?? 0) > 0)
-        parts.push(`${outstanding.touchpoints} touchpoint${outstanding.touchpoints !== 1 ? 's' : ''} remaining`);
-      if ((outstanding.in_person ?? 0) > 0)
-        parts.push(`${outstanding.in_person} in-person visit${outstanding.in_person !== 1 ? 's' : ''} remaining`);
-      if (outstanding.summary_note)
-        parts.push('Monthly summary note missing');
-      return parts.length ? parts.join(', ') + '.' : 'None.';
-    }
-    if (Array.isArray(outstanding) && outstanding.length > 0) {
-      const parts: string[] = [];
-      outstanding.forEach((item: any) => {
-        if (typeof item === 'object') {
-          if ((item.touchpoints ?? 0) > 0)
-            parts.push(`${item.touchpoints} touchpoint${item.touchpoints !== 1 ? 's' : ''} remaining`);
-          if ((item.in_person ?? 0) > 0)
-            parts.push(`${item.in_person} in-person visit${item.in_person !== 1 ? 's' : ''} remaining`);
-          if (item.summary_note)
-            parts.push('Monthly summary note missing');
-        }
-      });
-      return parts.length ? parts.join(', ') + '.' : 'None.';
-    }
-    return 'None.';
+  /**
+   * What is still owed, as short chips rather than a sentence. Counting up
+   * across entries means "2 touchpoints, 1 in-person" reads at a glance
+   * instead of repeating "remaining" once per item.
+   */
+  const outstandingChips = (outstanding: any): string[] => {
+    const items = Array.isArray(outstanding)
+      ? outstanding
+      : outstanding && typeof outstanding === 'object'
+        ? [outstanding]
+        : [];
+
+    let touchpoints = 0;
+    let inPerson = 0;
+    let summaryNote = false;
+    items.forEach((item: any) => {
+      if (!item || typeof item !== 'object') return;
+      touchpoints += item.touchpoints ?? 0;
+      inPerson += item.in_person ?? 0;
+      if (item.summary_note) summaryNote = true;
+    });
+
+    const chips: string[] = [];
+    if (touchpoints > 0) chips.push(`${touchpoints} touchpoint${touchpoints !== 1 ? 's' : ''}`);
+    if (inPerson > 0) chips.push(`${inPerson} in-person`);
+    if (summaryNote) chips.push('Summary note');
+    return chips;
   };
+
+  /** Client entries on a weekly audit, as `{ name, contacts }`. */
+  const auditClients = (value: any): { name: string; contacts: number }[] =>
+    Array.isArray(value)
+      ? value.map((c: any) => ({
+          name: names[c?.client_id] || 'Client',
+          contacts: c?.contacts ?? 0,
+        }))
+      : [];
 
   const emergencies = escalations.filter((e) => e.kind === 'emergency_incomplete');
   const audits = escalations.filter((e) => e.kind === 'weekly_audit');
@@ -134,12 +185,27 @@ export const ComplianceEscalations: React.FC = () => {
           <CardContent className="space-y-3">
             {pageItems.map((e) => (
               <div key={e.id} className="rounded-md border border-red-200 bg-red-50 p-3 flex items-start justify-between gap-3">
-                <div className="text-sm">
-                  <div className="font-medium">
-                    {names[e.client_id ?? ''] || 'Client'} · Case manager: {names[e.employee_id ?? ''] || 'Unassigned'}
+                <div className="text-sm space-y-1.5">
+                  <div>
+                    <span className="font-medium">{names[e.client_id ?? ''] || 'Client'}</span>
+                    <span className="text-muted-foreground">
+                      {' · '}
+                      {(() => { try { const [y,m] = String(e.period).slice(0,7).split('-'); return new Date(Number(y), Number(m)-1, 1).toLocaleString('default', {month:'long', year:'numeric'}); } catch { return String(e.period).slice(0,7); } })()}
+                      {' · '}
+                      {names[e.employee_id ?? ''] || 'Unassigned'}
+                    </span>
                   </div>
-                  <div className="text-muted-foreground">{(() => { try { const [y,m] = String(e.period).slice(0,7).split('-'); return new Date(Number(y), Number(m)-1, 1).toLocaleString('default', {month:'long', year:'numeric'}); } catch { return String(e.period).slice(0,7); } })()}</div>
-                  <div className="text-xs mt-1">Outstanding: {formatOutstanding(e.outstanding)}</div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {outstandingChips(e.outstanding).length === 0 ? (
+                      <span className="text-xs text-muted-foreground">Nothing outstanding</span>
+                    ) : (
+                      outstandingChips(e.outstanding).map((chip) => (
+                        <Badge key={chip} variant="secondary" className="bg-red-100 text-red-900">
+                          {chip}
+                        </Badge>
+                      ))
+                    )}
+                  </div>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => resolve(e.id)}>
                   <CheckCircle2 className="h-4 w-4 mr-1" /> Mark resolved
@@ -165,11 +231,17 @@ export const ComplianceEscalations: React.FC = () => {
       )}
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <ClipboardCheck className="h-5 w-5" /> Weekly HMIS audits
-          </CardTitle>
-          <div className="flex items-center gap-2">
+        <CardHeader className="flex flex-row items-start justify-between">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5" /> Weekly HMIS audits
+            </CardTitle>
+            {/* Said once here rather than repeated on every case manager's row. */}
+            <p className="text-xs text-muted-foreground">
+              Check HMIS to confirm records marked complete were entered correctly.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             <Label htmlFor="audit-switch" className="text-sm">Weekly audit</Label>
             <Switch id="audit-switch" checked={auditEnabled} onCheckedChange={toggleAudit} />
           </div>
@@ -180,30 +252,40 @@ export const ComplianceEscalations: React.FC = () => {
             <p className="text-sm text-muted-foreground">No open audits.</p>
           ) : (
             <>
-            {(showAllAudits ? audits : audits.slice(0, AUDIT_PREVIEW)).map((e) => (
-              <div key={e.id} className="rounded-md border p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="font-medium">{names[e.employee_id ?? ''] || 'Case manager'}</div>
-                  <Badge variant="secondary">Week of {String(e.period).slice(0, 10)}</Badge>
+            {(showAllAudits ? audits : audits.slice(0, AUDIT_PREVIEW)).map((e) => {
+              const complete = auditClients(e.claimed_complete);
+              const outstanding = auditClients(e.outstanding);
+              return (
+                <div key={e.id} className="rounded-md border p-3 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{names[e.employee_id ?? ''] || 'Case manager'}</span>
+                      <span className="text-xs text-muted-foreground">
+                        week of {String(e.period).slice(0, 10)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-green-700">{complete.length} complete</span>
+                      <span className={outstanding.length ? 'text-amber-700' : 'text-muted-foreground'}>
+                        {outstanding.length} outstanding
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Names sit under the counts so the numbers read first. */}
+                  {outstanding.length > 0 && (
+                    <ClientChips label="Outstanding" clients={outstanding} tone="amber" />
+                  )}
+                  {complete.length > 0 && (
+                    <ClientChips label="Marked complete" clients={complete} tone="muted" />
+                  )}
+
+                  <Button size="sm" variant="outline" onClick={() => resolve(e.id)}>
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Mark reviewed
+                  </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Review HMIS to confirm that records marked complete were entered correctly.
-                </p>
-                <div className="text-xs">
-                  <span className="font-medium">Marked complete:</span> {Array.isArray(e.claimed_complete) && e.claimed_complete.length
-                    ? e.claimed_complete.map((c: any) => `${names[c.client_id] || 'Client'} (${c.contacts})`).join(', ')
-                    : 'None'}
-                </div>
-                <div className="text-xs">
-                  <span className="font-medium">Outstanding:</span> {Array.isArray(e.outstanding) && e.outstanding.length
-                    ? e.outstanding.map((c: any) => `${names[c.client_id] || 'Client'} (${c.contacts})`).join(', ')
-                    : 'None.'}
-                </div>
-                <Button size="sm" variant="outline" onClick={() => resolve(e.id)}>
-                  <CheckCircle2 className="h-4 w-4 mr-1" /> Mark reviewed
-                </Button>
-              </div>
-            ))}
+              );
+            })}
             {audits.length > AUDIT_PREVIEW && (
               <Button variant="outline" size="sm" className="w-full" onClick={() => setShowAllAudits((v) => !v)}>
                 {showAllAudits ? (

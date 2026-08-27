@@ -21,7 +21,6 @@ const INSURANCE_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fi
 
 const LON_OPTIONS = ['Low Level', 'High Level'] as const;
 
-const APPROVAL_STATUS_OPTIONS = ['Not Submitted', 'Submitted', 'Approved', 'Denied'] as const;
 
 const REASON_CLOSED_OPTIONS = [
   'Housed', 'Moved', 'Lost Contact', 'Deceased',
@@ -46,7 +45,6 @@ const clientSchema = z.object({
   level_of_need: z.string().trim().max(50).optional(),
   county: z.string().trim().max(50).optional(),
   mco_housing_manager: z.string().trim().max(200).optional(),
-  approval_status: z.string().trim().max(50).optional(),
   date_of_birth: z.string().optional(),
   intake_date: z.string().optional(),
   assessment_due_date: z.string().optional(),
@@ -57,15 +55,6 @@ const clientSchema = z.object({
   next_action_due_date: z.string().optional(),
   closed_date: z.string().optional(),
   reason_closed: z.string().trim().max(100).optional(),
-  auth_30_number: z.string().trim().max(100).optional(),
-  auth_30_start: z.string().optional(),
-  auth_30_end: z.string().optional(),
-  auth_150_number: z.string().trim().max(100).optional(),
-  auth_180_number: z.string().trim().max(100).optional(),
-  auth_150_start: z.string().optional(),
-  auth_150_end: z.string().optional(),
-  auth_180_start: z.string().optional(),
-  auth_180_end: z.string().optional(),
   status: z.enum(['active', 'inactive']),
   notes: z.string().trim().max(2000).optional(),
 });
@@ -89,22 +78,12 @@ interface Client {
   iat_date?: string;
   hsp_150_date?: string;
   hsp_180_date?: string;
-  auth_150_start?: string;
-  auth_150_end?: string;
-  auth_180_start?: string;
-  auth_180_end?: string;
   mco_housing_manager?: string;
-  approval_status?: string;
   assessment_due_date?: string;
   hsp_due_date?: string;
   next_action_due_date?: string;
   closed_date?: string;
   reason_closed?: string;
-  auth_30_number?: string;
-  auth_30_start?: string;
-  auth_30_end?: string;
-  auth_150_number?: string;
-  auth_180_number?: string;
   notes?: string;
 }
 
@@ -139,7 +118,6 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       level_of_need: client.level_of_need || '',
       county: client.county || '',
       mco_housing_manager: client.mco_housing_manager || '',
-      approval_status: client.approval_status || 'Not Submitted',
       date_of_birth: client.date_of_birth || '',
       intake_date: client.intake_date || '',
       assessment_due_date: client.assessment_due_date || '',
@@ -150,15 +128,6 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       next_action_due_date: client.next_action_due_date || '',
       closed_date: client.closed_date || '',
       reason_closed: client.reason_closed || '',
-      auth_30_number: client.auth_30_number || '',
-      auth_30_start: client.auth_30_start || '',
-      auth_30_end: client.auth_30_end || '',
-      auth_150_number: client.auth_150_number || '',
-      auth_180_number: client.auth_180_number || '',
-      auth_150_start: client.auth_150_start || '',
-      auth_150_end: client.auth_150_end || '',
-      auth_180_start: client.auth_180_start || '',
-      auth_180_end: client.auth_180_end || '',
       status: client.status as 'active' | 'inactive',
       notes: client.notes || '',
     },
@@ -187,7 +156,6 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           level_of_need: data.level_of_need || null,
           county: data.county || null,
           mco_housing_manager: data.mco_housing_manager || null,
-          approval_status: data.approval_status || null,
           date_of_birth: data.date_of_birth || null,
           intake_date: data.intake_date || null,
           assessment_due_date: data.assessment_due_date || null,
@@ -198,15 +166,6 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           next_action_due_date: data.next_action_due_date || null,
           closed_date: data.closed_date || null,
           reason_closed: data.reason_closed || null,
-          auth_30_number: data.auth_30_number || null,
-          auth_30_start: data.auth_30_start || null,
-          auth_30_end: data.auth_30_end || null,
-          auth_150_number: data.auth_150_number || null,
-          auth_180_number: data.auth_180_number || null,
-          auth_150_start: data.auth_150_start || null,
-          auth_150_end: data.auth_150_end || null,
-          auth_180_start: data.auth_180_start || null,
-          auth_180_end: data.auth_180_end || null,
           status: data.status,
           notes: data.notes || null,
         })
@@ -214,14 +173,10 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
       if (error) throw error;
 
-      // Refresh billing cycles if auth dates or level of need changed.
+      // Authorization dates are no longer edited here — the Authorizations
+      // panel rebuilds cycles when it changes them. Level of need still sets
+      // the billing rate, so a change to it has to rebuild them from here.
       const billingChanged =
-        (data.auth_30_start || '') !== (client.auth_30_start || '') ||
-        (data.auth_30_end || '') !== (client.auth_30_end || '') ||
-        (data.auth_150_start || '') !== (client.auth_150_start || '') ||
-        (data.auth_150_end || '') !== (client.auth_150_end || '') ||
-        (data.auth_180_start || '') !== (client.auth_180_start || '') ||
-        (data.auth_180_end || '') !== (client.auth_180_end || '') ||
         (data.level_of_need || '') !== (client.level_of_need || '');
       if (billingChanged) {
         try {
@@ -235,10 +190,10 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
         }
       }
 
-      // Regenerate touch-points if the HSP 150-day date or level of need changed.
+      // Touchpoint frequency comes from the level of need; hsp_150_date is
+      // still the fallback service anchor for records that predate
+      // authorization tracking, so a change to either reschedules.
       const touchpointsChanged =
-        (data.auth_30_start || '') !== (client.auth_30_start || '') ||
-        (data.auth_150_start || '') !== (client.auth_150_start || '') ||
         (data.hsp_150_date || '') !== (client.hsp_150_date || '') ||
         (data.level_of_need || '') !== (client.level_of_need || '');
       if (touchpointsChanged) {
@@ -402,7 +357,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Level of Need (LoN)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <Select onValueChange={field.onChange} value={field.value || ''} disabled={!isAdmin}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select level of need" />
@@ -414,6 +369,11 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {!isAdmin && (
+                      <p className="text-xs text-muted-foreground">
+                        Level of need is set from the LoN assessment by an admin.
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -481,16 +441,6 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="mco_housing_manager" render={({ field }) => (
                 <FormItem><FormLabel>MCO Housing Manager</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="approval_status" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Approval Status</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ''}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
-                    <SelectContent>{APPROVAL_STATUS_OPTIONS.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
               )} />
             </div>
 
@@ -582,109 +532,13 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               );
             })()}
 
-            <div className="rounded-md border p-4 space-y-4">
-              <div>
-                <h4 className="text-sm font-semibold">Billing Authorization Period</h4>
-                <p className="text-xs text-muted-foreground">
-                  Drives the billing section. Distinct from HSP milestone dates above. All optional.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField control={form.control} name="auth_30_number" render={({ field }) => (
-                  <FormItem><FormLabel>30-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="auth_150_number" render={({ field }) => (
-                  <FormItem><FormLabel>150-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="auth_180_number" render={({ field }) => (
-                  <FormItem><FormLabel>180-Day Auth #</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="auth_30_start"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Initial 30-Day Start</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <p className="text-xs text-muted-foreground">
-                        The date services began. Anchors the first billing cycle and the
-                        touchpoint schedule.
-                      </p>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="auth_30_end"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Initial 30-Day End</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="auth_150_start"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>150-Day Start</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="auth_150_end"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>150-Day End</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="auth_180_start"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>180-Day Start</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="auth_180_end"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>180-Day End</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+            <div className="rounded-md border p-4">
+              <h4 className="text-sm font-semibold">Authorizations</h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                Authorization numbers and dates are edited in the Authorizations panel on the
+                client record. Recording them there keeps billing cycles and touchpoint windows
+                in step, and keeps the full history rather than only the latest of each type.
+              </p>
             </div>
 
             <div className="rounded-md border p-4 space-y-4">
