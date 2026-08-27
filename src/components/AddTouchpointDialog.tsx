@@ -1,9 +1,13 @@
 // The one place a touchpoint is recorded.
 //
 // Left: the Case Notes record that counts toward the 30-day cycle.
-// Right: the same contact restated in NJHMIS progress-note terms, staged
-// internally so it can be keyed in or exported later. Nothing here is sent to
-// NJHMIS.
+// Right: the NJHMIS progress note, staged internally so it can be keyed in or
+// exported later. Nothing here is sent to NJHMIS.
+//
+// There used to be a second free-text note on the left as well. It asked staff
+// to write the same visit twice, and nothing in the app ever read it back, so
+// the progress note is now the single account of what happened and is stored
+// on the contact record too.
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -29,6 +33,7 @@ import {
   defaultNjhmisServiceType, defaultNjhmisLocation,
 } from '@/lib/compliance';
 import { format } from 'date-fns';
+import { Check, ClipboardCopy } from 'lucide-react';
 
 export interface TouchpointContext {
   clientId: string;
@@ -125,7 +130,6 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
   const [contactMethod, setContactMethod] = useState('in_person');
   const [touchpointType, setTouchpointType] = useState('general_checkin');
   const [durationMinutes, setDurationMinutes] = useState(30);
-  const [note, setNote] = useState('');
 
   // --- Progress Note Data Entry Settings -------------------------------
   const [serviceType, setServiceType] = useState(NJHMIS_SERVICE_TYPES[0]);
@@ -136,6 +140,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
   const [faceToFaceTouched, setFaceToFaceTouched] = useState(false);
   const [noteType, setNoteType] = useState(NJHMIS_DEFAULT_NOTE_TYPE);
   const [progressNote, setProgressNote] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const selectedClient = useMemo(() => {
     if (context?.locked) {
@@ -155,7 +160,6 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     setContactMethod(startMethod);
     setTouchpointType(context?.touchpointType ?? 'general_checkin');
     setDurationMinutes(30);
-    setNote('');
     setServiceType(defaultNjhmisServiceType(context?.levelOfNeed));
     setLocation(defaultNjhmisLocation(startMethod));
     setNjDuration(30);
@@ -164,7 +168,30 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     setFaceToFaceTouched(false);
     setNoteType(NJHMIS_DEFAULT_NOTE_TYPE);
     setProgressNote('');
+    setCopied(false);
   }, [open, context, today]);
+
+  /**
+   * NJHMIS is keyed in by hand elsewhere, so the note almost always has to be
+   * retyped or re-selected out of this box. Copying it is the whole job.
+   */
+  const copyProgressNote = async () => {
+    const text = progressNote.trim();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access can be refused by the browser; say so rather than
+      // showing a "Copied" that did not happen.
+      toast({
+        title: 'Could not copy',
+        description: 'Select the note text and copy it manually.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   // Client picker for the standalone "Add touchpoint" button.
   useEffect(() => {
@@ -239,7 +266,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
         modality: contactMethod,
         touchpoint_type: touchpointType,
         duration_minutes: durationMinutes,
-        notes: note || null,
+        notes: progressNote.trim() || null,
         calendar_event_id: context?.calendarEventId ?? null,
       })
       .select('id')
@@ -358,18 +385,6 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
               <DurationInput minutes={durationMinutes} onChange={setDurationMinutes} idPrefix="tp" />
             </div>
 
-            <div className="space-y-1.5">
-              <FieldLabel hint="What happened, in the words you would use in a case file. Keep it to the facts.">
-                Note
-              </FieldLabel>
-              <Textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={5}
-                className="text-sm"
-                placeholder="Checked in on housing status. Client reported no new concerns. Will follow up next week."
-              />
-            </div>
           </section>
 
           {/* ---------------- Section 2 ---------------- */}
@@ -481,7 +496,25 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
                 className="text-sm"
                 placeholder="CM contacted the client to follow up on housing status. The client reported that housing was stable at this time and did not report immediate concerns. CM will continue to provide support as needed."
               />
-              <p className="text-[11px] text-muted-foreground">Third person. &ldquo;CM&rdquo; is fine for case manager.</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] text-muted-foreground">
+                  Third person. &ldquo;CM&rdquo; is fine for case manager.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 shrink-0 text-[11px]"
+                  disabled={!progressNote.trim()}
+                  onClick={copyProgressNote}
+                >
+                  {copied ? (
+                    <><Check className="mr-1 h-3 w-3" /> Copied</>
+                  ) : (
+                    <><ClipboardCopy className="mr-1 h-3 w-3" /> Copy note</>
+                  )}
+                </Button>
+              </div>
             </div>
           </section>
         </div>

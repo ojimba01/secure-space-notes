@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./components/AuthProvider";
 import { ViewAsProvider, useViewAs } from "./components/ViewAsProvider";
 import { ViewAsBanner } from "./components/ViewAsBanner";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
@@ -48,6 +49,7 @@ const App = () => (
         <BrowserRouter>
           <ViewAsProvider>
             <ViewAsBanner />
+            <ErrorBoundary>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
@@ -74,6 +76,7 @@ const App = () => (
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </ErrorBoundary>
           </ViewAsProvider>
         </BrowserRouter>
       </TooltipProvider>

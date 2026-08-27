@@ -141,8 +141,8 @@ export function nextAction(
     if (c.intake_status !== 'complete') {
       return {
         kind: 'schedule_intake',
-        label: 'Hold the intake conversation',
-        detail: 'Meet the member, then mark the intake complete to unlock the assessments.',
+        label: 'Complete the intake phone call',
+        detail: 'Speak with the member, then mark the intake complete to unlock the assessments.',
       };
     }
     if (!has('Level of Need Assessment Tool')) {
