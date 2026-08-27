@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { useTutorial } from '@/components/TutorialProvider';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
@@ -31,13 +31,23 @@ import { AdvancedTools } from '@/components/AdvancedTools';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
-  activeView: 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms';
+  /** Which in-page view is showing. Only meaningful on "/". */
+  activeView?: 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms';
   onViewChange: (view: 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms') => void;
   onOpenNote?: (noteId: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOpenNote }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Some nav entries switch a view inside "/", others are their own route.
+  // Highlighting reads the real location so a page can never light up the
+  // wrong entry, and view highlights only apply while "/" is showing.
+  const onRoot = location.pathname === '/';
+  const viewVariant = (view: SidebarProps['activeView']) =>
+    onRoot && activeView === view ? 'default' : 'ghost';
+  const routeVariant = (path: string) => (location.pathname === path ? 'default' : 'ghost');
   const { user, signOut } = useAuth();
   const { startTutorial } = useTutorial();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -182,7 +192,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
         <div className="space-y-1 md:space-y-2">
           {isAdmin && !isViewingAs && (
             <Button
-              variant="ghost"
+              variant={routeVariant('/admin')}
               className="w-full justify-start gap-2"
               onClick={() => handleNavigate('/admin')}
               data-tutorial="admin-nav"
@@ -192,7 +202,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             </Button>
           )}
           <Button
-            variant={activeView === 'clients' ? 'default' : 'ghost'}
+            variant={viewVariant('clients')}
             className="w-full justify-start gap-2"
             onClick={() => handleViewChange('clients')}
             data-tutorial="clients-nav"
@@ -201,7 +211,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             Clients
           </Button>
           <Button
-            variant={activeView === 'forms' ? 'default' : 'ghost'}
+            variant={viewVariant('forms')}
             className="w-full justify-start gap-2"
             onClick={() => handleViewChange('forms')}
             data-tutorial="forms-nav"
@@ -211,7 +221,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
           </Button>
           {isAdmin && !isViewingAs && (
             <Button
-              variant="ghost"
+              variant={routeVariant('/billing')}
               className="w-full justify-start gap-2"
               onClick={() => handleNavigate('/billing')}
             >
@@ -220,7 +230,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             </Button>
           )}
           <Button
-            variant={activeView === 'compliance' ? 'default' : 'ghost'}
+            variant={viewVariant('compliance')}
             className="w-full justify-start gap-2"
             onClick={() => handleViewChange('compliance')}
           >
@@ -229,7 +239,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
           </Button>
 
           <Button
-            variant={activeView === 'calendar' ? 'default' : 'ghost'}
+            variant={viewVariant('calendar')}
             className="w-full justify-start gap-2"
             onClick={() => handleViewChange('calendar')}
             data-tutorial="calendar-nav"
@@ -238,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             Calendar
           </Button>
           <Button
-            variant={activeView === 'notes' ? 'default' : 'ghost'}
+            variant={viewVariant('notes')}
             className="w-full justify-start gap-2"
             onClick={() => handleViewChange('notes')}
           >
@@ -247,7 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
           </Button>
           {isAdmin && !isViewingAs && (
             <Button
-              variant="ghost"
+              variant={routeVariant('/audit-logs')}
               className="w-full justify-start gap-2"
               onClick={() => handleNavigate('/audit-logs')}
               data-tutorial="audit-nav"
@@ -257,7 +267,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             </Button>
           )}
           <Button
-            variant="ghost"
+            variant={routeVariant('/onboarding')}
             className="w-full justify-start gap-2"
             onClick={() => handleNavigate('/onboarding')}
             data-tutorial="onboarding-nav"

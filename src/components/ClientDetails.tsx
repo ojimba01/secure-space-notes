@@ -14,7 +14,6 @@ import { AssignmentHistory } from '@/components/AssignmentHistory';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { NotesSection } from '@/components/NotesSection';
 import { CalendarView } from '@/components/CalendarView';
-import { MilestoneTracker } from '@/components/MilestoneTracker';
 import { ClientWorkflowCard } from '@/components/ClientWorkflowCard';
 import { AuthorizationsSection } from '@/components/AuthorizationsSection';
 
@@ -239,14 +238,6 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
 
         <AuthorizationsSection clientId={client.id} onUpdate={onUpdate} />
 
-
-        <MilestoneTracker
-          clientId={client.id}
-          iatDate={client.iat_date || client.housing_stabilization_plan_date}
-          hsp150Date={client.hsp_150_date}
-          hsp180Date={client.hsp_180_date}
-          onUpdate={onUpdate}
-        />
 
         {client.status === 'active' && (
           <ComplianceCard

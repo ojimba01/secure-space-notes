@@ -264,7 +264,6 @@ const Admin = () => {
     <TutorialProvider>
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar
-        activeView={'clients'}
         onViewChange={(view) => navigate('/', { state: { view } })}
         onOpenNote={(noteId) => navigate('/', { state: { view: 'notes', noteId } })}
       />
