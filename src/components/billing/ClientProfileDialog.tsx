@@ -131,7 +131,12 @@ export function ClientProfileDialog({ clientId, onClose }: { clientId: string | 
           <div className="space-y-5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary">{client.status ?? 'Unknown status'}</Badge>
-              {client.approval_status && <Badge variant="outline">{client.approval_status}</Badge>}
+              {/*
+                approval_status is no longer settable anywhere — it conflated
+                internal sign-off with the MCO's decision, which are now
+                tracked separately on each form and authorization. The column
+                remains for historical rows but is not surfaced.
+              */}
               <Badge variant="outline">{client.level_of_need ? client.level_of_need.replace(' Level', '') + ' level of need' : 'Level of need not set'}</Badge>
               <Badge variant="outline">{cycleCount} active billing cycle{cycleCount === 1 ? '' : 's'}</Badge>
               {!editing && <Button size="sm" variant="outline" className="ml-auto" onClick={() => setEditing(true)}><Pencil className="mr-2 h-4 w-4" />Edit authorization details</Button>}
