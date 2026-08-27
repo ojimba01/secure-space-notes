@@ -329,9 +329,13 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Two equal columns left the details side as a tall, mostly empty box
+            once the duplicate note was removed. It is now the narrower of the
+            two and only as tall as its own content, so the progress note gets
+            the room it actually needs. */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
           {/* ---------------- Section 1 ---------------- */}
-          <section className="space-y-3 rounded-lg border p-4">
+          <section className="space-y-3 rounded-lg border p-4 lg:col-span-2">
             <h3 className="text-sm font-semibold">Case Notes touchpoint details</h3>
 
             <div className="space-y-1.5">
@@ -388,7 +392,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
           </section>
 
           {/* ---------------- Section 2 ---------------- */}
-          <section className="space-y-3 rounded-lg border p-4 bg-muted/20">
+          <section className="space-y-3 rounded-lg border p-4 bg-muted/20 lg:col-span-3">
             <div>
               <h3 className="text-sm font-semibold">Progress Note Data Entry Settings</h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">
