@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { BillingCycle } from '@/lib/billing';
+import {
+  syncAuthorizationsFromLegacyColumns,
+  touchesAuthorizationData,
+} from '@/lib/authorizations';
+import { regenerateClientCycles } from '@/lib/billingSync';
 
 export interface BillingClient {
   id: string; first_name: string; last_name: string; insurance: string | null;
@@ -56,7 +61,25 @@ export function useBilling() {
     const { id: _id, assigned_staff_name: _staff, ...databasePatch } = patch;
     const { error } = await supabase.from('clients').update(databasePatch as never).eq('id', id);
     if (error) throw error;
+
+    // Editing an authorization date or the level of need from the billing
+    // screens has to reach the same places the Authorizations panel does:
+    // the authorization history, and the generated cycles. Otherwise the two
+    // views of the same authorization drift apart with nothing to show it.
+    const touchedAuth = touchesAuthorizationData(databasePatch);
+    let followUpError: unknown = null;
+    try {
+      if (touchedAuth) await syncAuthorizationsFromLegacyColumns(id);
+      if (touchedAuth || 'level_of_need' in databasePatch) await regenerateClientCycles(id);
+    } catch (err) {
+      // The column write already succeeded, so the list still has to refresh
+      // to show it. The failure is re-thrown afterwards so the caller can
+      // report that billing is now out of step rather than hiding it.
+      followUpError = err;
+    }
+
     await load();
+    if (followUpError) throw followUpError;
   };
   const addClient = async () => {
     const { data, error } = await supabase.from('clients').insert({ first_name: 'New', last_name: 'client', status: 'active' } as never).select('id').single();

@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { hspDueDateFor } from '@/lib/billing';
+import { syncAuthorizationsFromLegacyColumns } from '@/lib/authorizations';
+import { regenerateClientCycles } from '@/lib/billingSync';
 
 interface ClientRow {
   id: string;
@@ -110,9 +112,26 @@ export function ClientProfileDialog({ clientId, onClose }: { clientId: string | 
         auth_180_number: form.auth_180_number || null,
       } as never)
       .eq('id', clientId);
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success('Client profile saved.');
+    if (error) { setSaving(false); toast.error(error.message); return; }
+
+    // Keep the authorization history and the generated cycles in step with
+    // the columns just written, exactly as the Authorizations panel does.
+    // A failure here is surfaced rather than swallowed: the dates would
+    // otherwise disagree with the cycles and nothing would say so.
+    try {
+      await syncAuthorizationsFromLegacyColumns(clientId);
+      await regenerateClientCycles(clientId);
+      toast.success('Client profile saved.');
+    } catch (err) {
+      toast.error(
+        `Profile saved, but billing was not rebuilt: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    } finally {
+      setSaving(false);
+    }
+
     setEditing(false);
     await load(clientId);
   };
@@ -154,8 +173,12 @@ export function ClientProfileDialog({ clientId, onClose }: { clientId: string | 
             </section>
 
             <section className="rounded-lg border p-4">
-              <h3 className="mb-1 text-sm font-semibold">30-day HSP window (not billable)</h3>
-              <p className="mb-3 text-xs text-muted-foreground">Every client relationship opens with a 30-day window. Its end date is the HSP due date and is calculated automatically. Billing only begins once the HSP is approved.</p>
+              <h3 className="mb-1 text-sm font-semibold">Initial 30-day authorization</h3>
+              <p className="mb-3 text-xs text-muted-foreground">
+                The first 30 days of service are Cycle 1 and are billable. The claim may sit on
+                hold until the continuation authorization and rate are confirmed, but the cycle
+                exists from the start. The HSP due date is calculated from this start date.
+              </p>
               {editing ? (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1">

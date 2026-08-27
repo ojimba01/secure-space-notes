@@ -353,3 +353,115 @@ export async function mirrorAuthorizationToLegacyColumns(
 
 export const formatAuthDate = (d?: string | null) =>
   d ? new Date(`${d}T00:00:00`).toLocaleDateString() : '—';
+
+/** The legacy `clients` columns that still drive billing and touchpoints. */
+const LEGACY_AUTH_COLUMNS = [
+  'auth_30_start', 'auth_30_end', 'auth_30_number',
+  'auth_150_start', 'auth_150_end', 'auth_150_number',
+  'auth_180_start', 'auth_180_end', 'auth_180_number', 'auth_180_approved',
+] as const;
+
+/** True when a patch touches anything billing derives its chronology from. */
+export function touchesAuthorizationData(patch: Record<string, unknown>): boolean {
+  return LEGACY_AUTH_COLUMNS.some((c) => c in patch);
+}
+
+/**
+ * Pull the legacy authorization columns back into `client_authorizations`.
+ *
+ * The billing screens still edit those columns directly, and rewriting them
+ * to go through recordAuthorization would mean redesigning the billing UI.
+ * Syncing in this direction instead keeps the authorization history true no
+ * matter which screen made the change, without either side becoming stale.
+ *
+ * Only the newest row of each type is updated, and a row is created only when
+ * the legacy column holds a date and no row of that type exists yet — so this
+ * never invents history and never rewrites a superseded period.
+ */
+export async function syncAuthorizationsFromLegacyColumns(
+  clientId: string,
+): Promise<{ created: number; updated: number }> {
+  const { data: client, error: clientError } = await supabase
+    .from('clients')
+    .select(
+      'insurance, level_of_need, auth_30_start, auth_30_end, auth_30_number, auth_150_start, auth_150_end, auth_150_number, auth_180_start, auth_180_end, auth_180_number, auth_180_approved',
+    )
+    .eq('id', clientId)
+    .maybeSingle();
+  if (clientError) throw new Error(clientError.message);
+  if (!client) return { created: 0, updated: 0 };
+
+  const periods: {
+    type: AuthorizationType;
+    start: string | null;
+    end: string | null;
+    number: string | null;
+  }[] = [
+    {
+      type: 'initial_30',
+      start: client.auth_30_start,
+      end: client.auth_30_end,
+      number: client.auth_30_number,
+    },
+    {
+      type: 'continuation_150',
+      start: client.auth_150_start,
+      end: client.auth_150_end,
+      number: client.auth_150_number,
+    },
+    {
+      type: 'reauthorization_180',
+      // A 180-day period only exists once it has been approved.
+      start: client.auth_180_approved ? client.auth_180_start : null,
+      end: client.auth_180_end,
+      number: client.auth_180_number,
+    },
+  ];
+
+  const { data: existing, error: existingError } = await supabase
+    .from('client_authorizations')
+    .select('id, authorization_type, sequence_number')
+    .eq('client_id', clientId)
+    .order('sequence_number', { ascending: false });
+  if (existingError) throw new Error(existingError.message);
+
+  let created = 0;
+  let updated = 0;
+
+  for (const period of periods) {
+    if (!period.start) continue;
+    const end = period.end || defaultEndDate(period.type, period.start);
+    const newest = (existing ?? []).find((r) => r.authorization_type === period.type);
+
+    if (newest) {
+      const { error } = await supabase
+        .from('client_authorizations')
+        .update({
+          start_date: period.start,
+          end_date: end,
+          authorization_number: period.number || null,
+          status: statusForPeriod(period.start, end),
+        })
+        .eq('id', newest.id);
+      if (error) throw new Error(error.message);
+      updated += 1;
+    } else {
+      const { error } = await supabase.from('client_authorizations').insert({
+        client_id: clientId,
+        authorization_type: period.type,
+        sequence_number: 1,
+        start_date: period.start,
+        end_date: end,
+        authorization_number: period.number || null,
+        status: statusForPeriod(period.start, end),
+        mco: client.insurance || null,
+        level_of_need: client.level_of_need || null,
+        notes: 'Created from a billing-screen edit',
+      });
+      if (error) throw new Error(error.message);
+      created += 1;
+    }
+  }
+
+  return { created, updated };
+}
