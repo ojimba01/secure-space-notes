@@ -63,7 +63,27 @@ interface SheetRow {
 }
 
 const clean = (v?: string) => (v ?? '').toString().trim();
-const idKey = (v?: string) => clean(v).replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+/**
+ * The sheet writes "ID-042083979201"; the app stores "042083979201". Stripping
+ * punctuation alone left the "ID" attached and the two never matched — on the
+ * first live preview that would have created 29 duplicate clients for people
+ * already in the app.
+ *
+ * Only a *leading* ID is removed. Eight member IDs carry a letter mid-string
+ * (638W20113) and must survive intact. Checked against production: no stored
+ * ID begins with "ID", and stripping introduces no collisions — 164 IDs, still
+ * 164 distinct.
+ */
+const idKey = (v?: string) =>
+  clean(v).replace(/[^0-9A-Za-z]/g, '').toUpperCase().replace(/^ID/, '');
+
+/**
+ * Eleven clients have no member ID at all, so the ID check cannot protect them
+ * from being duplicated. Names are the fallback. A false match here causes a
+ * *skip*, never a bad write, so leaning toward matching is the safe direction.
+ */
+const nameKey = (v?: string) =>
+  clean(v).toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
 
 /** The sheet writes MM/DD/YYYY; Postgres wants YYYY-MM-DD. */
 function toIsoDate(v?: string): string | null {
@@ -129,9 +149,13 @@ Deno.serve(async (req) => {
   if (exErr) return json({ error: `Could not read existing clients: ${exErr.message}` }, 500);
 
   const byMemberId = new Map<string, { first_name: string; last_name: string }>();
+  const byName = new Map<string, { first_name: string; last_name: string }>();
   for (const c of existing ?? []) {
+    const who = { first_name: c.first_name, last_name: c.last_name };
     const k = idKey(c.member_id ?? '');
-    if (k) byMemberId.set(k, { first_name: c.first_name, last_name: c.last_name });
+    if (k) byMemberId.set(k, who);
+    const n = nameKey(`${c.first_name} ${c.last_name}`);
+    if (n) byName.set(n, who);
   }
 
   // Staff names -> profile ids, so "Assigned Staff" can route a new client.
@@ -163,6 +187,17 @@ Deno.serve(async (req) => {
     if (byMemberId.has(key)) {
       const c = byMemberId.get(key)!;
       skipped.push({ ...where, reason: `Already in the app as ${c.first_name} ${c.last_name}.` });
+      continue;
+    }
+    // Catches clients stored without a member ID, who the ID check cannot see.
+    const nkey = nameKey(row.clientName);
+    if (nkey && byName.has(nkey)) {
+      const c = byName.get(nkey)!;
+      skipped.push({
+        ...where,
+        reason: `Already in the app as ${c.first_name} ${c.last_name} — matched on name, `
+          + 'because that record has no Member ID. Worth adding one.',
+      });
       continue;
     }
     if (seenThisBatch.has(key)) {
