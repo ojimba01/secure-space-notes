@@ -228,7 +228,10 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
         touchpoint: nextScheduled,
       });
 
-      if (status === 'overdue' || status === 'due_soon') {
+      // cycleStatus already refuses to make a pre-go-live cycle urgent, but
+      // the reminder queue is the thing staff are actually chased by, so it
+      // says so itself rather than relying on that staying true.
+      if (!preGoLive && (status === 'overdue' || status === 'due_soon')) {
         const bits: string[] = [];
         if (prog.remaining > 0) {
           bits.push(`${prog.remaining} touchpoint${prog.remaining === 1 ? '' : 's'} still needed`);

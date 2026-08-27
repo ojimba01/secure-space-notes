@@ -223,6 +223,59 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     return template?.file ?? null;
   }, [existing, existingBytes, prefilledBytes, template?.file]);
 
+  /**
+   * Picking a client swaps the blank template for a pre-filled copy. Handing
+   * react-pdf a new `file` while the previous one is still loading makes it
+   * destroy that load mid-flight, and the worker throws
+   * "PDFWorker.create - the worker is being destroyed" from a promise no
+   * handler covers — `onLoadError` never sees it, so React unmounted the whole
+   * app and the page went blank.
+   *
+   * Keying the Document on the source instead means the old one unmounts and
+   * a fresh one mounts, so the two loads never overlap.
+   */
+  const documentKey = useMemo(() => {
+    if (existing) return `existing:${existing.file_path ?? existing.id ?? ''}`;
+    if (prefilledBytes) return `prefilled:${clientId}:${prefilledBytes.byteLength}`;
+    return `blank:${template?.file ?? ''}`;
+  }, [existing, prefilledBytes, clientId, template?.file]);
+
+  /**
+   * Keying alone is not enough: React unmounts the old Document and mounts the
+   * new one in the same commit, so pdf.js is still tearing the old worker down
+   * when the next one calls PDFWorker.create — the same crash, just later.
+   *
+   * So nothing is mounted until the previous document has actually finished
+   * destroying. `activeKey` lags `documentKey` by exactly that await.
+   */
+  const [activeKey, setActiveKey] = useState<string | null>(documentKey);
+
+  useEffect(() => {
+    let cancelled = false;
+    setActiveKey(null);
+    // Stale state belongs to the document being torn down. docRef especially:
+    // Save and Download read from it and must not see a destroyed document.
+    setNumPages(0);
+    setHasFields(null);
+    setLoadError(null);
+
+    (async () => {
+      const previous = docRef.current;
+      docRef.current = null;
+      try {
+        await previous?.destroy();
+      } catch {
+        // Already gone, or never finished loading. Either way there is
+        // nothing left to wait for.
+      }
+      if (!cancelled) setActiveKey(documentKey);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [documentKey]);
+
   /** The current PDF bytes including everything typed into the form fields. */
   const collectFilledPdf = async (): Promise<Blob> => {
     const doc = docRef.current;
@@ -458,8 +511,9 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         )}
 
         <div className="flex-1 overflow-auto rounded-md border bg-muted/30 p-3">
-          {documentFile ? (
+          {documentFile && activeKey ? (
             <Document
+              key={activeKey}
               file={documentFile}
               onLoadSuccess={async (doc) => {
                 docRef.current = doc;

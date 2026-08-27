@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { CalendarClock, CheckCircle2, ChevronRight, MoveRight, Plus } from 'lucide-react';
+import { CalendarClock, CalendarSync, CheckCircle2, Plus, UserRound } from 'lucide-react';
 import {
   useMyCompliance, ScheduledTouchpoint, CycleRow, SupervisorReminder,
 } from '@/hooks/useMyCompliance';
@@ -125,11 +125,23 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         {t.status !== 'completed' && (
           <Button size="sm" variant="outline" onClick={() => addFromTouchpoint(t)}>Add touchpoint</Button>
         )}
-        <Button size="sm" variant="ghost" onClick={() => openMove(t)} title="Reschedule">
-          <MoveRight className="h-4 w-4" />
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => openMove(t)}
+          title="Reschedule"
+          aria-label="Reschedule this touchpoint"
+        >
+          <CalendarSync className="h-4 w-4" />
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => onOpenClient(t.client_id)} title="Open client">
-          <ChevronRight className="h-4 w-4" />
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => onOpenClient(t.client_id)}
+          title="Open client"
+          aria-label="Open this client's record"
+        >
+          <UserRound className="h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -172,8 +184,14 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
             Add touchpoint
           </Button>
         )}
-        <Button size="sm" variant="ghost" onClick={() => onOpenClient(r.client_id)} title="Open client">
-          <ChevronRight className="h-4 w-4" />
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => onOpenClient(r.client_id)}
+          title="Open client"
+          aria-label="Open this client's record"
+        >
+          <UserRound className="h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -205,8 +223,14 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         {c.status !== 'completed' && (
           <Button size="sm" variant="outline" onClick={() => addFromCycle(c)}>Add touchpoint</Button>
         )}
-        <Button size="sm" variant="ghost" onClick={() => onOpenClient(c.client_id)} title="Open client">
-          <ChevronRight className="h-4 w-4" />
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => onOpenClient(c.client_id)}
+          title="Open client"
+          aria-label="Open this client's record"
+        >
+          <UserRound className="h-4 w-4" />
         </Button>
       </div>
     </div>

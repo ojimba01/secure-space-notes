@@ -386,9 +386,17 @@ export function cycleStatus(
 ): CycleStatus {
   const prog = windowProgress(req, windowContacts);
   if (prog.isComplete) return 'completed';
-  if (!isPreGoLiveCycle(window, goLive) && overdueReasons(req, window, windowContacts, today).length > 0) {
-    return 'overdue';
-  }
+
+  // A cycle that began before go-live is reference only, and that has to mean
+  // *never urgent* — not just never overdue. Guarding only the overdue branch
+  // still let a cycle ending within the week read "Due soon" and raise a
+  // supervisor reminder, on the same row that says "not counted against you".
+  // Staff were being chased for touchpoints they had no chance to make.
+  //
+  // It stays visible as Incomplete, so anyone who wants to backfill still can.
+  if (isPreGoLiveCycle(window, goLive)) return 'incomplete';
+
+  if (overdueReasons(req, window, windowContacts, today).length > 0) return 'overdue';
   const daysLeft = daysBetween(today, window.end);
   if (daysLeft >= 0 && daysLeft <= DUE_SOON_DAYS) return 'due_soon';
   return 'incomplete';
