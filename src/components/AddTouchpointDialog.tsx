@@ -23,6 +23,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useMyProfileId } from '@/hooks/useMyProfileId';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 import { isSetupComplete } from '@/lib/workflow';
@@ -61,6 +62,9 @@ interface PickerClient {
   first_name: string;
   last_name: string;
   level_of_need: string | null;
+  /** Whose caseload this client sits on. Null when nobody is assigned. */
+  assigned_employee_id: string | null;
+  assigned_name: string | null;
 }
 
 const FieldLabel: React.FC<{ children: React.ReactNode; hint?: string }> = ({ children, hint }) => (
@@ -119,6 +123,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
   const { toast } = useToast();
   const { guardWrite } = useViewAs();
   const myProfileId = useMyProfileId();
+  const { isAdmin } = useIsAdmin();
   const today = todayAgency();
 
   const [caseloadClients, setCaseloadClients] = useState<PickerClient[]>([]);
@@ -141,6 +146,13 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
   const [noteType, setNoteType] = useState(NJHMIS_DEFAULT_NOTE_TYPE);
   const [progressNote, setProgressNote] = useState('');
   const [copied, setCopied] = useState(false);
+  /**
+   * Who had the contact with the client. Normally the person filling this in,
+   * but a supervisor entering a visit a case manager made must not have it
+   * recorded against themselves -- that would misattribute care. When these
+   * differ the row also stores entered_by, so the record shows both.
+   */
+  const [contactBy, setContactBy] = useState<string | null>(null);
 
   const selectedClient = useMemo(() => {
     if (context?.locked) {
@@ -169,6 +181,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     setNoteType(NJHMIS_DEFAULT_NOTE_TYPE);
     setProgressNote('');
     setCopied(false);
+    setContactBy(null);
   }, [open, context, today]);
 
   /**
@@ -196,25 +209,43 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
   // Client picker for the standalone "Add touchpoint" button.
   useEffect(() => {
     if (!open || context?.locked || !myProfileId) return;
-    supabase
+    // Staff see only their own caseload. An admin can record a touchpoint for
+    // any case manager's client -- entering a visit somebody else made is a
+    // real supervisory job -- so the filter is dropped for them.
+    let query = supabase
       .from('clients')
-      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_30_start, auth_150_start, hsp_150_date')
-      .eq('assigned_employee_id', myProfileId)
+      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_30_start, auth_150_start, hsp_150_date, assigned_employee_id')
       .eq('status', 'active')
       .eq('hsp_submitted', true)
-      .order('last_name')
-      .then(({ data }) => {
+      .order('last_name');
+    if (!isAdmin) query = query.eq('assigned_employee_id', myProfileId);
+
+    query.then(async ({ data }) => {
         // Staff only work setup-complete clients. hsp_submitted is already
         // filtered above; the rest of isSetupComplete is checked here.
-        const ready = (data ?? []).filter((c) => isSetupComplete(c)).map((c) => ({
+        const setupDone = (data ?? []).filter((c) => isSetupComplete(c));
+
+        // Names for the "contact made by" default, so the picker can say
+        // whose client this is rather than showing a bare id.
+        const staffIds = [...new Set(setupDone.map((c) => c.assigned_employee_id).filter(Boolean))];
+        const names = new Map<string, string>();
+        if (staffIds.length) {
+          const { data: profs } = await supabase
+            .from('profiles').select('id, first_name, last_name').in('id', staffIds as string[]);
+          for (const pr of profs ?? []) names.set(pr.id, `${pr.first_name ?? ''} ${pr.last_name ?? ''}`.trim());
+        }
+
+        const ready = setupDone.map((c) => ({
           id: c.id,
           first_name: c.first_name,
           last_name: c.last_name,
           level_of_need: c.level_of_need,
+          assigned_employee_id: c.assigned_employee_id ?? null,
+          assigned_name: c.assigned_employee_id ? names.get(c.assigned_employee_id) ?? null : null,
         }));
         setCaseloadClients(ready);
       });
-  }, [open, context?.locked, myProfileId]);
+  }, [open, context?.locked, myProfileId, isAdmin]);
 
   // Contact method drives the NJHMIS answers until staff overrides them.
   useEffect(() => {
@@ -245,6 +276,21 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     );
   };
 
+  // Default to the client's own case manager, so an admin recording someone
+  // else's visit attributes it correctly without having to think about it.
+  const assignedTo = useMemo(() => {
+    if (context?.locked) return null;
+    return caseloadClients.find((c) => c.id === clientId) ?? null;
+  }, [caseloadClients, clientId, context?.locked]);
+
+  useEffect(() => {
+    setContactBy(assignedTo?.assigned_employee_id ?? myProfileId ?? null);
+  }, [assignedTo, myProfileId]);
+
+  /** True when this is being filed on somebody else's behalf. */
+  const onBehalfOf =
+    contactBy && myProfileId && contactBy !== myProfileId ? assignedTo?.assigned_name ?? null : null;
+
   const canSave = !!selectedClient && !!date && !saving;
 
   const handleSave = async () => {
@@ -261,7 +307,8 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
       .from('client_contacts')
       .insert({
         client_id: selectedClient.id,
-        employee_id: myProfileId,
+        employee_id: contactBy ?? myProfileId,
+        entered_by: contactBy && contactBy !== myProfileId ? myProfileId : null,
         contact_date: date,
         modality: contactMethod,
         touchpoint_type: touchpointType,
@@ -282,7 +329,8 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     const { error: njError } = await supabase.from('njhmis_progress_notes').insert({
       client_id: selectedClient.id,
       contact_id: contact?.id ?? null,
-      employee_id: myProfileId,
+      employee_id: contactBy ?? myProfileId,
+      entered_by: contactBy && contactBy !== myProfileId ? myProfileId : null,
       service_type: serviceType,
       location,
       note_date: date,
@@ -347,12 +395,36 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
                   <SelectTrigger className="h-9"><SelectValue placeholder="Select a client" /></SelectTrigger>
                   <SelectContent>
                     {caseloadClients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.first_name} {c.last_name}
+                        {/* Whose caseload it is, so an admin picking from the
+                            whole agency can tell the difference. */}
+                        {isAdmin && c.assigned_employee_id !== myProfileId && c.assigned_name
+                          && ` — ${c.assigned_name}`}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
             </div>
+
+            {/* Filing on someone else's behalf is stated plainly rather than
+                left to be inferred from who happens to be signed in. */}
+            {onBehalfOf && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 space-y-1.5">
+                <p className="text-xs">
+                  This is <strong>{onBehalfOf}</strong>&rsquo;s client. The contact will be
+                  recorded as theirs, noting that you entered it.
+                </p>
+                <button
+                  type="button"
+                  className="text-[11px] underline text-muted-foreground hover:text-foreground"
+                  onClick={() => setContactBy(myProfileId ?? null)}
+                >
+                  No — I made this contact myself
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
