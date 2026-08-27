@@ -682,13 +682,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "client_forms_import_batch_id_fkey"
-            columns: ["import_batch_id"]
-            isOneToOne: false
-            referencedRelation: "document_import_batches"
-            referencedColumns: ["id"]
-          },
         ]
       }
       client_month_compliance: {
@@ -1326,268 +1319,6 @@ export type Database = {
           },
         ]
       }
-      onboarding_content: {
-        Row: {
-          content_type: string
-          created_at: string | null
-          description: string | null
-          icon: string | null
-          id: string
-          role_type: string
-          step_order: number
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          content_type: string
-          created_at?: string | null
-          description?: string | null
-          icon?: string | null
-          id?: string
-          role_type: string
-          step_order?: number
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          content_type?: string
-          created_at?: string | null
-          description?: string | null
-          icon?: string | null
-          id?: string
-          role_type?: string
-          step_order?: number
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      document_import_batches: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          duplicate_count: number
-          failed_count: number
-          id: string
-          imported_count: number
-          manifest_file_path: string | null
-          manifest_filename: string | null
-          review_count: number
-          status: string
-          total_files: number
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          duplicate_count?: number
-          failed_count?: number
-          id?: string
-          imported_count?: number
-          manifest_file_path?: string | null
-          manifest_filename?: string | null
-          review_count?: number
-          status?: string
-          total_files?: number
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          duplicate_count?: number
-          failed_count?: number
-          id?: string
-          imported_count?: number
-          manifest_file_path?: string | null
-          manifest_filename?: string | null
-          review_count?: number
-          status?: string
-          total_files?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "document_import_batches_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      document_import_items: {
-        Row: {
-          batch_id: string
-          client_form_id: string | null
-          confidence: string
-          created_at: string
-          detected_member_id: string | null
-          file_hash: string | null
-          file_size: number | null
-          final_client_id: string | null
-          final_form_type: string | null
-          final_storage_path: string | null
-          id: string
-          issue_code: string | null
-          match_reason: string | null
-          proposed_authorization_type: string | null
-          proposed_client_id: string | null
-          proposed_document_date: string | null
-          proposed_form_type: string | null
-          proposed_mco: string | null
-          resolution_status: string
-          resolved_at: string | null
-          resolved_by: string | null
-          source_filename: string
-          source_path: string | null
-          temporary_storage_path: string | null
-        }
-        Insert: {
-          batch_id: string
-          client_form_id?: string | null
-          confidence?: string
-          created_at?: string
-          detected_member_id?: string | null
-          file_hash?: string | null
-          file_size?: number | null
-          final_client_id?: string | null
-          final_form_type?: string | null
-          final_storage_path?: string | null
-          id?: string
-          issue_code?: string | null
-          match_reason?: string | null
-          proposed_authorization_type?: string | null
-          proposed_client_id?: string | null
-          proposed_document_date?: string | null
-          proposed_form_type?: string | null
-          proposed_mco?: string | null
-          resolution_status?: string
-          resolved_at?: string | null
-          resolved_by?: string | null
-          source_filename: string
-          source_path?: string | null
-          temporary_storage_path?: string | null
-        }
-        Update: {
-          batch_id?: string
-          client_form_id?: string | null
-          confidence?: string
-          created_at?: string
-          detected_member_id?: string | null
-          file_hash?: string | null
-          file_size?: number | null
-          final_client_id?: string | null
-          final_form_type?: string | null
-          final_storage_path?: string | null
-          id?: string
-          issue_code?: string | null
-          match_reason?: string | null
-          proposed_authorization_type?: string | null
-          proposed_client_id?: string | null
-          proposed_document_date?: string | null
-          proposed_form_type?: string | null
-          proposed_mco?: string | null
-          resolution_status?: string
-          resolved_at?: string | null
-          resolved_by?: string | null
-          source_filename?: string
-          source_path?: string | null
-          temporary_storage_path?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "document_import_items_batch_id_fkey"
-            columns: ["batch_id"]
-            isOneToOne: false
-            referencedRelation: "document_import_batches"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "document_import_items_client_form_id_fkey"
-            columns: ["client_form_id"]
-            isOneToOne: false
-            referencedRelation: "client_forms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "document_import_items_final_client_id_fkey"
-            columns: ["final_client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "document_import_items_proposed_client_id_fkey"
-            columns: ["proposed_client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "document_import_items_resolved_by_fkey"
-            columns: ["resolved_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      form_template_registry: {
-        Row: {
-          active: boolean
-          created_at: string
-          created_by: string | null
-          effective_date: string | null
-          form_type: string
-          id: string
-          mco: string | null
-          required: boolean
-          service_type: string | null
-          submission_instructions: string | null
-          template_path: string | null
-          template_version: string | null
-          updated_at: string
-          workflow_purpose: string
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          created_by?: string | null
-          effective_date?: string | null
-          form_type: string
-          id?: string
-          mco?: string | null
-          required?: boolean
-          service_type?: string | null
-          submission_instructions?: string | null
-          template_path?: string | null
-          template_version?: string | null
-          updated_at?: string
-          workflow_purpose: string
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          created_by?: string | null
-          effective_date?: string | null
-          form_type?: string
-          id?: string
-          mco?: string | null
-          required?: boolean
-          service_type?: string | null
-          submission_instructions?: string | null
-          template_path?: string | null
-          template_version?: string | null
-          updated_at?: string
-          workflow_purpose?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "form_template_registry_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       njhmis_progress_notes: {
         Row: {
           client_id: string
@@ -1663,6 +1394,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      onboarding_content: {
+        Row: {
+          content_type: string
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          role_type: string
+          step_order: number
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content_type: string
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          role_type: string
+          step_order?: number
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content_type?: string
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          role_type?: string
+          step_order?: number
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
