@@ -1,0 +1,498 @@
+// The one place a touchpoint is recorded.
+//
+// Left: the Case Notes record that counts toward the 30-day cycle.
+// Right: the same contact restated in NJHMIS progress-note terms, staged
+// internally so it can be keyed in or exported later. Nothing here is sent to
+// NJHMIS.
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useMyProfileId } from '@/hooks/useMyProfileId';
+import { useViewAs } from '@/components/ViewAsProvider';
+import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
+import { isSetupComplete } from '@/lib/workflow';
+import {
+  CONTACT_METHOD_OPTIONS, TOUCHPOINT_TYPES, contactMethodLabel, touchpointTypeLabel,
+  isInPersonMethod, todayAgency,
+  NJHMIS_SERVICE_TYPES, NJHMIS_LOCATIONS, NJHMIS_NOTE_TYPES, NJHMIS_DEFAULT_NOTE_TYPE,
+  defaultNjhmisServiceType, defaultNjhmisLocation,
+} from '@/lib/compliance';
+import { format } from 'date-fns';
+
+export interface TouchpointContext {
+  clientId: string;
+  clientName: string;
+  levelOfNeed?: string | null;
+  /** Prefilled and locked when opened from a client, reminder, or calendar event. */
+  locked: boolean;
+  /** The scheduled calendar event this touchpoint completes, if any. */
+  calendarEventId?: string | null;
+  date?: string;
+  contactMethod?: string | null;
+  touchpointType?: string | null;
+}
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Omit to let staff pick the client from their caseload. */
+  context?: TouchpointContext | null;
+  onSaved?: () => void;
+}
+
+interface PickerClient {
+  id: string;
+  first_name: string;
+  last_name: string;
+  level_of_need: string | null;
+}
+
+const FieldLabel: React.FC<{ children: React.ReactNode; hint?: string }> = ({ children, hint }) => (
+  <div className="space-y-0.5">
+    <Label className="text-xs font-medium">{children}</Label>
+    {hint && <p className="text-[11px] text-muted-foreground leading-tight">{hint}</p>}
+  </div>
+);
+
+const ReadOnlyValue: React.FC<{ value: string; hint?: string }> = ({ value, hint }) => (
+  <div>
+    <div className="h-9 flex items-center rounded-md border bg-muted/40 px-3 text-sm">{value}</div>
+    {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
+  </div>
+);
+
+/** Hours + minutes, stored as a single minute count. */
+const DurationInput: React.FC<{
+  minutes: number;
+  onChange: (m: number) => void;
+  idPrefix: string;
+}> = ({ minutes, onChange, idPrefix }) => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        id={`${idPrefix}-hours`}
+        type="number"
+        min={0}
+        max={12}
+        value={h}
+        onChange={(e) => onChange(Math.max(0, Number(e.target.value) || 0) * 60 + m)}
+        className="h-9 w-16"
+      />
+      <span className="text-xs text-muted-foreground">hr</span>
+      <Input
+        id={`${idPrefix}-minutes`}
+        type="number"
+        min={0}
+        max={59}
+        step={5}
+        value={m}
+        onChange={(e) => {
+          const raw = Math.max(0, Math.min(59, Number(e.target.value) || 0));
+          onChange(h * 60 + raw);
+        }}
+        className="h-9 w-16"
+      />
+      <span className="text-xs text-muted-foreground">min</span>
+    </div>
+  );
+};
+
+export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, context, onSaved }) => {
+  const { toast } = useToast();
+  const { guardWrite } = useViewAs();
+  const myProfileId = useMyProfileId();
+  const today = todayAgency();
+
+  const [caseloadClients, setCaseloadClients] = useState<PickerClient[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // --- Case Notes touchpoint details -----------------------------------
+  const [clientId, setClientId] = useState('');
+  const [date, setDate] = useState(today);
+  const [contactMethod, setContactMethod] = useState('in_person');
+  const [touchpointType, setTouchpointType] = useState('general_checkin');
+  const [durationMinutes, setDurationMinutes] = useState(30);
+  const [note, setNote] = useState('');
+
+  // --- Progress Note Data Entry Settings -------------------------------
+  const [serviceType, setServiceType] = useState(NJHMIS_SERVICE_TYPES[0]);
+  const [location, setLocation] = useState(NJHMIS_LOCATIONS[0]);
+  const [njDuration, setNjDuration] = useState(30);
+  const [njDurationTouched, setNjDurationTouched] = useState(false);
+  const [faceToFace, setFaceToFace] = useState<'yes' | 'no'>('yes');
+  const [faceToFaceTouched, setFaceToFaceTouched] = useState(false);
+  const [noteType, setNoteType] = useState(NJHMIS_DEFAULT_NOTE_TYPE);
+  const [progressNote, setProgressNote] = useState('');
+
+  const selectedClient = useMemo(() => {
+    if (context?.locked) {
+      return { id: context.clientId, name: context.clientName, levelOfNeed: context.levelOfNeed ?? null };
+    }
+    const c = caseloadClients.find((x) => x.id === clientId);
+    return c ? { id: c.id, name: `${c.first_name} ${c.last_name}`, levelOfNeed: c.level_of_need } : null;
+  }, [context, caseloadClients, clientId]);
+
+  // Reset every time the modal opens so a previous entry never leaks through.
+  useEffect(() => {
+    if (!open) return;
+    const startDate = context?.date ?? today;
+    const startMethod = context?.contactMethod ?? 'in_person';
+    setClientId(context?.clientId ?? '');
+    setDate(startDate);
+    setContactMethod(startMethod);
+    setTouchpointType(context?.touchpointType ?? 'general_checkin');
+    setDurationMinutes(30);
+    setNote('');
+    setServiceType(defaultNjhmisServiceType(context?.levelOfNeed));
+    setLocation(defaultNjhmisLocation(startMethod));
+    setNjDuration(30);
+    setNjDurationTouched(false);
+    setFaceToFace(isInPersonMethod(startMethod) ? 'yes' : 'no');
+    setFaceToFaceTouched(false);
+    setNoteType(NJHMIS_DEFAULT_NOTE_TYPE);
+    setProgressNote('');
+  }, [open, context, today]);
+
+  // Client picker for the standalone "Add touchpoint" button.
+  useEffect(() => {
+    if (!open || context?.locked || !myProfileId) return;
+    supabase
+      .from('clients')
+      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_30_start, auth_150_start, hsp_150_date')
+      .eq('assigned_employee_id', myProfileId)
+      .eq('status', 'active')
+      .eq('hsp_submitted', true)
+      .order('last_name')
+      .then(({ data }) => {
+        // Staff only work setup-complete clients. hsp_submitted is already
+        // filtered above; the rest of isSetupComplete is checked here.
+        const ready = (data ?? []).filter((c) => isSetupComplete(c)).map((c) => ({
+          id: c.id,
+          first_name: c.first_name,
+          last_name: c.last_name,
+          level_of_need: c.level_of_need,
+        }));
+        setCaseloadClients(ready);
+      });
+  }, [open, context?.locked, myProfileId]);
+
+  // Contact method drives the NJHMIS answers until staff overrides them.
+  useEffect(() => {
+    if (!faceToFaceTouched) setFaceToFace(isInPersonMethod(contactMethod) ? 'yes' : 'no');
+    setLocation((prev) => {
+      const auto = defaultNjhmisLocation(contactMethod);
+      // Only re-derive when the current value is still an auto-picked one.
+      return prev === 'Consumer Residence' || prev === 'Telehealth' ? auto : prev;
+    });
+  }, [contactMethod, faceToFaceTouched]);
+
+  // Duration syncs across until staff sets the NJHMIS one deliberately.
+  useEffect(() => {
+    if (!njDurationTouched) setNjDuration(durationMinutes);
+  }, [durationMinutes, njDurationTouched]);
+
+  // Service type follows the client's tier when the client changes.
+  const selectedLevelOfNeed = selectedClient?.levelOfNeed ?? null;
+  useEffect(() => {
+    setServiceType(defaultNjhmisServiceType(selectedLevelOfNeed));
+  }, [selectedLevelOfNeed]);
+
+  const suggestWording = () => {
+    const method = contactMethodLabel(contactMethod).toLowerCase();
+    const verb = isInPersonMethod(contactMethod) ? 'met with the client in person' : `contacted the client by ${method}`;
+    setProgressNote(
+      `CM ${verb} regarding ${touchpointTypeLabel(touchpointType).toLowerCase()}. `,
+    );
+  };
+
+  const canSave = !!selectedClient && !!date && !saving;
+
+  const handleSave = async () => {
+    if (!selectedClient) return;
+    if (guardWrite()) { onOpenChange(false); return; }
+    if (!myProfileId) {
+      toast({ title: 'Could not identify your profile', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+
+    // 1. The Case Notes touchpoint record — this is what the cycle counts.
+    const { data: contact, error } = await supabase
+      .from('client_contacts')
+      .insert({
+        client_id: selectedClient.id,
+        employee_id: myProfileId,
+        contact_date: date,
+        modality: contactMethod,
+        touchpoint_type: touchpointType,
+        duration_minutes: durationMinutes,
+        notes: note || null,
+        calendar_event_id: context?.calendarEventId ?? null,
+      })
+      .select('id')
+      .maybeSingle();
+
+    if (error) {
+      setSaving(false);
+      toast({ title: 'Could not save the touchpoint', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    // 2. The internal NJHMIS-ready entry. Staged only — never submitted.
+    const { error: njError } = await supabase.from('njhmis_progress_notes').insert({
+      client_id: selectedClient.id,
+      contact_id: contact?.id ?? null,
+      employee_id: myProfileId,
+      service_type: serviceType,
+      location,
+      note_date: date,
+      duration_minutes: njDuration,
+      face_to_face: faceToFace === 'yes',
+      contact_method: contactMethod,
+      note_type: noteType,
+      note_text: progressNote || null,
+      entry_status: 'ready',
+    });
+
+    // 3. Close out the scheduled touchpoint this completes, keeping the staff's
+    //    own scheduling. Regeneration below preserves manual moves.
+    if (context?.calendarEventId) {
+      await supabase
+        .from('calendar_events')
+        .update({ status: 'completed', modality: contactMethod, touchpoint_type: touchpointType })
+        .eq('id', context.calendarEventId);
+    }
+
+    await regenerateTouchpointsForClient(selectedClient.id).catch(() => {});
+    setSaving(false);
+
+    if (njError) {
+      toast({
+        title: 'Touchpoint saved, progress note not staged',
+        description: njError.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({ title: 'Touchpoint saved', description: 'An NJHMIS-ready progress note is staged for entry.' });
+    }
+    onOpenChange(false);
+    onSaved?.();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add touchpoint</DialogTitle>
+          <DialogDescription>
+            Records the contact and stages a matching NJHMIS progress note. Nothing is sent to NJHMIS.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* ---------------- Section 1 ---------------- */}
+          <section className="space-y-3 rounded-lg border p-4">
+            <h3 className="text-sm font-semibold">Case Notes touchpoint details</h3>
+
+            <div className="space-y-1.5">
+              <FieldLabel>Client</FieldLabel>
+              {context?.locked ? (
+                <ReadOnlyValue value={context.clientName} />
+              ) : (
+                <Select value={clientId} onValueChange={setClientId}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select a client" /></SelectTrigger>
+                  <SelectContent>
+                    {caseloadClients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <FieldLabel hint="The date the contact happened.">Touchpoint date</FieldLabel>
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Contact method</FieldLabel>
+                <Select value={contactMethod} onValueChange={setContactMethod}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CONTACT_METHOD_OPTIONS.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <FieldLabel>Touchpoint type</FieldLabel>
+              <Select value={touchpointType} onValueChange={setTouchpointType}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TOUCHPOINT_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <FieldLabel>Duration</FieldLabel>
+              <DurationInput minutes={durationMinutes} onChange={setDurationMinutes} idPrefix="tp" />
+            </div>
+
+            <div className="space-y-1.5">
+              <FieldLabel hint="What happened, in the words you would use in a case file. Keep it to the facts.">
+                Note
+              </FieldLabel>
+              <Textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={5}
+                className="text-sm"
+                placeholder="Checked in on housing status. Client reported no new concerns. Will follow up next week."
+              />
+            </div>
+          </section>
+
+          {/* ---------------- Section 2 ---------------- */}
+          <section className="space-y-3 rounded-lg border p-4 bg-muted/20">
+            <div>
+              <h3 className="text-sm font-semibold">Progress Note Data Entry Settings</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Prepares an internal NJHMIS-ready record for later entry or export.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <FieldLabel>Consumer</FieldLabel>
+              <ReadOnlyValue value={selectedClient?.name ?? 'Select a client'} />
+            </div>
+
+            <div className="space-y-1.5">
+              <FieldLabel>Service Type</FieldLabel>
+              <Select value={serviceType} onValueChange={setServiceType}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {NJHMIS_SERVICE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <FieldLabel>Location</FieldLabel>
+              <Select value={location} onValueChange={setLocation}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {NJHMIS_LOCATIONS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <FieldLabel>Date</FieldLabel>
+                <ReadOnlyValue
+                  value={date ? format(new Date(`${date}T12:00:00`), 'MMM d, yyyy') : '—'}
+                  hint="Synced from Touchpoint date."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Duration</FieldLabel>
+                <DurationInput
+                  minutes={njDuration}
+                  onChange={(m) => { setNjDurationTouched(true); setNjDuration(m); }}
+                  idPrefix="nj"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <FieldLabel>Face-to-Face?</FieldLabel>
+                <RadioGroup
+                  value={faceToFace}
+                  onValueChange={(v) => { setFaceToFaceTouched(true); setFaceToFace(v as 'yes' | 'no'); }}
+                  className="flex items-center gap-4 h-9"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <RadioGroupItem value="yes" id="f2f-yes" className="h-3.5 w-3.5" />
+                    <Label htmlFor="f2f-yes" className="text-xs font-normal">Yes</Label>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <RadioGroupItem value="no" id="f2f-no" className="h-3.5 w-3.5" />
+                    <Label htmlFor="f2f-no" className="text-xs font-normal">No</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Contact Method</FieldLabel>
+                <ReadOnlyValue
+                  value={contactMethodLabel(contactMethod)}
+                  hint="Synced from Contact method."
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <FieldLabel>Progress Note Type Selection</FieldLabel>
+              <RadioGroup
+                value={noteType}
+                onValueChange={setNoteType}
+                className="grid grid-cols-2 gap-x-3 gap-y-1"
+              >
+                {NJHMIS_NOTE_TYPES.map((t) => (
+                  <div key={t} className="flex items-center gap-1.5">
+                    <RadioGroupItem value={t} id={`nt-${t}`} className="h-3.5 w-3.5 shrink-0" />
+                    <Label htmlFor={`nt-${t}`} className="text-xs font-normal leading-tight">{t}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <FieldLabel>Progress note</FieldLabel>
+                <Button type="button" variant="ghost" size="sm" className="h-6 text-[11px]" onClick={suggestWording}>
+                  Start the sentence
+                </Button>
+              </div>
+              <Textarea
+                value={progressNote}
+                onChange={(e) => setProgressNote(e.target.value)}
+                rows={5}
+                className="text-sm"
+                placeholder="CM contacted the client to follow up on housing status. The client reported that housing was stable at this time and did not report immediate concerns. CM will continue to provide support as needed."
+              />
+              <p className="text-[11px] text-muted-foreground">Third person. &ldquo;CM&rdquo; is fine for case manager.</p>
+            </div>
+          </section>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={!canSave}>
+            {saving ? 'Saving…' : 'Save touchpoint'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};

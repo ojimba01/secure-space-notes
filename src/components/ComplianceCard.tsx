@@ -7,13 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Plus, Phone, Video, MapPin, Trash2 } from 'lucide-react';
 import { InfoHint } from '@/components/InfoHint';
@@ -21,13 +14,14 @@ import { useComplianceTooltips } from '@/hooks/useComplianceTooltips';
 import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { useViewAs } from '@/components/ViewAsProvider';
 import {
-  Modality, MODALITY_LABELS, SUPPORT_ACTIVITIES, ComplianceStatus,
+  Modality, SUPPORT_ACTIVITIES, ComplianceStatus,
   requirementsForTier, computeProgress, deriveStatus, generatePlanDates,
   firstOfMonth, todayAgency, daysBetween, ENFORCEMENT_START, ContactRow,
   hasValidTier, currentBillingWindow, contactsInWindow, windowProgress,
-  windowStatus, suggestTouchpointType, toDate,
+  windowStatus, suggestTouchpointType,
 } from '@/lib/compliance';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
+import { AddTouchpointDialog } from '@/components/AddTouchpointDialog';
 
 interface Props {
   clientId: string;
@@ -82,11 +76,6 @@ export const ComplianceCard: React.FC<Props> = ({
     daysBetween(ENFORCEMENT_START, clientCreatedAt.slice(0, 10)) >= 0 &&
     daysBetween(clientCreatedAt.slice(0, 10), today) >= 0 &&
     daysBetween(clientCreatedAt.slice(0, 10), today) < 7;
-
-  // log dialog state
-  const [logDate, setLogDate] = useState(today);
-  const [logModality, setLogModality] = useState<Modality>('phone');
-  const [logNotes, setLogNotes] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -150,61 +139,6 @@ export const ComplianceCard: React.FC<Props> = ({
       .eq('id', complianceId);
   }, [complianceId, status, progress.isComplete, loading]);
 
-  const handleLog = async () => {
-    // Update local UI first so the change is visible (incl. view-as sandbox).
-    const date = logDate;
-    const modality = logModality;
-    const notes = logNotes;
-    setContacts((prev) =>
-      [...prev, { id: `local-${crypto.randomUUID()}`, contact_date: date, modality }]
-        .sort((a, b) => a.contact_date.localeCompare(b.contact_date)),
-    );
-    setLogOpen(false);
-    setLogNotes('');
-    setLogDate(today);
-    setLogModality('phone');
-
-    if (guardWrite()) return;
-    if (!myProfileId) {
-      toast({ title: 'Could not identify your profile', variant: 'destructive' });
-      return;
-    }
-    // create calendar event
-    const startIso = new Date(`${date}T12:00:00`).toISOString();
-    const { data: ev } = await supabase
-      .from('calendar_events')
-      .insert({
-        title: `${MODALITY_LABELS[modality]} contact — ${clientName}`,
-        event_type: 'touch_point',
-        status: 'completed',
-        modality,
-        employee_id: myProfileId,
-        client_id: clientId,
-        start_time: startIso,
-        end_time: startIso,
-        description: notes || null,
-      })
-      .select('id')
-      .maybeSingle();
-
-    const { error } = await supabase.from('client_contacts').insert({
-      client_id: clientId,
-      employee_id: myProfileId,
-      contact_date: date,
-      modality,
-      notes: notes || null,
-      calendar_event_id: ev?.id ?? null,
-    });
-    if (error) {
-      toast({ title: 'Error logging contact', description: error.message, variant: 'destructive' });
-      return;
-    }
-    toast({ title: 'Contact logged' });
-    await regenerateTouchpointsForClient(clientId).catch(() => {});
-    await load();
-    onChanged?.();
-  };
-
   const deleteContact = async (c: ContactRow) => {
     // Local removal first (visible in view-as sandbox).
     setContacts((prev) => prev.filter((x) => x.id !== c.id));
@@ -216,7 +150,19 @@ export const ComplianceCard: React.FC<Props> = ({
       .eq('id', c.id)
       .maybeSingle();
     if (full?.calendar_event_id) {
-      await supabase.from('calendar_events').delete().eq('id', full.calendar_event_id);
+      const { data: ev } = await supabase
+        .from('calendar_events')
+        .select('id, is_auto_generated, event_type')
+        .eq('id', full.calendar_event_id)
+        .maybeSingle();
+      // A scheduled touchpoint goes back to "scheduled" — removing the record
+      // of a contact must not also remove the obligation to make it. Only an
+      // event this card created for an ad-hoc contact is deleted.
+      if (ev?.event_type === 'touch_point' && ev.is_auto_generated) {
+        await supabase.from('calendar_events').update({ status: 'scheduled' }).eq('id', ev.id);
+      } else if (ev) {
+        await supabase.from('calendar_events').delete().eq('id', ev.id);
+      }
     }
     await supabase.from('client_contacts').delete().eq('id', c.id);
     await load();
@@ -246,9 +192,8 @@ export const ComplianceCard: React.FC<Props> = ({
 
   // Built-in fallback guidance so info buttons are never blank when DB tooltips are empty.
   const contactHintItems = isHigh
-    ? ['**High Level:** 4 touchpoints per 30-day billing period. At least 2 must be face-to-face / in-person. Touchpoints must be on separate days.']
-    : ['**Low Level:** 2 touchpoints per 30-day billing period. At least 1 must be face-to-face / in-person. Touchpoints must be on separate days.'];
-  const modalityHint = 'How the contact happened: Phone, Virtual (video), or In-Person (face-to-face visit).';
+    ? ['**High Level:** 4 touchpoints per 30-day cycle. At least 2 must be in person. Touchpoints must be on separate days.']
+    : ['**Low Level:** 2 touchpoints per 30-day cycle. At least 1 must be in person. Touchpoints must be on separate days.'];
 
   // current 30-day billing window progress
   const winContacts = window ? contactsInWindow(contacts, window) : [];
@@ -273,7 +218,7 @@ export const ComplianceCard: React.FC<Props> = ({
               {!setupComplete ? (
                 <Badge className="bg-amber-500 text-white hover:bg-amber-500">Missing setup</Badge>
               ) : winStatus === 'complete' ? (
-                <Badge className="bg-green-600 text-white hover:bg-green-600">Complete for this window</Badge>
+                <Badge className="bg-green-600 text-white hover:bg-green-600">Completed</Badge>
               ) : winStatus === 'overdue' ? (
                 <Badge className="bg-red-600 text-white hover:bg-red-600">Overdue</Badge>
               ) : (
@@ -282,18 +227,18 @@ export const ComplianceCard: React.FC<Props> = ({
             </div>
             {!setupComplete ? (
               <p className="text-xs text-muted-foreground">
-                Add a {hspStartDate ? '' : 'HSP / authorization / touchpoint start date'}{!hspStartDate && !hasValidTier(levelOfNeed) ? ' and ' : ''}{hasValidTier(levelOfNeed) ? '' : 'level of need'} to enable automatic scheduling.
+                Add a {hspStartDate ? '' : 'HSP approval / authorization start date'}{!hspStartDate && !hasValidTier(levelOfNeed) ? ' and ' : ''}{hasValidTier(levelOfNeed) ? '' : 'level of need'} to enable automatic scheduling.
               </p>
             ) : (
               <div className="text-xs text-muted-foreground space-y-1">
-                <div>Current 30-day window: <span className="font-medium text-foreground">{fmtShort(window!.start)} – {fmtShort(window!.end)}</span></div>
+                <div>Current 30-day cycle: <span className="font-medium text-foreground">{fmtShort(window!.start)} – {fmtShort(window!.end)}</span></div>
                 <div>Level of need: <span className="font-medium text-foreground">{levelOfNeed}</span></div>
-                <div>Required touchpoints: <span className="font-medium text-foreground">{req.requiredContacts}</span> · Required face-to-face: <span className="font-medium text-foreground">{req.requiredInPerson}</span></div>
+                <div>Required touchpoints: <span className="font-medium text-foreground">{req.requiredContacts}</span> · Required in person: <span className="font-medium text-foreground">{req.requiredInPerson}</span></div>
                 <div>Completed: <span className="font-medium text-foreground">{winProg!.contactDays}</span> · Remaining: <span className="font-medium text-foreground">{winProg!.remaining}</span></div>
                 {suggestion && <div>Suggested next: <span className="font-medium text-foreground">{suggestion}</span></div>}
                 <p className="pt-1">{isHigh
-                  ? 'High Level: 4 touchpoints per 30-day billing period. At least 2 must be face-to-face / in-person. Touchpoints must be on separate days.'
-                  : 'Low Level: 2 touchpoints per 30-day billing period. At least 1 must be face-to-face / in-person. Touchpoints must be on separate days.'}</p>
+                  ? 'High Level: 4 touchpoints per 30-day cycle. At least 2 must be in person. Touchpoints must be on separate days.'
+                  : 'Low Level: 2 touchpoints per 30-day cycle. At least 1 must be in person. Touchpoints must be on separate days.'}</p>
               </div>
             )}
           </div>
@@ -305,7 +250,7 @@ export const ComplianceCard: React.FC<Props> = ({
               Contacts completed: {progress.contactDays} of {req.requiredContacts}
               {req.requiredInPerson > 0 && (
                 <span className="text-muted-foreground">
-                  · In-person visits: {progress.inPersonSpaced} of {req.requiredInPerson}
+                  · In person: {progress.inPersonSpaced} of {req.requiredInPerson}
                 </span>
               )}
               <InfoHint text={tooltips.contact || undefined} items={!tooltips.contact ? contactHintItems : undefined} />
@@ -325,40 +270,27 @@ export const ComplianceCard: React.FC<Props> = ({
               ))}
             </div>
 
-            <Dialog open={logOpen} onOpenChange={setLogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1" /> Log contact</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Log a contact</DialogTitle></DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Date</Label>
-                    <Input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-1">
-                      Modality <InfoHint text={tooltips[logModality] || modalityHint} />
-                    </Label>
-                    <Select value={logModality} onValueChange={(v) => setLogModality(v as Modality)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="phone">Phone</SelectItem>
-                        <SelectItem value="virtual">Virtual</SelectItem>
-                        <SelectItem value="in_person">In-Person</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Note (optional)</Label>
-                    <Textarea value={logNotes} onChange={(e) => setLogNotes(e.target.value)} rows={2} />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={handleLog}>Save contact</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button size="sm" variant="outline" onClick={() => setLogOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Add touchpoint
+            </Button>
+
+            <AddTouchpointDialog
+              open={logOpen}
+              onOpenChange={setLogOpen}
+              context={{
+                clientId,
+                clientName,
+                levelOfNeed,
+                locked: true,
+                date: today,
+                contactMethod: winProg && winProg.remainingInPerson > 0 ? 'in_person' : 'phone',
+              }}
+              onSaved={async () => {
+                await regenerateTouchpointsForClient(clientId).catch(() => {});
+                await load();
+                onChanged?.();
+              }}
+            />
           </div>
 
           {/* high-level: activities + note */}

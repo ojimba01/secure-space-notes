@@ -7,6 +7,8 @@ import { useToast } from '@/hooks/use-toast';
 import { AddCalendarEventDialog } from './AddCalendarEventDialog';
 import { EditCalendarEventDialog } from './EditCalendarEventDialog';
 import { useViewAs } from '@/components/ViewAsProvider';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { todayAgency } from '@/lib/compliance';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, startOfWeek, endOfWeek } from 'date-fns';
 
 interface CalendarEvent {
@@ -42,6 +44,11 @@ export const CaseManagerCalendar = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { toast } = useToast();
   const { isViewingAs, viewAsEmployeeId } = useViewAs();
+  const { isAdmin } = useIsAdmin();
+  // The touchpoint being dragged. Only touchpoints move; other events keep
+  // their times, which a drag would quietly destroy.
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
 
   const openEditDialog = (event: CalendarEvent) => {
     // Sandbox (view-as) can open the dialog and click through; saves are skipped.
@@ -89,6 +96,48 @@ export const CaseManagerCalendar = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Dropping a touchpoint on a day reschedules it there. The move is marked
+  // manual so regeneration leaves it exactly where staff put it.
+  const rescheduleTouchpoint = async (eventId: string, day: Date) => {
+    const event = events.find((e) => e.id === eventId);
+    if (!event || event.event_type !== 'touch_point') return;
+
+    const target = new Date(event.start_time);
+    target.setFullYear(day.getFullYear(), day.getMonth(), day.getDate());
+    const end = new Date(event.end_time);
+    end.setFullYear(day.getFullYear(), day.getMonth(), day.getDate());
+
+    if (isSameDay(new Date(event.start_time), day)) return;
+
+    if (isViewingAs) {
+      toast({ title: 'Viewing as another user', description: 'Changes are not saved in this mode.' });
+      return;
+    }
+
+    // Optimistic move so the card follows the cursor's drop immediately.
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === eventId ? { ...e, start_time: target.toISOString(), end_time: end.toISOString() } : e,
+      ),
+    );
+
+    const { error } = await supabase
+      .from('calendar_events')
+      .update({
+        start_time: target.toISOString(),
+        end_time: end.toISOString(),
+        is_manually_adjusted: true,
+      })
+      .eq('id', eventId);
+
+    if (error) {
+      toast({ title: 'Could not reschedule', description: error.message, variant: 'destructive' });
+      fetchEvents();
+      return;
+    }
+    toast({ title: 'Touchpoint rescheduled', description: 'Manual moves are preserved.' });
   };
 
   const getDaysInMonth = () => {
@@ -154,7 +203,8 @@ export const CaseManagerCalendar = () => {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold">Calendar</h1>
-          <p className="text-muted-foreground">Manage your appointments and events</p>
+          <p className="text-muted-foreground">View scheduled touchpoints by date.</p>
+          <p className="text-xs text-muted-foreground">Drag to reschedule. Manual moves are preserved.</p>
         </div>
         {!isViewingAs && (
           <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
@@ -213,11 +263,26 @@ export const CaseManagerCalendar = () => {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') setSelectedDate(day);
                     }}
+                    onDragOver={(e) => {
+                      if (!draggingId) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      setDragOverDay(format(day, 'yyyy-MM-dd'));
+                    }}
+                    onDragLeave={() => setDragOverDay((d) => (d === format(day, 'yyyy-MM-dd') ? null : d))}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const id = draggingId ?? e.dataTransfer.getData('text/plain');
+                      setDraggingId(null);
+                      setDragOverDay(null);
+                      if (id) rescheduleTouchpoint(id, day);
+                    }}
                     className={`
                       min-h-[5rem] sm:aspect-square p-1.5 rounded-lg border transition-all relative flex flex-col gap-1 text-left cursor-pointer
                       ${isCurrentMonth ? 'bg-background' : 'bg-muted/30 text-muted-foreground'}
                       ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border'}
                       ${isTodayDate ? 'bg-primary/10 font-semibold' : ''}
+                      ${dragOverDay === format(day, 'yyyy-MM-dd') ? 'border-primary ring-2 ring-primary/40 bg-primary/5' : ''}
                       hover:border-primary/50
                     `}
                   >
@@ -226,12 +291,21 @@ export const CaseManagerCalendar = () => {
                       {dayEvents.slice(0, 2).map((event) => (
                         <button
                           key={event.id}
+                          draggable={event.event_type === 'touch_point'}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', event.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                            setDraggingId(event.id);
+                          }}
+                          onDragEnd={() => { setDraggingId(null); setDragOverDay(null); }}
                           onClick={(e) => {
                             e.stopPropagation();
                             openEditDialog(event);
                           }}
-                          className="flex items-center gap-1 w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight hover:bg-muted transition-colors"
-                          title={event.title}
+                          className={`flex items-center gap-1 w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight hover:bg-muted transition-colors ${
+                            event.event_type === 'touch_point' ? 'cursor-grab active:cursor-grabbing' : ''
+                          } ${draggingId === event.id ? 'opacity-40' : ''}`}
+                          title={event.event_type === 'touch_point' ? `${event.title} — drag to reschedule` : event.title}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${eventTypeColors[event.event_type] || 'bg-gray-500'}`} />
                           <span className="truncate">{event.title}</span>
@@ -341,6 +415,7 @@ export const CaseManagerCalendar = () => {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         event={editingEvent}
+        canDelete={isAdmin}
         onEventUpdated={fetchEvents}
       />
     </div>

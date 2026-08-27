@@ -57,6 +57,32 @@ export function serviceStartDate(c: WorkflowClient): string | null {
   return c.auth_30_start || c.auth_150_start || c.hsp_150_date || null;
 }
 
+/**
+ * Setup is complete when a client can actually be worked: the HSP has been
+ * submitted, an approval / authorization start date anchors the 30-day cycles,
+ * and a level of need sets how many touchpoints those cycles require.
+ *
+ * Staff only ever see setup-complete clients. Filling the gaps is Admin and
+ * Superadmin work, so an incomplete client never reaches a staff work queue.
+ */
+export function isSetupComplete(c: WorkflowClient): boolean {
+  const tier = c.level_of_need;
+  return (
+    c.hsp_submitted === true &&
+    !!serviceStartDate(c) &&
+    (tier === 'High Level' || tier === 'Low Level')
+  );
+}
+
+/** Which setup pieces are missing — Admin/Superadmin facing. */
+export function missingSetupParts(c: WorkflowClient): string[] {
+  const parts: string[] = [];
+  if (c.hsp_submitted !== true) parts.push('HSP submission');
+  if (!serviceStartDate(c)) parts.push('HSP approval / authorization start date');
+  if (c.level_of_need !== 'High Level' && c.level_of_need !== 'Low Level') parts.push('level of need');
+  return parts;
+}
+
 export type NextActionKind =
   | 'submit_iat'
   | 'schedule_intake'

@@ -7,7 +7,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { ClientManagement } from "@/components/ClientManagement";
 import { NotesHub } from "@/components/NotesHub";
 import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
-import { MyMonth } from "@/components/MyMonth";
+import { StaffTouchpoints } from "@/components/StaffTouchpoints";
 import { FormsHub } from "@/components/forms/FormsHub";
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
@@ -126,7 +126,7 @@ const Index = () => {
           {activeView === 'compliance' ? (
             isSuperadmin && !isViewingAs
               ? <SuperadminTouchpoints onOpenClient={handleOpenClient} />
-              : <MyMonth onOpenClient={handleOpenClient} />
+              : <StaffTouchpoints onOpenClient={handleOpenClient} />
           ) : activeView === 'clients' ? (
             <ClientManagement
               key={clientsKey}

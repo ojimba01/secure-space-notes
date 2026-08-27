@@ -357,7 +357,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Level of Need (LoN)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <Select onValueChange={field.onChange} value={field.value || ''} disabled={!isAdmin}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select level of need" />
@@ -369,6 +369,11 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {!isAdmin && (
+                      <p className="text-xs text-muted-foreground">
+                        Level of need is set from the LoN assessment by an admin.
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
