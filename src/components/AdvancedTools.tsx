@@ -15,7 +15,16 @@ interface Employee {
   id: string;
   first_name: string | null;
   last_name: string | null;
+  /** Highest role held, shown so it is obvious whose view you are borrowing. */
+  role: string;
+  clientCount: number;
 }
+
+const ROLE_LABEL: Record<string, string> = {
+  superadmin: 'Superadmin',
+  admin: 'Admin',
+  employee: 'Case manager',
+};
 
 const MigrationLink: React.FC<{
   icon: React.ReactNode;
@@ -43,16 +52,53 @@ export const AdvancedTools: React.FC = () => {
   useEffect(() => {
     if (!isSuperadmin || !open || employees.length) return;
     (async () => {
-      const { data: roles } = await supabase.from('user_roles').select('user_id').eq('role', 'employee');
-      const userIds = (roles ?? []).map((r) => r.user_id);
-      if (!userIds.length) return;
+      // Everyone active, not just the employee role. Admins and superadmins
+      // carry caseloads too -- the largest one in the agency belongs to a
+      // superadmin -- and filtering on role='employee' made exactly the people
+      // with the most clients impossible to preview.
       const { data: profs } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name')
-        .in('user_id', userIds)
+        .select('id, user_id, first_name, last_name')
         .eq('active', true)
         .order('last_name');
-      setEmployees((profs as Employee[]) ?? []);
+      if (!profs?.length) return;
+
+      const { data: roleRows } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', profs.map((p) => p.user_id));
+
+      // Someone can hold more than one role; show the highest.
+      const rank: Record<string, number> = { superadmin: 3, admin: 2, employee: 1 };
+      const bestRole = new Map<string, string>();
+      for (const r of roleRows ?? []) {
+        const cur = bestRole.get(r.user_id);
+        if (!cur || (rank[r.role] ?? 0) > (rank[cur] ?? 0)) bestRole.set(r.user_id, r.role);
+      }
+
+      const { data: counts } = await supabase
+        .from('clients')
+        .select('assigned_employee_id')
+        .eq('status', 'active')
+        .not('assigned_employee_id', 'is', null);
+      const clientCount = new Map<string, number>();
+      for (const c of counts ?? []) {
+        const k = c.assigned_employee_id as string;
+        clientCount.set(k, (clientCount.get(k) ?? 0) + 1);
+      }
+
+      const { data: me } = await supabase.auth.getUser();
+      setEmployees(
+        profs
+          .filter((p) => p.user_id !== me?.user?.id) // previewing yourself is pointless
+          .map((p) => ({
+            id: p.id,
+            first_name: p.first_name,
+            last_name: p.last_name,
+            role: bestRole.get(p.user_id) ?? 'employee',
+            clientCount: clientCount.get(p.id) ?? 0,
+          })),
+      );
     })();
   }, [isSuperadmin, open, employees.length]);
 
@@ -93,19 +139,27 @@ export const AdvancedTools: React.FC = () => {
       <PopoverContent side="top" align="start" className="w-72 space-y-3">
         {isSuperadmin && (
           <>
-            <div className="flex items-center gap-2 text-sm font-medium"><Eye className="h-4 w-4" /> Preview as case manager</div>
-            <p className="text-xs text-muted-foreground">Preview the case manager experience. Changes are not saved.</p>
-            <Input placeholder="Search case managers." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <div className="flex items-center gap-2 text-sm font-medium"><Eye className="h-4 w-4" /> Preview as team member</div>
+            <p className="text-xs text-muted-foreground">
+              See the app with their caseload in front of you. Changes are not saved.
+            </p>
+            <Input placeholder="Search by name." value={search} onChange={(e) => setSearch(e.target.value)} />
             <div className="max-h-56 overflow-y-auto space-y-1">
               {filtered.length === 0 ? (
-                <p className="text-xs text-muted-foreground px-1">No active case managers.</p>
+                <p className="text-xs text-muted-foreground px-1">Nobody active to preview.</p>
               ) : filtered.map((e) => (
                 <button
                   key={e.id}
                   onClick={() => startSession(e)}
                   className="w-full text-left text-sm rounded-md px-2 py-1.5 hover:bg-accent"
                 >
-                  {e.first_name} {e.last_name}
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span>{e.first_name} {e.last_name}</span>
+                    <span className="text-[11px] text-muted-foreground shrink-0">
+                      {ROLE_LABEL[e.role] ?? e.role}
+                      {e.clientCount > 0 && ` · ${e.clientCount}`}
+                    </span>
+                  </div>
                 </button>
               ))}
             </div>
