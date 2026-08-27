@@ -16,7 +16,7 @@ export type WorkflowStage = (typeof WORKFLOW_STAGES)[number];
 
 export const STAGE_LABEL: Record<string, string> = {
   referred: 'Referral received',
-  initial_auth_pending: 'Initial authorization pending',
+  initial_auth_pending: 'Authorization pending',
   initial_30_active: 'Initial 30-day authorization',
   active_authorization: 'Active authorization',
   closed: 'Closed',
