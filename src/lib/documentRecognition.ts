@@ -5,15 +5,18 @@
 //   1. AcroForm fingerprint — the set of form-field names in a fillable PDF.
 //      Unmistakable, and it also hands us the member's own answers.
 //   2. Text-layer markers — the form's printed title on page 1.
+//   2b. OCR of the printed page, for scans with neither of the above. Opt-in,
+//      since it costs a one-time engine download and a few hundred ms.
 //   3. Filename tokens — the agency's `NAME - DOCTYPE - DATE` convention.
 //
-// No OCR and no AI. Scanned files with none of the above stay unidentified
-// on purpose: a wrong auto-file is worse than an honest "needs review".
+// No AI anywhere. A file that matches none of these stays unidentified on
+// purpose: a wrong auto-file is worse than an honest "needs review".
 //
 // Fingerprints were taken from the agency's own blank templates. Field COUNT
 // is deliberately never used as a key — two unrelated forms in this archive
 // both carry 86 fields.
 import { PDFDocument } from 'pdf-lib';
+import { ocrPdf, ocrSupported } from '@/lib/ocr';
 
 export type Confidence = 'high' | 'medium' | 'low' | 'none';
 
@@ -205,7 +208,8 @@ const FILENAME_RULES: { documentType: DocumentType; pattern: RegExp; period?: 30
   { documentType: 'Authorization Approval', pattern: /\b150\s*DAYS?\b|(?<![\d.])150(?=\s*\.\w+$)/i, period: 150 },
   { documentType: 'Authorization Approval', pattern: /\b180\s*DAYS?\b|(?<![\d.])180(?=\s*\.\w+$)/i, period: 180 },
   { documentType: 'Correspondence', pattern: /\bLETTER\b|\bFAX\b|\bTERMINATION\b|\bDENIED\b|\bAVAI?LITY\b|\bSCREENSHOT\b/i },
-  // Last: a signature page names no document type of its own.
+  // Last: a signature page names no document type of its own. OCR of the
+  // printed footer is what actually resolves these.
   { documentType: 'Signature Page', pattern: /\bSI[GD]N?[ED]{0,2}\b.*\bFORM\b|\bSIGNED\b/i },
 ];
 
@@ -272,6 +276,7 @@ export function classifyFilename(filename: string): {
 export async function recognizeDocument(
   filename: string,
   bytes?: ArrayBuffer | Uint8Array,
+  options: { useOcr?: boolean } = {},
 ): Promise<RecognitionResult> {
   const byName = classifyFilename(filename);
   const base: RecognitionResult = {
@@ -347,6 +352,34 @@ export async function recognizeDocument(
           pageCount,
         };
       }
+    }
+  }
+
+  // Tier 2b — a scan has no fields and no text layer, so the only way to read
+  // it is to look at the pixels. Opt-in, because it costs a few hundred
+  // milliseconds and a one-time engine download.
+  const isScan = !fieldNames.length && !text.trim();
+  if (isScan && options.useOcr && ocrSupported()) {
+    try {
+      const { text: scanned } = await ocrPdf(bytes);
+      const low = scanned.toLowerCase();
+      for (const marker of TEXT_MARKERS) {
+        if (marker.needles.some((n) => low.includes(n))) {
+          return {
+            ...base,
+            documentType: marker.documentType,
+            issuer: marker.issuer,
+            // A read of the printed title is as trustworthy as reading it
+            // from the text layer; it just took more work to get at.
+            confidence: 'medium',
+            basis: 'Form title read from the scanned page',
+            fieldNames,
+            pageCount,
+          };
+        }
+      }
+    } catch {
+      // Recognition falls through to the filename, as it would have anyway.
     }
   }
 

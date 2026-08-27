@@ -215,6 +215,7 @@ export async function proposeMapping(
   clients: MatchClient[],
   manifest: ManifestRow[],
   existingHashes: Map<string, string>,
+  options: { useOcr?: boolean } = {},
 ): Promise<ProposedItem> {
   const manifestRow = findManifestRow(file, manifest);
   const isPdf = file.name.toLowerCase().endsWith('.pdf');
@@ -230,7 +231,9 @@ export async function proposeMapping(
   let typeConfidence: ProposedItem['typeConfidence'] = 'none';
   let needsOcr = false;
   try {
-    const result = await recognizeDocument(file.name, isPdf ? file.bytes : undefined);
+    const result = await recognizeDocument(file.name, isPdf ? file.bytes : undefined, {
+      useOcr: options.useOcr,
+    });
     pdfFormType = result.documentType;
     recognitionBasis = result.documentType ? result.basis : null;
     typeConfidence = result.documentType ? result.confidence : 'none';

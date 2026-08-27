@@ -74,6 +74,7 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
   const [skipped, setSkipped] = useState<string[]>([]);
   const [manifest, setManifest] = useState<ManifestRow[]>([]);
   const [manifestName, setManifestName] = useState<string | null>(null);
+  const [useOcr, setUseOcr] = useState(false);
   const [clients, setClients] = useState<MatchClient[]>([]);
   const [items, setItems] = useState<ProposedItem[]>([]);
   const [rows, setRows] = useState<Record<string, RowState>>({});
@@ -143,7 +144,8 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
 
       const proposed: ProposedItem[] = [];
       for (const file of staged) {
-        proposed.push(await proposeMapping(file, clientList, manifest, hashes));
+        proposed.push(await proposeMapping(file, clientList, manifest, hashes, { useOcr }));
+        if (useOcr) setBusyLabel(`Reading files… ${proposed.length} of ${staged.length}`);
       }
 
       const { data: batch, error: batchError } = await supabase
@@ -613,6 +615,25 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
             .{manifestName && ` — loaded ${manifestName} (${manifest.length} rows)`}
           </p>
         </div>
+
+        <label className="flex items-start gap-2 rounded-md border p-3">
+          <Checkbox
+            checked={useOcr}
+            onCheckedChange={(v) => setUseOcr(v === true)}
+            className="mt-0.5"
+            disabled={busy}
+          />
+          <span className="text-sm">
+            Read scanned files
+            <span className="block text-xs text-muted-foreground mt-0.5">
+              Roughly half of historical PDFs are scans with nothing readable inside. This reads
+              the printed page to identify them — most usefully the loose signature pages, whose
+              form name is printed in the footer. It happens entirely on this computer; no
+              document is sent anywhere. Adds a few hundred milliseconds per scan and a one-time
+              engine download of about 7 MB.
+            </span>
+          </span>
+        </label>
 
         {staged.length > 0 && (
           <div className="rounded-md border p-3 space-y-1">
