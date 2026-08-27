@@ -24,10 +24,26 @@ import type { Worker } from 'tesseract.js';
  * memory, and self-hosting removes a third party's ability to serve script
  * into it. See docs/ocr.md.
  */
+// Served from our own origin, not a public CDN.
+//
+// No document was ever sent to the CDN — only the model came back — but this
+// page holds PHI in memory, and anyone able to serve script into it could read
+// that. A third-party origin in the loading path is a supply-chain risk not
+// worth carrying on a HIPAA system, so the engine and model live in
+// public/tesseract/ and are checked into the repository.
+//
+// The files are the same ones the CDN serves:
+//   worker.min.js                     tesseract.js
+//   tesseract-core-simd-lstm.wasm.js  tesseract.js-core
+//   eng.traineddata.gz                tessdata 4.0.0_fast
+//
+// The "fast" English model is about a quarter the size of the standard one and
+// equally reliable at reading a printed form title. See docs/ocr.md to refresh
+// them. Nothing here is fetched until a staff member actually reads a scan.
 const ASSET_PATHS = {
-  // The "fast" English model — about a quarter the size of the standard one
-  // and equally reliable at reading a printed form title.
-  langPath: 'https://tessdata.projectnaptha.com/4.0.0_fast',
+  workerPath: '/tesseract/worker.min.js',
+  corePath: '/tesseract/tesseract-core-simd-lstm.wasm.js',
+  langPath: '/tesseract',
 };
 
 /** Page regions worth reading. Full-page OCR is slower and adds no signal. */

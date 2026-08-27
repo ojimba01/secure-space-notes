@@ -43,23 +43,43 @@ it required no new matching rules.
 In the bulk importer it is the **"Read scanned files"** checkbox, off by
 default. Turning it on adds a few hundred milliseconds per scanned file.
 
-## Self-hosting the engine (recommended before production)
+## The engine is self-hosted — done 2026-08-27
 
-By default the engine and language model come from a public CDN
-(`tessdata.projectnaptha.com`). No document is sent there — only the model is
-fetched — but the page holds PHI in memory, and a third party able to serve
-script into it is a supply-chain risk worth removing.
+The engine and language model are served from **this app's own origin**, not a
+public CDN. `public/tesseract/` holds them and they are committed:
 
-To self-host, copy the engine and model into `public/tesseract/` and point
-`ASSET_PATHS` in `src/lib/ocr.ts` at your own origin:
+| File | ~size | From |
+|---|---|---|
+| `worker.min.js` | 111 KB | `tesseract.js` |
+| `tesseract-core-simd-lstm.wasm.js` | 3.9 MB | `tesseract.js-core` |
+| `eng.traineddata.gz` | 2.0 MB | tessdata `4.0.0_fast` |
+
+**Why it mattered.** No document was ever sent to the CDN — only the model came
+back. But this page holds PHI in memory, and anyone able to serve script into
+it could read that. A third-party origin in the loading path is a supply-chain
+risk not worth carrying on a HIPAA system.
+
+`ASSET_PATHS` in `src/lib/ocr.ts` points at `/tesseract`. Nothing is fetched
+until a staff member actually reads a scan, so the 5.9 MB is not in the initial
+page load.
+
+### Refreshing them
+
+After upgrading `tesseract.js`, re-copy the two engine files so they match the
+installed version:
 
 ```bash
-mkdir -p public/tesseract
 cp node_modules/tesseract.js/dist/worker.min.js public/tesseract/
 cp node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js public/tesseract/
-curl -L -o public/tesseract/eng.traineddata.gz \
-  https://tessdata.projectnaptha.com/4.0.0_fast/eng.traineddata.gz
 ```
 
-Then set `workerPath`, `corePath` and `langPath` to `/tesseract`. This adds
-about 7 MB of static assets to the repository.
+The language model rarely changes; it came from
+`https://tessdata.projectnaptha.com/4.0.0_fast/eng.traineddata.gz`.
+
+**Verify after any change** — all three must return 200 from the app's own
+origin, and nothing should be requested from `tessdata.projectnaptha.com`:
+
+```bash
+for f in worker.min.js tesseract-core-simd-lstm.wasm.js eng.traineddata.gz; do curl -s -o /dev/null -w "$f %{http_code}
+" "http://localhost:8081/tesseract/$f"; done
+```
