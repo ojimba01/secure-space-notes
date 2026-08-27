@@ -86,6 +86,22 @@ const templateFor = (formType: string): PdfTemplate | undefined =>
 const fmt = (d?: string | null) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString() : '—');
 
 /**
+ * Which lifecycle step a form opened from this card belongs to. The IAT always
+ * requests the initial authorization; LoN/HSP are the continuation packet the
+ * first time and a reauthorization packet once a continuation already exists.
+ */
+const workflowPurposeFor = (
+  formType: string,
+  authorizations: ClientAuthorization[],
+): string => {
+  if (formType === 'Initial Assessment Tool') return 'initial_authorization';
+  const hasContinuation = authorizations.some(
+    (a) => a.authorization_type === 'continuation_150' || a.authorization_type === 'reauthorization_180',
+  );
+  return hasContinuation ? 'reauthorization' : 'continuation';
+};
+
+/**
  * The lifecycle panel on a client record: where the case sits, the single next
  * task, the continuation packet's internal and MCO status, and the
  * authorization entry that moves the case forward (and rebuilds billing when
@@ -418,6 +434,8 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
           signerName={signerName}
           lockedClientId={client.id}
           lockedClientName={`${client.last_name}, ${client.first_name}`}
+          workflowPurpose={workflowPurposeFor(filling.formType, authorizations)}
+          authorizationId={currentAuthorization(authorizations)?.id ?? null}
           onClose={() => setFilling(null)}
           onSubmitted={() => {
             loadForms();

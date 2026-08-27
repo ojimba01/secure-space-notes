@@ -85,6 +85,10 @@ interface TemplateFillDialogProps {
   /** Filing for one specific client (e.g. straight from their record). */
   lockedClientId?: string;
   lockedClientName?: string;
+  /** Which lifecycle step this form belongs to, when opened from a workflow. */
+  workflowPurpose?: string | null;
+  /** The authorization/package this form belongs to, when known. */
+  authorizationId?: string | null;
   onClose: () => void;
   onSubmitted: () => void;
 }
@@ -96,6 +100,8 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   signerName,
   lockedClientId,
   lockedClientName,
+  workflowPurpose,
+  authorizationId,
   onClose,
   onSubmitted,
 }) => {
@@ -314,6 +320,8 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             file_size: blob.size,
             file_hash: fileHash,
             status: 'submitted',
+            workflow_purpose: workflowPurpose ?? null,
+            authorization_id: authorizationId ?? null,
             signature_name: signerName,
             signed_by: profileId,
             signed_at: new Date().toISOString(),

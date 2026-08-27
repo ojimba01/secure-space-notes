@@ -24,6 +24,7 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 import { FORM_TYPES } from '@/lib/formSigning';
+import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
 import { Upload } from 'lucide-react';
 
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -140,20 +141,46 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
         .upload(filePath, file, { contentType: 'application/pdf' });
       if (uploadError) throw uploadError;
 
-      const { error } = await supabase.from('client_forms').insert({
-        client_id: clientId,
-        employee_id: profileId,
-        form_type: formType,
-        title: formType,
-        file_path: filePath,
-        original_file_path: filePath,
-        file_size: file.size,
-        status: 'submitted',
-        signature_name: signerName,
-        signed_by: profileId,
-        signed_at: new Date().toISOString(),
-      });
+      const fileHash = await sha256Hex(await file.arrayBuffer());
+      const { data: inserted, error } = await supabase
+        .from('client_forms')
+        .insert({
+          client_id: clientId,
+          employee_id: profileId,
+          form_type: formType,
+          title: formType,
+          file_path: filePath,
+          original_file_path: filePath,
+          file_size: file.size,
+          file_hash: fileHash,
+          status: 'submitted',
+          source: 'manual_upload',
+          source_filename: file.name,
+          signature_name: signerName,
+          signed_by: profileId,
+          signed_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
       if (error) throw error;
+
+      try {
+        await recordFormVersion({
+          clientFormId: inserted.id,
+          filePath,
+          versionType: 'submitted',
+          createdBy: profileId,
+          sourceFilename: file.name,
+          fileHash,
+          fileSize: file.size,
+        });
+      } catch (versionErr: any) {
+        toast({
+          title: 'Form saved, but version history was not updated',
+          description: versionErr.message,
+          variant: 'destructive',
+        });
+      }
 
       toast({
         title: 'Form submitted',
