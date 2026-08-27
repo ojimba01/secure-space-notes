@@ -71,6 +71,7 @@ interface Client {
   member_id?: string;
   insurance?: string;
   level_of_need?: string;
+  lon_score?: number | null;
   county?: string;
   status: string;
   intake_date: string;
@@ -372,6 +373,18 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                     {!isAdmin && (
                       <p className="text-xs text-muted-foreground">
                         Level of need is set from the LoN assessment by an admin.
+                      </p>
+                    )}
+                    {/* The database enforces this either way. Saying so here
+                        stops High being chosen and then silently reverting. */}
+                    {isAdmin
+                      && typeof client.lon_score === 'number'
+                      && client.lon_score < 18
+                      && field.value === 'High Level' && (
+                      <p className="text-xs text-destructive">
+                        This client scored {client.lon_score} on the LoN, below the 18 needed
+                        for High. Saving will record them as Low Level. Update the score
+                        from the LoN form if that is wrong.
                       </p>
                     )}
                     <FormMessage />
