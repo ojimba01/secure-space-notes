@@ -9,10 +9,10 @@ import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  extractPdfFieldValues,
-  interpretFormValues,
-  recognizeFormType,
-} from '@/lib/formAutofill';
+  classifyFilename,
+  identityFromFields,
+  recognizeDocument,
+} from '@/lib/documentRecognition';
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
 
 export interface StagedFile {
@@ -64,6 +64,16 @@ export interface ProposedItem {
   file: StagedFile;
   proposedClientId: string | null;
   proposedFormType: string | null;
+  /** How the document type was determined, for the review table. */
+  typeBasis: string | null;
+  /**
+   * Strength of the DOCUMENT TYPE guess, tracked separately from the client
+   * match. A filename can name the right client and still mislabel the form,
+   * so both must be strong before a row is safe to bulk accept.
+   */
+  typeConfidence: 'high' | 'medium' | 'low' | 'none';
+  /** No form fields and no text layer — only OCR could identify this. */
+  needsOcr: boolean;
   proposedMco: string | null;
   proposedDate: string | null;
   detectedMemberId: string | null;
@@ -194,15 +204,6 @@ const clientsByName = (clients: MatchClient[], first?: string, last?: string, fu
   });
 };
 
-/** Guess a form type from a filename when the PDF itself is not recognisable. */
-const formTypeFromFilename = (name: string): string | null => {
-  const n = name.toLowerCase();
-  if (/\biat\b|initial.?assessment/.test(n)) return 'Initial Assessment Tool';
-  if (/\blon\b|level.?of.?need/.test(n)) return 'Level of Need Assessment Tool';
-  if (/\bhsp\b|housing.?stabilization/.test(n)) return 'Housing Stabilization Plan';
-  if (/authorization|referral/.test(n)) return 'Other';
-  return null;
-};
 
 /**
  * Propose a mapping for one staged file using deterministic signals in strict
@@ -218,26 +219,28 @@ export async function proposeMapping(
   const manifestRow = findManifestRow(file, manifest);
   const isPdf = file.name.toLowerCase().endsWith('.pdf');
 
-  // What does the file say about itself? (fillable PDFs only)
+  // What does the file say about itself? Form fields first, then its printed
+  // title, then its name — the same ladder the single-file upload uses.
   let pdfFormType: string | null = null;
   let pdfMemberId: string | null = null;
   let pdfMemberName: string | null = null;
   let pdfDob: string | null = null;
-  let pdfDate: string | null = null;
-  if (isPdf) {
-    try {
-      const { formType } = await recognizeFormType(file.bytes);
-      pdfFormType = formType;
-      if (formType) {
-        const values = interpretFormValues(formType, await extractPdfFieldValues(file.bytes));
-        pdfMemberId = values.memberId ?? null;
-        pdfMemberName = values.memberName ?? null;
-        pdfDob = toIsoDate(values.dateOfBirth);
-        pdfDate = toIsoDate(values.completionDate);
-      }
-    } catch {
-      // Not a readable PDF — falls through to filename/manifest signals.
-    }
+  const pdfDate: string | null = null;
+  let recognitionBasis: string | null = null;
+  let typeConfidence: ProposedItem['typeConfidence'] = 'none';
+  let needsOcr = false;
+  try {
+    const result = await recognizeDocument(file.name, isPdf ? file.bytes : undefined);
+    pdfFormType = result.documentType;
+    recognitionBasis = result.documentType ? result.basis : null;
+    typeConfidence = result.documentType ? result.confidence : 'none';
+    needsOcr = result.needsOcr;
+    const identity = identityFromFields(result.documentType, result.fields);
+    pdfMemberId = identity.memberId ?? null;
+    pdfMemberName = identity.memberName ?? null;
+    pdfDob = toIsoDate(identity.dateOfBirth);
+  } catch {
+    // Unreadable file — falls through to filename/manifest signals.
   }
 
   const manifestClient =
@@ -256,7 +259,10 @@ export async function proposeMapping(
   const pdfClient = clientByMemberId(clients, pdfMemberId);
 
   const formType =
-    manifestRow?.form_type || pdfFormType || formTypeFromFilename(file.name) || (isPdf ? null : 'Other');
+    manifestRow?.form_type ||
+    pdfFormType ||
+    classifyFilename(file.name).documentType ||
+    (isPdf ? null : 'Other');
   const proposedDate =
     toIsoDate(manifestRow?.form_date) ?? pdfDate ?? null;
   const proposedMco = manifestRow?.mco || null;
@@ -265,6 +271,10 @@ export async function proposeMapping(
   const base = {
     file,
     proposedFormType: formType,
+    typeBasis: recognitionBasis,
+    // A manifest naming the type outright is as good as reading the form.
+    typeConfidence: manifestRow?.form_type ? 'high' : typeConfidence,
+    needsOcr,
     proposedMco,
     proposedDate,
     detectedMemberId,
@@ -369,8 +379,12 @@ export async function proposeMapping(
     ...base,
     proposedClientId: null,
     confidence: 'low',
-    matchReason: 'No deterministic signal found',
-    issue: 'Assign a client manually or add this file to the manifest',
+    matchReason: needsOcr
+      ? 'Scanned image — nothing machine-readable inside'
+      : 'No deterministic signal found',
+    issue: needsOcr
+      ? 'Scanned file: assign a client manually or add it to the manifest'
+      : 'Assign a client manually or add this file to the manifest',
   };
 }
 

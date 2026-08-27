@@ -1,11 +1,14 @@
-export const FORM_TYPES = [
+// The full set of documents the agency files, not just the three state
+// assessments. Kept in lifecycle order so the picker reads like the workflow.
+export { DOCUMENT_TYPES as FORM_TYPES } from '@/lib/documentRecognition';
+export type { DocumentType as FormType } from '@/lib/documentRecognition';
+
+/** The three official assessments that have a fillable template in-app. */
+export const ASSESSMENT_FORM_TYPES = [
   'Initial Assessment Tool',
   'Level of Need Assessment Tool',
   'Housing Stabilization Plan',
-  'Other',
 ] as const;
-
-export type FormType = (typeof FORM_TYPES)[number];
 
 /**
  * INTERNAL review status. This is our own sign-off chain only — it says nothing

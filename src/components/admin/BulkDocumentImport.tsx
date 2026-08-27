@@ -196,9 +196,14 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
             {
               clientId: p.proposedClientId ?? '',
               formType: p.proposedFormType ?? 'Other',
-              // High-confidence rows are pre-selected so they can be bulk
-              // accepted; everything weaker must be chosen deliberately.
-              include: p.confidence === 'high' && !p.duplicateOfFormId,
+              // Pre-selected only when BOTH the client match and the
+              // document type are strong. A filename can identify the right
+              // client and still mislabel the form, and a bulk accept would
+              // file it under the wrong type without anyone looking.
+              include:
+                p.confidence === 'high' &&
+                (p.typeConfidence === 'high' || p.typeConfidence === 'medium') &&
+                !p.duplicateOfFormId,
               allowDuplicate: false,
             },
           ]),
@@ -360,7 +365,12 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
                 setRows((r) => {
                   const next = { ...r };
                   for (const item of items) {
-                    if (item.confidence === 'high' && item.proposedClientId && !item.duplicateOfFormId) {
+                    if (
+                      item.confidence === 'high' &&
+                      item.proposedClientId &&
+                      (item.typeConfidence === 'high' || item.typeConfidence === 'medium') &&
+                      !item.duplicateOfFormId
+                    ) {
                       next[key(item)] = { ...next[key(item)], include: true };
                     }
                   }
@@ -468,6 +478,18 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
                             ))}
                           </SelectContent>
                         </Select>
+                        {item.typeBasis && (
+                          <div
+                            className={
+                              item.typeConfidence === 'low'
+                                ? 'text-xs text-amber-700 mt-1'
+                                : 'text-xs text-muted-foreground mt-1'
+                            }
+                          >
+                            {item.typeBasis}
+                            {item.typeConfidence === 'low' && ' — confirm this'}
+                          </div>
+                        )}
                         {item.proposedDate && (
                           <div className="text-xs text-muted-foreground mt-1">
                             Document date: {item.proposedDate}
