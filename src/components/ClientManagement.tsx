@@ -93,10 +93,12 @@ const getMilestoneStatus = (client: Client): MilestoneStatusKey => {
 
 interface ClientManagementProps {
   initialClientId?: string | null;
+  /** Tab to open the client record on, e.g. 'intake'. */
+  initialTab?: string;
   onConsumeInitialClient?: () => void;
 }
 
-export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClientId, onConsumeInitialClient }) => {
+export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClientId, initialTab, onConsumeInitialClient }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isAdmin, loading: adminLoading } = useIsAdmin();
@@ -350,6 +352,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         client={selectedClient} 
         onBack={() => setSelectedClient(null)}
         onUpdate={fetchClients}
+        initialTab={initialTab}
       />
     );
   }

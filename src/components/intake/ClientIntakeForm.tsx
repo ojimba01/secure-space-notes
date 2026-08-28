@@ -306,7 +306,7 @@ export const ClientIntakeForm: React.FC<Props> = ({
   if (loading) {
     return (
       <Card>
-        <CardContent className="p-6 text-muted-foreground">Loading the intake…</CardContent>
+        <CardContent className="p-6 text-muted-foreground">Loading the intake.</CardContent>
       </Card>
     );
   }
@@ -350,8 +350,8 @@ export const ClientIntakeForm: React.FC<Props> = ({
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            Nothing here is required. Save a draft as often as you like — completing the intake is a
-            separate step at the bottom, and it marks the lifecycle’s intake step done.
+            No field is required. The intake can be saved as a draft at any point. Completing it is a
+            separate action at the bottom of this page, which also marks the intake step complete.
           </p>
         </CardContent>
       </Card>
