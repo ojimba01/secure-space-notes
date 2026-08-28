@@ -61,9 +61,17 @@ const Index = () => {
   const [defaultApplied, setDefaultApplied] = useState(false);
   const [wasViewingAs, setWasViewingAs] = useState(false);
 
-  // Honor a view requested by another page (for example the admin sidebar).
+  // Honor a view requested by another page (for example the admin sidebar),
+  // and a specific client with it — the admin dashboard's queues are lists of
+  // clients whose only useful action is to open the record.
   useEffect(() => {
-    const state = location.state as { view?: View } | null;
+    const state = location.state as { view?: View; clientId?: string } | null;
+    if (state?.clientId) {
+      setInitialClientId(state.clientId);
+      setActiveView('clients');
+      setDefaultApplied(true);
+      return;
+    }
     if (state?.view) {
       setActiveView(state.view);
       setDefaultApplied(true);
