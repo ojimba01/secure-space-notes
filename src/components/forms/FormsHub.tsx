@@ -254,39 +254,6 @@ export const FormsHub: React.FC<FormsHubProps> = ({ onOpenClientIntake }) => {
             to them, with their details filled in.
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Card className="p-4 flex flex-col gap-2">
-              <div className="flex items-start gap-2">
-                <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                <div>
-                  <div className="text-sm font-medium leading-tight">Client Intake</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    The intake questionnaire. Answers save onto the client's record rather than into
-                    a PDF, so it opens on their Intake tab.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-auto flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  disabled={!onOpenClientIntake}
-                  onClick={async () => {
-                    setIntakeQuery('');
-                    setIntakePickerOpen(true);
-                    const { data } = await supabase
-                      .from('clients')
-                      .select('id, first_name, last_name')
-                      .is('deleted_at', null)
-                      .eq('status', 'active')
-                      .order('last_name');
-                    setIntakeClients(data ?? []);
-                  }}
-                >
-                  Fill out &amp; submit
-                </Button>
-              </div>
-            </Card>
             {PDF_TEMPLATES.map((t) => (
               <Card key={t.file} className="p-4 flex flex-col gap-2">
                 <div className="flex items-start gap-2">
