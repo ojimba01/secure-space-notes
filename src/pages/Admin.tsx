@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ComplianceEscalations } from '@/components/ComplianceEscalations';
+import { SetupQueues } from '@/components/admin/SetupQueues';
 import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from '@/components/Sidebar';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Calendar, Shield, UserX, UserCheck, Stethoscope } from 'lucide-react';
+import { Shield, UserX, UserCheck, Stethoscope } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,13 +33,6 @@ interface Employee {
   user_roles: Array<{ role: string }>;
 }
 
-interface Stats {
-  totalClients: number;
-  totalEvents: number;
-  totalEmployees: number;
-  activeEmployees: number;
-}
-
 const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : 'An unexpected error occurred';
 
@@ -54,12 +47,6 @@ const Admin = () => {
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [pendingDeactivation, setPendingDeactivation] = useState<Employee | null>(null);
   const [confirmText, setConfirmText] = useState('');
-  const [stats, setStats] = useState<Stats>({
-    totalClients: 0,
-    totalEvents: 0,
-    totalEmployees: 0,
-    activeEmployees: 0,
-  });
 
   useEffect(() => {
     if (user) {
@@ -86,7 +73,6 @@ const Admin = () => {
 
       if (admin) {
         fetchEmployees();
-        fetchStats();
       }
     } catch (error) {
       toast({
@@ -158,7 +144,6 @@ const Admin = () => {
       });
 
       fetchEmployees();
-      fetchStats();
     } catch (error) {
       toast({
         title: "Error updating user status",
@@ -211,41 +196,6 @@ const Admin = () => {
   };
 
 
-  const fetchStats = async () => {
-    try {
-      const [clientsRes, eventsRes, profilesRes, rolesRes] = await Promise.all([
-        supabase.from('clients').select('id', { count: 'exact', head: true }),
-        supabase.from('calendar_events').select('id', { count: 'exact', head: true }),
-        supabase.from('profiles').select('id, user_id, active'),
-        supabase.from('user_roles').select('user_id, role'),
-      ]);
-
-      if (profilesRes.error) throw profilesRes.error;
-      if (rolesRes.error) throw rolesRes.error;
-
-      const superadminUserIds = new Set(
-        (rolesRes.data || [])
-          .filter((role) => role.role === 'superadmin')
-          .map((role) => role.user_id),
-      );
-      const employeeProfiles = (profilesRes.data || []).filter(
-        (profile) => !superadminUserIds.has(profile.user_id),
-      );
-
-      setStats({
-        totalClients: clientsRes.count || 0,
-        totalEvents: eventsRes.count || 0,
-        totalEmployees: employeeProfiles.length,
-        activeEmployees: employeeProfiles.filter((profile) => profile.active).length,
-      });
-    } catch (error) {
-      toast({
-        title: "Could not load dashboard metrics.",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
-    }
-  };
 
   if (loading || checkingAdmin) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
@@ -281,41 +231,7 @@ const Admin = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalClients}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Events</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalEvents}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Active staff</CardTitle>
-              <UserCheck className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.activeEmployees}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Compliance escalations */}
-        <ComplianceEscalations />
+        <SetupQueues onOpenClient={(id) => navigate('/', { state: { view: 'clients', clientId: id } })} />
 
         {/* Employees List */}
         <Card>
