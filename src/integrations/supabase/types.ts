@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -69,8 +69,8 @@ export type Database = {
           approval_state: string | null
           authorization_id: string | null
           billed_amount: number | null
-          billing_status: string
           billed_source: string | null
+          billing_status: string
           claim_number: string | null
           client_id: string
           created_at: string
@@ -95,8 +95,8 @@ export type Database = {
           approval_state?: string | null
           authorization_id?: string | null
           billed_amount?: number | null
-          billing_status?: string
           billed_source?: string | null
+          billing_status?: string
           claim_number?: string | null
           client_id: string
           created_at?: string
@@ -121,8 +121,8 @@ export type Database = {
           approval_state?: string | null
           authorization_id?: string | null
           billed_amount?: number | null
-          billing_status?: string
           billed_source?: string | null
+          billing_status?: string
           claim_number?: string | null
           client_id?: string
           created_at?: string
@@ -571,6 +571,7 @@ export type Database = {
           due_date: string | null
           employee_id: string
           external_status: string
+          extracted_text: string | null
           field_authorization_number: string | null
           field_icd10_code: string | null
           field_medicaid_id: string | null
@@ -584,18 +585,17 @@ export type Database = {
           field_total_charges: number | null
           fields_conflict: Json | null
           fields_extracted_at: string | null
-          extracted_text: string | null
           file_hash: string | null
           file_path: string | null
           file_size: number | null
           form_type: string
           id: string
           import_batch_id: string | null
+          mco_response_at: string | null
           name_matches_client: boolean | null
           ocr_applied: boolean
-          page_count: number | null
-          mco_response_at: string | null
           original_file_path: string | null
+          page_count: number | null
           processed_at: string | null
           processing_error: string | null
           processing_started_at: string | null
@@ -610,7 +610,7 @@ export type Database = {
           status: string
           template_version: string | null
           text_char_count: number | null
-          text_search: unknown | null
+          text_search: unknown
           text_truncated: boolean
           title: string
           updated_at: string
@@ -625,6 +625,7 @@ export type Database = {
           due_date?: string | null
           employee_id: string
           external_status?: string
+          extracted_text?: string | null
           field_authorization_number?: string | null
           field_icd10_code?: string | null
           field_medicaid_id?: string | null
@@ -638,18 +639,17 @@ export type Database = {
           field_total_charges?: number | null
           fields_conflict?: Json | null
           fields_extracted_at?: string | null
-          extracted_text?: string | null
           file_hash?: string | null
           file_path?: string | null
           file_size?: number | null
           form_type: string
           id?: string
           import_batch_id?: string | null
+          mco_response_at?: string | null
           name_matches_client?: boolean | null
           ocr_applied?: boolean
-          page_count?: number | null
-          mco_response_at?: string | null
           original_file_path?: string | null
+          page_count?: number | null
           processed_at?: string | null
           processing_error?: string | null
           processing_started_at?: string | null
@@ -664,6 +664,7 @@ export type Database = {
           status?: string
           template_version?: string | null
           text_char_count?: number | null
+          text_search?: unknown
           text_truncated?: boolean
           title: string
           updated_at?: string
@@ -678,6 +679,7 @@ export type Database = {
           due_date?: string | null
           employee_id?: string
           external_status?: string
+          extracted_text?: string | null
           field_authorization_number?: string | null
           field_icd10_code?: string | null
           field_medicaid_id?: string | null
@@ -691,18 +693,17 @@ export type Database = {
           field_total_charges?: number | null
           fields_conflict?: Json | null
           fields_extracted_at?: string | null
-          extracted_text?: string | null
           file_hash?: string | null
           file_path?: string | null
           file_size?: number | null
           form_type?: string
           id?: string
           import_batch_id?: string | null
+          mco_response_at?: string | null
           name_matches_client?: boolean | null
           ocr_applied?: boolean
-          page_count?: number | null
-          mco_response_at?: string | null
           original_file_path?: string | null
+          page_count?: number | null
           processed_at?: string | null
           processing_error?: string | null
           processing_started_at?: string | null
@@ -717,6 +718,7 @@ export type Database = {
           status?: string
           template_version?: string | null
           text_char_count?: number | null
+          text_search?: unknown
           text_truncated?: boolean
           title?: string
           updated_at?: string
@@ -1352,14 +1354,12 @@ export type Database = {
           deleted_at: string | null
           diagnosis_code: string | null
           email: string | null
-          first_name: string
           field_sources: Json | null
+          first_name: string
           housing_stabilization_plan_date: string | null
           hsp_150_date: string | null
           hsp_180_date: string | null
           hsp_due_date: string | null
-          hsp_end_date: string | null
-          hsp_start_date: string | null
           hsp_submitted: boolean | null
           iat_date: string | null
           id: string
@@ -1414,13 +1414,12 @@ export type Database = {
           deleted_at?: string | null
           diagnosis_code?: string | null
           email?: string | null
+          field_sources?: Json | null
           first_name: string
           housing_stabilization_plan_date?: string | null
           hsp_150_date?: string | null
           hsp_180_date?: string | null
           hsp_due_date?: string | null
-          hsp_end_date?: string | null
-          hsp_start_date?: string | null
           hsp_submitted?: boolean | null
           iat_date?: string | null
           id?: string
@@ -1475,14 +1474,12 @@ export type Database = {
           deleted_at?: string | null
           diagnosis_code?: string | null
           email?: string | null
-          first_name?: string
           field_sources?: Json | null
+          first_name?: string
           housing_stabilization_plan_date?: string | null
           hsp_150_date?: string | null
           hsp_180_date?: string | null
           hsp_due_date?: string | null
-          hsp_end_date?: string | null
-          hsp_start_date?: string | null
           hsp_submitted?: boolean | null
           iat_date?: string | null
           id?: string
