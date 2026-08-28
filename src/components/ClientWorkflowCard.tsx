@@ -34,6 +34,7 @@ import {
 } from '@/lib/formSigning';
 import { PDF_TEMPLATES, TemplateFillDialog, type PdfTemplate } from '@/components/forms/TemplateFillDialog';
 import { regenerateClientCycles } from '@/lib/billingSync';
+import { continuationOverlapsInitial } from '@/lib/billing';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 import {
   AUTHORIZATION_TYPE_LABEL,
@@ -52,11 +53,14 @@ interface Props {
     id: string;
     first_name: string;
     last_name: string;
+    auth_30_start?: string | null;
     auth_30_number?: string | null;
     auth_150_number?: string | null;
     mco_housing_manager?: string | null;
   };
   onUpdate: () => void;
+  /** Jumps to the Client Intake tab on the client record. */
+  onOpenIntake?: () => void;
 }
 
 interface FormSummary {
@@ -107,7 +111,7 @@ const workflowPurposeFor = (
  * authorization entry that moves the case forward (and rebuilds billing when
  * it does).
  */
-export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
+export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, onOpenIntake }) => {
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
   const { isViewingAs } = useViewAs();
@@ -290,11 +294,21 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
           </Button>
         );
       case 'schedule_intake':
+        // The intake form completes this step when it is signed. The manual
+        // button stays for intakes taken by phone without the form.
         return (
-          <Button onClick={markIntakeComplete}>
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            Mark intake complete
-          </Button>
+          <>
+            {onOpenIntake && (
+              <Button onClick={onOpenIntake}>
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Open the Client Intake form
+              </Button>
+            )}
+            <Button variant="outline" onClick={markIntakeComplete}>
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Mark intake complete
+            </Button>
+          </>
         );
       case 'record_authorization':
         return (
@@ -469,6 +483,15 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
                 value={authStart}
                 onChange={(e) => setAuthStart(e.target.value)}
               />
+              {authOpen === 'continuation' &&
+                continuationOverlapsInitial(client.auth_30_start, authStart) && (
+                  <p className="rounded-md border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900">
+                    This starts before the initial 30-day period that began{' '}
+                    {fmt(client.auth_30_start)} has finished, so both would cover the same days. If
+                    you are reading the date the initial period <i>ended</i>, the continuation
+                    usually starts the day after it — or on the same day services began.
+                  </p>
+                )}
               <p className="text-xs text-muted-foreground">
                 Saving this adds an authorization record, rebuilds the billing cycles and the
                 touchpoint schedule. End dates are calculated automatically.

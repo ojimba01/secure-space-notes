@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { BulkDocumentImport } from '@/components/admin/BulkDocumentImport';
 import { ImportHistory } from '@/components/admin/ImportHistory';
 import { TemplateRegistry } from '@/components/admin/TemplateRegistry';
+import { TouchpointSettings } from '@/components/admin/TouchpointSettings';
 
 /**
  * Operational utilities for Admin/Superadmin only. Staff never reach this
@@ -27,8 +28,9 @@ const AdvancedToolsPage: React.FC = () => {
       <div>
         <h1 className="text-2xl font-semibold">Advanced Tools</h1>
         <p className="text-sm text-muted-foreground">
-          Data migration and template administration. Client documents are uploaded here, inside
-          the app's secure storage — never through an outside chat or shared drive.
+          Data migration, template administration and the settings that decide how touchpoints are
+          chased. Client documents are uploaded here, inside the app's secure storage — never
+          through an outside chat or shared drive.
         </p>
       </div>
 
@@ -37,6 +39,7 @@ const AdvancedToolsPage: React.FC = () => {
           <TabsTrigger value="import">Bulk document import</TabsTrigger>
           <TabsTrigger value="history">Import history</TabsTrigger>
           <TabsTrigger value="templates">Template management</TabsTrigger>
+          <TabsTrigger value="touchpoints">Touchpoint settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="import" className="pt-4">
@@ -49,6 +52,10 @@ const AdvancedToolsPage: React.FC = () => {
 
         <TabsContent value="templates" className="pt-4">
           <TemplateRegistry />
+        </TabsContent>
+
+        <TabsContent value="touchpoints" className="pt-4">
+          <TouchpointSettings />
         </TabsContent>
       </Tabs>
     </div>

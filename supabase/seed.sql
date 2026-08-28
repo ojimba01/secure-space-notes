@@ -79,19 +79,23 @@ begin
   --    Needs 2 touchpoints this cycle, 1 of them in person.
   insert into public.clients
     (id, first_name, last_name, member_id, assigned_employee_id, status,
-     hsp_submitted, level_of_need, auth_30_start, county, insurance, workflow_stage)
+     hsp_submitted, level_of_need, auth_30_start, county, insurance, workflow_stage,
+     date_of_birth)
   values
     ('aaaa0001-0000-4000-8000-000000000001', 'Alpha', 'Testclient', 'TEST-0001', cm, 'active',
-     true, 'Low Level', '2026-08-20', 'Essex', 'Test MCO', 'initial_30_active')
+     true, 'Low Level', '2026-08-20', 'Essex', 'Aetna', 'initial_30_active',
+     '1988-03-14')
   on conflict (id) do update set assigned_employee_id = excluded.assigned_employee_id;
 
   -- B. High level, cycle starting today. Needs 4, 2 of them in person.
   insert into public.clients
     (id, first_name, last_name, member_id, assigned_employee_id, status,
-     hsp_submitted, level_of_need, auth_30_start, county, insurance, workflow_stage)
+     hsp_submitted, level_of_need, auth_30_start, county, insurance, workflow_stage,
+     date_of_birth)
   values
     ('aaaa0002-0000-4000-8000-000000000002', 'Bravo', 'Testclient', 'TEST-0002', cm, 'active',
-     true, 'High Level', '2026-08-27', 'Hudson', 'Test MCO', 'initial_30_active')
+     true, 'High Level', '2026-08-27', 'Hudson', 'Horizon', 'initial_30_active',
+     '1975-11-02')
   on conflict (id) do update set assigned_employee_id = excluded.assigned_employee_id;
 
   -- C. Started long before go-live. Earlier cycles must read as reference

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, DollarSign, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, DollarSign, ExternalLink, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { BillingCycle, APPROVAL_STATES, ApprovalState, MCO_OPTIONS, isDeadlineAtRisk, isDeadlinePassed, isCycleResolved, finalDeadlineFor, deadlineLabel, daysToFinalDeadline, normalizeLevel, findPossibleDuplicates, needsExtensionReview, daysUntil150End, projected180Start, addDays, todayAgency } from '@/lib/billing';
+import { BillingCycle, APPROVAL_STATES, ApprovalState, MCO_OPTIONS, isDeadlineAtRisk, isDeadlinePassed, isPastFilingWindow, continuationOverlapsInitial, isCycleResolved, finalDeadlineFor, deadlineLabel, daysToFinalDeadline, normalizeLevel, findPossibleDuplicates, needsExtensionReview, daysUntil150End, projected180Start, addDays, todayAgency } from '@/lib/billing';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientProfileDialog } from '@/components/billing/ClientProfileDialog';
 import { RevenueTab } from '@/components/billing/RevenueTab';
 import { BillingTutorial, BillingTutorialStep } from '@/components/billing/BillingTutorial';
+import { AvailityPanel } from '@/components/billing/AvailityPanel';
 
 
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
@@ -68,8 +69,11 @@ const boolValue = (v: boolean | null | undefined) => (v === true ? 'yes' : v ===
 const HOW_TO_READ = 'Cycle 1 is the initial 30-day authorization and is billable. The 150-day authorization follows it, then the 180-day extension. Each cycle shows which authorization it belongs to. A claim must be submitted within 6 months of a cycle end date — that is the final deadline.';
 
 // Needs attention = an ended cycle whose 6-month final submission deadline is
-// four weeks or less away (or already passed) and that is not approved or closed.
-const attention = (c: BillingCycle) => isDeadlineAtRisk(c);
+// four weeks or less away and that is not approved or closed. Once that window
+// has closed the money cannot be claimed at all, so it is no longer work: those
+// cycles move to their own list rather than sitting in a queue asking for action.
+const attention = (c: BillingCycle) => isDeadlineAtRisk(c) && !isDeadlinePassed(c);
+const expired = (c: BillingCycle) => isPastFilingWindow(c);
 const matches = (c: BillingClient, q: string) => {
   const t = q.trim().toLowerCase();
   if (!t) return true;
@@ -142,8 +146,8 @@ export function BillingWorkspace() {
   const { isSuperadmin } = useIsSuperadmin();
 
   const { loading, clients: realClients, deletedClients: realDeleted, cycles: realCycles, updateClient, addClient: addRealClient, deleteClient, restoreClient, updateCycle: updateRealCycle } = useBilling();
-  const [section,setSection]=useState<'deadlines'|'setup'|'revenue'>('deadlines');
-  const [filter,setFilter]=useState<'attention'|'all'|'extensions'>('attention');
+  const [section,setSection]=useState<'deadlines'|'setup'|'revenue'|'availity'>('deadlines');
+  const [filter,setFilter]=useState<'attention'|'all'|'extensions'|'expired'>('attention');
   const [phaseTab,setPhaseTab]=useState<'both'|'150'|'180'>('both');
   const [setupReason,setSetupReason]=useState<'all'|'start'|'lon'>('all');
   const [open,setOpen]=useState<string|null>(null);
@@ -200,6 +204,7 @@ export function BillingWorkspace() {
   // Needs attention counts clients: those with a cycle near its final deadline
   // plus everyone still waiting on a level of need (counted once).
   const attentionClients=useMemo(()=>eligible.filter(c=>(cycleByClient.get(c.id)??[]).some(attention)),[eligible,cycleByClient]);
+  const expiredCount=useMemo(()=>cycles.filter(expired).length,[cycles]);
   const attentionCount=useMemo(()=>{
     const ids=new Set(attentionClients.map(c=>c.id));
     return ids.size+lonAll.filter(c=>!ids.has(c.id)).length;
@@ -212,7 +217,7 @@ export function BillingWorkspace() {
     if(!list.length) return Number.MAX_SAFE_INTEGER;
     return Math.min(...list.map(x=>{const d=daysToFinalDeadline(x); return d<0?d+100000:d;}));
   };
-  const visibleCycles=cycles.filter(c=>filter!=='attention'||attention(c));
+  const visibleCycles=cycles.filter(c=>filter==='attention'?attention(c):filter==='expired'?expired(c):true);
   const visibleClients=useMemo(()=>eligible
       .filter(c=>filter!=='all'||phaseTab==='both'||(phaseTab==='180'?!!c.auth_180_approved:!c.auth_180_approved))
       .filter(c=>matches(c,query)&&(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)))
@@ -394,6 +399,7 @@ export function BillingWorkspace() {
         <Button data-tour="section-deadlines" variant={section==='deadlines'?'default':'ghost'} onClick={()=>setSection('deadlines')}>Current billing deadlines</Button>
         <Button data-tour="section-setup" variant={section==='setup'?'default':'ghost'} className={section==='setup'?'bg-indigo-600 text-white hover:bg-indigo-700':''} onClick={()=>setSection('setup')}><Pencil className="mr-2 h-4 w-4"/>Add or set up client billing</Button>
         {isSuperadmin && <Button variant={section==='revenue'?'default':'ghost'} className={section==='revenue'?'bg-emerald-600 text-white hover:bg-emerald-700':''} onClick={()=>setSection('revenue')}><DollarSign className="mr-2 h-4 w-4"/>Revenue</Button>}
+        <Button variant={section==='availity'?'default':'ghost'} className={section==='availity'?'bg-slate-800 text-white hover:bg-slate-900':''} onClick={()=>setSection('availity')}><ExternalLink className="mr-2 h-4 w-4"/>Availity</Button>
       </div>
       <Button variant="outline" onClick={startTutorial}><HelpCircle className="mr-2 h-4 w-4"/>Learn How to Use Billing</Button>
     </div>
@@ -412,13 +418,15 @@ export function BillingWorkspace() {
       </div>}
     </Card>}
 
-    {section==='revenue' ? <RevenueTab clients={clients} cycles={cycles} viewOverride={practice?practiceRevenueView:undefined} onViewChange={practice?setPracticeRevenueView:undefined}/>
+    {section==='availity' ? <AvailityPanel clients={clients} cycles={cycles} updateCycle={cycleWriter}/>
+    : section==='revenue' ? <RevenueTab clients={clients} cycles={cycles} viewOverride={practice?practiceRevenueView:undefined} onViewChange={practice?setPracticeRevenueView:undefined}/>
     : section==='deadlines' ? <>
       <div className="flex flex-wrap gap-2" data-tour="filters">
 
         <Button data-tour="filter-all" variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All active billing cycles ({eligible.length})</Button>
         <Button data-tour="filter-attention" onClick={()=>setFilter('attention')} className={filter==='attention'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs attention ({attentionCount})</Button>
         <button data-tour="filter-extensions" onClick={()=>setFilter('extensions')} className={`inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 ${filter==='extensions'?'bg-amber-600 text-white hover:bg-amber-700':'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50'}`}>Upcoming 180-day extensions ({extensionClients.length})</button>
+        {expiredCount>0 && <Button variant={filter==='expired'?'default':'outline'} className={filter==='expired'?'bg-slate-700 text-white hover:bg-slate-800':'border-slate-300 text-slate-700'} onClick={()=>setFilter('expired')}>Past the six-month window ({expiredCount})</Button>}
       </div>
 
 
@@ -429,12 +437,18 @@ export function BillingWorkspace() {
       </div>}
 
 
+      {filter==='expired' && <Card className="border-slate-300 bg-slate-50 p-4">
+        <p className="text-sm font-medium">These cycles can no longer be billed.</p>
+        <p className="mt-1 text-sm text-muted-foreground">A claim has to reach the MCO within six months of the cycle end date. That window has closed on the cycles below and nothing was submitted, so the money cannot be claimed now. They are kept here for the record — and to be marked Closed — but they never appear in Needs attention, because there is no action left that recovers them.</p>
+      </Card>}
+
       {filter==='extensions' ? <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>
       : visibleClients.length===0 ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No billable clients match that search':'Nothing needs attention right now'}</h3><p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'A client appears here when a finished cycle is within four weeks of its final submission deadline.'}</p></Card>
       : <div className="space-y-3"><Pager page={page} setPage={setPage} total={visibleClients.length} label="clients"/>{pagedClients.map((c,i)=>{
         const all=cycleByClient.get(c.id)??[];
-        const cc=all.filter(x=>filter==='all'||attention(x));
+        const cc=all.filter(x=>filter==='attention'?attention(x):filter==='expired'?expired(x):true);
         const atRisk=all.filter(attention).length;
+        const lost=all.filter(expired).length;
         const allResolved=all.length>0&&all.every(isCycleResolved);
         const level=normalizeLevel(c.level_of_need);
         return <Card key={c.id} className={`overflow-hidden ${atRisk?'border-red-400':''}`}>
@@ -449,6 +463,7 @@ export function BillingWorkspace() {
             <div className="text-right">
               <b>{cc.length} cycle{cc.length===1?'':'s'}</b>
               <div className={`text-sm ${atRisk?'font-medium text-red-600':allResolved?'font-medium text-green-700':'text-muted-foreground'}`}>{atRisk?`${atRisk} cycle(s) near final deadline`:!level?'Add a level of need to create cycles':allResolved?'All cycles approved or closed':'Open to review'}</div>
+              {lost>0&&<div className="text-sm text-muted-foreground">{lost} past the six-month window</div>}
             </div>
           </button>
           <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={i===0}/>
@@ -654,6 +669,11 @@ function CycleGrid({client,cycles,updateCycle,tour,practice}:{client:BillingClie
   const sorted = [...cycles].sort((a,b)=>a.cycle_number-b.cycle_number);
   return <div className="border-t bg-white p-4" data-tour={tour?'cycle-table':undefined}>
     {allResolved && <div className="mb-3 rounded-md border border-green-300 bg-green-50 p-3 text-sm font-medium text-green-800">Every cycle is approved or closed. Nothing else is outstanding for this client.</div>}
+    {continuationOverlapsInitial(client.auth_30_start, client.auth_150_start) && <div className="mb-3 rounded-md border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
+      <p className="font-medium">These dates look wrong.</p>
+      <p className="mt-1">The 150-day authorization starts on {client.auth_150_start}, before the initial 30-day period that began {client.auth_30_start} has finished. Every cycle below is built from that date, so they are all shifted. The usual cause is the continuation start being entered as the date the initial period <i>ended</i> rather than the date it began.</p>
+      <p className="mt-1">Correct the 150-day authorization start under Add or set up client billing. The cycles rebuild from it automatically.</p>
+    </div>}
     <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-sm"><thead><tr className="bg-slate-100">{['Cycle','Authorization','End date','Final deadline','Approved?','Billing status','Payment status','Claim number'].map(x=><th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>
       {sorted.map((c,i)=>{
       const risk=isDeadlineAtRisk(c);

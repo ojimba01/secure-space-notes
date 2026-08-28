@@ -108,9 +108,29 @@ export function generateCyclesForClient(client: {
         ? '150-Day'
         : '180-Day';
     cycles.push({ cycle_number: n, phase, cycle_start: cycleStart, cycle_end: cycleEnd, billed_amount: amount });
-    if (endOfRun && daysBetween(cycleEnd, endOfRun) >= 0) break; // covered end-of-run
+    if (endOfRun && daysBetween(endOfRun, cycleEnd) >= 0) break; // covered end-of-run
   }
   return cycles;
+}
+
+/**
+ * True when the continuation authorization starts before the initial 30-day
+ * period has finished, so both cover the same days.
+ *
+ * Cycle 1 runs the full 30 days from auth_30_start. A continuation that starts
+ * inside that window bills days twice; one that starts on the window's last day
+ * is the usual version of the mistake, because that date is what the
+ * authorization letter shows as the end of the initial period. Starting on the
+ * same day as the initial period is not an overlap — that is one continuous run
+ * whose first 30 days are the initial authorization.
+ */
+export function continuationOverlapsInitial(
+  auth30Start: string | null | undefined,
+  auth150Start: string | null | undefined,
+): boolean {
+  if (!auth30Start || !auth150Start) return false;
+  const offset = daysBetween(auth30Start, auth150Start);
+  return offset > 0 && offset < CYCLE_LENGTH_DAYS;
 }
 
 // The current cycle number = the one whose 30-day range contains today.
@@ -187,12 +207,35 @@ export function isDeadlinePassed(
   return daysToFinalDeadline(cycle, today) < 0;
 }
 
+// Still worth working: the cycle has ended, is not approved or closed, and the
+// six-month filing window is still open. Only these are billable money.
+export function isStillBillable(
+  cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline' | 'approval_state'>,
+  today = todayAgency(),
+): boolean {
+  if (isCycleResolved(cycle)) return false;
+  if (!hasCycleEnded(cycle, today)) return false;
+  return !isDeadlinePassed(cycle, today);
+}
+
+// The six-month window closed with nothing submitted: this cycle cannot be
+// claimed any more. It is history, not work, and must not sit in a queue that
+// asks someone to act on it.
+export function isPastFilingWindow(
+  cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline' | 'approval_state' | 'billing_status'>,
+  today = todayAgency(),
+): boolean {
+  if (isCycleResolved(cycle)) return false;
+  if (cycle.billing_status === 'Submitted') return false;
+  return isDeadlinePassed(cycle, today);
+}
+
 export function deadlineLabel(
   cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline' | 'approval_state'>,
   today = todayAgency(),
 ): string {
   const days = daysToFinalDeadline(cycle, today);
-  if (days < 0) return 'Deadline passed';
+  if (days < 0) return 'Past the six-month window';
   if (days === 0) return 'Deadline today';
   return `${days} day${days === 1 ? '' : 's'} left`;
 }

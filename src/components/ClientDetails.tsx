@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Calendar, FileText, Upload, Plus, Edit, Trash2, UserCog } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Upload, Plus, Edit, Trash2, UserCog, Archive } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileManager } from '@/components/FileManager';
 import { EditClientDialog } from '@/components/EditClientDialog';
@@ -18,12 +18,14 @@ import { ClientWorkflowCard } from '@/components/ClientWorkflowCard';
 import { AuthorizationsSection } from '@/components/AuthorizationsSection';
 
 import { serviceStartDate } from '@/lib/workflow';
+import { CloseCaseDialog } from '@/components/CloseCaseDialog';
 import { ComplianceCard } from '@/components/ComplianceCard';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
 import { ClientFormsDocuments } from '@/components/forms/ClientFormsDocuments';
+import { ClientIntakeForm } from '@/components/intake/ClientIntakeForm';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 interface Client {
@@ -68,6 +70,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { isAdmin } = useIsAdmin();
   const { isViewingAs } = useViewAs();
@@ -146,17 +149,17 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             <Edit className="h-4 w-4 mr-2" />
             Edit
           </Button>
+          {client.workflow_stage !== 'closed' && (
+            <Button variant="outline" onClick={() => setCloseDialogOpen(true)}>
+              <Archive className="h-4 w-4 mr-2" />
+              Close case
+            </Button>
+          )}
           {isAdmin && !isViewingAs && (
-            <>
-              <Button variant="outline" onClick={() => setReassignDialogOpen(true)}>
-                <UserCog className="h-4 w-4 mr-2" />
-                Reassign
-              </Button>
-              <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </>
+            <Button variant="outline" onClick={() => setReassignDialogOpen(true)}>
+              <UserCog className="h-4 w-4 mr-2" />
+              Reassign
+            </Button>
           )}
         </div>
       </div>
@@ -234,7 +237,11 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           </CardContent>
         </Card>
 
-        <ClientWorkflowCard client={client} onUpdate={onUpdate} />
+        <ClientWorkflowCard
+          client={client}
+          onUpdate={onUpdate}
+          onOpenIntake={() => setActiveTab('intake')}
+        />
 
         <AuthorizationsSection clientId={client.id} onUpdate={onUpdate} />
 
@@ -252,8 +259,9 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`grid w-full ${isSuperadmin ? 'grid-cols-8' : 'grid-cols-7'}`}>
+          <TabsList className={`grid w-full ${isSuperadmin ? 'grid-cols-9' : 'grid-cols-8'}`}>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="intake">Intake</TabsTrigger>
             <TabsTrigger value="forms">Forms</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
@@ -276,6 +284,15 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="intake">
+            <ClientIntakeForm
+              clientId={client.id}
+              clientFirstName={client.first_name}
+              clientLastName={client.last_name}
+              onUpdate={onUpdate}
+            />
           </TabsContent>
 
           <TabsContent value="forms">
@@ -314,6 +331,32 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           )}
         </Tabs>
       </div>
+
+      {isAdmin && !isViewingAs && (
+        <div className="mt-10 border-t pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">Delete this record</p>
+              <p className="text-sm text-muted-foreground">
+                Permanently removes the client and everything attached to them. To stop working a
+                case while keeping its history, close it instead.
+              </p>
+            </div>
+            <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <CloseCaseDialog
+        open={closeDialogOpen}
+        onOpenChange={setCloseDialogOpen}
+        clientId={client.id}
+        clientName={`${client.first_name} ${client.last_name}`}
+        onClosed={onUpdate}
+      />
 
       <EditClientDialog
         open={editDialogOpen}
