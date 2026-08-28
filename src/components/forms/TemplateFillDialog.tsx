@@ -334,12 +334,25 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     }
   };
 
-  const handleSubmit = async () => {
+  /** Anything typed into the form yet? pdf.js holds entries until they are saved. */
+  const hasEntries = () =>
+    ((docRef.current as unknown as { annotationStorage?: { size?: number } } | null)
+      ?.annotationStorage?.size ?? 0) > 0;
+
+  const handleSubmit = async (asDraft = false) => {
     if (!clientId) {
       toast({ title: 'Select a client', variant: 'destructive' });
       return;
     }
-    if (!attested) {
+    if (asDraft && !hasEntries() && !replacementFile) {
+      toast({
+        title: 'Nothing to save yet',
+        description: 'Fill in at least one answer before saving a draft.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!asDraft && !attested) {
       toast({ title: 'Confirm the attestation to submit', variant: 'destructive' });
       return;
     }
@@ -384,10 +397,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             file_path: filePath,
             file_size: blob.size,
             file_hash: fileHash,
-            status: 'submitted',
-            signature_name: signerName,
-            signed_by: profileId,
-            signed_at: new Date().toISOString(),
+            status: asDraft ? 'draft' : 'submitted',
+            signature_name: asDraft ? null : signerName,
+            signed_by: asDraft ? null : profileId,
+            signed_at: asDraft ? null : new Date().toISOString(),
           })
           .eq('id', existing.id);
         if (error) throw error;
@@ -404,12 +417,12 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             original_file_path: filePath,
             file_size: blob.size,
             file_hash: fileHash,
-            status: 'submitted',
+            status: asDraft ? 'draft' : 'submitted',
             workflow_purpose: workflowPurpose ?? null,
             authorization_id: authorizationId ?? null,
-            signature_name: signerName,
-            signed_by: profileId,
-            signed_at: new Date().toISOString(),
+            signature_name: asDraft ? null : signerName,
+            signed_by: asDraft ? null : profileId,
+            signed_at: asDraft ? null : new Date().toISOString(),
           })
           .select('id')
           .single();
@@ -437,8 +450,14 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       }
 
       toast({
-        title: existing ? 'Form resubmitted' : 'Form submitted',
-        description: 'Your form is now awaiting manager approval.',
+        title: asDraft
+          ? 'Draft saved'
+          : existing
+            ? 'Form resubmitted'
+            : 'Form submitted',
+        description: asDraft
+          ? 'Saved to the client record. It has not been submitted for review.'
+          : 'Your form is now awaiting manager approval.',
       });
       onSubmitted();
       onClose();
@@ -612,7 +631,15 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
               Cancel
             </Button>
             <Button
-              onClick={handleSubmit}
+              variant="outline"
+              onClick={() => handleSubmit(true)}
+              disabled={saving || !clientId || (!numPages && !showReplacementPicker)}
+              title={clientId ? 'Keep what you have so far' : 'Select a client first'}
+            >
+              Save draft
+            </Button>
+            <Button
+              onClick={() => handleSubmit(false)}
               disabled={saving || (!numPages && !showReplacementPicker)}
             >
               <Upload className="h-4 w-4 mr-2" />
