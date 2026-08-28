@@ -145,24 +145,26 @@ MAP = {
 # Questions answered in prose have no underscores to sit on — the form just
 # leaves space. Each gets one box filling the gap between the question and
 # whatever follows it, so it reads as somewhere to write a paragraph.
-MULTILINE = [
-    ('10. List all medical', 'medical_diagnoses'),
-    ('15. What is your schedule', 'therapy_schedule'),
-    ('17. List all mental health', 'mental_health_diagnoses'),
-    ('23. Last Address', 'last_address'),
-    ('24. How long did you live', 'last_address_duration'),
-    ('25. Present Address', 'present_address'),
-    ('28. How is your health', 'health_impact'),
-    ('29. How many months', 'homeless_duration'),
-    ('30. Homelessness was caused', 'homelessness_cause'),
-    ('45. Highest Grade', 'highest_grade'),
-    ('53. Additional Information', 'additional_comments'),
-    ('Additional Notes', 'additional_notes'),
-]
+# Questions answered in prose have no underscores to sit on — the form just
+# leaves space. Each gets a box sized to the number of writing lines it is
+# worth, not to the whole gap: a box that swallows the empty bottom of a page
+# reads as a mistake, and one line's worth of answer in a tall box looks wrong.
+LINE_HEIGHT = 14
 
-# Answered in a few words, not a paragraph, so one line is enough even though
-# the form leaves a gap the size of several.
-SINGLE_LINE = {'therapy_schedule'}
+MULTILINE = [
+    ('10. List all medical', 'medical_diagnoses', 3),
+    ('15. What is your schedule', 'therapy_schedule', 1),
+    ('17. List all mental health', 'mental_health_diagnoses', 4),
+    ('23. Last Address', 'last_address', 2),
+    ('24. How long did you live', 'last_address_duration', 1),
+    ('25. Present Address', 'present_address', 2),
+    ('28. How is your health', 'health_impact', 3),
+    ('29. How many months', 'homeless_duration', 1),
+    ('30. Homelessness was caused', 'homelessness_cause', 3),
+    ('45. Highest Grade', 'highest_grade', 1),
+    ('53. Additional Information', 'additional_comments', 4),
+    ('Additional Notes', 'additional_notes', 3),
+]
 
 
 def add_multiline(doc, names):
@@ -179,21 +181,21 @@ def add_multiline(doc, names):
         left = min((l[2] for l in lines), default=72)
         right = max((l[3] for l in lines), default=540)
         for i, (y0, y1, x0, x1, t) in enumerate(lines):
-            for anchor, name in MULTILINE:
+            for anchor, name, want_lines in MULTILINE:
                 if not t.startswith(anchor):
                     continue
                 bottom = lines[i + 1][0] if i + 1 < len(lines) else page.rect.height - 36
                 top = y1 + 3
                 if bottom - top < 18:
                     continue
-                one_line = name in SINGLE_LINE
+                # Never taller than the space allows, never taller than asked for.
+                height = min(want_lines * LINE_HEIGHT, bottom - 3 - top)
                 w = pymupdf.Widget()
                 w.field_type = pymupdf.PDF_WIDGET_TYPE_TEXT
                 w.field_name = name
-                if not one_line:
+                if want_lines > 1:
                     w.field_flags = pymupdf.PDF_TX_FIELD_IS_MULTILINE
-                w.rect = pymupdf.Rect(
-                    left, top, right, top + 16 if one_line else bottom - 3)
+                w.rect = pymupdf.Rect(left, top, right, top + height)
                 w.text_fontsize = 9
                 w.border_width = 0
                 page.add_widget(w)
