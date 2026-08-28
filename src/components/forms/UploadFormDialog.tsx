@@ -25,6 +25,7 @@ import { useViewAs } from '@/components/ViewAsProvider';
 
 import { FORM_TYPES, STAFF_SELECTABLE_TYPES } from '@/lib/formSigning';
 import { startDocumentQueue } from '@/lib/documentQueue';
+import { suggestDocumentName, tagsFromFilename, extensionOf } from '@/lib/documentNaming';
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
 import { identityFromFields, recognizeDocument } from '@/lib/documentRecognition';
 import { Upload } from 'lucide-react';
@@ -74,6 +75,10 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
   const [attested, setAttested] = useState(false);
   const [saving, setSaving] = useState(false);
   const [detecting, setDetecting] = useState(false);
+  /** The agency's name for this document, proposed and then editable. */
+  const [saveAs, setSaveAs] = useState('');
+  /** True once the name has been typed in, so suggestions stop overwriting it. */
+  const [nameEdited, setNameEdited] = useState(false);
   const [detected, setDetected] = useState<{
     basis: string;
     documentType: string | null;
@@ -113,6 +118,26 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
   };
 
   /**
+   * Keep the proposed name in step with the client and type as they are
+   * chosen. It stops the moment somebody types their own, because a
+   * suggestion that overwrites what you just typed is worse than none.
+   */
+  useEffect(() => {
+    if (!file || nameEdited) return;
+    const client = clients.find((c) => c.id === clientId);
+    setSaveAs(
+      suggestDocumentName({
+        firstName: client?.first_name ?? null,
+        lastName: client?.last_name ?? null,
+        documentType: formType,
+        date: new Date().toISOString().slice(0, 10),
+        tags: tagsFromFilename(file.name),
+        extension: extensionOf(file.name),
+      }),
+    );
+  }, [file, clientId, formType, clients, nameEdited]);
+
+  /**
    * Read the dropped file and fill in what it tells us about itself: which
    * form it is, and which client it belongs to. Everything is pre-filled
    * rather than committed, so the user still confirms before submitting.
@@ -120,6 +145,7 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
   const inspect = async (picked: File | null) => {
     setFile(picked);
     setDetected(null);
+    setNameEdited(false);
     if (!picked) return;
 
     setDetecting(true);
@@ -226,14 +252,14 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
           client_id: clientId,
           employee_id: profileId,
           form_type: formType,
-          title: formType,
+          title: saveAs.trim() || formType,
           file_path: filePath,
           original_file_path: filePath,
           file_size: file.size,
           file_hash: fileHash,
           status: 'submitted',
           source: 'manual_upload',
-          source_filename: file.name,
+          source_filename: saveAs.trim() || file.name,
           signature_name: signerName,
           signed_by: profileId,
           signed_at: new Date().toISOString(),
@@ -348,6 +374,39 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
 
             {detecting && (
               <p className="text-xs text-muted-foreground">Reading the form…</p>
+            )}
+
+            {file && (
+              <div className="space-y-1.5 rounded-md border bg-muted/30 p-3">
+                <Label htmlFor="save-as">Save it as</Label>
+                <Input
+                  id="save-as"
+                  value={saveAs}
+                  onChange={(e) => {
+                    setSaveAs(e.target.value);
+                    setNameEdited(true);
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  The agency's filing name: surname, first name, what the document is, any
+                  version words, then the date. Suggested from the client and the document type,
+                  and yours to change.
+                </p>
+                {!nameEdited && (
+                  <p className="text-xs text-muted-foreground">
+                    Uploaded as <span className="font-medium">{file.name}</span>.
+                  </p>
+                )}
+                {nameEdited && (
+                  <button
+                    type="button"
+                    className="text-xs text-primary underline"
+                    onClick={() => setNameEdited(false)}
+                  >
+                    Use the suggested name
+                  </button>
+                )}
+              </div>
             )}
 
             {detected && (

@@ -107,6 +107,14 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
                     <Badge className={billingBadgeClass(c.billing_status)}>{c.billing_status}</Badge>
                     <Badge className={paymentBadgeClass(c.payment_status)}>{c.payment_status}</Badge>
                   </div>
+                  {/* Marked billed by reading the agency's billing memo, not by
+                      anyone filing the claim — worth saying, because the two
+                      are not equally good evidence that the money was claimed. */}
+                  {c.billed_source === 'billing_memo' && (
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      Billed based on documents
+                    </div>
+                  )}
                   {pastDue && <div className="text-[10px] text-red-600 font-semibold mt-1">Past due</div>}
                 </button>
               );

@@ -39,6 +39,13 @@ export const FINAL_DEADLINE_MONTHS = 6;
 export const DEADLINE_WARNING_DAYS = 28;
 
 export interface BillingCycle {
+  /**
+   * 'billing_memo' when the cycle was marked billed by importing the agency's
+   * own billing memo rather than by somebody filing the claim. A memo is a
+   * note a person typed, not a receipt from the MCO, so the two are kept
+   * apart and the record says which it was.
+   */
+  billed_source?: string | null;
   id: string;
   client_id: string;
   cycle_number: number;

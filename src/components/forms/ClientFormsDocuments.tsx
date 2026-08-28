@@ -163,10 +163,26 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                       key={form.id}
                       className="flex flex-wrap items-center justify-between gap-2 p-2.5"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
+                      {/* The name is the way in. Pressing a document should open
+                          it, rather than making somebody find an icon first. */}
+                      <button
+                        type="button"
+                        disabled={!form.file_path}
+                        onClick={() =>
+                          form.file_path &&
+                          setPreview({
+                            id: form.id,
+                            file_name: form.title || `${form.form_type}.pdf`,
+                            file_path: form.file_path,
+                            file_type: 'application/pdf',
+                          })
+                        }
+                        title={form.file_path ? 'Open this document' : 'No file is stored for this document'}
+                        className="flex items-center gap-2 min-w-0 text-left disabled:cursor-default"
+                      >
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div className="min-w-0">
-                          <div className="text-sm truncate">
+                          <div className={`text-sm truncate ${form.file_path ? 'hover:underline' : ''}`}>
                             {form.title || form.form_type}
                             {form.source === 'bulk_import' && (
                               <span className="text-xs text-muted-foreground">
@@ -182,7 +198,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                               'Created in app'}
                           </div>
                         </div>
-                      </div>
+                      </button>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {form.source !== 'bulk_import' && (
                           <Badge
