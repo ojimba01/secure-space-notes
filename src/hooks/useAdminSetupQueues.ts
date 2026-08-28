@@ -9,7 +9,7 @@
 // number worth reading first.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { serviceStartDate } from '@/lib/workflow';
+import { serviceStartDate, hspSubmitted } from '@/lib/workflow';
 import {
   daysToFinalDeadline,
   isStillBillable,
@@ -64,6 +64,8 @@ interface ClientRow {
   assigned_employee_id: string | null;
   level_of_need: string | null;
   hsp_submitted: boolean | null;
+  auth_150_number: string | null;
+  auth_180_number: string | null;
   auth_30_start: string | null;
   auth_150_start: string | null;
   hsp_150_date: string | null;
@@ -86,7 +88,7 @@ export function useAdminSetupQueues(): AdminSetupQueues {
           supabase
             .from('clients')
             .select(
-              'id, first_name, last_name, assigned_employee_id, level_of_need, hsp_submitted, auth_30_start, auth_150_start, hsp_150_date, insurance',
+              'id, first_name, last_name, assigned_employee_id, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, insurance',
             )
             .eq('status', 'active')
             .order('last_name'),
@@ -135,7 +137,10 @@ export function useAdminSetupQueues(): AdminSetupQueues {
           next.noStartDate.push(base(c));
           held = true;
         }
-        if (c.hsp_submitted !== true) {
+        // hspSubmitted, not the raw flag: a 150-day or 180-day authorization
+        // number proves the plan went in, so a client holding one does not
+        // belong on this list however the flag was left.
+        if (!hspSubmitted(c)) {
           next.noHsp.push(base(c));
           held = true;
         }

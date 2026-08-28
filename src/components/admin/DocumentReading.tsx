@@ -30,6 +30,7 @@ interface Counts {
   withText: number;
   ocrRead: number;
   scans: number;
+  nameMismatch: number;
 }
 
 interface ProblemRow {
@@ -39,12 +40,14 @@ interface ProblemRow {
   source_filename: string | null;
   processing_status: string | null;
   processing_error: string | null;
+  name_matches_client?: boolean | null;
+  field_member_name?: string | null;
   clients?: { first_name: string; last_name: string } | null;
 }
 
 const ZERO: Counts = {
   pending: 0, processing: 0, done: 0, failed: 0,
-  skipped: 0, unsorted: 0, withText: 0, ocrRead: 0, scans: 0,
+  skipped: 0, unsorted: 0, withText: 0, ocrRead: 0, scans: 0, nameMismatch: 0,
 };
 
 const Stat: React.FC<{ label: string; value: number; hint?: string }> = ({ label, value, hint }) => (
@@ -76,7 +79,7 @@ export const DocumentReading: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pending, processing, done, failed, skipped, unsorted, withText, ocrRead, scans] =
+      const [pending, processing, done, failed, skipped, unsorted, withText, ocrRead, scans, nameMismatch] =
         await Promise.all([
           countWhere((q) => q.eq('processing_status', 'pending')),
           countWhere((q) => q.eq('processing_status', 'processing')),
@@ -90,15 +93,16 @@ export const DocumentReading: React.FC = () => {
           countWhere((q) =>
             q.eq('processing_status', 'done').lt('text_char_count', SCAN_THRESHOLD_CHARS),
           ),
+          countWhere((q) => q.eq('name_matches_client', false)),
         ]);
-      setCounts({ pending, processing, done, failed, skipped, unsorted, withText, ocrRead, scans });
+      setCounts({ pending, processing, done, failed, skipped, unsorted, withText, ocrRead, scans, nameMismatch });
 
       const { data } = await supabase
         .from('client_forms')
         .select(
-          'id, title, form_type, source_filename, processing_status, processing_error, clients:client_id (first_name, last_name)',
+          'id, title, form_type, source_filename, processing_status, processing_error, name_matches_client, field_member_name, clients:client_id (first_name, last_name)',
         )
-        .or('processing_status.eq.failed,form_type.eq.Unsorted')
+        .or('processing_status.eq.failed,form_type.eq.Unsorted,name_matches_client.is.false')
         .order('created_at', { ascending: false })
         .limit(50);
       setProblems((data as unknown as ProblemRow[]) ?? []);
@@ -212,7 +216,11 @@ export const DocumentReading: React.FC = () => {
             <Stat label="Still to read" value={counts.pending} />
             <Stat label="Searchable" value={counts.withText} hint="Words read from the file" />
             <Stat label="Pictures only" value={counts.scans} hint="No text in the file" />
-            <Stat label="Could not be read" value={counts.failed} />
+            <Stat
+              label="Could not be read"
+              value={counts.failed}
+              hint={counts.nameMismatch > 0 ? `${counts.nameMismatch} filed under the wrong name` : undefined}
+            />
           </div>
 
           {total > 0 && (
@@ -306,9 +314,10 @@ export const DocumentReading: React.FC = () => {
             <AlertTriangle className="h-5 w-5" /> Documents needing a person
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Documents the app could not read, and documents filed as Unsorted because no rule
-            could name them. Nothing here is guessed at — an unnamed document keeps its file and
-            waits.
+            Documents the app could not read, documents filed as Unsorted because no rule could
+            name them, and documents whose printed name is not the client they are filed under.
+            Nothing here is guessed at — an unnamed document keeps its file and waits, and a
+            document on the wrong client is never allowed to write to that client's record.
           </p>
         </CardHeader>
         <CardContent>
@@ -329,6 +338,9 @@ export const DocumentReading: React.FC = () => {
                       {p.processing_status === 'failed' && (
                         <Badge variant="destructive">Could not be read</Badge>
                       )}
+                      {p.name_matches_client === false && (
+                        <Badge variant="destructive">Name does not match</Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
                       {p.clients ? `${p.clients.first_name} ${p.clients.last_name}` : 'No client'}
@@ -336,6 +348,12 @@ export const DocumentReading: React.FC = () => {
                     </p>
                     {p.processing_error && (
                       <p className="text-xs text-destructive">{p.processing_error}</p>
+                    )}
+                    {p.name_matches_client === false && p.field_member_name && (
+                      <p className="text-xs text-destructive">
+                        The document is printed for {p.field_member_name}. Nothing from it was
+                        written to this client.
+                      </p>
                     )}
                   </div>
                   {p.processing_status === 'failed' && (

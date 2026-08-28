@@ -25,6 +25,14 @@
 //     that made it was closed mid-document.
 import { supabase } from '@/integrations/supabase/client';
 import { extractDocumentText } from '@/lib/documentText';
+import { readFormValues } from '@/lib/documentRecognition';
+import {
+  extractDocumentFields,
+  fieldsFromFormValues,
+  mergeDocumentFields,
+  nameMatchesClient,
+  type DocumentFields,
+} from '@/lib/documentFields';
 
 const BUCKET = 'client-files';
 
@@ -47,6 +55,106 @@ interface QueueRow {
   id: string;
   file_path: string | null;
   source_filename: string | null;
+  client_id: string | null;
+}
+
+/**
+ * What the document said, and where that disagrees with the client record.
+ *
+ * `patch` is only ever the columns the record leaves empty. A value that
+ * disagrees with something already entered goes in `conflict` and nowhere
+ * else: a document is evidence, and a regex does not get to overrule a person.
+ */
+interface FieldOutcome {
+  columns: Record<string, unknown>;
+  clientPatch: Record<string, unknown>;
+  conflict: Record<string, { document: string; record: string }> | null;
+  nameMatches: boolean | null;
+}
+
+/** Compare loosely: identifiers differ by punctuation, dates by format. */
+const sameId = (a: unknown, b: unknown) =>
+  String(a ?? '').replace(/\D/g, '') === String(b ?? '').replace(/\D/g, '');
+
+/**
+ * Turn what a document says into a database write.
+ *
+ * `hsp_submitted` is set from a 150-day or 180-day authorization number. The
+ * agency only ever receives one of those after the Housing Stabilization Plan
+ * has gone in, so the number is proof the plan was submitted — and the flag is
+ * frequently left unticked while the paperwork proving it sits in the file.
+ */
+async function applyFields(
+  fields: DocumentFields,
+  clientId: string | null,
+): Promise<FieldOutcome> {
+  const columns: Record<string, unknown> = {
+    field_authorization_number: fields.authorizationNumber,
+    field_service_start: fields.serviceStart,
+    field_service_end: fields.serviceEnd,
+    field_total_charges: fields.totalCharges,
+    field_member_name: fields.memberName,
+    field_member_id: fields.memberId,
+    field_medicaid_id: fields.medicaidId,
+    field_member_dob: fields.memberDob,
+    field_icd10_code: fields.icd10Code,
+    field_notice_date: fields.noticeDate,
+    field_submission_date: fields.submissionDate,
+    fields_extracted_at: new Date().toISOString(),
+  };
+
+  if (!clientId) return { columns, clientPatch: {}, conflict: null, nameMatches: null };
+
+  const { data: client } = await supabase
+    .from('clients')
+    .select(
+      'id, first_name, last_name, date_of_birth, member_id, medicaid_id, diagnosis_code, hsp_submitted, auth_150_number, auth_180_number',
+    )
+    .eq('id', clientId)
+    .maybeSingle();
+
+  if (!client) return { columns, clientPatch: {}, conflict: null, nameMatches: null };
+
+  const clientPatch: Record<string, unknown> = {};
+  const conflict: Record<string, { document: string; record: string }> = {};
+
+  const consider = (
+    column: string,
+    documentValue: unknown,
+    recordValue: unknown,
+    equal: (a: unknown, b: unknown) => boolean = (a, b) => String(a) === String(b),
+  ) => {
+    if (documentValue === null || documentValue === undefined || documentValue === '') return;
+    const empty = recordValue === null || recordValue === undefined || recordValue === '';
+    if (empty) {
+      clientPatch[column] = documentValue;
+    } else if (!equal(documentValue, recordValue)) {
+      // Stored as text so the report reads the same whatever the column type.
+      conflict[column] = { document: String(documentValue), record: String(recordValue) };
+    }
+  };
+
+  consider('date_of_birth', fields.memberDob, client.date_of_birth);
+  consider('member_id', fields.memberId, client.member_id, sameId);
+  consider('medicaid_id', fields.medicaidId, client.medicaid_id, sameId);
+  consider('diagnosis_code', fields.icd10Code, client.diagnosis_code);
+
+  // A 150-day or 180-day authorization number can only exist once the plan has
+  // been submitted, so it proves the flag rather than merely suggesting it.
+  const hasLongAuth =
+    !!(client.auth_150_number ?? '').trim() || !!(client.auth_180_number ?? '').trim();
+  if (hasLongAuth && client.hsp_submitted !== true) {
+    clientPatch.hsp_submitted = true;
+  }
+
+  const nameMatches = nameMatchesClient(fields.memberName, client.first_name, client.last_name);
+
+  return {
+    columns,
+    clientPatch,
+    conflict: Object.keys(conflict).length ? conflict : null,
+    nameMatches,
+  };
 }
 
 export interface QueueProgress {
@@ -85,7 +193,7 @@ async function reclaimStale(): Promise<void> {
 async function claimNext(): Promise<QueueRow | null> {
   const { data: candidates } = await supabase
     .from('client_forms')
-    .select('id, file_path, source_filename')
+    .select('id, file_path, source_filename, client_id')
     .eq('processing_status', 'pending')
     .order('created_at', { ascending: true })
     .limit(5);
@@ -96,7 +204,7 @@ async function claimNext(): Promise<QueueRow | null> {
       .update({ processing_status: 'processing', processing_started_at: new Date().toISOString() })
       .eq('id', row.id)
       .eq('processing_status', 'pending')
-      .select('id, file_path, source_filename')
+      .select('id, file_path, source_filename, client_id')
       .maybeSingle();
     if (claimed) return claimed as QueueRow;
   }
@@ -150,9 +258,23 @@ async function processOne(row: QueueRow): Promise<'done' | 'failed'> {
   }
 
   try {
+    const bytes = await blob.arrayBuffer();
     // Text layer only. OCR is never run from the queue — see the note above.
-    const result = await extractDocumentText(await blob.arrayBuffer(), { ocr: false });
+    const result = await extractDocumentText(bytes, { ocr: false });
     const text = clean(result.text).slice(0, MAX_STORED_CHARS);
+
+    // Reading the fields happens here, on the same pass, because a document
+    // that has just been read is the cheapest moment to ask what it says.
+    // Both sources are consulted: the printed text carries a letter's
+    // authorization number, and a fillable form's answers live only in its
+    // form fields — 1% of the state's forms give up a date of birth to the
+    // text, against 98% to the fields.
+    const formValues = await readFormValues(bytes);
+    const fields = mergeDocumentFields(
+      extractDocumentFields(text),
+      fieldsFromFormValues(formValues),
+    );
+    const outcome = await applyFields(fields, row.client_id);
 
     const { error } = await supabase
       .from('client_forms')
@@ -166,8 +288,17 @@ async function processOne(row: QueueRow): Promise<'done' | 'failed'> {
         processing_error: null,
         processing_started_at: null,
         processed_at: new Date().toISOString(),
+        ...outcome.columns,
+        fields_conflict: outcome.conflict,
+        name_matches_client: outcome.nameMatches,
       })
       .eq('id', row.id);
+
+    // Fill the blanks on the client record, never overwrite. A failure here
+    // must not lose the document that was just read successfully.
+    if (!error && row.client_id && Object.keys(outcome.clientPatch).length) {
+      await supabase.from('clients').update(outcome.clientPatch).eq('id', row.client_id);
+    }
 
     if (error) {
       await markFailed(row.id, error.message);

@@ -80,7 +80,7 @@ export function useSuperadminCompliance(): SuperadminComplianceData {
 
     const { data: cls } = await supabase
       .from('clients')
-      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_30_start, auth_150_start, hsp_150_date, status, assigned_employee_id')
+      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, status, assigned_employee_id')
       .eq('status', 'active')
       .not('assigned_employee_id', 'is', null);
     const list = cls ?? [];
