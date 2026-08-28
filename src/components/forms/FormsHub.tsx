@@ -73,9 +73,31 @@ export interface FormRow {
   approved_at: string | null;
   review_note: string | null;
   created_at: string;
+  /** How far the background reader has got with this document. */
+  processing_status?: string | null;
+  processing_error?: string | null;
+  text_char_count?: number | null;
+  page_count?: number | null;
+  ocr_applied?: boolean | null;
+  text_truncated?: boolean | null;
   clients?: { first_name: string; last_name: string } | null;
   profiles?: { first_name: string | null; last_name: string | null } | null;
 }
+
+/**
+ * Every column a document list needs, and deliberately not `*`.
+ *
+ * `extracted_text` can run to hundreds of thousands of characters per row, so
+ * selecting it for a list of two thousand documents would move tens of
+ * megabytes to draw a table that never shows a word of it. Searching the text
+ * happens in Postgres, against the index — see the full-text lookup below.
+ */
+export const FORM_LIST_COLUMNS =
+  'id, client_id, employee_id, form_type, title, file_path, original_file_path, status, ' +
+  'external_status, sent_to_mco_at, mco_response_at, due_date, workflow_purpose, source, ' +
+  'source_filename, template_version, authorization_id, signature_name, signed_at, ' +
+  'approved_at, review_note, created_at, processing_status, processing_error, ' +
+  'text_char_count, page_count, ocr_applied, text_truncated';
 
 const PAGE_SIZE = 10;
 
@@ -106,6 +128,9 @@ export const FormsHub: React.FC = () => {
     file_type?: string;
   } | null>(null);
   const [signerName, setSignerName] = useState('');
+  /** Ids of documents whose text matches the search, from Postgres. */
+  const [textHits, setTextHits] = useState<Set<string> | null>(null);
+  const [searchingText, setSearchingText] = useState(false);
 
   // Admins reviewing the queue see everything; employees (and view-as sessions)
   // only ever see their own submissions.
@@ -117,7 +142,7 @@ export const FormsHub: React.FC = () => {
       let query = supabase
         .from('client_forms')
         .select(
-          `*, clients:client_id (first_name, last_name), profiles:employee_id (first_name, last_name)`,
+          `${FORM_LIST_COLUMNS}, clients:client_id (first_name, last_name), profiles:employee_id (first_name, last_name)`,
         )
         .order('created_at', { ascending: false });
 
@@ -159,6 +184,49 @@ export const FormsHub: React.FC = () => {
     })();
   }, [profileId]);
 
+  /**
+   * Search inside the documents themselves, in Postgres against the GIN index.
+   *
+   * The list already filters on titles and names as you type, with no round
+   * trip. This adds the documents whose *contents* match, which the browser
+   * cannot do because the text is deliberately not loaded. Two characters is
+   * too short to be worth a query, and the wait keeps it to one query per
+   * pause rather than one per keystroke.
+   */
+  useEffect(() => {
+    const term = search.trim();
+    if (term.length < 3) {
+      setTextHits(null);
+      setSearchingText(false);
+      return;
+    }
+    let cancelled = false;
+    setSearchingText(true);
+    const timer = setTimeout(async () => {
+      try {
+        let q = supabase
+          .from('client_forms')
+          .select('id')
+          // websearch accepts what a person actually types, quotes included,
+          // and never throws on syntax the way the plain tsquery parser does.
+          .textSearch('text_search', term, { type: 'websearch' })
+          .limit(500);
+        if (!reviewMode && profileId) q = q.eq('employee_id', profileId);
+        const { data, error } = await q;
+        if (cancelled) return;
+        setTextHits(error ? null : new Set((data ?? []).map((r) => r.id)));
+      } catch {
+        if (!cancelled) setTextHits(null);
+      } finally {
+        if (!cancelled) setSearchingText(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search, reviewMode, profileId]);
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return forms.filter((f) => {
@@ -173,9 +241,10 @@ export const FormsHub: React.FC = () => {
       ]
         .join(' ')
         .toLowerCase();
-      return haystack.includes(term);
+      // Either the row's own words match, or the document's contents do.
+      return haystack.includes(term) || (textHits?.has(f.id) ?? false);
     });
-  }, [forms, search, statusFilter, typeFilter]);
+  }, [forms, search, statusFilter, typeFilter, textHits]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
@@ -284,9 +353,14 @@ export const FormsHub: React.FC = () => {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search client, form or staff"
+            placeholder="Search client, form, staff, or words inside a document"
             className="pl-9"
           />
+          {searchingText && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+              Searching documents
+            </span>
+          )}
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[190px]">

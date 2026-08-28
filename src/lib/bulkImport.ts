@@ -8,6 +8,7 @@
 import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
+import { startDocumentQueue } from '@/lib/documentQueue';
 import {
   classifyFilename,
   identityFromFields,
@@ -523,6 +524,12 @@ export async function commitImport(
       onProgress?.(done, entries.length);
     }
   }
+
+  // Every imported document enters the queue unread. Start on it now rather
+  // than waiting for someone to open the review screen — a batch of two
+  // thousand takes more than one sitting, so the sooner it begins the better.
+  startDocumentQueue();
+
   return result;
 }
 

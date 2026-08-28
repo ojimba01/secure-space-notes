@@ -184,6 +184,82 @@ export async function ocrPdf(
   };
 }
 
+/**
+ * Read every page of a scan, for search rather than for identification.
+ *
+ * `ocrPdf` above answers "which form is this?" from one page's header and
+ * footer. This answers "what does the whole document say?", and the difference
+ * in cost is large enough that it needs its own function rather than a loop
+ * over that one:
+ *
+ *   * The document is opened **once**. Calling `ocrPdf` per page re-parsed the
+ *     whole PDF every time, so a twenty-page scan was twenty full document
+ *     loads before any reading began.
+ *   * Pages are rendered at a lower scale. Recognition wants enough pixels to
+ *     resolve a letter, not a print-quality raster, and the engine's cost
+ *     climbs with the pixel count.
+ *
+ * Stops at `maxPages`, and reports how far it got so the caller can record
+ * that the document was read only that far.
+ */
+export async function ocrPdfPages(
+  bytes: ArrayBuffer | Uint8Array,
+  maxPages: number,
+  onPage?: (page: number, of: number) => void,
+): Promise<{ text: string; pagesRead: number; pageCount: number; msElapsed: number }> {
+  const started = Date.now();
+  const { pdfjs } = await import('react-pdf');
+  await import('@/lib/pdfWorker');
+  const copy = bytes instanceof Uint8Array ? bytes.slice() : new Uint8Array(bytes.slice(0));
+
+  const doc = await pdfjs.getDocument({ data: copy }).promise;
+  const pieces: string[] = [];
+  let pagesRead = 0;
+
+  try {
+    const pageCount = doc.numPages;
+    const readTo = Math.min(pageCount, maxPages);
+    const worker = await getWorker();
+
+    for (let n = 1; n <= readTo; n++) {
+      try {
+        const page = await doc.getPage(n);
+        // 1.6 is about 115 DPI for a letter page — enough for printed forms,
+        // and a little over half the pixels of the scale 2 used for cropping.
+        const viewport = page.getViewport({ scale: 1.6 });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const context = canvas.getContext('2d');
+        if (!context) continue;
+        await page.render({ canvasContext: context, viewport }).promise;
+
+        const { data } = await worker.recognize(canvas);
+        const text = (data.text ?? '').replace(/\s+/g, ' ').trim();
+        if (text) pieces.push(text);
+        pagesRead = n;
+        onPage?.(n, readTo);
+
+        // Let the canvas go before rendering the next page. A twenty-page scan
+        // otherwise holds twenty full-page bitmaps at once.
+        canvas.width = 0;
+        canvas.height = 0;
+      } catch {
+        // One unreadable page should not lose the others.
+      }
+    }
+
+    return {
+      text: pieces.join('\n'),
+      pagesRead,
+      pageCount,
+      msElapsed: Date.now() - started,
+    };
+  } finally {
+    await doc.destroy().catch(() => {});
+  }
+}
+
 /** True when the browser can run the engine at all. */
 export function ocrSupported(): boolean {
   return (

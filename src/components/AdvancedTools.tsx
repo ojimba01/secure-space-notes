@@ -9,7 +9,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
-import { Settings2, Eye, FolderUp, History, FileStack } from 'lucide-react';
+import { Settings2, Eye, FolderUp, History, FileStack, FileSearch } from 'lucide-react';
 
 interface Employee {
   id: string;
@@ -174,7 +174,15 @@ export const AdvancedTools: React.FC = () => {
               label="Bulk document import"
               onClick={() => {
                 setOpen(false);
-                navigate('/advanced-tools');
+                navigate('/advanced-tools?tab=import');
+              }}
+            />
+            <MigrationLink
+              icon={<FileSearch className="h-4 w-4" />}
+              label="Reading documents"
+              onClick={() => {
+                setOpen(false);
+                navigate('/advanced-tools?tab=reading');
               }}
             />
             <MigrationLink
@@ -182,7 +190,7 @@ export const AdvancedTools: React.FC = () => {
               label="Import history"
               onClick={() => {
                 setOpen(false);
-                navigate('/advanced-tools');
+                navigate('/advanced-tools?tab=history');
               }}
             />
             <MigrationLink
@@ -190,7 +198,7 @@ export const AdvancedTools: React.FC = () => {
               label="Template management"
               onClick={() => {
                 setOpen(false);
-                navigate('/advanced-tools');
+                navigate('/advanced-tools?tab=templates');
               }}
             />
           </div>
