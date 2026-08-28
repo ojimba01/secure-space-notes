@@ -39,9 +39,20 @@ export async function loadHiddenFormTypes(): Promise<string[]> {
 /** Admin only. Replaces the list outright. */
 export async function setHiddenFormTypes(types: string[]): Promise<void> {
   const unique = [...new Set(types)].sort();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('compliance_settings')
     .update({ value: { types: unique } as never })
-    .eq('key', KEY);
+    .eq('key', KEY)
+    .select('key');
   if (error) throw new Error(error.message);
+
+  // An update that matches no row is not an error to PostgREST, so without
+  // this the screen would report types hidden while nothing was hidden at all.
+  // That is the worst answer available for a rule about who sees what.
+  if (!data?.length) {
+    throw new Error(
+      'The setting this list lives in is not installed, so nothing was hidden. ' +
+        'Apply docs/staff-see-their-clients-documents.sql first.',
+    );
+  }
 }
