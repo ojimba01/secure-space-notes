@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle } from 'lucide-react';
+import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle, Paperclip } from 'lucide-react';
 import { isSetupComplete, missingSetupShort } from '@/lib/workflow';
 
 interface Client {
@@ -71,6 +71,13 @@ interface ClientCardProps {
   onToggleSelect?: (id: string) => void;
   showManager?: boolean;
   assignedManagerName?: string | null;
+  /**
+   * Documents filed on this client that the person looking can actually open.
+   * Counted from the same table the Forms tab reads, so a type hidden from
+   * staff is not counted for them either — a paperclip promising documents
+   * that are not there when you open the client is worse than no paperclip.
+   */
+  documentCount?: number;
 }
 
 export const ClientCard: React.FC<ClientCardProps> = ({
@@ -81,6 +88,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
   onToggleSelect,
   showManager = false,
   assignedManagerName = null,
+  documentCount = 0,
 }) => {
   const handleClick = () => {
     if (selectionMode && onToggleSelect) {
@@ -207,6 +215,14 @@ export const ClientCard: React.FC<ClientCardProps> = ({
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span>Intake: {new Date(client.intake_date).toLocaleDateString()}</span>
         </div>
+        {documentCount > 0 && (
+          <div className="flex items-center gap-2 text-sm">
+            <Paperclip className="h-4 w-4 text-muted-foreground" />
+            <span>
+              {documentCount} document{documentCount === 1 ? '' : 's'}
+            </span>
+          </div>
+        )}
         <div className="pt-1 border-t mt-2">
           <p className="text-xs font-semibold text-muted-foreground mb-1.5">Intake Milestones</p>
           {milestones.length === 0 ? (

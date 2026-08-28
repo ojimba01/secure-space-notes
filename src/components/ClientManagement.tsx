@@ -106,6 +106,8 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   const { isViewingAs, viewAsEmployeeId } = useViewAs();
   const { overdueCount: behindCount } = useMyCompliance();
   const [clients, setClients] = useState<Client[]>([]);
+  /** client id -> documents on that client this viewer can open. */
+  const [documentCounts, setDocumentCounts] = useState<Map<string, number>>(new Map());
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -137,6 +139,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   useEffect(() => {
     if (user && !adminLoading) {
       fetchClients();
+      fetchDocumentCounts();
     }
   }, [user, adminLoading, isAdmin, showClosed]);
 
@@ -186,6 +189,25 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
 
     if (isAdmin) fetchManagers();
   }, [isAdmin]);
+
+  /**
+   * How many documents sit on each client, counted through the same policies
+   * that decide the Forms tab — so the paperclip counts what this person can
+   * actually open, not what exists.
+   *
+   * A failure here leaves the counts empty and no paperclip anywhere. That is
+   * the right way round: the list still works, and nothing claims a document
+   * that is not there.
+   */
+  const fetchDocumentCounts = async () => {
+    const { data, error } = await supabase.from('client_forms').select('client_id');
+    if (error) return;
+    const counts = new Map<string, number>();
+    for (const row of data ?? []) {
+      counts.set(row.client_id, (counts.get(row.client_id) ?? 0) + 1);
+    }
+    setDocumentCounts(counts);
+  };
 
   const fetchClients = async () => {
     try {
@@ -568,6 +590,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               selected={selectedIds.has(client.id)}
               onToggleSelect={toggleSelect}
               showManager={isAdmin}
+              documentCount={documentCounts.get(client.id) ?? 0}
               assignedManagerName={
                 client.assigned_employee_id
                   ? managerMap.get(client.assigned_employee_id) ?? null
