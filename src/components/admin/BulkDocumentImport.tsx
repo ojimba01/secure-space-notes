@@ -54,6 +54,14 @@ interface RowState {
   formType: string;
   include: boolean;
   allowDuplicate: boolean;
+  /**
+   * A conflict is two exact signals naming different clients — the manifest
+   * says one, the PDF's own member ID says another — so the importer refuses
+   * to guess. Choosing the client by hand is the answer to it, and until this
+   * flag existed the screen said "correct the mapping" while offering no way
+   * for correcting it to have any effect.
+   */
+  conflictResolved: boolean;
 }
 
 /**
@@ -227,6 +235,7 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
                 (p.typeConfidence === 'high' || p.typeConfidence === 'medium') &&
                 !p.duplicateOfFormId,
               allowDuplicate: false,
+              conflictResolved: false,
             },
           ]),
         ),
@@ -248,7 +257,8 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
     () =>
       items.filter((item) => {
         const row = rows[key(item)];
-        return row?.include && row.clientId && item.confidence !== 'conflict';
+        const conflictBlocked = item.confidence === 'conflict' && !row?.conflictResolved;
+        return row?.include && row.clientId && !conflictBlocked;
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [items, rows],
@@ -432,8 +442,10 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
             <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
               <span>
-                {conflicts} file{conflicts === 1 ? ' has' : 's have'} conflicting identifiers and
-                cannot be committed until the mapping is corrected.
+                {conflicts} file{conflicts === 1 ? ' names' : 's name'} two different clients —
+                the manifest says one, the document&apos;s own member ID says another, and the
+                importer will not choose between them. Pick the right client in the Client
+                column on that row and its tick box unlocks.
               </span>
             </div>
           )}
@@ -459,7 +471,7 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
                       <td className="px-3 py-2">
                         <Checkbox
                           checked={row?.include ?? false}
-                          disabled={item.confidence === 'conflict'}
+                          disabled={item.confidence === 'conflict' && !row?.conflictResolved}
                           onCheckedChange={(v) => setRow(item, { include: v === true })}
                         />
                       </td>
@@ -474,7 +486,13 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
                       <td className="px-3 py-2">
                         <Select
                           value={row?.clientId || undefined}
-                          onValueChange={(v) => setRow(item, { clientId: v })}
+                          onValueChange={(v) =>
+                            // Naming the client by hand is what settles a conflict.
+                            setRow(item, {
+                              clientId: v,
+                              conflictResolved: item.confidence === 'conflict',
+                            })
+                          }
                         >
                           <SelectTrigger className="w-[200px]">
                             <SelectValue placeholder="Select a client">
