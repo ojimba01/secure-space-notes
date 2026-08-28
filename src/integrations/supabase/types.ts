@@ -2107,6 +2107,10 @@ export type Database = {
         Returns: undefined
       }
       deactivate_user: { Args: { _profile_id: string }; Returns: undefined }
+      form_type_hidden_from_staff: {
+        Args: { _form_type: string }
+        Returns: boolean
+      }
       get_profile_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -2126,6 +2130,7 @@ export type Database = {
         Args: { _client_id: string; _new_employee_id: string; _reason?: string }
         Returns: undefined
       }
+      safe_uuid: { Args: { _text: string }; Returns: string }
       set_employee_admin: {
         Args: { _make_admin: boolean; _profile_id: string }
         Returns: undefined
