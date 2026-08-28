@@ -51,6 +51,15 @@ export interface PdfTemplate {
  */
 export const PDF_TEMPLATES: PdfTemplate[] = [
   {
+    // Built from the agency's own printed intake by scripts/build_intake_template.py.
+    // Its field names are the client_intakes column names, so answers can be read
+    // straight back out of a submitted form.
+    formType: 'Client Intake',
+    file: '/form-templates/client-intake.pdf',
+    label: 'Client Intake',
+    description: 'The intake questionnaire. Answers also save onto the client record.',
+  },
+  {
     formType: 'Initial Assessment Tool',
     file: '/form-templates/initial-assessment-tool.pdf',
     label: 'Initial Assessment Tool',
@@ -67,15 +76,6 @@ export const PDF_TEMPLATES: PdfTemplate[] = [
     file: '/form-templates/housing-stabilization-plan.pdf',
     label: 'Housing Stabilization Plan',
     description: 'Individualized goals and activities plan built with the member.',
-  },
-  {
-    // Built from the agency's own printed intake by scripts/build_intake_template.py.
-    // Its field names are the client_intakes column names, so answers can be read
-    // straight back out of a submitted form.
-    formType: 'Client Intake',
-    file: '/form-templates/client-intake.pdf',
-    label: 'Client Intake',
-    description: 'The intake questionnaire. Answers also save onto the client record.',
   },
   {
     formType: 'MCO Authorization Request',
