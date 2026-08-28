@@ -106,15 +106,19 @@ export function missingSetupParts(c: WorkflowClient): string[] {
 /**
  * The same gaps as missingSetupParts, said short enough for a badge.
  *
- * The long form names the document a person has to go and find, which is what
- * an admin queue wants. On a client card there is room for three or four
- * words, and the case manager already knows what an HSP is.
+ * Each one names the thing to go and do, rather than the state the record is
+ * in: "add LON", not "no level of need". A case manager reading their own
+ * list wants the next action, and the abbreviations are right here because
+ * they are what the agency calls these forms.
+ *
+ * The long form in missingSetupParts stays as it is — an admin queue is
+ * describing a gap across the whole caseload, not handing one person a job.
  */
 export function missingSetupShort(c: WorkflowClient): string[] {
   const parts: string[] = [];
-  if (!hspSubmitted(c)) parts.push('HSP not submitted');
-  if (!serviceStartDate(c)) parts.push('no start date');
-  if (c.level_of_need !== 'High Level' && c.level_of_need !== 'Low Level') parts.push('no level of need');
+  if (!hspSubmitted(c)) parts.push('add HSP');
+  if (!serviceStartDate(c)) parts.push('add start date');
+  if (c.level_of_need !== 'High Level' && c.level_of_need !== 'Low Level') parts.push('add LoN');
   return parts;
 }
 
