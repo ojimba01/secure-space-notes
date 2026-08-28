@@ -19,13 +19,11 @@ import { AuthorizationsSection } from '@/components/AuthorizationsSection';
 
 import { serviceStartDate } from '@/lib/workflow';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ComplianceCard } from '@/components/ComplianceCard';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
 import { ClientFormsDocuments } from '@/components/forms/ClientFormsDocuments';
-import { ClientIntakeForm } from '@/components/intake/ClientIntakeForm';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 interface Client {
@@ -73,7 +71,6 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
-  const [intakeOpen, setIntakeOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { isAdmin } = useIsAdmin();
   const { isViewingAs } = useViewAs();
@@ -240,11 +237,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           </CardContent>
         </Card>
 
-        <ClientWorkflowCard
-          client={client}
-          onUpdate={onUpdate}
-          onOpenIntake={() => setIntakeOpen(true)}
-        />
+        <ClientWorkflowCard client={client} onUpdate={onUpdate} />
 
         <AuthorizationsSection clientId={client.id} onUpdate={onUpdate} />
 
@@ -262,9 +255,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`grid w-full ${isSuperadmin ? 'grid-cols-7' : 'grid-cols-6'}`}>
+          <TabsList className={`grid w-full ${isSuperadmin ? 'grid-cols-6' : 'grid-cols-5'}`}>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="intake">Intake</TabsTrigger>
             <TabsTrigger value="forms">Forms</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
@@ -283,20 +275,6 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                 ) : (
                   <p className="text-muted-foreground">No additional notes have been added.</p>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="intake">
-            <Card>
-              <CardHeader>
-                <CardTitle>Client Intake</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  The intake questionnaire opens as a form.
-                </p>
-                <Button onClick={() => setIntakeOpen(true)}>Open the Client Intake form</Button>
               </CardContent>
             </Card>
           </TabsContent>
@@ -348,20 +326,6 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           </div>
         </div>
       )}
-
-      <Dialog open={intakeOpen} onOpenChange={setIntakeOpen}>
-        <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Client Intake</DialogTitle>
-          </DialogHeader>
-          <ClientIntakeForm
-            clientId={client.id}
-            clientFirstName={client.first_name}
-            clientLastName={client.last_name}
-            onUpdate={onUpdate}
-          />
-        </DialogContent>
-      </Dialog>
 
       <CloseCaseDialog
         open={closeDialogOpen}

@@ -6,6 +6,7 @@
 // when it is not — see writeThroughPlan.
 
 import { supabase } from '@/integrations/supabase/client';
+import { digitsOnly } from '@/lib/ids';
 import type { Database } from '@/integrations/supabase/types';
 
 export type IntakeRow = Database['public']['Tables']['client_intakes']['Row'];
@@ -399,5 +400,240 @@ export function intakeColumnFor(field: string): string | null {
   if (INTAKE_FIELD_TO_COLUMN[field]) return INTAKE_FIELD_TO_COLUMN[field];
   if (field in INTAKE_ARRAY_FIELDS) return INTAKE_ARRAY_FIELDS[field].column;
   if (field in INTAKE_ARRAY_TEXT_FIELDS) return INTAKE_ARRAY_TEXT_FIELDS[field];
+  if (field in INTAKE_CHOICE_ARRAY_FIELDS) return INTAKE_CHOICE_ARRAY_FIELDS[field];
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Reading a submitted intake PDF back into this table
+//
+// The template's radio groups export underscored slugs (`At_Risk_of_Homelessness`),
+// not the labels the app stores (`At risk of homelessness`). De-slugging by rule
+// would quietly mangle `Family_Friend` and `4__Bedrooms`, so every choice is
+// written out below. A value with no entry is kept verbatim rather than dropped,
+// which keeps an edited template legible instead of silently lossy.
+// ---------------------------------------------------------------------------
+
+/** Single-choice fields whose answer is stored as a one-entry array column. */
+export const INTAKE_CHOICE_ARRAY_FIELDS: Record<string, string> = {
+  voucher_type: 'voucher_types',
+  transportation_type: 'transportation_types',
+};
+
+/** Radio export value → the label this app stores, per field. */
+export const INTAKE_CHOICE_VALUES: Record<string, Record<string, string>> = {
+  housing_status: {
+    At_Risk_of_Homelessness: 'At risk of homelessness',
+    Already_Homeless: 'Already homeless',
+    Temporarily_Housed: 'Temporarily housed',
+    Permanently_Housed: 'Permanently housed',
+    Other: 'Other',
+  },
+  voucher_type: {
+    NED_Voucher: 'NED voucher',
+    '811_Mainstream_Voucher': '811 Mainstream voucher',
+    TRA_Voucher: 'TRA voucher',
+    SRAP_Voucher: 'SRAP voucher',
+    Other: 'Other',
+  },
+  housing_type: {
+    Apartment: 'Apartment',
+    Individual_Home: 'Individual home',
+    Family_House: 'Family house',
+    Other: 'Other',
+  },
+  transportation_type: {
+    Personal_Vehicle: 'Personal vehicle',
+    Public_Transportation: 'Public transportation',
+    Family_Friend: 'Family/friend',
+    Other: 'Other',
+  },
+  apartment_type: {
+    Lower_Level___Ground_Floor: 'Lower level / ground floor',
+    Upper_Level: 'Upper level',
+    Wheelchair_Accessible: 'Wheelchair accessible',
+    Elevator_Required: 'Elevator required',
+    No_Preference: 'No preference',
+  },
+  bedrooms: {
+    Studio: 'Studio',
+    '1_Bedroom': '1 bedroom',
+    '2_Bedrooms': '2 bedrooms',
+    '3_Bedrooms': '3 bedrooms',
+    '4__Bedrooms': '4+ bedrooms',
+  },
+  pregnant: { Yes: 'Yes', No: 'No', N_A: 'N/A' },
+};
+
+/** Columns typed boolean in the database. Yes/No radios; anything else is null. */
+const BOOLEAN_COLUMNS = new Set([
+  'has_birth_certificate', 'has_valid_id', 'has_social_security_card', 'us_citizen',
+  'developmental_disability', 'physical_condition', 'mental_health_condition',
+  'has_income_proof', 'has_bank_account', 'applied_for_voucher', 'currently_employed',
+  'receives_benefits', 'living_unsheltered', 'has_eviction_or_record',
+  'needs_accommodation', 'has_application_fee_funds', 'housing_for_self_only',
+  'hiv_aids', 'substance_use', 'domestic_violence_victim', 'veteran', 'in_school',
+  'in_vocational_training', 'has_transportation', 'has_household_members',
+]);
+
+/** Columns typed numeric. `wage` is deliberately absent — it is free text ("$18/hr"). */
+const NUMERIC_COLUMNS = new Set([
+  'income_monthly_amount', 'hours_per_week', 'benefit_monthly_amount',
+  'expense_phone', 'expense_car_note', 'expense_car_insurance', 'expense_internet',
+  'expense_utilities', 'expense_other', 'expenses_total', 'application_fee_amount',
+  'planned_monthly_rent',
+]);
+
+/** Columns typed date. Postgres wants YYYY-MM-DD; the form is typed by hand. */
+const DATE_COLUMNS = new Set([
+  'birth_date', 'last_hospitalization_date', 'client_signed_date', 'staff_signed_date',
+]);
+
+/** Fields carrying no answer of their own — the client record holds the name, and
+ *  a drawn signature is not data. Absent from the maps on purpose, not by omission. */
+const INTENTIONALLY_UNSTORED = new Set([
+  'full_name', 'cert_client_signature', 'cert_staff_signature',
+]);
+
+/** Identifiers the rest of the app keeps as bare digits, so a hand-written
+ *  `123-456` on the form does not read as a different number to the record. */
+const DIGITS_ONLY_COLUMNS = new Set(['mco_number', 'medicaid_number']);
+
+/** `MM/DD/YYYY`, `M-D-YY` or an already-ISO date → `YYYY-MM-DD`. Null when unreadable. */
+function parseIntakeDate(value: string): string | null {
+  const text = value.trim();
+  if (!text) return null;
+  const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  const slashed = text.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})$/);
+  if (!slashed) return null;
+  const [, mm, dd, rawYear] = slashed;
+  const month = Number(mm);
+  const day = Number(dd);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  // A two-digit year on an intake is a birth date far more often than a future
+  // one, so 20xx is only assumed for years at or below the current one.
+  let year = Number(rawYear);
+  if (rawYear.length === 2) {
+    const currentTwo = new Date().getFullYear() % 100;
+    year = year <= currentTwo ? 2000 + year : 1900 + year;
+  }
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** `$1,250.00` → 1250. Null when there is no number in there at all. */
+function parseIntakeNumber(value: string): number | null {
+  const cleaned = value.replace(/[^\d.-]/g, '');
+  if (!cleaned) return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+export interface IntakeFromPdf {
+  draft: IntakeDraft;
+  household: HouseholdMemberDraft[];
+  /** Fields that held an answer with nowhere to store it. Empty in the normal case. */
+  unmapped: string[];
+}
+
+/**
+ * Turns the AcroForm values of a submitted intake into a row this table accepts.
+ *
+ * Values are coerced by the column's real type rather than copied as strings —
+ * a `Yes` into a boolean column and an `01/15/1990` into a date column both fail
+ * the insert otherwise. Nothing is guessed: a field absent from the maps is
+ * reported in `unmapped` instead of being written somewhere plausible.
+ */
+export function intakeDraftFromPdfFields(raw: Record<string, string>): IntakeFromPdf {
+  const draft = emptyIntake();
+  const arrays: Record<string, string[]> = {
+    accommodations: [],
+    counties_of_interest: [],
+    transportation_types: [],
+    voucher_types: [],
+  };
+  const household = new Map<string, HouseholdMemberDraft>();
+  const unmapped: string[] = [];
+
+  const pushArray = (column: string, value: string) => {
+    if (!value) return;
+    if (!arrays[column]) arrays[column] = [];
+    if (!arrays[column].includes(value)) arrays[column].push(value);
+  };
+
+  for (const [field, rawValue] of Object.entries(raw)) {
+    const value = (rawValue ?? '').trim();
+    if (!value || INTENTIONALLY_UNSTORED.has(field)) continue;
+
+    // Household members are child rows, keyed by the member_N prefix.
+    const memberMatch = field.match(/^(member_[1-4])_(name|age|relationship)$/);
+    if (memberMatch) {
+      const [, prefix, part] = memberMatch;
+      const entry = household.get(prefix) ?? { name: '', age: '', relationship: '' };
+      entry[part as 'name' | 'age' | 'relationship'] = value;
+      household.set(prefix, entry);
+      continue;
+    }
+
+    // Tick-box groups: each ticked box contributes its own label.
+    const arrayBox = INTAKE_ARRAY_FIELDS[field];
+    if (arrayBox) {
+      pushArray(arrayBox.column, arrayBox.value);
+      continue;
+    }
+
+    // Free-text fields that each add one entry to a shared array column.
+    const arrayText = INTAKE_ARRAY_TEXT_FIELDS[field];
+    if (arrayText) {
+      pushArray(arrayText, value);
+      continue;
+    }
+
+    const decoded = INTAKE_CHOICE_VALUES[field]?.[value] ?? value;
+
+    // Single-choice fields stored as a one-entry array.
+    const choiceArray = INTAKE_CHOICE_ARRAY_FIELDS[field];
+    if (choiceArray) {
+      pushArray(choiceArray, decoded);
+      continue;
+    }
+
+    // Fifty of the template's fields are already named after their column, so a
+    // field with no map entry is written through under its own name.
+    const column = INTAKE_FIELD_TO_COLUMN[field] ?? field;
+
+    if (BOOLEAN_COLUMNS.has(column)) {
+      if (decoded === 'Yes') (draft as Record<string, unknown>)[column] = true;
+      else if (decoded === 'No') (draft as Record<string, unknown>)[column] = false;
+      continue;
+    }
+    if (NUMERIC_COLUMNS.has(column)) {
+      const n = parseIntakeNumber(decoded);
+      if (n !== null) (draft as Record<string, unknown>)[column] = n;
+      continue;
+    }
+    if (DATE_COLUMNS.has(column)) {
+      const d = parseIntakeDate(decoded);
+      if (d) (draft as Record<string, unknown>)[column] = d;
+      else unmapped.push(field);
+      continue;
+    }
+    (draft as Record<string, unknown>)[column] = DIGITS_ONLY_COLUMNS.has(column)
+      ? digitsOnly(decoded)
+      : decoded;
+  }
+
+  draft.accommodations = arrays.accommodations;
+  draft.counties_of_interest = arrays.counties_of_interest;
+  draft.transportation_types = arrays.transportation_types;
+  draft.voucher_types = arrays.voucher_types;
+
+  const ordered = INTAKE_HOUSEHOLD_PREFIXES.map((p) => household.get(p)).filter(
+    (m): m is HouseholdMemberDraft => !!m && m.name.trim().length > 0,
+  );
+
+  return { draft, household: ordered, unmapped };
 }

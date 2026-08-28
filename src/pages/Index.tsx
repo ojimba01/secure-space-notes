@@ -60,7 +60,6 @@ const Index = () => {
   const [clientsKey, setClientsKey] = useState(0);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [initialClientId, setInitialClientId] = useState<string | null>(null);
-  const [initialClientTab, setInitialClientTab] = useState<string | undefined>(undefined);
   const [defaultApplied, setDefaultApplied] = useState(false);
   const [wasViewingAs, setWasViewingAs] = useState(false);
 
@@ -170,17 +169,10 @@ const Index = () => {
             <ClientManagement
               key={clientsKey}
               initialClientId={initialClientId}
-              initialTab={initialClientTab}
               onConsumeInitialClient={() => setInitialClientId(null)}
             />
           ) : activeView === 'forms' ? (
-            <FormsHub
-              onOpenClientIntake={(id) => {
-                setInitialClientId(id);
-                setInitialClientTab('intake');
-                setActiveView('clients');
-              }}
-            />
+            <FormsHub />
           ) : activeView === 'calendar' ? (
             <CaseManagerCalendar />
           ) : (
