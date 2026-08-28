@@ -38,6 +38,11 @@ export interface PdfTemplate {
   formType: FormType;
   file: string;
   description: string;
+  /**
+   * What the card calls it. Two MCO request forms share one document type, so
+   * the type alone can neither title them nor key them apart.
+   */
+  label: string;
 }
 
 /**
@@ -48,17 +53,35 @@ export const PDF_TEMPLATES: PdfTemplate[] = [
   {
     formType: 'Initial Assessment Tool',
     file: '/form-templates/initial-assessment-tool.pdf',
+    label: 'Initial Assessment Tool',
     description: 'Request Housing Supports services and document eligibility.',
   },
   {
     formType: 'Level of Need Assessment Tool',
     file: '/form-templates/level-of-need-assessment-tool.pdf',
+    label: 'Level of Need Assessment Tool',
     description: 'Scored assessment for authorization and reauthorization.',
   },
   {
     formType: 'Housing Stabilization Plan',
     file: '/form-templates/housing-stabilization-plan.pdf',
+    label: 'Housing Stabilization Plan',
     description: 'Individualized goals and activities plan built with the member.',
+  },
+  {
+    formType: 'MCO Authorization Request',
+    file: '/form-templates/aetna-prior-authorization.pdf',
+    label: 'Aetna Prior Authorization',
+    description: 'Aetna prior authorization request for Housing Supports.',
+  },
+  {
+    // The agency's provider block and Shade Dickson's contact details are
+    // already on this template, exactly as Wellpoint expects them. Only the
+    // previous client's answers were cleared.
+    formType: 'MCO Authorization Request',
+    file: '/form-templates/wellpoint-support-services-request.pdf',
+    label: 'Wellpoint Support Services Request',
+    description: 'Wellpoint support services request. Provider details already filled in.',
   },
 ];
 

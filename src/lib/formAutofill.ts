@@ -77,6 +77,25 @@ export function templateFieldValues(
         'Provider Case Manager Phone': cm?.phone ?? '',
         'Provider Case Manager Email': cm?.email ?? '',
       });
+    // Both MCO request forms share a document type, and prefillTemplate skips
+    // any field a given PDF does not have, so one mapping serves both. The
+    // Wellpoint template already carries the agency's own provider block, so
+    // nothing here writes over it.
+    case 'MCO Authorization Request':
+      return prune({
+        // Aetna prior authorization
+        '1 LAST NAME': client.last_name ?? '',
+        '2 FIRST NAME': client.first_name ?? '',
+        '4 MEMBER ID': client.member_id ?? '',
+        '5 DATE OF BIRTH MMDDYYYY': mmddyyyy(client.date_of_birth),
+        // Wellpoint support services request
+        'Name': fullName(client),
+        'Member ID': client.member_id ?? '',
+        'DOB': mmddyyyy(client.date_of_birth),
+        'Phone': client.phone ?? '',
+        'Email if applicable': client.email ?? '',
+        'NJ HMIS ID': client.njhmis_id ?? '',
+      });
     default:
       return {};
   }
