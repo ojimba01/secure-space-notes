@@ -14,7 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -26,9 +28,10 @@ import type { BillingClient } from '@/hooks/useBilling';
 import { MCO_OPTIONS, type BillingCycle } from '@/lib/billing';
 import { fetchClientAuthorizations, type ClientAuthorization } from '@/lib/authorizations';
 import {
+  AGENCY_DIAGNOSIS_CODES,
   DEFAULT_DIAGNOSIS_CODE,
-  DIAGNOSIS_CODES,
   EMPTY_SETTINGS,
+  OTHER_DIAGNOSIS_CODES,
   GENDER_OPTIONS,
   RELATIONSHIP_OPTIONS,
   REQUIRED_PROVIDER_FIELDS,
@@ -36,6 +39,7 @@ import {
   claimSections,
   defaultCycle,
   eligibilitySections,
+  findDiagnosisCode,
   loadAvailitySettings,
   saveAvailitySettings,
   usDate,
@@ -58,6 +62,8 @@ interface ClientExtras {
   medicaid_id: string | null;
   address: string | null;
   gender: AvailityGender | null;
+  /** The principal diagnosis already agreed for this client, when there is one. */
+  diagnosis_code: string | null;
 }
 
 const NO_EXTRAS: ClientExtras = {
@@ -65,7 +71,11 @@ const NO_EXTRAS: ClientExtras = {
   medicaid_id: null,
   address: null,
   gender: null,
+  diagnosis_code: null,
 };
+
+/** The value the code dropdown uses for "something not in the list". */
+const OTHER_CODE = '__other__';
 
 /** One Availity box: its label, its value, and a button that copies it. */
 const CopyField: React.FC<AvailityField> = ({ label, value, required, note, missing }) => {
@@ -136,6 +146,8 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles }) => {
   const [genderAssumed, setGenderAssumed] = useState(true);
   const [relationship, setRelationship] = useState<Relationship>('Self');
   const [diagnosisCode, setDiagnosisCode] = useState<string>(DEFAULT_DIAGNOSIS_CODE);
+  const [customCode, setCustomCode] = useState('');
+  const [savingDiagnosis, setSavingDiagnosis] = useState(false);
   const [cycleId, setCycleId] = useState<string | null>(null);
   const [settings, setSettings] = useState<AvailityProviderSettings | null>(null);
   const [editingProvider, setEditingProvider] = useState(false);
@@ -150,19 +162,28 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles }) => {
 
   const loadExtras = useCallback(async (id: string) => {
     const [clientRow, intakeRow, auths] = await Promise.all([
-      supabase.from('clients').select('date_of_birth, medicaid_id, address').eq('id', id).maybeSingle(),
+      supabase
+        .from('clients')
+        .select('date_of_birth, medicaid_id, address, diagnosis_code')
+        .eq('id', id)
+        .maybeSingle(),
       supabase.from('client_intakes').select('gender').eq('client_id', id).maybeSingle(),
       fetchClientAuthorizations(id).catch(() => [] as ClientAuthorization[]),
     ]);
     const intakeGender = intakeRow.data?.gender;
     const known: AvailityGender | null =
       intakeGender === 'Male' ? 'Male' : intakeGender === 'Female' ? 'Female' : null;
+    const stored = clientRow.data?.diagnosis_code?.trim() || null;
     setExtras({
       date_of_birth: clientRow.data?.date_of_birth ?? null,
       medicaid_id: clientRow.data?.medicaid_id ?? null,
       address: clientRow.data?.address ?? null,
       gender: known,
+      diagnosis_code: stored,
     });
+    // Reopen on whatever was agreed for this client last time.
+    setDiagnosisCode(stored ?? DEFAULT_DIAGNOSIS_CODE);
+    setCustomCode(stored && !findDiagnosisCode(stored) ? stored : '');
     setGender(known ?? 'Female');
     setGenderAssumed(!known);
     setRelationship('Self');
@@ -238,6 +259,26 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles }) => {
       diagnosisCode,
     });
   }, [availityClient, settings, page, gender, genderAssumed, relationship, selected, diagnosisCode]);
+
+  const saveDiagnosis = async () => {
+    if (!clientId) return;
+    const code = diagnosisCode.trim().toUpperCase();
+    if (!code) return;
+    setSavingDiagnosis(true);
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ diagnosis_code: code })
+        .eq('id', clientId);
+      if (error) throw error;
+      setExtras((e) => ({ ...e, diagnosis_code: code }));
+      toast.success(`${code} kept for this client`);
+    } catch (err: any) {
+      toast.error('Could not save the diagnosis code', { description: err.message });
+    } finally {
+      setSavingDiagnosis(false);
+    }
+  };
 
   const saveProvider = async () => {
     setSavingProvider(true);
@@ -453,20 +494,65 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles }) => {
                 </Select>
               </div>
               {page === 'claim' && (
-                <div className="space-y-1 sm:col-span-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label className="text-xs text-muted-foreground">Principal diagnosis code</Label>
-                  <Select value={diagnosisCode} onValueChange={setDiagnosisCode}>
+                  <Select
+                    value={findDiagnosisCode(diagnosisCode) ? diagnosisCode : OTHER_CODE}
+                    onValueChange={(v) => setDiagnosisCode(v === OTHER_CODE ? customCode : v)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {DIAGNOSIS_CODES.map((d) => (
-                        <SelectItem key={d.code} value={d.code}>
-                          {d.label}
-                        </SelectItem>
-                      ))}
+                      <SelectGroup>
+                        <SelectLabel>The codes we use</SelectLabel>
+                        {AGENCY_DIAGNOSIS_CODES.map((d) => (
+                          <SelectItem key={d.code} value={d.code}>
+                            {d.code} — {d.description}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Other Z59 codes</SelectLabel>
+                        {OTHER_DIAGNOSIS_CODES.map((d) => (
+                          <SelectItem key={d.code} value={d.code}>
+                            {d.code} — {d.description}
+                            {d.billable === false ? ' (category only)' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Something else</SelectLabel>
+                        <SelectItem value={OTHER_CODE}>Another code…</SelectItem>
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
+
+                  {!findDiagnosisCode(diagnosisCode) && (
+                    <Input
+                      placeholder="Type the code without the decimal point, e.g. Z59819"
+                      value={customCode}
+                      onChange={(e) => {
+                        setCustomCode(e.target.value);
+                        setDiagnosisCode(e.target.value.trim().toUpperCase());
+                      }}
+                    />
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      Which code fits is a judgement about the client, so it is kept on the client
+                      record and every later claim opens on it.
+                    </p>
+                    {extras.diagnosis_code !== (diagnosisCode.trim() || null) && !!diagnosisCode.trim() && (
+                      <Button size="sm" variant="outline" onClick={saveDiagnosis} disabled={savingDiagnosis}>
+                        {savingDiagnosis ? 'Saving…' : 'Keep this for this client'}
+                      </Button>
+                    )}
+                    {extras.diagnosis_code && extras.diagnosis_code === diagnosisCode.trim() && (
+                      <Badge variant="secondary">Saved for this client</Badge>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

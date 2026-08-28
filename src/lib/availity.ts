@@ -294,22 +294,55 @@ export const PROCEDURE_CODE = 'H0044';
 /** The patient control number the agency uses: NR in front of the Medicaid ID. */
 export const CONTROL_NUMBER_PREFIX = 'NR';
 
+export interface DiagnosisCode {
+  code: string;
+  description: string;
+  /**
+   * False for a category that has more specific codes beneath it. ICD-10-CM
+   * has to be coded to the finest level available, so these are rejected on a
+   * claim even though Availity lists them.
+   */
+  billable?: boolean;
+}
+
 /**
- * The Z59 codes Availity offers for this client group. Availity drops the
- * decimal point, so Z59.00 is typed Z5900.
+ * The codes the agency actually uses, in the order they are usually weighed up.
+ * Which one applies is a judgement about the client, not something the app can
+ * derive, so the choice is made per client and kept on the client record.
+ *
+ * Availity drops the decimal point: Z59.00 is typed Z5900.
  */
-export const DIAGNOSIS_CODES = [
-  { code: 'Z5900', label: 'Z5900 - Homelessness unspecified' },
-  { code: 'Z590', label: 'Z590 - Homelessness' },
-  { code: 'Z5901', label: 'Z5901 - Sheltered homelessness' },
-  { code: 'Z5902', label: 'Z5902 - Unsheltered homelessness' },
-  { code: 'Z591', label: 'Z591 - Inadequate housing' },
-  { code: 'Z5910', label: 'Z5910 - Inadequate housing, unspecified' },
-  { code: 'Z5911', label: 'Z5911 - Inadequate housing environmental temperature' },
-  { code: 'Z5912', label: 'Z5912 - Inadequate housing utilities' },
-] as const;
+export const AGENCY_DIAGNOSIS_CODES: DiagnosisCode[] = [
+  { code: 'Z59819', description: 'Housing instability, housed, unspecified' },
+  { code: 'Z5900', description: 'Homelessness, unspecified' },
+  { code: 'Z59811', description: 'Housing instability, housed, with risk of homelessness' },
+  { code: 'Z5902', description: 'Unsheltered homelessness' },
+  { code: 'Z5901', description: 'Sheltered homelessness' },
+];
+
+/** The rest of the Z59 family, for the cases the five above do not cover. */
+export const OTHER_DIAGNOSIS_CODES: DiagnosisCode[] = [
+  { code: 'Z59812', description: 'Housing instability, housed, homelessness in past 12 months' },
+  { code: 'Z590', description: 'Homelessness', billable: false },
+  { code: 'Z591', description: 'Inadequate housing', billable: false },
+  { code: 'Z5910', description: 'Inadequate housing, unspecified' },
+  { code: 'Z5911', description: 'Inadequate housing environmental temperature' },
+  { code: 'Z5912', description: 'Inadequate housing utilities' },
+];
+
+export const ALL_DIAGNOSIS_CODES = [...AGENCY_DIAGNOSIS_CODES, ...OTHER_DIAGNOSIS_CODES];
 
 export const DEFAULT_DIAGNOSIS_CODE = 'Z5900';
+
+export function findDiagnosisCode(code: string): DiagnosisCode | undefined {
+  return ALL_DIAGNOSIS_CODES.find((d) => d.code === code.trim().toUpperCase());
+}
+
+/** "Z5900 - Homelessness, unspecified", or the bare code when it is not listed. */
+export function diagnosisLabel(code: string): string {
+  const known = findDiagnosisCode(code);
+  return known ? `${known.code} - ${known.description}` : code.trim().toUpperCase();
+}
 
 export interface BillableCycle {
   cycle: BillingCycle;
@@ -586,7 +619,11 @@ export function claimSections({
           label: 'Principal Diagnosis Code',
           required: true,
           value: diagnosisCode,
-          note: 'Availity drops the decimal point, so Z59.00 is typed Z5900.',
+          note: `${diagnosisLabel(diagnosisCode)}. Availity drops the decimal point, so Z59.00 is typed Z5900.`,
+          missing:
+            findDiagnosisCode(diagnosisCode)?.billable === false
+              ? `${diagnosisCode} is a category, not a billable code — choose one of the codes beneath it`
+              : undefined,
         },
       ],
     },
