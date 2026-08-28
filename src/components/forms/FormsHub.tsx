@@ -242,11 +242,11 @@ export const FormsHub: React.FC = () => {
           </p>
           <div className="grid gap-3 sm:grid-cols-3">
             {PDF_TEMPLATES.map((t) => (
-              <Card key={t.formType} className="p-4 flex flex-col gap-2">
+              <Card key={t.file} className="p-4 flex flex-col gap-2">
                 <div className="flex items-start gap-2">
                   <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                   <div>
-                    <div className="text-sm font-medium leading-tight">{t.formType}</div>
+                    <div className="text-sm font-medium leading-tight">{t.label}</div>
                     <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
                   </div>
                 </div>
@@ -261,7 +261,7 @@ export const FormsHub: React.FC = () => {
                     Fill out &amp; submit
                   </Button>
                   <Button variant="ghost" size="sm" asChild>
-                    <a href={t.file} download aria-label={`Download blank ${t.formType}`}>
+                    <a href={t.file} download aria-label={`Download blank ${t.label}`}>
                       <Download className="h-4 w-4" />
                     </a>
                   </Button>
