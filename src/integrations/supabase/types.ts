@@ -70,6 +70,7 @@ export type Database = {
           authorization_id: string | null
           billed_amount: number | null
           billing_status: string
+          billed_source: string | null
           claim_number: string | null
           client_id: string
           created_at: string
@@ -95,6 +96,7 @@ export type Database = {
           authorization_id?: string | null
           billed_amount?: number | null
           billing_status?: string
+          billed_source?: string | null
           claim_number?: string | null
           client_id: string
           created_at?: string
@@ -120,6 +122,7 @@ export type Database = {
           authorization_id?: string | null
           billed_amount?: number | null
           billing_status?: string
+          billed_source?: string | null
           claim_number?: string | null
           client_id?: string
           created_at?: string
@@ -1350,6 +1353,7 @@ export type Database = {
           diagnosis_code: string | null
           email: string | null
           first_name: string
+          field_sources: Json | null
           housing_stabilization_plan_date: string | null
           hsp_150_date: string | null
           hsp_180_date: string | null
@@ -1468,6 +1472,7 @@ export type Database = {
           diagnosis_code?: string | null
           email?: string | null
           first_name?: string
+          field_sources?: Json | null
           housing_stabilization_plan_date?: string | null
           hsp_150_date?: string | null
           hsp_180_date?: string | null

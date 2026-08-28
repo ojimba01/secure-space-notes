@@ -46,7 +46,41 @@ export interface ManifestRow {
   njhmis_id?: string;
   diagnosis_code?: string;
   notes?: string;
+
+  // --- Read straight from the agency's own manifest, which carries more than
+  //     the importer originally asked for. Informational on the document row;
+  //     none of it is used to match a file to a client.
+  medicaid_id?: string;
+  member_address?: string;
+  /** How many 30-day periods the memo says were already billed. A count, not
+   *  a list of which ones — see docs and the billing memo review. */
+  billed_periods?: string;
+  /** Which authorization the memo is about: "30", "150", "180", or a mix. */
+  cycle_label?: string;
+  /** Whether the agency could read the file at all, and why not if it could
+   *  not: readable, handwritten signature only, scan too poor to OCR… */
+  text_status?: string;
 }
+
+/**
+ * The agency's manifest and the importer use different names for the same
+ * column, and the manifest is the one nobody should have to edit.
+ *
+ * Left is what the importer calls it; right is every spelling seen in the
+ * agency's own files. Both the raw manifest and the converter's output are
+ * accepted, so an upload works whichever one is to hand.
+ */
+const COLUMN_ALIASES: Record<string, string[]> = {
+  source_file: ['relative_path', 'source_path', 'path', 'file_path'],
+  form_type: ['document_type', 'doc_type', 'type'],
+  form_date: ['document_date', 'doc_date', 'date'],
+  authorization_number: ['auth_number', 'authorization'],
+  authorization_start: ['service_start', 'auth_start'],
+  authorization_end: ['service_end', 'auth_end'],
+  client_name: ['name', 'member_name'],
+  member_id: ['mco_member_id', 'subscriber_id'],
+  notes: ['pipeline_stage'],
+};
 
 export interface MatchClient {
   id: string;
@@ -133,22 +167,92 @@ export async function expandFiles(
   return { staged, skipped };
 }
 
-/** Parse an .xlsx or .csv manifest; header names are normalised to snake_case. */
-export async function parseManifest(file: File): Promise<ManifestRow[]> {
+/** The tab holding one row per document, whatever position it sits in. */
+const DOCUMENT_SHEET_NAMES = ['document manifest', 'documents', 'manifest'];
+
+const normHeader = (key: string) => key.trim().toLowerCase().replace(/\s+/g, '_');
+
+/** Pick the sheet by name, falling back to the first one. */
+function pickSheet(wb: XLSX.WorkBook, wanted: string[]): XLSX.WorkSheet | null {
+  const named = wb.SheetNames.find((n) => wanted.includes(n.trim().toLowerCase()));
+  return wb.Sheets[named ?? wb.SheetNames[0]] ?? null;
+}
+
+export interface ManifestParseResult {
+  rows: ManifestRow[];
+  /** Sheet the rows came from, so the screen can say which one was read. */
+  sheetName: string;
+  /** Rows in the sheet, including any dropped for having no file path. */
+  totalRows: number;
+  /** Headers that matched nothing the importer knows. Reported, not fatal. */
+  unknownColumns: string[];
+}
+
+/**
+ * Parse an .xlsx or .csv manifest.
+ *
+ * Reads the DOCUMENT MANIFEST tab by name — the agency's workbook has four
+ * tabs and the documents are not necessarily the first — and accepts the
+ * agency's own column names as well as the converter's.
+ *
+ * That mattered more than it sounds. The manifest names the file column
+ * `relative_path`; this function used to require `source_file` and drop every
+ * row without one. Uploading the agency's own workbook therefore produced an
+ * empty manifest, silently: the batch recorded the filename it had been given
+ * and matched all 145 files from their own contents instead, with not one of
+ * them reaching high confidence.
+ */
+export async function parseManifestDetailed(file: File): Promise<ManifestParseResult> {
   const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  if (!sheet) return [];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-  return rows
-    .map((row) => {
-      const out: Record<string, string> = {};
-      for (const [key, value] of Object.entries(row)) {
-        const norm = key.trim().toLowerCase().replace(/\s+/g, '_');
-        out[norm] = String(value ?? '').trim();
+  const sheetName =
+    wb.SheetNames.find((n) => DOCUMENT_SHEET_NAMES.includes(n.trim().toLowerCase())) ??
+    wb.SheetNames[0] ??
+    '';
+  const sheet = pickSheet(wb, DOCUMENT_SHEET_NAMES);
+  if (!sheet) return { rows: [], sheetName, totalRows: 0, unknownColumns: [] };
+
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+  const known = new Set<string>();
+  const unknown = new Set<string>();
+
+  const rows = raw.map((row) => {
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(row)) {
+      const norm = normHeader(key);
+      const text = String(value ?? '').trim();
+      out[norm] = text;
+      known.add(norm);
+      // Fill the importer's own name from whichever spelling this file uses,
+      // without overwriting a column that is already correctly named.
+      for (const [canonical, aliases] of Object.entries(COLUMN_ALIASES)) {
+        if (aliases.includes(norm) && !out[canonical]) out[canonical] = text;
       }
-      return out as unknown as ManifestRow;
-    })
-    .filter((r) => r.source_file);
+    }
+    return out as unknown as ManifestRow;
+  });
+
+  const RECOGNISED = new Set([
+    ...Object.keys(COLUMN_ALIASES),
+    ...Object.values(COLUMN_ALIASES).flat(),
+    'client_name', 'first_name', 'last_name', 'date_of_birth', 'member_id', 'mco',
+    'form_type', 'form_date', 'authorization_type', 'authorization_number',
+    'authorization_start', 'authorization_end', 'assigned_staff', 'external_status',
+    'service_type', 'lon_score', 'njhmis_id', 'diagnosis_code', 'notes',
+    'medicaid_id', 'member_address', 'billed_periods', 'cycle_label', 'text_status',
+  ]);
+  for (const k of known) if (!RECOGNISED.has(k)) unknown.add(k);
+
+  return {
+    rows: rows.filter((r) => r.source_file),
+    sheetName,
+    totalRows: raw.length,
+    unknownColumns: [...unknown],
+  };
+}
+
+/** Backwards-compatible shape for callers that only want the rows. */
+export async function parseManifest(file: File): Promise<ManifestRow[]> {
+  return (await parseManifestDetailed(file)).rows;
 }
 
 const normName = (s?: string | null) => (s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
