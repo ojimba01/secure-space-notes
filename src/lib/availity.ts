@@ -179,7 +179,7 @@ export function eligibilitySections({
           label: 'Organization',
           required: true,
           value: settings.organization,
-          missing: settings.organization ? undefined : 'Set the organization in provider details',
+          missing: settings.organization ? undefined : 'Set the organization under Billing details',
         },
         {
           label: 'Payer',
@@ -190,7 +190,7 @@ export function eligibilitySections({
             ? 'No MCO on the client record'
             : payer
               ? undefined
-              : `No eligibility payer recorded for ${mco} — add it in provider details`,
+              : `No eligibility payer recorded for ${mco} — add it under Billing details`,
         },
       ],
     },
@@ -200,22 +200,22 @@ export function eligibilitySections({
         {
           label: 'Provider',
           value: settings.providerName,
-          missing: settings.providerName ? undefined : 'Set the provider in provider details',
+          missing: settings.providerName ? undefined : 'Set the provider under Billing details',
         },
         {
           label: 'Provider NPI',
           value: settings.providerNpi,
-          missing: settings.providerNpi ? undefined : 'Set the NPI in provider details',
+          missing: settings.providerNpi ? undefined : 'Set the NPI under Billing details',
         },
         {
           label: 'Provider Tax ID',
           value: settings.providerEin,
-          missing: settings.providerEin ? undefined : 'Set the EIN in provider details',
+          missing: settings.providerEin ? undefined : 'Set the EIN under Billing details',
         },
         {
           label: 'Organization or Provider Last Name',
           value: settings.providerName,
-          missing: settings.providerName ? undefined : 'Set the provider in provider details',
+          missing: settings.providerName ? undefined : 'Set the provider under Billing details',
         },
         { label: 'Provider First Name', value: '', note: 'Left blank — the provider is an organisation.' },
       ],
@@ -444,7 +444,7 @@ export function claimSections({
   const modifier = selected.modifier?.trim() || settings.defaultModifier;
 
   const providerMissing = (value: string, field: string) =>
-    value ? undefined : `Set the ${field} in provider details`;
+    value ? undefined : `Set the ${field} under Billing details`;
 
   return [
     {
@@ -464,7 +464,7 @@ export function claimSections({
             ? 'No MCO on the client record'
             : payer
               ? undefined
-              : `No claims payer recorded for ${mco} — add it in provider details`,
+              : `No claims payer recorded for ${mco} — add it under Billing details`,
         },
         { label: 'Responsibility Sequence', value: RESPONSIBILITY_SEQUENCE },
       ],
@@ -649,7 +649,7 @@ export function claimSections({
           note: selected.modifier?.trim()
             ? 'From this authorization.'
             : 'The default. An authorization can override it.',
-          missing: modifier ? undefined : 'No modifier set in provider details',
+          missing: modifier ? undefined : 'No modifier set under Billing details',
         },
         { label: 'Diagnosis Code Pointer 1', required: true, value: diagnosisCode },
         {

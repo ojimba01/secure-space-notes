@@ -8,7 +8,10 @@ export const MAX_CYCLES = 12;
 export const RATE_LOW = 320;
 export const RATE_HIGH = 640;
 
-export const MCO_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis'] as const;
+// The one list of MCOs. 'UnitedHealthcare' replaced 'United Health' on
+// 2026-08-28 -- both spellings were live and split 20 clients in two, which
+// fragmented payer mapping and the per-MCO totals.
+export const MCO_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'UnitedHealthcare', 'Fidelis'] as const;
 
 export const BILLING_STATUSES = ['Not Billed', 'Ready to Bill', 'Submitted', 'Denied'] as const;
 export const PAYMENT_STATUSES = ['Unpaid', 'Partial', 'Paid'] as const;

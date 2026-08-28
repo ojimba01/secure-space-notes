@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, DollarSign, ExternalLink, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { BillingCycle, APPROVAL_STATES, ApprovalState, MCO_OPTIONS, isDeadlineAtRisk, isDeadlinePassed, isPastFilingWindow, continuationOverlapsInitial, isCycleResolved, finalDeadlineFor, deadlineLabel, daysToFinalDeadline, normalizeLevel, findPossibleDuplicates, needsExtensionReview, daysUntil150End, projected180Start, addDays, todayAgency } from '@/lib/billing';
+import { BillingCycle, APPROVAL_STATES, ApprovalState, MCO_OPTIONS, isDeadlineAtRisk, isDeadlinePassed, continuationOverlapsInitial, isCycleResolved, finalDeadlineFor, deadlineLabel, daysToFinalDeadline, normalizeLevel, findPossibleDuplicates, needsExtensionReview, daysUntil150End, projected180Start, addDays, todayAgency } from '@/lib/billing';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,8 @@ import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientProfileDialog } from '@/components/billing/ClientProfileDialog';
 import { RevenueTab } from '@/components/billing/RevenueTab';
 import { BillingTutorial, BillingTutorialStep } from '@/components/billing/BillingTutorial';
+import { ProviderSetup } from '@/components/billing/ProviderSetup';
+import { AddTouchpointDialog, type TouchpointContext } from '@/components/AddTouchpointDialog';
 import { AvailityPanel } from '@/components/billing/AvailityPanel';
 
 
@@ -58,7 +60,7 @@ const MCO_COLORS: Record<string, string> = {
   Aetna: 'border-blue-300 bg-blue-100 text-blue-900',
   Horizon: 'border-sky-300 bg-sky-100 text-sky-900',
   Wellpoint: 'border-violet-300 bg-violet-100 text-violet-900',
-  'United Health': 'border-teal-300 bg-teal-100 text-teal-900',
+  UnitedHealthcare: 'border-teal-300 bg-teal-100 text-teal-900',
   Fidelis: 'border-orange-300 bg-orange-100 text-orange-900',
 };
 const mcoClass = (v?: string | null) => (v ? MCO_COLORS[v] ?? 'border-slate-300 bg-slate-100 text-slate-900' : 'bg-white');
@@ -72,8 +74,22 @@ const HOW_TO_READ = 'Cycle 1 is the initial 30-day authorization and is billable
 // four weeks or less away and that is not approved or closed. Once that window
 // has closed the money cannot be claimed at all, so it is no longer work: those
 // cycles move to their own list rather than sitting in a queue asking for action.
+/** The four steps of billing, in the order they are done. */
+type Section = 'details' | 'bill' | 'revenue' | 'data';
+
+/** How close a cycle is to the last day it can be filed. */
+type Band = 'overdue' | 'week' | 'month' | 'later';
+const bandOf = (days: number): Band =>
+  days < 0 ? 'overdue' : days <= 7 ? 'week' : days <= 30 ? 'month' : 'later';
+
+const BANDS: { key: Band; heading: string; note: string; tone: string; dot: string }[] = [
+  { key:'overdue', heading:'Overdue',        note:'The six-month window has closed. These can no longer be filed.', tone:'border-red-300 bg-red-50 text-red-900',      dot:'bg-red-600' },
+  { key:'week',    heading:'Due this week',  note:'File these first.',                                              tone:'border-amber-300 bg-amber-50 text-amber-900', dot:'bg-amber-500' },
+  { key:'month',   heading:'Due this month', note:'',                                                               tone:'border-blue-300 bg-blue-50 text-blue-900',    dot:'bg-blue-600' },
+  { key:'later',   heading:'Later',          note:'Nothing to do yet.',                                             tone:'border-slate-300 bg-white text-slate-700',    dot:'bg-slate-400' },
+];
+
 const attention = (c: BillingCycle) => isDeadlineAtRisk(c) && !isDeadlinePassed(c);
-const expired = (c: BillingCycle) => isPastFilingWindow(c);
 const matches = (c: BillingClient, q: string) => {
   const t = q.trim().toLowerCase();
   if (!t) return true;
@@ -116,6 +132,25 @@ const ProfileIconButton = ({ onClick, tour }: { onClick:()=>void; tour?:boolean 
 // single practice client with practice cycles, and every change stays in memory.
 const PRACTICE_CLIENT_ID = 'practice-client';
 const PRACTICE_NAME = { first: 'Practice', last: 'Client' };
+/** One numbered step in the billing nav. The number is the whole point: these
+ *  are done in order, not picked between. */
+const StepButton = ({ step, label, count, active, onClick, tour }: {
+  step: number; label: string; count?: number; active: boolean; onClick: () => void; tour?: string;
+}) => (
+  <Button
+    data-tour={tour}
+    variant={active ? 'default' : 'ghost'}
+    className="gap-2"
+    onClick={onClick}
+  >
+    <span className={`grid h-5 w-5 place-items-center rounded-full text-xs font-semibold ${active ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'}`}>{step}</span>
+    {label}
+    {count !== undefined && count > 0 && (
+      <span className={`rounded-full px-1.5 text-xs font-semibold ${active ? 'bg-white/25' : 'bg-slate-200 text-slate-700'}`}>{count}</span>
+    )}
+  </Button>
+);
+
 function buildPractice(): { clients: BillingClient[]; cycles: BillingCycle[] } {
   const start = addDays(todayAgency(), -100);
   const client: BillingClient = {
@@ -146,9 +181,13 @@ export function BillingWorkspace() {
   const { isSuperadmin } = useIsSuperadmin();
 
   const { loading, clients: realClients, deletedClients: realDeleted, cycles: realCycles, updateClient, addClient: addRealClient, deleteClient, restoreClient, updateCycle: updateRealCycle } = useBilling();
-  const [section,setSection]=useState<'deadlines'|'setup'|'revenue'|'availity'>('deadlines');
-  const [filter,setFilter]=useState<'attention'|'all'|'extensions'|'expired'>('attention');
-  const [phaseTab,setPhaseTab]=useState<'both'|'150'|'180'>('both');
+  const [section,setSection]=useState<Section>('bill');
+  // The client whose Availity boxes are open. Null means the list is showing.
+  const [billingClientId,setBillingClientId]=useState<string|null>(null);
+  const [showLater,setShowLater]=useState(false);
+  // Raised after a cycle is marked billed, to ask about the touchpoint.
+  const [billedPrompt,setBilledPrompt]=useState<TouchpointContext|null>(null);
+  const [touchpointFor,setTouchpointFor]=useState<TouchpointContext|null>(null);
   const [setupReason,setSetupReason]=useState<'all'|'start'|'lon'>('all');
   const [open,setOpen]=useState<string|null>(null);
   const [query,setQuery]=useState('');
@@ -170,13 +209,13 @@ export function BillingWorkspace() {
   const startTutorial=()=>{
     setPractice(buildPractice());
     setPracticeRevenueView('projection');
-    setSection('deadlines'); setFilter('attention'); setPhaseTab('both'); setSetupReason('all');
+    setSection('bill'); setBillingClientId(null); setShowLater(false); setSetupReason('all');
     setQuery(''); setOpen(null); setNewRowIds([]);
     setTutorial(true);
   };
   const stopTutorial=()=>{
     setTutorial(false); setPractice(null); setNewRowIds([]);
-    setSection('deadlines'); setFilter('attention'); setSetupReason('all'); setQuery(''); setOpen(null);
+    setSection('bill'); setBillingClientId(null); setSetupReason('all'); setQuery(''); setOpen(null);
   };
   const finishTutorial=async()=>{ if(user) await supabase.from('user_tutorial_progress').upsert({user_id:user.id,current_step:10,completed:true,completed_at:new Date().toISOString()},{onConflict:'user_id'}); stopTutorial(); toast.success('Billing tutorial complete.'); };
 
@@ -201,32 +240,33 @@ export function BillingWorkspace() {
   // here and move straight into the lists above once the level is saved.
   const lonAll=useMemo(()=>clients.filter(c=>c.status==='active'&&(!!c.auth_30_start||!!c.auth_150_start)&&!normalizeLevel(c.level_of_need)),[clients]);
   const lonPending=useMemo(()=>lonAll.filter(c=>matches(c,query)),[lonAll,query]);
-  // Needs attention counts clients: those with a cycle near its final deadline
-  // plus everyone still waiting on a level of need (counted once).
-  const attentionClients=useMemo(()=>eligible.filter(c=>(cycleByClient.get(c.id)??[]).some(attention)),[eligible,cycleByClient]);
-  const expiredCount=useMemo(()=>cycles.filter(expired).length,[cycles]);
-  const attentionCount=useMemo(()=>{
-    const ids=new Set(attentionClients.map(c=>c.id));
-    return ids.size+lonAll.filter(c=>!ids.has(c.id)).length;
-  },[attentionClients,lonAll]);
+  // Cycles still waiting to be billed: not approved, not closed, not already
+  // filed. A cycle marked billed leaves this list and shows up in Revenue.
+  const toBillOf=(c:BillingClient)=>(cycleByClient.get(c.id)??[])
+    .filter(x=>!isCycleResolved(x)&&x.billing_status!=='Submitted');
 
+  // Every client with something left to bill, most urgent first. There is one
+  // ordering rather than four filters, because the deadline is the only thing
+  // that decides what to do next.
+  const queue=useMemo(()=>eligible
+      .filter(c=>matches(c,query)&&toBillOf(c).length>0)
+      .map(c=>{
+        const open=toBillOf(c);
+        const days=Math.min(...open.map(x=>daysToFinalDeadline(x)));
+        return { client:c, cycles:open, days, band:bandOf(days) };
+      })
+      .sort((a,b)=>a.days-b.days),
+  [eligible,query,cycleByClient]);
 
-  // Nearest unresolved final deadline, used to order the full cycle list.
-  const nearestDeadline=(c:BillingClient)=>{
-    const list=(cycleByClient.get(c.id)??[]).filter(x=>!isCycleResolved(x));
-    if(!list.length) return Number.MAX_SAFE_INTEGER;
-    return Math.min(...list.map(x=>{const d=daysToFinalDeadline(x); return d<0?d+100000:d;}));
-  };
-  const visibleCycles=cycles.filter(c=>filter==='attention'?attention(c):filter==='expired'?expired(c):true);
-  const visibleClients=useMemo(()=>eligible
-      .filter(c=>filter!=='all'||phaseTab==='both'||(phaseTab==='180'?!!c.auth_180_approved:!c.auth_180_approved))
-      .filter(c=>matches(c,query)&&(cycleByClient.get(c.id)??[]).some(x=>visibleCycles.includes(x)))
-      .sort((a,b)=>nearestDeadline(a)-nearestDeadline(b)),
-  [eligible,query,cycleByClient,visibleCycles,filter,phaseTab]);
+  const byBand=useMemo(()=>{
+    const out:Record<Band,typeof queue>={overdue:[],week:[],month:[],later:[]};
+    queue.forEach(r=>out[r.band].push(r));
+    return out;
+  },[queue]);
 
   const [page,setPage]=useState(0);
-  useEffect(()=>{setPage(0);},[filter,phaseTab,query]);
-  const pagedClients=visibleClients.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
+  useEffect(()=>{setPage(0);},[query]);
+  const laterPaged=byBand.later.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
 
   const searchResults = query.trim() ? clients.filter(c=>matches(c,query)).slice(0,8) : [];
 
@@ -243,6 +283,49 @@ export function BillingWorkspace() {
   const saveClient=(id:string,p:Partial<BillingClient>)=>clientWriter(id,p)
     .then(()=>{toast.success(practice?'Saved to practice data only.':'Saved. Billing has been updated.'); if(!practice) runDuplicateCheck(id);})
     .catch(e=>toast.error(e.message));
+
+  // Billing a cycle is only half the month's work: the touchpoints have to be
+  // entered in NJHMIS too, and the two are easy to separate by accident. So the
+  // question is asked straight after, while the client is still in mind.
+  const handleBilled=(clientId:string)=>{
+    const c=clients.find(x=>x.id===clientId);
+    if(!c) return;
+    setBilledPrompt({
+      clientId,
+      clientName:`${c.first_name} ${c.last_name}`,
+      levelOfNeed:normalizeLevel(c.level_of_need)||null,
+      locked:true,
+    });
+  };
+
+  // One row in the list of clients to bill.
+  const clientRow=(row:{client:BillingClient;cycles:BillingCycle[];days:number;band:Band},tour:boolean)=>{
+    const c=row.client;
+    const all=cycleByClient.get(c.id)??[];
+    const level=normalizeLevel(c.level_of_need);
+    return <Card key={c.id} className="overflow-hidden">
+      <div className="flex flex-wrap items-center gap-2 pr-4" data-tour={tour?'client-row':undefined}>
+        <button className="flex min-w-[18rem] flex-1 items-center gap-3 p-4 text-left hover:bg-slate-50" onClick={()=>setOpen(open===c.id?null:c.id)}>
+          {open===c.id?<ChevronDown className="h-4 w-4 shrink-0"/>:<ChevronRight className="h-4 w-4 shrink-0"/>}
+          <div className="min-w-0 flex-1">
+            <span className="flex items-center gap-2"><b>{c.first_name} {c.last_name}</b><InfoHint text={HOW_TO_READ}/></span>
+            <div className="truncate text-sm text-muted-foreground">
+              {c.insurance ?? 'No MCO'} · {level?`${level} level`:'Level of need needed'} · {c.auth_180_approved?'180-day extension':'150-day authorization'}
+            </div>
+          </div>
+          <div className="text-right">
+            <b>{row.cycles.length} cycle{row.cycles.length===1?'':'s'} to bill</b>
+            <div className="text-sm text-muted-foreground">
+              {row.days<0?`Window closed ${Math.abs(row.days)} days ago`:row.days===0?'Last day to file':`${row.days} days left to file`}
+            </div>
+          </div>
+        </button>
+        <Button onClick={()=>setBillingClientId(c.id)}>Add billing</Button>
+        <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={tour}/>
+      </div>
+      {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={cycleWriter} tour={tour} practice={!!practice}/>}
+    </Card>;
+  };
 
   const reasonOf: Record<'start'|'lon', Blocker> = { start:'No authorization start date', lon:'Missing level of need' };
   const setupRows=useMemo(()=>{
@@ -262,30 +345,28 @@ export function BillingWorkspace() {
 
   const tutorialSteps: BillingTutorialStep[] = useMemo(()=>{
     const sectionsList = isSuperadmin
-      ? 'Billing has three main sections.\n\nCurrent Billing Deadlines shows billing work that needs attention.\n\nRevenue shows potential, submitted, pending, collected, and lost income.\n\nAdd or Set Up Client Billing is where you add or correct the information used to create billing cycles.'
-      : 'Billing has two main sections.\n\nCurrent Billing Deadlines shows billing work that needs attention.\n\nAdd or Set Up Client Billing is where you add or correct the information used to create billing cycles.';
+      ? 'Billing runs in order.\n\nBilling Details holds the agency\u2019s own information, added once.\n\nClients To Bill lists who to file for, soonest deadline first.\n\nRevenue shows what has been billed and collected.\n\nClient Information is where you add or correct the client details used to build billing cycles.'
+      : 'Billing runs in order.\n\nBilling Details holds the agency\u2019s own information, added once.\n\nClients To Bill lists who to file for, soonest deadline first.\n\nClient Information is where you add or correct the client details used to build billing cycles.';
 
     const steps: BillingTutorialStep[] = [
       {
         title: isSuperadmin ? 'Understand the three Billing sections' : 'Understand the two Billing sections',
         body: sectionsList,
         selector:'[data-tour="sections"]',
-        before:()=>{setSection('deadlines');setFilter('attention');setQuery('');setOpen(null);},
+        before:()=>{setSection('bill');setQuery('');setOpen(null);setBillingClientId(null);},
       },
       {
         title:'Find a client',
         body:`Use the search box to find a specific client. You can search using the client’s name, member ID, or MCO. Only matching clients will appear below the search box.\n\n**Enter ${practiceFullName} in the search box, then press Continue.**`,
         selector:'[data-tour="search"]',
         gate: !!query.trim() && !!practiceClient && matches(practiceClient, query),
-        before:()=>{setSection('deadlines');setQuery('');},
+        before:()=>{setSection('bill');setQuery('');},
       },
       {
-        title:'Choose the billing list you need',
-        body:'Use these three buttons to choose which billing list to view.\n\nAll Active Billing Cycles shows every active 30-day billing cycle.\n\nNeeds Attention shows clients whose cycle end dates are four weeks away from the final deadline for submitting claims from the full authorization period.\n\nUpcoming 180-Day Extensions shows clients whose 150-day authorization ends within 30 days.\n\nThe number in parentheses shows how many clients or billing cycles are in each list.',
+        title:'Read the list',
+        body:'There is one list, ordered by the last day each claim can be filed.\n\nDue This Week comes first, then Due This Month, then Later. Overdue means the six-month window has closed and the claim can no longer be filed.\n\nThe number beside each heading is how many clients are in it.',
         selector:'[data-tour="filters"]',
-        done: filter==='all',
-        hint:'**Press All Active Billing Cycles to continue.**',
-        before:()=>{setSection('deadlines');setQuery('');setFilter('attention');setOpen(null);},
+        before:()=>{setSection('bill');setQuery('');setOpen(null);},
       },
       {
         title:'Open a client’s billing cycles',
@@ -293,7 +374,7 @@ export function BillingWorkspace() {
         selector:'[data-tour="client-row"]',
         done: open===PRACTICE_CLIENT_ID,
         hint:'**Press the highlighted practice client row to continue.**',
-        before:()=>{setSection('deadlines');setFilter('all');setPhaseTab('both');setQuery('');setOpen(null);},
+        before:()=>{setSection('bill');setQuery('');setOpen(null);},
       },
       {
         title:'Update a billing cycle',
@@ -301,7 +382,7 @@ export function BillingWorkspace() {
         selector:'[data-tour="claim-status"]',
         done: practiceCycle?.billing_status==='Submitted',
         hint:'**Open the highlighted claim status dropdown and select Submitted to continue.**',
-        before:()=>{setSection('deadlines');setFilter('all');setOpen(PRACTICE_CLIENT_ID);resetPracticeCycles();},
+        before:()=>{setSection('bill');setOpen(PRACTICE_CLIENT_ID);resetPracticeCycles();},
       },
     ];
 
@@ -313,7 +394,7 @@ export function BillingWorkspace() {
           selector:'[data-tour="sections"]',
           done: section==='revenue',
           hint:'**Press Revenue to continue.**',
-          before:()=>{setSection('deadlines');setPracticeRevenueView('projection');},
+          before:()=>{setSection('bill');setPracticeRevenueView('projection');},
         },
         {
           title:'Understand the Revenue section',
@@ -334,9 +415,9 @@ export function BillingWorkspace() {
           ? 'You have finished reviewing Revenue. Use Add or Set Up Client Billing to add a client or correct the information used to create billing cycles.\n\nYou can save the information you have even when some information is still missing.'
           : 'You have finished reviewing Current Billing Deadlines. Use Add or Set Up Client Billing to add a client or correct the information used to create billing cycles.\n\nYou can save the information you have even when some information is still missing.',
         selector:'[data-tour="sections"]',
-        done: section==='setup',
+        done: section==='data',
         hint:'**Press Add or Set Up Client Billing to continue.**',
-        before:()=>{setSection(isSuperadmin?'revenue':'deadlines');},
+        before:()=>{setSection(isSuperadmin?'revenue':'bill');},
       },
       {
         title:'Review the client setup groups',
@@ -344,7 +425,7 @@ export function BillingWorkspace() {
         selector:'[data-tour="stage-setup"]',
         done: setupReason==='start',
         hint:'**Press No Authorization Start Date to continue.**',
-        before:()=>{setSection('setup');setSetupReason('all');setQuery('');},
+        before:()=>{setSection('data');setSetupReason('all');setQuery('');},
       },
       {
         title:'Add a client',
@@ -352,15 +433,15 @@ export function BillingWorkspace() {
         selector:'[data-tour="add-client"]',
         done: (practice?.clients.length ?? 0) > 1,
         hint:'**Press Add Client Row to complete the tutorial.**',
-        before:()=>{setSection('setup');setSetupReason('start');setQuery('');removePracticeRows();},
+        before:()=>{setSection('data');setSetupReason('start');setQuery('');removePracticeRows();},
       },
     );
     return steps;
-  },[isSuperadmin,section,filter,setupReason,open,query,practice,practiceClient,practiceCycle,practiceRevenueView]);
+  },[isSuperadmin,section,setupReason,open,query,practice,practiceClient,practiceCycle,practiceRevenueView]);
 
   const completionBody = isSuperadmin
-    ? ['You have completed the Billing tutorial.','Begin with Current Billing Deadlines to see which clients require attention. Use Revenue to review billing and payment amounts. Use Add or Set Up Client Billing to add client information or complete missing information.','You can restart the tutorial at any time by pressing Learn How to Use Billing.']
-    : ['You have completed the Billing tutorial.','Begin with Current Billing Deadlines to see which clients require attention. Use Add or Set Up Client Billing to add client information or complete missing information.','You can restart the tutorial at any time by pressing Learn How to Use Billing.'];
+    ? ['You have completed the Billing tutorial.','Add the agency details once under Billing Details. Work through Clients To Bill from the top. Use Revenue to review what has been billed and collected, and Client Information to add or correct client details.','You can restart this at any time by pressing How Billing Works.']
+    : ['You have completed the Billing tutorial.','Add the agency details once under Billing Details. Work through Clients To Bill from the top. Use Client Information to add or correct client details.','You can restart this at any time by pressing How Billing Works.'];
 
   if (loading) return <Card className="p-8 text-muted-foreground">Loading billing information…</Card>;
 
@@ -394,17 +475,43 @@ export function BillingWorkspace() {
       </DialogContent>
     </Dialog>
 
+    {/* Asked straight after a cycle is billed: the NJHMIS entry is the other
+        half of the same month's work, and is easy to forget once the claim is
+        filed. Answering No opens the touchpoint form for this client, which is
+        where the NJHMIS note is written and copied. */}
+    <Dialog open={!!billedPrompt} onOpenChange={(o)=>!o&&setBilledPrompt(null)}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Touchpoints for {billedPrompt?.clientName}</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          The cycle is marked as billed. Have this client's touchpoints been entered in NJHMIS for it?
+        </p>
+        <DialogFooter>
+          <Button variant="outline" onClick={()=>setBilledPrompt(null)}>Yes, already entered</Button>
+          <Button onClick={()=>{setTouchpointFor(billedPrompt);setBilledPrompt(null);}}>No, add a touchpoint now</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <AddTouchpointDialog
+      open={!!touchpointFor}
+      onOpenChange={(o)=>!o&&setTouchpointFor(null)}
+      context={touchpointFor}
+      onSaved={()=>setTouchpointFor(null)}
+    />
+
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex rounded-lg border bg-white p-1" data-tour="sections">
-        <Button data-tour="section-deadlines" variant={section==='deadlines'?'default':'ghost'} onClick={()=>setSection('deadlines')}>Current billing deadlines</Button>
-        <Button data-tour="section-setup" variant={section==='setup'?'default':'ghost'} className={section==='setup'?'bg-indigo-600 text-white hover:bg-indigo-700':''} onClick={()=>setSection('setup')}><Pencil className="mr-2 h-4 w-4"/>Add or set up client billing</Button>
-        {isSuperadmin && <Button variant={section==='revenue'?'default':'ghost'} className={section==='revenue'?'bg-emerald-600 text-white hover:bg-emerald-700':''} onClick={()=>setSection('revenue')}><DollarSign className="mr-2 h-4 w-4"/>Revenue</Button>}
-        <Button variant={section==='availity'?'default':'ghost'} className={section==='availity'?'bg-slate-800 text-white hover:bg-slate-900':''} onClick={()=>setSection('availity')}><ExternalLink className="mr-2 h-4 w-4"/>Availity</Button>
+      <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-white p-1" data-tour="sections">
+        <StepButton step={1} label="Billing details" active={section==='details'} onClick={()=>setSection('details')} tour="section-details"/>
+        <StepButton step={2} label="Clients to bill" count={queue.length} active={section==='bill'} onClick={()=>{setSection('bill');setBillingClientId(null);}} tour="section-bill"/>
+        {isSuperadmin && <StepButton step={3} label="Revenue" active={section==='revenue'} onClick={()=>setSection('revenue')} tour="section-revenue"/>}
       </div>
-      <Button variant="outline" onClick={startTutorial}><HelpCircle className="mr-2 h-4 w-4"/>Learn How to Use Billing</Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button data-tour="section-setup" variant="outline" className={section==='data'?'border-indigo-400 bg-indigo-50 text-indigo-900 hover:bg-indigo-100':''} onClick={()=>setSection('data')}><Pencil className="mr-2 h-4 w-4"/>Client information</Button>
+        <Button variant="ghost" onClick={startTutorial}><HelpCircle className="mr-2 h-4 w-4"/>How billing works</Button>
+      </div>
     </div>
 
-    {section!=='revenue' && <Card className="p-4" data-tour="search">
+    {(section==='bill'||section==='data') && !billingClientId && <Card className="p-4" data-tour="search">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input className="pl-9" placeholder="Search clients by name, member ID, or MCO…" value={query} onChange={e=>setQuery(e.target.value)} />
@@ -418,65 +525,48 @@ export function BillingWorkspace() {
       </div>}
     </Card>}
 
-    {section==='availity' ? <AvailityPanel clients={clients} cycles={cycles} updateCycle={cycleWriter}/>
+    {section==='details' ? <ProviderSetup/>
     : section==='revenue' ? <RevenueTab clients={clients} cycles={cycles} viewOverride={practice?practiceRevenueView:undefined} onViewChange={practice?setPracticeRevenueView:undefined}/>
-    : section==='deadlines' ? <>
-      <div className="flex flex-wrap gap-2" data-tour="filters">
-
-        <Button data-tour="filter-all" variant={filter==='all'?'default':'outline'} onClick={()=>setFilter('all')}>All active billing cycles ({eligible.length})</Button>
-        <Button data-tour="filter-attention" onClick={()=>setFilter('attention')} className={filter==='attention'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Needs attention ({attentionCount})</Button>
-        <button data-tour="filter-extensions" onClick={()=>setFilter('extensions')} className={`inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 ${filter==='extensions'?'bg-amber-600 text-white hover:bg-amber-700':'border border-amber-300 bg-white text-amber-800 hover:bg-amber-50'}`}>Upcoming 180-day extensions ({extensionClients.length})</button>
-        {expiredCount>0 && <Button variant={filter==='expired'?'default':'outline'} className={filter==='expired'?'bg-slate-700 text-white hover:bg-slate-800':'border-slate-300 text-slate-700'} onClick={()=>setFilter('expired')}>Past the six-month window ({expiredCount})</Button>}
+    : section==='bill' ? (billingClientId ? <>
+      <Button variant="ghost" className="-ml-2 w-fit" onClick={()=>setBillingClientId(null)}><ChevronLeft className="mr-1 h-4 w-4"/>Back to clients to bill</Button>
+      <AvailityPanel clients={clients} cycles={cycles} updateCycle={cycleWriter} initialClientId={billingClientId} onBilled={handleBilled}/>
+    </> : <>
+      {/* One list, ordered by the last day each claim can be filed. */}
+      <div className="flex flex-wrap items-center gap-2" data-tour="filters">
+        {BANDS.filter(b=>b.key!=='later').map(b=>byBand[b.key].length>0?<span key={b.key} className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${b.tone}`}>
+          <span className={`h-2 w-2 rounded-full ${b.dot}`}/><b>{byBand[b.key].length}</b> {b.heading.toLowerCase()}
+        </span>:null)}
       </div>
 
+      {queue.length===0 ? <Card className="p-10 text-center">
+        <h3 className="font-semibold">{query.trim()?'No clients match that search':'Nothing to bill right now'}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'A client appears here when they have a billing cycle that has not been billed yet.'}</p>
+      </Card> : <>
+        {BANDS.filter(b=>b.key!=='later').map(b=>byBand[b.key].length>0?<section key={b.key} className="space-y-3">
+          <div>
+            <h3 className="font-semibold">{b.heading} ({byBand[b.key].length})</h3>
+            {b.note && <p className="text-sm text-muted-foreground">{b.note}</p>}
+          </div>
+          {byBand[b.key].map((row,i)=>clientRow(row,i===0))}
+        </section>:null)}
 
-      {filter==='all' && <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant={phaseTab==='both'?'secondary':'outline'} className={`h-8 text-sm ${phaseTab!=='both'?'bg-white':''}`} onClick={()=>setPhaseTab('both')}>All authorizations ({eligible.length})</Button>
-        <Button size="sm" variant={phaseTab==='150'?'default':'outline'} className={`h-8 text-sm ${phaseTab!=='150'?'bg-white':''}`} onClick={()=>setPhaseTab('150')}>150-day authorization ({eligible.filter(c=>!c.auth_180_approved).length})</Button>
-        <Button size="sm" variant={phaseTab==='180'?'default':'outline'} className={`h-8 text-sm ${phaseTab!=='180'?'bg-white':''}`} onClick={()=>setPhaseTab('180')}>180-day extension ({eligible.filter(c=>c.auth_180_approved).length})</Button>
-      </div>}
-
-
-      {filter==='expired' && <Card className="border-slate-300 bg-slate-50 p-4">
-        <p className="text-sm font-medium">These cycles can no longer be billed.</p>
-        <p className="mt-1 text-sm text-muted-foreground">A claim has to reach the MCO within six months of the cycle end date. That window has closed on the cycles below and nothing was submitted, so the money cannot be claimed now. They are kept here for the record — and to be marked Closed — but they never appear in Needs attention, because there is no action left that recovers them.</p>
-      </Card>}
-
-      {filter==='extensions' ? <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>
-      : visibleClients.length===0 ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No billable clients match that search':'Nothing needs attention right now'}</h3><p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'A client appears here when a finished cycle is within four weeks of its final submission deadline.'}</p></Card>
-      : <div className="space-y-3"><Pager page={page} setPage={setPage} total={visibleClients.length} label="clients"/>{pagedClients.map((c,i)=>{
-        const all=cycleByClient.get(c.id)??[];
-        const cc=all.filter(x=>filter==='attention'?attention(x):filter==='expired'?expired(x):true);
-        const atRisk=all.filter(attention).length;
-        const lost=all.filter(expired).length;
-        const allResolved=all.length>0&&all.every(isCycleResolved);
-        const level=normalizeLevel(c.level_of_need);
-        return <Card key={c.id} className={`overflow-hidden ${atRisk?'border-red-400':''}`}>
-        <div className="flex items-center gap-2 pr-4" data-tour={i===0?'client-row':undefined}>
-          <button className="flex flex-1 items-center gap-3 p-4 text-left hover:bg-slate-50" onClick={()=>setOpen(open===c.id?null:c.id)}>
-
-            {open===c.id?<ChevronDown/>:<ChevronRight/>}
-            <div className="flex-1">
-              <span className="flex items-center gap-2"><b>{c.first_name} {c.last_name}</b><InfoHint text={HOW_TO_READ}/></span>
-              <div className="text-sm text-muted-foreground">{level?`${level} level`:'Level of need needed'} · {c.auth_180_approved?'180-day extension':'150-day authorization'}</div>
-            </div>
-            <div className="text-right">
-              <b>{cc.length} cycle{cc.length===1?'':'s'}</b>
-              <div className={`text-sm ${atRisk?'font-medium text-red-600':allResolved?'font-medium text-green-700':'text-muted-foreground'}`}>{atRisk?`${atRisk} cycle(s) near final deadline`:!level?'Add a level of need to create cycles':allResolved?'All cycles approved or closed':'Open to review'}</div>
-              {lost>0&&<div className="text-sm text-muted-foreground">{lost} past the six-month window</div>}
-            </div>
+        {byBand.later.length>0 && <section className="space-y-3">
+          <button className="flex w-full items-center justify-between rounded-md border bg-white p-3 text-left text-sm hover:bg-slate-50" onClick={()=>setShowLater(v=>!v)}>
+            <span><b>Later ({byBand.later.length})</b> <span className="text-muted-foreground">— nothing to do yet</span></span>
+            {showLater?<ChevronDown className="h-4 w-4"/>:<ChevronRight className="h-4 w-4"/>}
           </button>
-          <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={i===0}/>
-        </div>
-        {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={cycleWriter} tour={i===0} practice={!!practice}/>}
-      </Card>})}<Pager page={page} setPage={setPage} total={visibleClients.length} label="clients"/></div>}
+          {showLater && <div className="space-y-3">
+            <Pager page={page} setPage={setPage} total={byBand.later.length} label="clients"/>
+            {laterPaged.map(row=>clientRow(row,false))}
+            <Pager page={page} setPage={setPage} total={byBand.later.length} label="clients"/>
+          </div>}
+        </section>}
+      </>}
 
-      {filter==='attention' && lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
-
-
-
-
-    </> : <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 space-y-4">
+      {lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
+      {extensionClients.length>0 && <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>}
+    </>)
+    : <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 font-semibold text-indigo-900"><Pencil className="h-4 w-4"/>Edit mode — add or set up client billing</h2>
@@ -518,8 +608,8 @@ function LonQueue({clients,save,openProfile}:{clients:BillingClient[];save:(id:s
   const rows=clients.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
   return <Card className="overflow-hidden border-amber-300">
     <div className="border-b bg-amber-50 p-4">
-      <h3 className="font-semibold text-amber-900">Please update LON status ({clients.length})</h3>
-      <p className="mt-1 text-sm text-amber-900/80">These clients have an HSP approval start date but no level of need, so their billing cycles cannot be created yet. Choose the level of need and press Save. They move into the lists above right away.</p>
+      <h3 className="font-semibold text-amber-900">Add a level of need ({clients.length})</h3>
+      <p className="mt-1 text-sm text-amber-900/80">These clients have an HSP approval start date but no level of need, so their billing cycles cannot be created yet. Choose the level of need and press Save. They join the list above right away.</p>
     </div>
     <div className="divide-y">{rows.map(c=><div key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
       <div className="flex items-center gap-2">
@@ -547,7 +637,10 @@ function ExtensionQueue({clients,save,openProfile}:{clients:BillingClient[];save
   const [numbers,setNumbers]=useState<Record<string,string>>({});
   if(!clients.length) return <Card className="p-10 text-center"><h3 className="font-semibold">No extensions are coming up</h3><p className="mt-1 text-sm text-muted-foreground">A client appears here when their 150-day authorization ends within 30 days and the 180-day extension has not been confirmed.</p></Card>;
   return <Card className="overflow-x-auto">
-    <div className="border-b bg-amber-50 p-4 text-sm text-amber-900">Confirm the 180-day extension before the 150-day authorization ends so billing continues without a gap. The 180-day start date is calculated for you.</div>
+    <div className="border-b bg-amber-50 p-4">
+      <h3 className="font-semibold text-amber-900">Confirm a 180-day extension ({clients.length})</h3>
+      <p className="mt-1 text-sm text-amber-900/80">Confirm the 180-day extension before the 150-day authorization ends, so billing continues without a gap. The 180-day start date is worked out for you.</p>
+    </div>
     <table className="w-full min-w-[1000px] text-sm"><thead className="bg-slate-100 text-left"><tr>{['Client','150-day end date','Time left','180-day start (calculated)','180-day auth number','Confirm'].map(x=><th key={x} className="p-3 font-semibold">{x}</th>)}</tr></thead>
     <tbody>{clients.map(c=>{
       const days=daysUntil150End(c)??0;

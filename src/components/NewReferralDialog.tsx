@@ -13,9 +13,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { fetchActiveCaseManagers, caseManagerName, CaseManagerOption } from '@/lib/billingSync';
+import { MCO_OPTIONS } from '@/lib/billing';
 import { AlertTriangle } from 'lucide-react';
 
-const INSURANCE_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis'] as const;
 const REFERRAL_CHANNELS = ['MCO', 'Hospital', 'Shelter', 'Self', 'Community partner', 'Other'] as const;
 const NJ_COUNTIES = [
   'Atlantic', 'Bergen', 'Burlington', 'Camden', 'Cape May', 'Cumberland',
@@ -202,7 +202,7 @@ export const NewReferralDialog: React.FC<Props> = ({ open, onOpenChange, onCreat
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      {INSURANCE_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      {MCO_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <FormMessage />

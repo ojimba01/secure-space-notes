@@ -20,17 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Check, Copy, Search, Settings2 } from 'lucide-react';
+import { Check, Copy, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useIsAdmin } from '@/hooks/useIsAdmin';
 import type { BillingClient } from '@/hooks/useBilling';
 import { MCO_OPTIONS, todayAgency, type BillingCycle } from '@/lib/billing';
 import { fetchClientAuthorizations, type ClientAuthorization } from '@/lib/authorizations';
 import {
   AGENCY_DIAGNOSIS_CODES,
   DEFAULT_DIAGNOSIS_CODE,
-  EMPTY_SETTINGS,
   OTHER_DIAGNOSIS_CODES,
   GENDER_OPTIONS,
   RELATIONSHIP_OPTIONS,
@@ -42,7 +40,6 @@ import {
   findDiagnosisCode,
   loadAvailitySettings,
   patientControlNumber,
-  saveAvailitySettings,
   usDate,
   type AvailityField,
   type AvailityGender,
@@ -56,6 +53,10 @@ interface Props {
   cycles: BillingCycle[];
   /** Writes a cycle back — the same writer the billing grid uses. */
   updateCycle: (id: string, patch: Partial<BillingCycle>) => Promise<void>;
+  /** The client the billing list sent here. Its own picker is used when absent. */
+  initialClientId?: string | null;
+  /** Fired once a cycle has been marked billed, so the flow can ask about touchpoints. */
+  onBilled?: (clientId: string, cycleId: string) => void;
 }
 
 type Page = 'eligibility' | 'claim';
@@ -121,25 +122,7 @@ const CopyField: React.FC<AvailityField> = ({ label, value, required, note, miss
   );
 };
 
-const ProviderInput: React.FC<{
-  label: string;
-  field: keyof AvailityProviderSettings;
-  draft: AvailityProviderSettings;
-  onChange: (draft: AvailityProviderSettings) => void;
-  placeholder?: string;
-}> = ({ label, field, draft, onChange, placeholder }) => (
-  <div className="space-y-1">
-    <Label className="text-xs text-muted-foreground">{label}</Label>
-    <Input
-      value={(draft[field] as string) ?? ''}
-      placeholder={placeholder}
-      onChange={(e) => onChange({ ...draft, [field]: e.target.value })}
-    />
-  </div>
-);
-
-export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle }) => {
-  const { isAdmin } = useIsAdmin();
+export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, initialClientId, onBilled }) => {
   const [page, setPage] = useState<Page>('eligibility');
   const [query, setQuery] = useState('');
   const [clientId, setClientId] = useState<string | null>(null);
@@ -153,14 +136,17 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle })
   const [savingDiagnosis, setSavingDiagnosis] = useState(false);
   const [cycleId, setCycleId] = useState<string | null>(null);
   const [settings, setSettings] = useState<AvailityProviderSettings | null>(null);
-  const [editingProvider, setEditingProvider] = useState(false);
-  const [providerDraft, setProviderDraft] = useState<AvailityProviderSettings>(EMPTY_SETTINGS);
-  const [savingProvider, setSavingProvider] = useState(false);
   const [markingSubmitted, setMarkingSubmitted] = useState(false);
 
   useEffect(() => {
     loadAvailitySettings().then(setSettings);
   }, []);
+
+  // The billing list drives which client is shown; the internal picker is only
+  // a fallback for opening this panel on its own.
+  useEffect(() => {
+    if (initialClientId) setClientId(initialClientId);
+  }, [initialClientId]);
 
   const client = useMemo(() => clients.find((c) => c.id === clientId) ?? null, [clients, clientId]);
 
@@ -307,8 +293,9 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle })
         patch.claim_number = patientControlNumber(availityClient) || null;
       }
       await updateCycle(selected.cycle.id, patch);
-      toast.success(`Cycle ${selected.cycle.cycle_number} marked submitted`, {
-        description: 'It no longer counts as outstanding billing work.',
+      if (clientId) onBilled?.(clientId, selected.cycle.id);
+      toast.success(`Cycle ${selected.cycle.cycle_number} marked as billed`, {
+        description: 'It moves to Revenue and leaves the list of clients to bill.',
       });
       const next = cycleRows.find(
         (r) =>
@@ -325,20 +312,6 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle })
     }
   };
 
-  const saveProvider = async () => {
-    setSavingProvider(true);
-    try {
-      await saveAvailitySettings(providerDraft);
-      setSettings(providerDraft);
-      setEditingProvider(false);
-      toast.success('Provider details saved');
-    } catch (err: any) {
-      toast.error('Could not save the provider details', { description: err.message });
-    } finally {
-      setSavingProvider(false);
-    }
-  };
-
   const missingProvider = settings
     ? REQUIRED_PROVIDER_FIELDS.filter((f) => !(settings[f] as string)?.trim())
     : [];
@@ -346,110 +319,16 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle })
   return (
     <div className="space-y-4">
       <Card className="p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">Availity staging</h2>
-            <p className="text-sm text-muted-foreground">
-              The Availity pages, in the same order, filled in for one client. Put this beside the real
-              page and copy each box across. Nothing is sent to Availity from here.
-            </p>
-          </div>
-          {isAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setProviderDraft(settings ?? EMPTY_SETTINGS);
-                setEditingProvider((v) => !v);
-              }}
-            >
-              <Settings2 className="mr-2 h-4 w-4" />
-              Provider details
-            </Button>
-          )}
-        </div>
+        <h2 className="text-lg font-semibold">Availity information</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          The two Availity pages, in the same order, filled in for this client. Put this beside the
+          real page and copy each box across. Nothing is sent to Availity from this app.
+        </p>
 
-        {!!missingProvider.length && !editingProvider && (
+        {!!missingProvider.length && (
           <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-            The practice's own details are not filled in yet, so some boxes below will be blank. They
-            are deliberately not stored in the code, because this repository is public and the NPI, EIN
-            and billing address are the agency's billing identity. Enter them once under Provider
-            details.
-          </div>
-        )}
-
-        {editingProvider && (
-          <div className="mt-4 space-y-4 rounded-md border bg-muted/30 p-4">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <ProviderInput label="Organization" field="organization" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput label="Provider name" field="providerName" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput label="Contact name" field="contactName" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput label="NPI" field="providerNpi" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput label="EIN (tax ID)" field="providerEin" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput label="Specialty code" field="specialtyCode" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput label="Billing address" field="addressLine1" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput label="City" field="city" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput label="State" field="state" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput label="ZIP code" field="zip" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput label="Phone" field="phone" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput label="Fax" field="fax" draft={providerDraft} onChange={setProviderDraft} />
-              <ProviderInput
-                label="Line modifier on H0044"
-                field="defaultModifier"
-                draft={providerDraft}
-                onChange={setProviderDraft}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Payer names</p>
-              <p className="text-xs text-muted-foreground">
-                The exact entry to choose in Availity's Payer list. The two pages word the same MCO
-                differently, and Aetna appears several times in both, so only the exact wording works.
-              </p>
-              <div className="grid gap-2 sm:grid-cols-[8rem_1fr_1fr]">
-                <span />
-                <span className="text-xs font-medium text-muted-foreground">Eligibility and benefits</span>
-                <span className="text-xs font-medium text-muted-foreground">Claims and encounters</span>
-                {MCO_OPTIONS.map((mco) => (
-                  <React.Fragment key={mco}>
-                    <span className="self-center text-sm">{mco}</span>
-                    <Input
-                      placeholder="Not confirmed yet"
-                      value={providerDraft.payersEligibility[mco] ?? ''}
-                      onChange={(e) =>
-                        setProviderDraft({
-                          ...providerDraft,
-                          payersEligibility: {
-                            ...providerDraft.payersEligibility,
-                            [mco]: e.target.value,
-                          },
-                        })
-                      }
-                    />
-                    <Input
-                      placeholder="Not confirmed yet"
-                      value={providerDraft.payersClaims[mco] ?? ''}
-                      onChange={(e) =>
-                        setProviderDraft({
-                          ...providerDraft,
-                          payersClaims: { ...providerDraft.payersClaims, [mco]: e.target.value },
-                        })
-                      }
-                    />
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button onClick={saveProvider} disabled={savingProvider}>
-                {savingProvider ? 'Saving…' : 'Save provider details'}
-              </Button>
-              <Button variant="outline" onClick={() => setEditingProvider(false)} disabled={savingProvider}>
-                Cancel
-              </Button>
-            </div>
+            {missingProvider.length} of the agency's own billing details are missing, so some boxes
+            below will be empty. Add them under <b>Billing details</b>.
           </div>
         )}
       </Card>
@@ -468,31 +347,37 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle })
             </Button>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              placeholder="Find a client by name or member ID"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {matches.map((c) => (
-              <Button
-                key={c.id}
-                size="sm"
-                variant={c.id === clientId ? 'default' : 'outline'}
-                onClick={() => setClientId(c.id)}
-              >
-                {c.last_name}, {c.first_name}
-                {c.insurance ? ` · ${c.insurance}` : ''}
-              </Button>
-            ))}
-            {!matches.length && (
-              <p className="text-sm text-muted-foreground">No active client matches that.</p>
-            )}
-          </div>
+          {/* The list of clients to bill picks the client, so its own picker is
+              only shown when this panel is opened on its own. */}
+          {!initialClientId && (
+            <>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Find a client by name or member ID"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {matches.map((c) => (
+                  <Button
+                    key={c.id}
+                    size="sm"
+                    variant={c.id === clientId ? 'default' : 'outline'}
+                    onClick={() => setClientId(c.id)}
+                  >
+                    {c.last_name}, {c.first_name}
+                    {c.insurance ? ` · ${c.insurance}` : ''}
+                  </Button>
+                ))}
+                {!matches.length && (
+                  <p className="text-sm text-muted-foreground">No active client matches that.</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </Card>
 
@@ -649,7 +534,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle })
                   </span>
                   {selected.cycle.billing_status === 'Submitted' && (
                     <Badge variant="secondary" className="bg-amber-100 text-amber-900">
-                      Already marked submitted
+                      Already billed
                     </Badge>
                   )}
                 </div>
@@ -702,19 +587,19 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle })
                       <div className="flex flex-wrap items-center gap-3 border-t pt-3">
                         {selected.cycle.billing_status === 'Submitted' ? (
                           <Badge variant="secondary" className="bg-green-100 text-green-800">
-                            Cycle {selected.cycle.cycle_number} is already marked submitted
+                            Cycle {selected.cycle.cycle_number} is already billed
                           </Badge>
                         ) : (
                           <>
                             <Button onClick={markSubmitted} disabled={markingSubmitted}>
                               {markingSubmitted
                                 ? 'Saving…'
-                                : `Once it is filed, mark cycle ${selected.cycle.cycle_number} submitted`}
+                                : `Mark cycle ${selected.cycle.cycle_number} as billed`}
                             </Button>
                             <p className="text-xs text-muted-foreground">
-                              Records today as the submission date and files the control number as the
-                              claim number, so the cycle drops out of the billing queue. Press it after
-                              Availity accepts the claim, not before.
+                              Saves today as the date billed and stores the control number as the
+                              claim number. The cycle then moves to Revenue. Press this after Availity
+                              accepts the claim, not before.
                             </p>
                           </>
                         )}
