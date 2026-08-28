@@ -51,6 +51,13 @@ export interface FieldChange {
   kind: 'fill' | 'override';
 }
 
+/** A value the documents hold that disagrees with what the record already has. */
+export interface FieldDisagreement {
+  label: string;
+  record: string;
+  document: string;
+}
+
 export interface ClientPlan {
   clientId: string | null;
   /** How the row was tied to a client, for the reviewer to judge. */
@@ -58,6 +65,13 @@ export interface ClientPlan {
   documentName: string | null;
   recordName: string | null;
   changes: FieldChange[];
+  /**
+   * Where the documents say something different from what is already on the
+   * record. Nothing is written for these — a document does not overrule a
+   * person — but they are counted, because silently discarding a
+   * disagreement is how a wrong value survives forever.
+   */
+  disagreements: FieldDisagreement[];
 }
 
 export interface ImportPlan {
@@ -219,23 +233,38 @@ export async function planClientFieldImport(rows: ClientFieldRow[]): Promise<Imp
         documentName: row.clientName,
         recordName: null,
         changes: [],
+        disagreements: [],
       });
       continue;
     }
 
     const changes: FieldChange[] = [];
-    const fill = (column: string, label: string, value: string | null, current: string | null) => {
+    const disagreements: FieldDisagreement[] = [];
+    const fill = (
+      column: string,
+      label: string,
+      value: string | null,
+      current: string | null,
+      same: (a: string, b: string) => boolean = (a, b) => a === b,
+    ) => {
       if (!value) return;
       if (current === null || current === undefined || String(current).trim() === '') {
         changes.push({ column, label, from: null, to: value, kind: 'fill' });
+      } else if (!same(value, String(current))) {
+        disagreements.push({ label, record: String(current), document: value });
       }
     };
+    const sameId = (a: string, b: string) => a.replace(/\D/g, '') === b.replace(/\D/g, '');
 
     fill('date_of_birth', 'Date of birth', toIsoDate(row.dob), client.date_of_birth);
-    fill('medicaid_id', 'Medicaid ID', row.medicaidId, client.medicaid_id);
-    fill('member_id', 'MCO member ID', row.mcoMemberId, client.member_id);
+    fill('medicaid_id', 'Medicaid ID', row.medicaidId, client.medicaid_id, sameId);
+    fill('member_id', 'MCO member ID', row.mcoMemberId, client.member_id, sameId);
     fill('diagnosis_code', 'Diagnosis code', row.diagnosis, client.diagnosis_code);
-    fill('address', 'Address', row.memberAddress, client.address);
+    // Addresses are written a dozen ways and rarely worth flagging as a
+    // disagreement, so only an empty one is filled.
+    if (row.memberAddress && !String(client.address ?? '').trim()) {
+      changes.push({ column: 'address', label: 'Address', from: null, to: row.memberAddress, kind: 'fill' });
+    }
 
     // Override: the name on the paperwork wins, but only when it is genuinely
     // a different spelling rather than the same name written another way.
@@ -266,6 +295,7 @@ export async function planClientFieldImport(rows: ClientFieldRow[]): Promise<Imp
       documentName: row.clientName,
       recordName,
       changes,
+      disagreements,
     });
   }
 

@@ -228,6 +228,17 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
             </Button>
           )}
         </div>
+        {/* The case this is most often needed for, said out loud. A client who
+            goes quiet during their first 30 days and comes back afterwards
+            needs a second 30-day authorization, not an edit to the first: the
+            first one really did happen and its dates are what was billed. */}
+        {canEdit && rows.some((r) => r.authorization_type === 'initial_30') && (
+          <p className="text-xs text-muted-foreground">
+            A client who came back after their first 30 days gets a second 30-day
+            authorization here — add one and choose "Initial 30-day". The earlier one is kept and
+            marked superseded, so what was already billed against it is not disturbed.
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         {loading ? (

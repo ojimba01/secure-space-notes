@@ -9,7 +9,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
-import { Settings2, Eye, FolderUp, History, FileStack, FileSearch } from 'lucide-react';
+import { Settings2, Eye, FolderUp, History, FileStack, FileSearch, UploadCloud } from 'lucide-react';
 
 interface Employee {
   id: string;
@@ -175,6 +175,14 @@ export const AdvancedTools: React.FC = () => {
               onClick={() => {
                 setOpen(false);
                 navigate('/advanced-tools?tab=import');
+              }}
+            />
+            <MigrationLink
+              icon={<UploadCloud className="h-4 w-4" />}
+              label="Client details from documents"
+              onClick={() => {
+                setOpen(false);
+                navigate('/advanced-tools?tab=clientfields');
               }}
             />
             <MigrationLink

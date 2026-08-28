@@ -1358,6 +1358,8 @@ export type Database = {
           hsp_150_date: string | null
           hsp_180_date: string | null
           hsp_due_date: string | null
+          hsp_end_date: string | null
+          hsp_start_date: string | null
           hsp_submitted: boolean | null
           iat_date: string | null
           id: string
@@ -1417,6 +1419,8 @@ export type Database = {
           hsp_150_date?: string | null
           hsp_180_date?: string | null
           hsp_due_date?: string | null
+          hsp_end_date?: string | null
+          hsp_start_date?: string | null
           hsp_submitted?: boolean | null
           iat_date?: string | null
           id?: string
@@ -1477,6 +1481,8 @@ export type Database = {
           hsp_150_date?: string | null
           hsp_180_date?: string | null
           hsp_due_date?: string | null
+          hsp_end_date?: string | null
+          hsp_start_date?: string | null
           hsp_submitted?: boolean | null
           iat_date?: string | null
           id?: string

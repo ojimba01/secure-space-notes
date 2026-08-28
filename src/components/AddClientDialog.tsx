@@ -47,6 +47,8 @@ const clientSchema = z.object({
   assessment_due_date: z.string().optional(),
   iat_date: z.string().optional(),
   hsp_due_date: z.string().optional(),
+  hsp_start_date: z.string().optional(),
+  hsp_end_date: z.string().optional(),
   auth_30_number: z.string().trim().max(100).optional(),
   auth_30_start: z.string().optional(),
   auth_30_end: z.string().optional(),
@@ -113,6 +115,8 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       assessment_due_date: '',
       iat_date: '',
       hsp_due_date: '',
+      hsp_start_date: '',
+      hsp_end_date: '',
       auth_30_number: '',
       auth_30_start: '',
       auth_30_end: '',
@@ -167,6 +171,8 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         assessment_due_date: data.assessment_due_date || null,
         iat_date: data.iat_date || null,
         hsp_due_date: data.hsp_due_date || null,
+        hsp_start_date: data.hsp_start_date || null,
+        hsp_end_date: data.hsp_end_date || null,
         auth_30_number: data.auth_30_number || null,
         auth_30_start: data.auth_30_start || null,
         auth_30_end: data.auth_30_end || null,
@@ -365,6 +371,12 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                 )} />
                 <FormField control={form.control} name="iat_date" render={({ field }) => (
                   <FormItem><FormLabel>IAT Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="hsp_start_date" render={({ field }) => (
+                  <FormItem><FormLabel>HSP Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="hsp_end_date" render={({ field }) => (
+                  <FormItem><FormLabel>HSP End Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="hsp_due_date" render={({ field }) => (
                   <FormItem><FormLabel>HSP Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>

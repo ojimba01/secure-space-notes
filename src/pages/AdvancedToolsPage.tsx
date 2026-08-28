@@ -8,12 +8,13 @@ import { ImportHistory } from '@/components/admin/ImportHistory';
 import { TemplateRegistry } from '@/components/admin/TemplateRegistry';
 import { TouchpointSettings } from '@/components/admin/TouchpointSettings';
 import { DocumentReading } from '@/components/admin/DocumentReading';
+import { ClientFieldImport } from '@/components/admin/ClientFieldImport';
 
 /**
  * Operational utilities for Admin/Superadmin only. Staff never reach this
  * route — the router guards it and the sidebar entry is hidden for them.
  */
-const TABS = ['import', 'reading', 'history', 'templates', 'touchpoints'] as const;
+const TABS = ['import', 'clientfields', 'reading', 'history', 'templates', 'touchpoints'] as const;
 
 const AdvancedToolsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -45,6 +46,7 @@ const AdvancedToolsPage: React.FC = () => {
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>
         <TabsList>
           <TabsTrigger value="import">Bulk document import</TabsTrigger>
+          <TabsTrigger value="clientfields">Client details from documents</TabsTrigger>
           <TabsTrigger value="reading">Reading documents</TabsTrigger>
           <TabsTrigger value="history">Import history</TabsTrigger>
           <TabsTrigger value="templates">Template management</TabsTrigger>
@@ -53,6 +55,10 @@ const AdvancedToolsPage: React.FC = () => {
 
         <TabsContent value="import" className="pt-4">
           <BulkDocumentImport onImported={() => setImportsKey((k) => k + 1)} />
+        </TabsContent>
+
+        <TabsContent value="clientfields" className="pt-4">
+          <ClientFieldImport />
         </TabsContent>
 
         <TabsContent value="reading" className="pt-4">

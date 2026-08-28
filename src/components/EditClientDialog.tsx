@@ -53,6 +53,8 @@ const clientSchema = z.object({
   hsp_150_date: z.string().optional(),
   hsp_180_date: z.string().optional(),
   hsp_due_date: z.string().optional(),
+  hsp_start_date: z.string().optional(),
+  hsp_end_date: z.string().optional(),
   closed_date: z.string().optional(),
   reason_closed: z.string().trim().max(100).optional(),
   status: z.enum(['active', 'inactive']),
@@ -82,6 +84,8 @@ interface Client {
   mco_housing_manager?: string;
   assessment_due_date?: string;
   hsp_due_date?: string;
+  hsp_start_date?: string;
+  hsp_end_date?: string;
   closed_date?: string;
   reason_closed?: string;
   notes?: string;
@@ -125,6 +129,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       hsp_150_date: client.hsp_150_date || '',
       hsp_180_date: client.hsp_180_date || '',
       hsp_due_date: client.hsp_due_date || '',
+      hsp_start_date: client.hsp_start_date || '',
+      hsp_end_date: client.hsp_end_date || '',
       closed_date: client.closed_date || '',
       reason_closed: client.reason_closed || '',
       status: client.status as 'active' | 'inactive',
@@ -169,6 +175,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           hsp_150_date: data.hsp_150_date || null,
           hsp_180_date: data.hsp_180_date || null,
           hsp_due_date: data.hsp_due_date || null,
+          hsp_start_date: data.hsp_start_date || null,
+          hsp_end_date: data.hsp_end_date || null,
           closed_date: data.closed_date || null,
           reason_closed: data.reason_closed || null,
           ...(isUnited ? { mco_housing_manager: data.mco_housing_manager || null } : {}),
@@ -475,6 +483,12 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               )} />
               <FormField control={form.control} name="assessment_due_date" render={({ field }) => (
                 <FormItem><FormLabel>Intake End Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="hsp_start_date" render={({ field }) => (
+                <FormItem><FormLabel>HSP Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="hsp_end_date" render={({ field }) => (
+                <FormItem><FormLabel>HSP End Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="hsp_due_date" render={({ field }) => (
                 <FormItem><FormLabel>HSP Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
