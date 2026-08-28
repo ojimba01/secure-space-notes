@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { syncAuthorizationsFromLegacyColumns, resyncDerivedSchedules } from '@/lib/authorizations';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
@@ -44,11 +45,11 @@ const clientSchema = z.object({
   member_id: z.string().trim().max(50).optional(),
   insurance: z.string().trim().max(50).optional(),
   level_of_need: z.string().trim().max(50).optional(),
+  lon_score: z.string().trim().max(3).optional(),
   county: z.string().trim().max(50).optional(),
   mco_housing_manager: z.string().trim().max(200).optional(),
   date_of_birth: z.string().optional(),
   intake_date: z.string().optional(),
-  assessment_due_date: z.string().optional(),
   iat_date: z.string().optional(),
   hsp_150_date: z.string().optional(),
   hsp_180_date: z.string().optional(),
@@ -80,7 +81,6 @@ interface Client {
   hsp_150_date?: string;
   hsp_180_date?: string;
   mco_housing_manager?: string;
-  assessment_due_date?: string;
   hsp_due_date?: string;
   /** Read-only here: the 30-day dates are managed in the Authorizations section. */
   auth_30_start?: string | null;
@@ -118,11 +118,11 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       member_id: client.member_id || '',
       insurance: client.insurance || '',
       level_of_need: client.level_of_need || '',
+      lon_score: client.lon_score != null ? String(client.lon_score) : '',
       county: client.county || '',
       mco_housing_manager: client.mco_housing_manager || '',
       date_of_birth: client.date_of_birth || '',
       intake_date: client.intake_date || '',
-      assessment_due_date: client.assessment_due_date || '',
       iat_date: client.iat_date || '',
       hsp_150_date: client.hsp_150_date || '',
       hsp_180_date: client.hsp_180_date || '',
@@ -140,7 +140,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
    * as the payer is changed rather than on the next open.
    */
   const insurance = form.watch('insurance');
-  const derivedHspDue = hspDueDateFor(client.auth_30_start ?? null);
+  const watchedIatDate = form.watch('iat_date');
+  const derivedHspDue = hspDueDateFor(watchedIatDate || client.auth_30_start || null);
   const isUnited = (insurance ?? '').toLowerCase().includes('united');
 
   const handleSubmit = async (data: ClientFormData) => {
@@ -164,11 +165,14 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           member_id: data.member_id || null,
           insurance: data.insurance || null,
           level_of_need: data.level_of_need || null,
+          lon_score: data.lon_score ? Number(data.lon_score) : null,
           county: data.county || null,
           date_of_birth: data.date_of_birth || null,
           intake_date: data.intake_date || null,
-          assessment_due_date: data.assessment_due_date || null,
+          // The IAT start and the 30-day authorization start are the same
+          // day, so both columns are written from the one field.
           iat_date: data.iat_date || null,
+          auth_30_start: data.iat_date || null,
           hsp_150_date: data.hsp_150_date || null,
           hsp_180_date: data.hsp_180_date || null,
           hsp_due_date: derivedHspDue,
@@ -182,9 +186,25 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
       if (error) throw error;
 
-      // Authorization dates are no longer edited here — the Authorizations
-      // panel rebuilds cycles when it changes them. Level of need still sets
-      // the billing rate, so a change to it has to rebuild them from here.
+      // The IAT date is the 30-day authorization start, so editing it here
+      // does change an authorization date, and both helpers have to run: the
+      // history in client_authorizations, then the cycles and touchpoints
+      // derived from it. Doing one without the other is the most repeated
+      // source of defects in this app.
+      if ((data.iat_date || '') !== (client.iat_date || '')) {
+        try {
+          await syncAuthorizationsFromLegacyColumns(client.id);
+          await resyncDerivedSchedules(client.id);
+        } catch (err: any) {
+          toast({
+            title: 'The date was saved, but the schedule was not rebuilt',
+            description: `${err.message} — save again to retry.`,
+            variant: 'destructive',
+          });
+        }
+      }
+
+      // Level of need sets the billing rate, so a change to it rebuilds too.
       const billingChanged =
         (data.level_of_need || '') !== (client.level_of_need || '');
       if (billingChanged) {
@@ -406,6 +426,27 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               />
               <FormField
                 control={form.control}
+                name="lon_score"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>LoN Score</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        inputMode="numeric"
+                        onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ''))}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      A score under 18 sets the level to Low, whatever is chosen beside it.
+                      Under-billing is recoverable; over-billing an MCO is not.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="county"
                 render={({ field }) => (
                   <FormItem>
@@ -474,23 +515,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="intake_date" render={({ field }) => (
-                <FormItem><FormLabel>Intake Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Intake Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
               )} />
-              <FormField control={form.control} name="assessment_due_date" render={({ field }) => (
-                <FormItem><FormLabel>Intake End Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-              )} />
-              {/* Derived, never typed. The plan is due on the 25th day of the initial
-                  authorization, counting its start as day 1. Letting somebody type a
-                  different date would only let the deadline be wrong. */}
-              <FormItem>
-                <FormLabel>HSP Due Date</FormLabel>
-                <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">
-                  {derivedHspDue ?? 'Set once a 30-day start date is entered'}
-                </div>
-                <FormDescription>
-                  The 25th day of the initial authorization. Worked out from the start date.
-                </FormDescription>
-              </FormItem>
             </div>
 
 
@@ -514,14 +540,25 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                     name="iat_date"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>IAT Start Date</FormLabel>
+                        <FormLabel>30-Day Start Date (IAT)</FormLabel>
                         <FormControl>
                           <Input {...field} type="date" />
                         </FormControl>
+                        <FormDescription>
+                          The IAT start and the 30-day authorization start are the same day.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  {/* Derived, never typed. The 25th day of the initial
+                      authorization, counting its start as day 1. */}
+                  <FormItem>
+                    <FormLabel>HSP Due Date</FormLabel>
+                    <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">
+                      {derivedHspDue ?? 'Calculated once IAT date is entered'}
+                    </div>
+                  </FormItem>
                   <FormField
                     control={form.control}
                     name="hsp_150_date"
