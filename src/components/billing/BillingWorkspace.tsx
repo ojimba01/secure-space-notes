@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, DollarSign, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, DollarSign, ExternalLink, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
@@ -18,6 +18,7 @@ import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientProfileDialog } from '@/components/billing/ClientProfileDialog';
 import { RevenueTab } from '@/components/billing/RevenueTab';
 import { BillingTutorial, BillingTutorialStep } from '@/components/billing/BillingTutorial';
+import { AvailityPanel } from '@/components/billing/AvailityPanel';
 
 
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
@@ -142,7 +143,7 @@ export function BillingWorkspace() {
   const { isSuperadmin } = useIsSuperadmin();
 
   const { loading, clients: realClients, deletedClients: realDeleted, cycles: realCycles, updateClient, addClient: addRealClient, deleteClient, restoreClient, updateCycle: updateRealCycle } = useBilling();
-  const [section,setSection]=useState<'deadlines'|'setup'|'revenue'>('deadlines');
+  const [section,setSection]=useState<'deadlines'|'setup'|'revenue'|'availity'>('deadlines');
   const [filter,setFilter]=useState<'attention'|'all'|'extensions'>('attention');
   const [phaseTab,setPhaseTab]=useState<'both'|'150'|'180'>('both');
   const [setupReason,setSetupReason]=useState<'all'|'start'|'lon'>('all');
@@ -394,6 +395,7 @@ export function BillingWorkspace() {
         <Button data-tour="section-deadlines" variant={section==='deadlines'?'default':'ghost'} onClick={()=>setSection('deadlines')}>Current billing deadlines</Button>
         <Button data-tour="section-setup" variant={section==='setup'?'default':'ghost'} className={section==='setup'?'bg-indigo-600 text-white hover:bg-indigo-700':''} onClick={()=>setSection('setup')}><Pencil className="mr-2 h-4 w-4"/>Add or set up client billing</Button>
         {isSuperadmin && <Button variant={section==='revenue'?'default':'ghost'} className={section==='revenue'?'bg-emerald-600 text-white hover:bg-emerald-700':''} onClick={()=>setSection('revenue')}><DollarSign className="mr-2 h-4 w-4"/>Revenue</Button>}
+        <Button variant={section==='availity'?'default':'ghost'} className={section==='availity'?'bg-slate-800 text-white hover:bg-slate-900':''} onClick={()=>setSection('availity')}><ExternalLink className="mr-2 h-4 w-4"/>Availity</Button>
       </div>
       <Button variant="outline" onClick={startTutorial}><HelpCircle className="mr-2 h-4 w-4"/>Learn How to Use Billing</Button>
     </div>
@@ -412,7 +414,8 @@ export function BillingWorkspace() {
       </div>}
     </Card>}
 
-    {section==='revenue' ? <RevenueTab clients={clients} cycles={cycles} viewOverride={practice?practiceRevenueView:undefined} onViewChange={practice?setPracticeRevenueView:undefined}/>
+    {section==='availity' ? <AvailityPanel clients={clients}/>
+    : section==='revenue' ? <RevenueTab clients={clients} cycles={cycles} viewOverride={practice?practiceRevenueView:undefined} onViewChange={practice?setPracticeRevenueView:undefined}/>
     : section==='deadlines' ? <>
       <div className="flex flex-wrap gap-2" data-tour="filters">
 
