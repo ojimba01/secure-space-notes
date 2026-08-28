@@ -560,7 +560,13 @@ export async function commitImport(
       }
 
       const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '';
-      const storagePath = `imports/${batchId}/${crypto.randomUUID()}${ext}`;
+      // The same folder every other upload uses. Storage only lets a file into
+      // `client-files` under `forms/`, the caller's own id, or a client folder
+      // it can reach — so an `imports/` prefix was refused for every file, and
+      // the first real import failed 145 times before reaching the database.
+      // The batch is still traceable: the row carries `import_batch_id`, and
+      // deleting an import reads the paths off the rows rather than a prefix.
+      const storagePath = `forms/${clientId}/${crypto.randomUUID()}${ext}`;
       const contentType = ext.toLowerCase() === '.pdf' ? 'application/pdf' : 'application/octet-stream';
       const { error: uploadError } = await supabase.storage
         .from('client-files')

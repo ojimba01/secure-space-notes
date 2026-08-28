@@ -274,10 +274,15 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
         (done, total) => setBusyLabel(`Importing ${done} of ${total}...`),
       );
 
+      // A batch where nothing landed has not completed — it still has all its
+      // work to do, and saying otherwise is how a total failure came to read as
+      // a finished import on the history screen.
+      const nothingLanded = res.imported === 0 && res.duplicates === 0 && res.failed.length > 0;
+
       const { error: batchError } = await supabase
         .from('document_import_batches')
         .update({
-          status: 'completed',
+          status: nothingLanded ? 'in_review' : 'completed',
           imported_count: res.imported,
           duplicate_count: res.duplicates,
           failed_count: res.failed.length,
@@ -336,7 +341,11 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Import complete</CardTitle>
+          <CardTitle className="text-lg">
+            {result.imported === 0 && result.failed.length > 0
+              ? 'Nothing was imported'
+              : 'Import complete'}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-sm">
@@ -358,10 +367,12 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
               ))}
             </div>
           )}
-          <p className="text-xs text-muted-foreground">
-            Imported files appear in each client's Forms &amp; Documents area, marked as a
-            historical import. Original files were stored unchanged.
-          </p>
+          {result.imported > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Imported files appear in each client's Forms &amp; Documents area, marked as a
+              historical import. Original files were stored unchanged.
+            </p>
+          )}
           <Button onClick={reset}>Start another import</Button>
         </CardContent>
       </Card>
