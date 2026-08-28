@@ -196,13 +196,21 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      // Staff work setup-complete clients only. A client still missing an HSP
-      // submission, an approval start date, or a level of need is Admin work,
-      // and showing it here would put a "fix this" task in a staff view that
-      // cannot fix it.
+      // A case manager sees every client assigned to them.
+      //
+      // They used not to: the list showed setup-complete clients only, on the
+      // reasoning that a client missing an HSP submission, a start date or a
+      // level of need is Admin work and staff could not act on it. What that
+      // actually did was hide 22 clients from the people carrying them —
+      // Anie was assigned 30 and could see 23 — with nothing on screen to say
+      // why, or even that anyone was missing.
+      //
+      // So they are shown, and what each one still needs is shown with them.
+      // Hiding a client does not get their paperwork finished; it only stops
+      // the person who would chase it from knowing they exist.
       const all = data || [];
       const visible = showClosed ? all : all.filter((c) => c.status !== 'closed');
-      const list = isAdmin ? visible : visible.filter((c) => isSetupComplete(c));
+      const list = visible;
       setClients(list);
       // Keep the currently open client detail in sync with the latest data
       setSelectedClient((current) =>

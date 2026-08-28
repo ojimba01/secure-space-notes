@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle } from 'lucide-react';
+import { isSetupComplete, missingSetupShort } from '@/lib/workflow';
 
 interface Client {
   id: string;
@@ -132,6 +133,16 @@ export const ClientCard: React.FC<ClientCardProps> = ({
               <Badge variant="destructive" className="gap-1">
                 <AlertTriangle className="h-3 w-3" />
                 Next action overdue
+              </Badge>
+            )}
+            {/* Says what this client still needs. Without it, showing an
+                incomplete client would only move the confusion: they would
+                appear on the list and then be absent from touchpoints and
+                billing with nothing explaining why. */}
+            {!isSetupComplete(client) && (
+              <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-900">
+                <AlertTriangle className="h-3 w-3" />
+                {missingSetupShort(client).join(' · ')}
               </Badge>
             )}
             {selectionMode && (

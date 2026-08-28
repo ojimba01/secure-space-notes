@@ -103,6 +103,21 @@ export function missingSetupParts(c: WorkflowClient): string[] {
   return parts;
 }
 
+/**
+ * The same gaps as missingSetupParts, said short enough for a badge.
+ *
+ * The long form names the document a person has to go and find, which is what
+ * an admin queue wants. On a client card there is room for three or four
+ * words, and the case manager already knows what an HSP is.
+ */
+export function missingSetupShort(c: WorkflowClient): string[] {
+  const parts: string[] = [];
+  if (!hspSubmitted(c)) parts.push('HSP not submitted');
+  if (!serviceStartDate(c)) parts.push('no start date');
+  if (c.level_of_need !== 'High Level' && c.level_of_need !== 'Low Level') parts.push('no level of need');
+  return parts;
+}
+
 export type NextActionKind =
   | 'submit_iat'
   | 'schedule_intake'
