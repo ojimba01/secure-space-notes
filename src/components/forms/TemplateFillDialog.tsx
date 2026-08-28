@@ -28,10 +28,18 @@ import { Download, Upload, ZoomIn, ZoomOut } from 'lucide-react';
 import type { FormType } from '@/lib/formSigning';
 import type { FormRow } from '@/components/forms/FormsHub';
 import {
+  extractPdfFieldValues,
   formDownloadName,
   prefillTemplate,
   type AutofillClient,
 } from '@/lib/formAutofill';
+import {
+  applyWriteThrough,
+  intakeDraftFromPdfFields,
+  markLifecycleIntakeComplete,
+  saveIntake,
+  writeThroughPlan,
+} from '@/lib/clientIntake';
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
 
 export interface PdfTemplate {
@@ -447,6 +455,45 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           description: versionErr.message,
           variant: 'destructive',
         });
+      }
+
+      // A submitted Client Intake is also the client's intake record. The PDF is
+      // the form staff fill in; client_intakes is what the rest of the app reads
+      // — the client header, the Availity claims page. A failure here never
+      // loses the form, which is already saved above.
+      if (!asDraft && formType === 'Client Intake') {
+        try {
+          const values = await extractPdfFieldValues(await blob.arrayBuffer());
+          if (Object.keys(values).length) {
+            const { draft, household } = intakeDraftFromPdfFields(values);
+            await saveIntake({ clientId, draft, household, profileId, complete: true });
+            await markLifecycleIntakeComplete(clientId);
+
+            const { data: clientRow } = await supabase
+              .from('clients')
+              .select('date_of_birth, member_id, medicaid_id')
+              .eq('id', clientId)
+              .maybeSingle();
+            const plan = writeThroughPlan(draft, clientRow ?? {});
+            await applyWriteThrough(clientId, plan.fill);
+            // Identifiers that already disagree are never overwritten silently —
+            // a wrong member_id or medicaid_id is expensive to unpick later.
+            if (plan.conflicts.length) {
+              toast({
+                title: 'The intake disagrees with the client record',
+                description: `${plan.conflicts
+                  .map((c) => `${c.label}: form says ${c.intakeValue}, record says ${c.clientValue}`)
+                  .join('; ')}. The record was left as it is — check which is right.`,
+              });
+            }
+          }
+        } catch (intakeErr) {
+          toast({
+            title: 'Form saved, but the client record was not updated from it',
+            description: intakeErr instanceof Error ? intakeErr.message : String(intakeErr),
+            variant: 'destructive',
+          });
+        }
       }
 
       toast({
