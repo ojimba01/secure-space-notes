@@ -1,13 +1,28 @@
 // The full set of documents the agency files, not just the three state
 // assessments. Kept in lifecycle order so the picker reads like the workflow.
+import { DOCUMENT_TYPES, type DocumentType } from '@/lib/documentRecognition';
+
 export { DOCUMENT_TYPES as FORM_TYPES } from '@/lib/documentRecognition';
 export type { DocumentType as FormType } from '@/lib/documentRecognition';
 
+/**
+ * What a person may choose from when filing a document by hand.
+ *
+ * The same list minus `Unsorted`. `Unsorted` is what the classifier records
+ * when it cannot tell what a document is, so that it can be reviewed later —
+ * it is a statement that nobody has read the file yet. Someone who is looking
+ * straight at the document always knows better, so offering it as a choice
+ * would only let a document be filed as unread.
+ */
+export const STAFF_SELECTABLE_TYPES = DOCUMENT_TYPES.filter(
+  (t): t is Exclude<DocumentType, 'Unsorted'> => t !== 'Unsorted',
+);
+
 /** The three official assessments that have a fillable template in-app. */
 export const ASSESSMENT_FORM_TYPES = [
-  'Initial Assessment Tool',
-  'Level of Need Assessment Tool',
-  'Housing Stabilization Plan',
+  'Initial Assessment (IAT)',
+  'Level of Need (LON)',
+  'Housing Stabilization Plan (HSP)',
 ] as const;
 
 /**

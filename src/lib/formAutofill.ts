@@ -48,7 +48,7 @@ export function templateFieldValues(
   cm?: AutofillCaseManager | null,
 ): Record<string, string> {
   switch (formType) {
-    case 'Initial Assessment Tool':
+    case 'Initial Assessment (IAT)':
       return prune({
         '1 Name as written on Medicaid ID': fullName(client),
         '2 Date of birth MMDDYYYY': mmddyyyy(client.date_of_birth),
@@ -58,7 +58,7 @@ export function templateFieldValues(
         '6 Managed Care Organization MCO': client.insurance ?? '',
         '8 Location county': client.county ?? '',
       });
-    case 'Level of Need Assessment Tool':
+    case 'Level of Need (LON)':
       return prune({
         '1 Name not scored': fullName(client),
         '2 Date of Birth 1 point if age is less than 18 or more than 60': mmddyyyy(client.date_of_birth),
@@ -67,7 +67,7 @@ export function templateFieldValues(
         'Name of case manager who completed assessment': cm?.name ?? '',
         'Provider organization name': cm?.organization ?? '',
       });
-    case 'Housing Stabilization Plan':
+    case 'Housing Stabilization Plan (HSP)':
       return prune({
         'Member Name': fullName(client),
         'Medicaid ID': client.member_id ?? '',
@@ -81,7 +81,7 @@ export function templateFieldValues(
     // any field a given PDF does not have, so one mapping serves both. The
     // Wellpoint template already carries the agency's own provider block, so
     // nothing here writes over it.
-    case 'MCO Authorization Request':
+    case 'Prior Authorization Request':
       return prune({
         // Aetna prior authorization
         '1 LAST NAME': client.last_name ?? '',
@@ -192,12 +192,12 @@ export function interpretFormValues(formType: string, raw: Record<string, string
     return Number.isFinite(n) ? n : undefined;
   };
 
-  if (formType === 'Initial Assessment Tool') {
+  if (formType === 'Initial Assessment (IAT)') {
     out.memberName = raw['1 Name as written on Medicaid ID'];
     out.dateOfBirth = raw['2 Date of birth MMDDYYYY'];
     out.memberId = raw['5 Medicaid ID'];
     out.mco = raw['6 Managed Care Organization MCO'];
-  } else if (formType === 'Level of Need Assessment Tool') {
+  } else if (formType === 'Level of Need (LON)') {
     out.memberName = raw['1 Name not scored'];
     out.dateOfBirth = raw['2 Date of Birth 1 point if age is less than 18 or more than 60'];
     out.memberId = raw['3 Medicaid ID not scored but Medicaid and MCO enrollment required for eligibility'];
@@ -207,7 +207,7 @@ export function interpretFormValues(formType: string, raw: Record<string, string
     if (!out.lonCategory && out.lonScore !== undefined) {
       out.lonCategory = out.lonScore >= 18 ? 'High' : 'Low';
     }
-  } else if (formType === 'Housing Stabilization Plan') {
+  } else if (formType === 'Housing Stabilization Plan (HSP)') {
     out.memberName = raw['Member Name'];
     out.memberId = raw['Medicaid ID'];
     out.njhmisId = raw['NJ HMIS ID'];
@@ -222,11 +222,11 @@ export function interpretFormValues(formType: string, raw: Record<string, string
 
 const TEMPLATE_FINGERPRINTS: { formType: string; markers: string[] }[] = [
   {
-    formType: 'Initial Assessment Tool',
+    formType: 'Initial Assessment (IAT)',
     markers: ['1 Name as written on Medicaid ID', '5 Medicaid ID', '8 Location county'],
   },
   {
-    formType: 'Level of Need Assessment Tool',
+    formType: 'Level of Need (LON)',
     markers: [
       '1 Name not scored',
       'Please add up all the scores and provide the total score below TOTAL SCORE',
@@ -234,7 +234,7 @@ const TEMPLATE_FINGERPRINTS: { formType: string; markers: string[] }[] = [
     ],
   },
   {
-    formType: 'Housing Stabilization Plan',
+    formType: 'Housing Stabilization Plan (HSP)',
     markers: ['Member Name', 'NJ HMIS ID', 'Provider Case Manager Name'],
   },
 ];
@@ -269,9 +269,9 @@ export function formDownloadName(
   dateIso?: string | null,
 ): string {
   const abbrev: Record<string, string> = {
-    'Initial Assessment Tool': 'IAT',
-    'Level of Need Assessment Tool': 'LON',
-    'Housing Stabilization Plan': 'HSP',
+    'Initial Assessment (IAT)': 'IAT',
+    'Level of Need (LON)': 'LON',
+    'Housing Stabilization Plan (HSP)': 'HSP',
   };
   const clean = (s?: string) => (s ?? '').replace(/[^\w-]+/g, '');
   const date = (dateIso ?? new Date().toISOString()).slice(0, 10);

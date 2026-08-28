@@ -23,7 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 
-import { FORM_TYPES } from '@/lib/formSigning';
+import { FORM_TYPES, STAFF_SELECTABLE_TYPES } from '@/lib/formSigning';
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
 import { identityFromFields, recognizeDocument } from '@/lib/documentRecognition';
 import { Upload } from 'lucide-react';
@@ -296,7 +296,7 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FORM_TYPES.map((t) => (
+                {STAFF_SELECTABLE_TYPES.map((t) => (
                   <SelectItem key={t} value={t}>
                     {t}
                   </SelectItem>

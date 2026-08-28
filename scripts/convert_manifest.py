@@ -12,6 +12,7 @@ Nothing about the source spreadsheet needs changing — it is read as it is.
 import collections
 import csv
 import os
+import re
 import sys
 
 import openpyxl
@@ -21,39 +22,26 @@ SRC = ('/Users/miskiyatjimba/Library/CloudStorage/GoogleDrive-mdajimba@gmail.com
 OUT_DIR = os.path.expanduser('~/Desktop/Claude Workspace/Projects/'
                              'Supportive Care Management/import-manifests')
 
-# The manifest's own document names, in the app's vocabulary.
-DOC_TYPE = {
-    'Initial Assessment (IAT)': 'Initial Assessment Tool',
-    'Level of Need (LON)': 'Level of Need Assessment Tool',
-    'Housing Stabilization Plan (HSP)': 'Housing Stabilization Plan',
-    'Approval Letter': 'Authorization Approval',
-    'Auth Request (Wellpoint)': 'MCO Authorization Request',
-    'Auth Request (Aetna)': 'MCO Authorization Request',
-    'Auth Request': 'MCO Authorization Request',
-    'Signature Page': 'Signature Page',
-    'Signature Page (HSP)': 'Signature Page',
-    'Signature Page (IAT)': 'Signature Page',
-    'Billing Schedule': 'Billing',
-    'Claim Confirmation': 'Billing',
-    'Lease or Housing Document': 'Lease / Occupancy',
-    'Medicaid Eligibility': 'ID / Verification',
-    'Benefit Award Letter': 'Income / Benefits',
-    'Referral': 'Referral',
-    'Face Sheet': 'Other',
-    'Statement of Truth': 'Other',
-    'Unsorted': 'Other',
-    # Stragglers: one-off spellings from the original filing.
-    'Signature Page (LON)': 'Signature Page',
-    'Signature Page (HSP), Signed': 'Signature Page',
-    'Signature Page, Signed': 'Signature Page',
-    'Signed': 'Signature Page',
-    'Progress Note': 'Progress Note',
-    'Denial Letter': 'Correspondence',
-    'Eviction Notice': 'Lease / Occupancy',
-}
-
 COLUMNS = ['source_file', 'client_name', 'date_of_birth', 'member_id', 'mco',
            'form_type', 'form_date', 'lon_score', 'diagnosis_code', 'notes']
+
+
+def app_document_types():
+    """The names in src/lib/documentRecognition.ts, so a drift between the
+    manifest and the app is reported instead of discovered after an import."""
+    src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       'src', 'lib', 'documentRecognition.ts')
+    try:
+        body = open(src, encoding='utf-8').read()
+    except OSError:
+        return set()
+    block = re.search(r'export const DOCUMENT_TYPES = \[(.*?)\] as const;', body, re.S)
+    if not block:
+        return set()
+    # Drop `//` comments first. An apostrophe inside one ("Availity's receipt")
+    # otherwise reads as an opening quote and swallows the names around it.
+    code = re.sub(r'//[^\n]*', '', block.group(1))
+    return set(re.findall(r"'([^']+)'", code))
 
 
 def text(v):
@@ -74,10 +62,13 @@ def main():
     by_zip = collections.defaultdict(list)
     unmapped = collections.Counter()
 
+    known = app_document_types()
     for r in records:
         raw = text(r.get('document_type'))
-        mapped = DOC_TYPE.get(raw, '')
-        if raw and not mapped:
+        # Straight through. A name the app does not carry is reported rather
+        # than silently blanked, because that is a real disagreement between
+        # the manifest and DOCUMENT_TYPES and someone has to settle it.
+        if raw and known and raw not in known:
             unmapped[raw] += 1
         by_zip[text(r.get('zip_file'))].append({
             'source_file': text(r.get('relative_path')),
@@ -85,7 +76,7 @@ def main():
             'date_of_birth': text(r.get('date_of_birth')),
             'member_id': text(r.get('member_id')),
             'mco': text(r.get('mco')),
-            'form_type': mapped,
+            'form_type': raw,
             'form_date': text(r.get('document_date')),
             'lon_score': text(r.get('lon_score')),
             'diagnosis_code': text(r.get('diagnosis_code')),
@@ -106,8 +97,9 @@ def main():
         print(f'{len(rs):>5} rows  {with_id:>5} with member ID  {typed:>5} typed  ->  {os.path.basename(path)}')
 
     if unmapped:
-        print('\ndocument types with no equivalent in the app (left blank, the '
-              'importer will fall back to reading the file):')
+        print('\ndocument types in the manifest that DOCUMENT_TYPES does not '
+              'carry. They are still written out as they are; add them to '
+              'src/lib/documentRecognition.ts or correct the manifest:')
         for name, count in unmapped.most_common():
             print(f'  {count:>5}  {name}')
     print(f'\nwritten to {OUT_DIR}')

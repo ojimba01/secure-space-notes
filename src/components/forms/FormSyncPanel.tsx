@@ -138,8 +138,8 @@ export const FormSyncPanel: React.FC<Props> = ({ form, onApplied }) => {
 
   // Only forms whose templates carry authoritative workflow values.
   if (
-    form.form_type !== 'Level of Need Assessment Tool' &&
-    form.form_type !== 'Housing Stabilization Plan'
+    form.form_type !== 'Level of Need (LON)' &&
+    form.form_type !== 'Housing Stabilization Plan (HSP)'
   ) {
     return null;
   }
