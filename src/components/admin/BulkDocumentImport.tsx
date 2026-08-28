@@ -22,7 +22,7 @@ import {
   expandFiles,
   fetchExistingHashes,
   fetchMatchClients,
-  parseManifest,
+  parseManifestDetailed,
   proposeMapping,
   type CommitResult,
   type Confidence,
@@ -114,12 +114,32 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
     setBusy(true);
     setBusyLabel('Reading the manifest...');
     try {
-      const parsed = await parseManifest(file);
-      setManifest(parsed);
+      const parsed = await parseManifestDetailed(file);
+      setManifest(parsed.rows);
       setManifestName(file.name);
+
+      // A manifest that yields nothing must say so. This one used to fail
+      // silently: the batch recorded the filename, matched every file from its
+      // own contents instead, and nothing reached high confidence.
+      if (parsed.rows.length === 0) {
+        setManifestName(null);
+        toast({
+          title: 'That manifest could not be used',
+          description: parsed.totalRows === 0
+            ? `The sheet "${parsed.sheetName}" is empty.`
+            : `${parsed.totalRows} rows were read from "${parsed.sheetName}", but none has a file path. The importer needs a column of paths matching the entries inside the ZIP — the agency's manifest calls it relative_path.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const dropped = parsed.totalRows - parsed.rows.length;
       toast({
-        title: 'Manifest loaded',
-        description: `${parsed.length} row${parsed.length === 1 ? '' : 's'} with a source_file value.`,
+        title: `Manifest loaded — ${parsed.rows.length} of ${parsed.totalRows} rows`,
+        description: [
+          `Read from "${parsed.sheetName}".`,
+          dropped > 0 ? `${dropped} row${dropped === 1 ? '' : 's'} had no file path and were skipped.` : '',
+        ].filter(Boolean).join(' '),
       });
     } catch (err: any) {
       toast({
@@ -606,7 +626,10 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
             onChange={(e) => addManifest(e.target.files?.[0] ?? null)}
           />
           <p className="text-xs text-muted-foreground">
-            A manifest makes matching deterministic. Recommended columns: source_file (required),
+            A manifest makes matching deterministic, and a type it supplies is trusted over
+            anything read from the file. The agency's own workbook can be uploaded as it is — its
+            DOCUMENT MANIFEST tab is read by name and its own column names are understood.
+            Otherwise: source_file (required),
             first_name, last_name, date_of_birth, member_id, mco, form_type, form_date,
             external_status, notes.{' '}
             <a href="/import-manifest-template.csv" download className="underline">

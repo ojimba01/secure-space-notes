@@ -25,7 +25,7 @@ export type Confidence = 'high' | 'medium' | 'low' | 'none';
  *
  * These are the agency's own names, taken verbatim from the DOCUMENT TYPES tab
  * of `_MANIFEST - all documents.xlsx`, which classifies all 2,033 archived
- * documents. Nothing here is a paraphrase, so the manifest converter is a
+ * documents. Thirty-five of them as of the manifest's second pass. Nothing here is a paraphrase, so the manifest converter is a
  * straight pass-through and an imported document keeps the type a person gave
  * it.
  *
@@ -50,6 +50,11 @@ export const DOCUMENT_TYPES = [
   'Client Intake',
   'Prior Authorization Request',
   'Approval Letter',
+  // Wellpoint's approval, which is not a letter and is not a request. 78
+  // documents were typed as request forms until the agency's second pass
+  // found they carry an authorization number, a From/To range, units and a
+  // service code — everything a request has not got yet.
+  'Approval Notice (Wellpoint)',
   'Denial Letter',
   'Move-In Supports Request',
   'Referral',
@@ -79,6 +84,9 @@ export const DOCUMENT_TYPES = [
   'Eviction Notice',
   'Rent Receipt or Payment Record',
   'Move-In List',
+  'Housing Voucher or Subsidy',
+  'Utility Bill',
+  'Bank Statement',
 
   // Everything else the file legitimately holds.
   'W-9',
@@ -204,7 +212,31 @@ const FINGERPRINTS: Fingerprint[] = [
  * LEOPOLD as superseded, because "LEOP-OLD" contains "OLD"; here it would make
  * "please" a lease and "clinical" a clinic.
  */
-const TEXT_MARKERS: { documentType: DocumentType; issuer: FormIssuer; needles: string[] }[] = [
+interface TextMarker {
+  documentType: DocumentType;
+  issuer: FormIssuer;
+  /** Any one of these settles it. */
+  needles?: string[];
+  /** Every one of these must appear. */
+  allOf?: string[];
+  /** ...and, when given, at least one of these as well. */
+  anyOf?: string[];
+}
+
+const TEXT_MARKERS: TextMarker[] = [
+  // --- A conjunction, not a title. Wellpoint's approval carries no heading
+  //     that separates it from its own request form, which is why 78 of these
+  //     were filed as requests. What separates them is that an approval has an
+  //     authorization number and a service type on it and a request has not
+  //     got one yet. Tried before every title below, because it is the most
+  //     specific rule here.
+  {
+    documentType: 'Approval Notice (Wellpoint)',
+    issuer: 'Wellpoint',
+    allOf: ['authorization #', 'type of service'],
+    anyOf: ['member name', 'member id #'],
+  },
+
   // --- Exact printed titles. These also settle which payer the form is for,
   //     which no looser phrase below can do.
   {
@@ -349,11 +381,28 @@ const matchesNeedle = (text: string, needle: string): boolean => {
   return re.test(text);
 };
 
+/** A marker matches on any of `needles`, or on all of `allOf` plus one `anyOf`. */
+const markerMatches = (text: string, marker: TextMarker): boolean => {
+  if (marker.allOf?.length) {
+    if (!marker.allOf.every((n) => matchesNeedle(text, n))) return false;
+    if (marker.anyOf?.length && !marker.anyOf.some((n) => matchesNeedle(text, n))) return false;
+    return true;
+  }
+  return (marker.needles ?? []).some((n) => matchesNeedle(text, n));
+};
+
 /**
  * Filename tokens, most specific first — the first match wins, so
  * "150-DAY AUTH APPROVAL" is settled before the bare "AUTH" rule sees it.
  */
 const FILENAME_RULES: { documentType: DocumentType; pattern: RegExp; period?: 30 | 150 | 180 }[] = [
+  // The agency renamed these in its second pass, so the filename says it
+  // outright. Ahead of the generic approval rules, which would otherwise
+  // claim it on the word "approval" alone.
+  { documentType: 'Approval Notice (Wellpoint)', pattern: /\bAPPROVAL\s*NOTICE\b/i },
+  { documentType: 'Housing Voucher or Subsidy', pattern: /\bVOUCHER\b|\bSUBSIDY\b|\bSECTION\s*8\b/i },
+  { documentType: 'Utility Bill', pattern: /\bUTILITY\s*BILL\b|\bPSE&?G\b/i },
+  { documentType: 'Bank Statement', pattern: /\bBANK\s*STATEMENT\b/i },
   { documentType: 'Approval Letter', pattern: /\b30[\s-]*DAYS?\b[^A-Z]{0,12}(AUTH|APPROV)/i, period: 30 },
   { documentType: 'Approval Letter', pattern: /\b150[\s-]*DAYS?\b[^A-Z]{0,12}(AUTH|APPROV)/i, period: 150 },
   { documentType: 'Approval Letter', pattern: /\b180[\s-]*DAYS?\b[^A-Z]{0,12}(AUTH|APPROV)/i, period: 180 },
@@ -533,7 +582,7 @@ export async function recognizeDocument(
   const text = (await firstPageText(bytes)).toLowerCase();
   if (text.trim()) {
     for (const marker of TEXT_MARKERS) {
-      if (marker.needles.some((n) => matchesNeedle(text, n))) {
+      if (markerMatches(text, marker)) {
         return {
           ...base,
           documentType: marker.documentType,
@@ -557,7 +606,7 @@ export async function recognizeDocument(
       const { text: scanned } = await ocrPdf(bytes);
       const low = scanned.toLowerCase();
       for (const marker of TEXT_MARKERS) {
-        if (marker.needles.some((n) => matchesNeedle(low, n))) {
+        if (markerMatches(low, marker)) {
           return {
             ...base,
             documentType: marker.documentType,
