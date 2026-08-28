@@ -306,3 +306,98 @@ export async function applyWriteThrough(
   const { error } = await supabase.from('clients').update(update).eq('id', clientId);
   if (error) throw error;
 }
+
+// ---------------------------------------------------------------------------
+// The intake PDF's fields, mapped to this table's columns
+//
+// The template is the agency's own fillable form. Its field names are close to
+// the column names but not identical, so the correspondence is written down
+// here rather than inferred. Anything absent from these maps is not stored:
+// full_name (the client record holds the name) and the two signature fields
+// (the typed name and date beside them are what is kept).
+// ---------------------------------------------------------------------------
+
+/** Form field → column, for the fields whose names differ. */
+export const INTAKE_FIELD_TO_COLUMN: Record<string, string> = {
+  birth_certificate: 'has_birth_certificate',
+  valid_id: 'has_valid_id',
+  ss_card: 'has_social_security_card',
+  developmental_disability_explain: 'developmental_disability_detail',
+  physical_condition_explain: 'physical_condition_detail',
+  mh_provider_name: 'mental_health_provider',
+  mh_provider_phone: 'mental_health_provider_phone',
+  income_proof: 'has_income_proof',
+  income_monthly: 'income_monthly_amount',
+  bank_account: 'has_bank_account',
+  voucher_applied: 'applied_for_voucher',
+  employed: 'currently_employed',
+  employer_hours: 'hours_per_week',
+  employer_wage: 'wage',
+  last_hospitalization: 'last_hospitalization_date',
+  benefits: 'receives_benefits',
+  benefit_amount: 'benefit_monthly_amount',
+  living_outside: 'living_unsheltered',
+  living_outside_explain: 'living_unsheltered_detail',
+  history_flags: 'has_eviction_or_record',
+  history_flags_explain: 'eviction_or_record_detail',
+  accommodation_needed: 'needs_accommodation',
+  accom_other_text: 'accommodation_other',
+  exp_phone: 'expense_phone',
+  exp_car_note: 'expense_car_note',
+  exp_car_insurance: 'expense_car_insurance',
+  exp_internet: 'expense_internet',
+  exp_utilities: 'expense_utilities',
+  exp_other: 'expense_other',
+  exp_total: 'expenses_total',
+  app_fee_available: 'has_application_fee_funds',
+  app_fee_amount: 'application_fee_amount',
+  rent_budget: 'planned_monthly_rent',
+  housing_self_only: 'housing_for_self_only',
+  hiv_status: 'hiv_aids',
+  substance_use_explain: 'substance_use_detail',
+  domestic_violence: 'domestic_violence_victim',
+  education_level: 'highest_grade',
+  vocational_training: 'in_vocational_training',
+  housing_type: 'preferred_housing_type',
+  housing_type_other: 'preferred_housing_type_other',
+  transportation: 'has_transportation',
+  apartment_type: 'preferred_apartment_type',
+  bedrooms: 'bedrooms_needed',
+  household_members: 'has_household_members',
+  homeless_reason: 'homelessness_cause',
+  cert_client_name: 'client_signature_name',
+  cert_client_date: 'client_signed_date',
+  cert_staff_name: 'staff_signature_name',
+  cert_staff_date: 'staff_signed_date',
+};
+
+/**
+ * Tick-box groups that become one array column. Each entry is the form field
+ * and the value it contributes when ticked.
+ */
+export const INTAKE_ARRAY_FIELDS: Record<string, { column: string; value: string }> = {
+  accom_wheelchair: { column: 'accommodations', value: 'Wheelchair accessible' },
+  accom_walker: { column: 'accommodations', value: 'Walker' },
+  accom_elevator: { column: 'accommodations', value: 'Elevator' },
+  accom_ground: { column: 'accommodations', value: 'Ground-level unit' },
+  accom_other: { column: 'accommodations', value: 'Other' },
+};
+
+/** Free-text fields that each contribute one entry to an array column. */
+export const INTAKE_ARRAY_TEXT_FIELDS: Record<string, string> = {
+  county_1: 'counties_of_interest',
+  county_2: 'counties_of_interest',
+  county_3: 'counties_of_interest',
+  county_4: 'counties_of_interest',
+};
+
+/** Household member rows: form prefix → child-row index. */
+export const INTAKE_HOUSEHOLD_PREFIXES = ['member_1', 'member_2', 'member_3', 'member_4'];
+
+/** The column a form field writes to, when it writes to one at all. */
+export function intakeColumnFor(field: string): string | null {
+  if (INTAKE_FIELD_TO_COLUMN[field]) return INTAKE_FIELD_TO_COLUMN[field];
+  if (field in INTAKE_ARRAY_FIELDS) return INTAKE_ARRAY_FIELDS[field].column;
+  if (field in INTAKE_ARRAY_TEXT_FIELDS) return INTAKE_ARRAY_TEXT_FIELDS[field];
+  return null;
+}
