@@ -32,6 +32,10 @@ interface RegistryRow {
 
 const ANY_MCO = '__any__';
 
+/** Uploaded blanks live here; see docs/replaceable-templates.sql. */
+const TEMPLATE_BUCKET = 'form-templates';
+const MAX_TEMPLATE_BYTES = 20 * 1024 * 1024;
+
 /**
  * Which templates make up the packet for a given MCO and workflow step.
  * Statewide rows (no MCO) apply everywhere; MCO-specific supplemental forms
@@ -44,6 +48,8 @@ export const TemplateRegistry: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** The row whose blank form is being replaced, if any. */
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [draft, setDraft] = useState({
     mco: '',
     workflow_purpose: 'continuation',
@@ -123,6 +129,57 @@ export const TemplateRegistry: React.FC = () => {
     }
   };
 
+  /**
+   * Replace the blank form this row points at.
+   *
+   * The upload is kept beside the row rather than overwriting the copy in the
+   * repository, so the shipped version stays as a floor to fall back on. The
+   * file name records when it went in, which means an older upload is still
+   * in the bucket if a reissued form turns out to be wrong.
+   */
+  const replaceTemplate = async (row: RegistryRow, file: File) => {
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      toast({ title: 'That is not a PDF', description: 'A blank form has to be a PDF.', variant: 'destructive' });
+      return;
+    }
+    if (file.size > MAX_TEMPLATE_BYTES) {
+      toast({ title: 'That file is too large', description: 'Blank forms are under 20 MB.', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingId(row.id);
+    try {
+      const stamp = new Date().toISOString().slice(0, 10);
+      const safeType = row.form_type.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase();
+      const key = `${row.mco ? row.mco.toLowerCase() : 'statewide'}/${safeType}-${stamp}-${Date.now()}.pdf`;
+
+      const { error: upErr } = await supabase.storage
+        .from(TEMPLATE_BUCKET)
+        .upload(key, file, { contentType: 'application/pdf', upsert: false });
+      if (upErr) throw upErr;
+
+      const { error } = await supabase
+        .from('form_template_registry')
+        .update({ template_path: key, template_version: stamp, effective_date: stamp })
+        .eq('id', row.id);
+      if (error) throw error;
+
+      toast({
+        title: 'Blank form replaced',
+        description: `${row.form_type} now opens the file you uploaded.`,
+      });
+      await load();
+    } catch (e) {
+      toast({
+        title: 'The blank form could not be replaced',
+        description: e instanceof Error ? e.message : undefined,
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -136,7 +193,10 @@ export const TemplateRegistry: React.FC = () => {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Statewide templates apply to every MCO. Add an MCO-specific row when a payer requires a
+          Statewide templates apply to every MCO — the Initial Assessment, Level of Need and
+          Housing Stabilization Plan are the state's own forms. Replace a blank form here when the
+          state or a payer reissues it; the copy supplied with the app stays as a fallback. Add an
+          MCO-specific row when a payer requires a
           supplemental form for a workflow step.
         </p>
 
@@ -238,6 +298,7 @@ export const TemplateRegistry: React.FC = () => {
                   <th className="px-3 py-2 font-medium">Workflow step</th>
                   <th className="px-3 py-2 font-medium">Form</th>
                   <th className="px-3 py-2 font-medium">Version</th>
+                  <th className="px-3 py-2 font-medium">Blank form</th>
                   <th className="px-3 py-2 font-medium text-right">Status</th>
                 </tr>
               </thead>
@@ -254,6 +315,31 @@ export const TemplateRegistry: React.FC = () => {
                     <td className="px-3 py-2">{row.form_type}</td>
                     <td className="px-3 py-2">{row.template_version ?? '—'}</td>
                     <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">
+                          {!row.template_path
+                            ? 'None'
+                            : row.template_path.startsWith('/')
+                              ? 'Supplied with the app'
+                              : 'Uploaded'}
+                        </span>
+                        <label className="cursor-pointer text-primary underline text-xs">
+                          {uploadingId === row.id ? 'Uploading' : 'Replace'}
+                          <input
+                            type="file"
+                            accept="application/pdf,.pdf"
+                            className="sr-only"
+                            disabled={uploadingId !== null}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              e.target.value = '';
+                              if (f) replaceTemplate(row, f);
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
                       <div className="flex items-center justify-end gap-2">
                         <Badge variant="secondary">{row.active ? 'Active' : 'Inactive'}</Badge>
                         <Button variant="ghost" size="sm" onClick={() => toggleActive(row)}>
@@ -265,7 +351,7 @@ export const TemplateRegistry: React.FC = () => {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
                       No template requirements configured.
                     </td>
                   </tr>
