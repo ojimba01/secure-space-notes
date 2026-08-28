@@ -12,7 +12,6 @@ import { EditClientDialog } from '@/components/EditClientDialog';
 import { ReassignClientDialog } from '@/components/ReassignClientDialog';
 import { AssignmentHistory } from '@/components/AssignmentHistory';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { NotesSection } from '@/components/NotesSection';
 import { CalendarView } from '@/components/CalendarView';
 import { ClientWorkflowCard } from '@/components/ClientWorkflowCard';
 import { AuthorizationsSection } from '@/components/AuthorizationsSection';
@@ -255,10 +254,9 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`grid w-full ${isSuperadmin ? 'grid-cols-6' : 'grid-cols-5'}`}>
+          <TabsList className={`grid w-full ${isSuperadmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="forms">Forms</TabsTrigger>
-            <TabsTrigger value="notes">Notes</TabsTrigger>
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
             {isSuperadmin && <TabsTrigger value="billing">Billing</TabsTrigger>}
@@ -286,10 +284,6 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
               clientLastName={client.last_name}
             />
             <FileManager clientId={client.id} />
-          </TabsContent>
-
-          <TabsContent value="notes">
-            <NotesSection clientId={client.id} />
           </TabsContent>
 
           <TabsContent value="calendar">

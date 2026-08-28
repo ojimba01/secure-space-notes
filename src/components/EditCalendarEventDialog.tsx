@@ -33,7 +33,6 @@ interface CalendarEvent {
   event_type: string;
   client_id?: string | null;
   employee_id?: string;
-  note_id?: string | null;
 }
 
 interface Client {
@@ -71,7 +70,6 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
 
-  const [clientNotes, setClientNotes] = useState<ClientNote[]>([]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -80,7 +78,6 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
     event_type: 'client_visit',
     start_time: '',
     end_time: '',
-    note_id: '',
   });
 
   useEffect(() => {
@@ -102,23 +99,9 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
         event_type: event.event_type || 'client_visit',
         start_time: '',
         end_time: '',
-        note_id: event.note_id || '',
       });
     }
   }, [event]);
-
-  useEffect(() => {
-    if (!formData.client_id) {
-      setClientNotes([]);
-      return;
-    }
-    supabase
-      .from('client_notes')
-      .select('id, title, visit_date')
-      .eq('client_id', formData.client_id)
-      .order('visit_date', { ascending: false })
-      .then(({ data }) => setClientNotes(data || []));
-  }, [formData.client_id]);
 
   const fetchClients = async () => {
     try {
@@ -175,7 +158,6 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
           event_type: formData.event_type,
           start_time: startDateTime.toISOString(),
           end_time: endDateTime.toISOString(),
-          note_id: formData.note_id || null,
           ...(formData.event_type === 'touch_point' ? { is_manually_adjusted: true } : {}),
         })
         .eq('id', event.id);
@@ -284,30 +266,6 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
               </SelectContent>
             </Select>
           </div>
-
-          {formData.client_id && (
-            <div className="space-y-2">
-              <Label htmlFor="edit-note_id">Linked Note (Optional)</Label>
-              <Select
-                value={formData.note_id || 'none'}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, note_id: value === 'none' ? '' : value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Link a client note" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {clientNotes.map((note) => (
-                    <SelectItem key={note.id} value={note.id}>
-                      {note.title} ({new Date(note.visit_date).toLocaleDateString()})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
