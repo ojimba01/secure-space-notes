@@ -142,6 +142,59 @@ MAP = {
 }
 
 
+# Questions answered in prose have no underscores to sit on — the form just
+# leaves space. Each gets one box filling the gap between the question and
+# whatever follows it, so it reads as somewhere to write a paragraph.
+MULTILINE = [
+    ('10. List all medical', 'medical_diagnoses'),
+    ('15. What is your schedule', 'therapy_schedule'),
+    ('17. List all mental health', 'mental_health_diagnoses'),
+    ('23. Last Address', 'last_address'),
+    ('24. How long did you live', 'last_address_duration'),
+    ('25. Present Address', 'present_address'),
+    ('28. How is your health', 'health_impact'),
+    ('29. How many months', 'homeless_duration'),
+    ('30. Homelessness was caused', 'homelessness_cause'),
+    ('45. Highest Grade', 'highest_grade'),
+    ('53. Additional Information', 'additional_comments'),
+    ('Additional Notes', 'additional_notes'),
+]
+
+
+def add_multiline(doc, names):
+    """One roomy box per prose question, filling the space the form leaves."""
+    added = 0
+    for pno, page in enumerate(doc):
+        lines = []
+        for b in page.get_text("dict")["blocks"]:
+            for l in b.get("lines", []):
+                t = ''.join(sp["text"] for sp in l["spans"]).strip()
+                if t:
+                    lines.append((l["bbox"][1], l["bbox"][3], l["bbox"][0], l["bbox"][2], t))
+        lines.sort()
+        left = min((l[2] for l in lines), default=72)
+        right = max((l[3] for l in lines), default=540)
+        for i, (y0, y1, x0, x1, t) in enumerate(lines):
+            for anchor, name in MULTILINE:
+                if not t.startswith(anchor):
+                    continue
+                bottom = lines[i + 1][0] if i + 1 < len(lines) else page.rect.height - 36
+                top = y1 + 3
+                if bottom - top < 18:
+                    continue
+                w = pymupdf.Widget()
+                w.field_type = pymupdf.PDF_WIDGET_TYPE_TEXT
+                w.field_name = name
+                w.field_flags = pymupdf.PDF_TX_FIELD_IS_MULTILINE
+                w.rect = pymupdf.Rect(left, top, right, bottom - 3)
+                w.text_fontsize = 9
+                w.border_width = 0
+                page.add_widget(w)
+                names.append(name)
+                added += 1
+    return added
+
+
 def survey(doc):
     """Every line carrying a blank or a ballot box, in reading order."""
     out = []
@@ -192,6 +245,8 @@ def main():
             page.add_widget(widget)
             added += 1
             names.append(name)
+
+    added += add_multiline(doc, names)
 
     dupes = {n for n in names if names.count(n) > 1}
     if dupes:
