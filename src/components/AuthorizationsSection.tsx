@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DIGITS_ONLY_HINT, digitsOnly } from '@/lib/ids';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -312,7 +313,8 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
               <Input
                 id="auth-num"
                 value={form.authorization_number}
-                onChange={(e) => setForm((f) => ({ ...f, authorization_number: e.target.value }))}
+                inputMode="numeric"
+                onChange={(e) => setForm((f) => ({ ...f, authorization_number: digitsOnly(e.target.value) }))}
                 placeholder="Optional"
               />
             </div>

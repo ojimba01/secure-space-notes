@@ -35,6 +35,7 @@ import {
 import { PDF_TEMPLATES, TemplateFillDialog, type PdfTemplate } from '@/components/forms/TemplateFillDialog';
 import { regenerateClientCycles } from '@/lib/billingSync';
 import { continuationOverlapsInitial } from '@/lib/billing';
+import { DIGITS_ONLY_HINT, digitsOnly } from '@/lib/ids';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 import {
   AUTHORIZATION_TYPE_LABEL,
@@ -428,17 +429,6 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, onOpenIn
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => openAuth('initial')}>
-            Record initial 30-day authorization
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => openAuth('continuation')}>
-            Record continuation authorization
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => openAuth('reauthorization')}>
-            Record new reauthorization
-          </Button>
-        </div>
       </CardContent>
 
       {filling && profileId && (
@@ -471,9 +461,11 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, onOpenIn
               <Input
                 id="auth-number"
                 value={authNumber}
-                onChange={(e) => setAuthNumber(e.target.value)}
+                inputMode="numeric"
+                onChange={(e) => setAuthNumber(digitsOnly(e.target.value))}
                 placeholder="Optional"
               />
+              <p className="text-xs text-muted-foreground">{DIGITS_ONLY_HINT}</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="auth-start">Start date</Label>

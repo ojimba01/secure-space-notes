@@ -39,6 +39,7 @@ import {
   type IntakeDraft,
   type WriteThroughField,
 } from '@/lib/clientIntake';
+import { DIGITS_ONLY_HINT, digitsOnly } from '@/lib/ids';
 import {
   AreaField,
   ChoiceField,
@@ -471,11 +472,19 @@ export const ClientIntakeForm: React.FC<Props> = ({
           <Question
             number={5}
             label="MCO number and Medicaid number"
-            hint="These also live on the client record. Saving copies them across when the record has none."
+            hint={`These also live on the client record. Saving copies them across when the record has none. ${DIGITS_ONLY_HINT}`}
           >
             <FieldRow columns={2}>
-              <TextField label="MCO #" {...text('mco_number')} />
-              <TextField label="Medicaid #" {...text('medicaid_number')} />
+              <TextField
+                label="MCO #"
+                value={draft.mco_number ?? ''}
+                onChange={(v) => set('mco_number', digitsOnly(v) || null)}
+              />
+              <TextField
+                label="Medicaid #"
+                value={draft.medicaid_number ?? ''}
+                onChange={(v) => set('medicaid_number', digitsOnly(v) || null)}
+              />
             </FieldRow>
           </Question>
 
