@@ -11,7 +11,6 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import Billing from "./pages/Billing";
-import AuditLogs from "./pages/AuditLogs";
 import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
@@ -55,7 +54,6 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/admin" element={<SuperadminRoute><Admin /></SuperadminRoute>} />
               <Route path="/billing" element={<SuperadminRoute><Billing /></SuperadminRoute>} />
-              <Route path="/audit-logs" element={<SuperadminRoute><AuditLogs /></SuperadminRoute>} />
               <Route
                 path="/advanced-tools"
                 element={

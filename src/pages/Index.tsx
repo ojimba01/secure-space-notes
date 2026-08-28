@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from "@/components/Sidebar";
 import { ClientManagement } from "@/components/ClientManagement";
-import { NotesHub } from "@/components/NotesHub";
 import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
 import { StaffTouchpoints } from "@/components/StaffTouchpoints";
 import { FormsHub } from "@/components/forms/FormsHub";
@@ -13,7 +12,7 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { SuperadminTouchpoints } from '@/components/SuperadminTouchpoints';
 import { useViewAs } from '@/components/ViewAsProvider';
 
-type View = 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms';
+type View = 'compliance' | 'clients' | 'calendar' | 'forms';
 
 /**
  * Two different questions, so two views rather than one blended screen:
@@ -58,18 +57,16 @@ const Index = () => {
   const location = useLocation();
   const [activeView, setActiveView] = useState<View>('compliance');
   const [clientsKey, setClientsKey] = useState(0);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [initialClientId, setInitialClientId] = useState<string | null>(null);
   const [defaultApplied, setDefaultApplied] = useState(false);
   const [wasViewingAs, setWasViewingAs] = useState(false);
 
   // Honor a view requested by another page (for example the admin sidebar).
   useEffect(() => {
-    const state = location.state as { view?: View; noteId?: string } | null;
+    const state = location.state as { view?: View } | null;
     if (state?.view) {
       setActiveView(state.view);
       setDefaultApplied(true);
-      if (state.noteId) setSelectedNoteId(state.noteId);
     }
   }, [location.state]);
 
@@ -97,11 +94,6 @@ const Index = () => {
       setClientsKey((k) => k + 1);
     }
     setActiveView(view);
-  };
-
-  const handleOpenNote = (noteId: string) => {
-    setSelectedNoteId(noteId);
-    setActiveView('notes');
   };
 
   const handleOpenClient = (clientId: string) => {
@@ -155,7 +147,7 @@ const Index = () => {
   return (
     <TutorialProvider>
       <div className={`flex h-screen bg-background w-full overflow-hidden ${isViewingAs ? 'pt-9' : ''}`}>
-        <Sidebar activeView={activeView} onViewChange={handleViewChange} onOpenNote={handleOpenNote} />
+        <Sidebar activeView={activeView} onViewChange={handleViewChange} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
           {activeView === 'compliance' ? (
             /* Admins and superadmins carry caseloads of their own -- the two
@@ -173,13 +165,8 @@ const Index = () => {
             />
           ) : activeView === 'forms' ? (
             <FormsHub />
-          ) : activeView === 'calendar' ? (
-            <CaseManagerCalendar />
           ) : (
-            <NotesHub
-              selectedNoteId={selectedNoteId}
-              onClearSelected={() => setSelectedNoteId(null)}
-            />
+            <CaseManagerCalendar />
           )}
         </main>
       </div>

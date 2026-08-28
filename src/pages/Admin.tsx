@@ -5,11 +5,10 @@ import { Sidebar } from '@/components/Sidebar';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, FileText, Calendar, Shield, UserX, UserCheck, ClipboardList, Stethoscope } from 'lucide-react';
+import { Users, Calendar, Shield, UserX, UserCheck, Stethoscope } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,7 +35,6 @@ interface Employee {
 
 interface Stats {
   totalClients: number;
-  totalNotes: number;
   totalEvents: number;
   totalEmployees: number;
   activeEmployees: number;
@@ -58,7 +56,6 @@ const Admin = () => {
   const [confirmText, setConfirmText] = useState('');
   const [stats, setStats] = useState<Stats>({
     totalClients: 0,
-    totalNotes: 0,
     totalEvents: 0,
     totalEmployees: 0,
     activeEmployees: 0,
@@ -216,9 +213,8 @@ const Admin = () => {
 
   const fetchStats = async () => {
     try {
-      const [clientsRes, notesRes, eventsRes, profilesRes, rolesRes] = await Promise.all([
+      const [clientsRes, eventsRes, profilesRes, rolesRes] = await Promise.all([
         supabase.from('clients').select('id', { count: 'exact', head: true }),
-        supabase.from('client_notes').select('id', { count: 'exact', head: true }),
         supabase.from('calendar_events').select('id', { count: 'exact', head: true }),
         supabase.from('profiles').select('id, user_id, active'),
         supabase.from('user_roles').select('user_id, role'),
@@ -238,7 +234,6 @@ const Admin = () => {
 
       setStats({
         totalClients: clientsRes.count || 0,
-        totalNotes: notesRes.count || 0,
         totalEvents: eventsRes.count || 0,
         totalEmployees: employeeProfiles.length,
         activeEmployees: employeeProfiles.filter((profile) => profile.active).length,
@@ -263,10 +258,7 @@ const Admin = () => {
   return (
     <TutorialProvider>
     <div className="flex min-h-screen w-full bg-background">
-      <Sidebar
-        onViewChange={(view) => navigate('/', { state: { view } })}
-        onOpenNote={(noteId) => navigate('/', { state: { view: 'notes', noteId } })}
-      />
+      <Sidebar onViewChange={(view) => navigate('/', { state: { view } })} />
       <div className="min-w-0 flex-1 space-y-6 p-6 pt-16 md:pt-6">
 
         {/* Header with Logo */}
@@ -280,10 +272,6 @@ const Admin = () => {
               <p className="text-xs text-muted-foreground">HIPAA Compliant</p>
             </div>
           </Link>
-          <Button onClick={() => navigate('/audit-logs')} variant="outline">
-            <ClipboardList className="h-4 w-4 mr-2" />
-            View Audit Logs
-          </Button>
         </div>
 
         <div className="flex items-center justify-between">
@@ -302,16 +290,6 @@ const Admin = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalClients}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total Notes</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalNotes}</div>
             </CardContent>
           </Card>
 

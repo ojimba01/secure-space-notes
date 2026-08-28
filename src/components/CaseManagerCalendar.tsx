@@ -20,7 +20,6 @@ interface CalendarEvent {
   event_type: string;
   client_id: string | null;
   employee_id: string;
-  note_id?: string | null;
   profiles?: {
     first_name: string | null;
     last_name: string | null;
@@ -29,9 +28,6 @@ interface CalendarEvent {
     first_name: string;
     last_name: string;
   };
-  client_notes?: {
-    title: string;
-  } | null;
 }
 
 export const CaseManagerCalendar = () => {
@@ -71,8 +67,7 @@ export const CaseManagerCalendar = () => {
         .select(`
           *,
           profiles:employee_id (first_name, last_name),
-          clients:client_id (first_name, last_name),
-          client_notes:note_id (title)
+          clients:client_id (first_name, last_name)
         `)
         .gte('start_time', monthStart.toISOString())
         .lte('start_time', monthEnd.toISOString())
@@ -383,11 +378,6 @@ export const CaseManagerCalendar = () => {
                         {event.clients && (
                           <p className="text-xs text-muted-foreground">
                             Client: {event.clients.first_name} {event.clients.last_name}
-                          </p>
-                        )}
-                        {event.client_notes && (
-                          <p className="text-xs text-primary mt-1">
-                            📝 Linked note: {event.client_notes.title}
                           </p>
                         )}
                         {event.description && (

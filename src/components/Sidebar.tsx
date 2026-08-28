@@ -2,14 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { 
   Users, 
-  FileText, 
   Clock, 
   Stethoscope, 
   LogOut, 
   Shield, 
   ClipboardList,
-  Plus,
-  Search,
   Calendar,
   BookOpen,
   Play,
@@ -18,7 +15,6 @@ import {
   DollarSign,
   FilePlus2
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { useTutorial } from '@/components/TutorialProvider';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,12 +28,11 @@ import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   /** Which in-page view is showing. Only meaningful on "/". */
-  activeView?: 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms';
-  onViewChange: (view: 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms') => void;
-  onOpenNote?: (noteId: string) => void;
+  activeView?: 'compliance' | 'clients' | 'calendar' | 'forms';
+  onViewChange: (view: 'compliance' | 'clients' | 'calendar' | 'forms') => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOpenNote }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -51,7 +46,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
   const { user, signOut } = useAuth();
   const { startTutorial } = useTutorial();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [recentNotes, setRecentNotes] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   const { isSuperadmin } = useIsSuperadmin();
@@ -60,12 +54,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
   useEffect(() => {
     if (user) {
       checkAdminStatus();
-      fetchRecentNotes();
     }
   }, [user]);
 
   // Close sidebar when view changes on mobile
-  const handleViewChange = (view: 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms') => {
+  const handleViewChange = (view: 'compliance' | 'clients' | 'calendar' | 'forms') => {
     onViewChange(view);
     if (isMobile) setIsOpen(false);
   };
@@ -88,20 +81,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
       setIsAdmin(!!data && data.length > 0);
     } catch (error) {
       setIsAdmin(false);
-    }
-  };
-
-  const fetchRecentNotes = async () => {
-    try {
-      const { data } = await supabase
-        .from('client_notes')
-        .select('id, title, created_at')
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      setRecentNotes(data || []);
-    } catch (error) {
-      console.error('Error fetching recent notes:', error);
     }
   };
 
@@ -167,25 +146,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             </button>
           </div>
             
-          <Button 
-            className="w-full gap-2 bg-medical-blue hover:bg-medical-blue/90"
-            onClick={() => handleViewChange('notes')}
-            data-tutorial="new-note-btn"
-          >
-            <Plus className="w-4 h-4" />
-            New note
-          </Button>
-        </div>
-
-        {/* Search */}
-        <div className="space-y-2" data-tutorial="search-notes">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search notes..." 
-              className="pl-10"
-            />
-          </div>
         </div>
 
         {/* Navigation */}
@@ -248,25 +208,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             Calendar
           </Button>
           <Button
-            variant={viewVariant('notes')}
-            className="w-full justify-start gap-2"
-            onClick={() => handleViewChange('notes')}
-          >
-            <FileText className="h-4 w-4" />
-            Notes
-          </Button>
-          {isAdmin && !isViewingAs && (
-            <Button
-              variant={routeVariant('/audit-logs')}
-              className="w-full justify-start gap-2"
-              onClick={() => handleNavigate('/audit-logs')}
-              data-tutorial="audit-nav"
-            >
-              <ClipboardList className="h-4 w-4" />
-              Audit Logs
-            </Button>
-          )}
-          <Button
             variant={routeVariant('/onboarding')}
             className="w-full justify-start gap-2"
             onClick={() => handleNavigate('/onboarding')}
@@ -283,34 +224,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, onOp
             <Play className="h-4 w-4" />
             Start walkthrough
           </Button>
-        </div>
-
-        {/* Recent Notes - Hidden on mobile to save space */}
-        <div className="space-y-3 hidden md:block" data-tutorial="recent-notes">
-          <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-            Recent Notes
-          </h3>
-          <div className="space-y-2">
-            {recentNotes.length > 0 ? (
-              recentNotes.map(note => (
-                <Card key={note.id} className="p-3 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => {
-                  if (onOpenNote) {
-                    onOpenNote(note.id);
-                    if (isMobile) setIsOpen(false);
-                  } else {
-                    handleViewChange('notes');
-                  }
-                }}>
-                  <div className="space-y-1">
-                    <h4 className="font-medium text-sm line-clamp-2">{note.title}</h4>
-                    <p className="text-xs text-muted-foreground">{new Date(note.created_at).toLocaleDateString()}</p>
-                  </div>
-                </Card>
-              ))
-            ) : (
-              <p className="text-xs text-muted-foreground px-2 py-2">No recent notes yet</p>
-            )}
-          </div>
         </div>
 
         {/* Security Notice - Compact on mobile */}
