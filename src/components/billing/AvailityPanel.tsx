@@ -229,7 +229,6 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles }) => {
       first_name: client.first_name,
       last_name: client.last_name,
       member_id: client.member_id,
-      medicaid_id: extras.medicaid_id,
       date_of_birth: extras.date_of_birth,
       address: extras.address,
       insurance: client.insurance,
@@ -609,6 +608,18 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles }) => {
                   )}
                 </div>
               )}
+            </Card>
+          )}
+
+          {page === 'claim' && selected && (
+            <Card className="border-slate-300 bg-slate-50 p-4">
+              <p className="text-sm font-medium">What changes from one claim to the next</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Only the patient information, the patient control number, the prior authorization
+                number, the diagnosis code, the service dates, and — for a High level client — the
+                charge amount. Everything else on this page is the same every time, and is filled in
+                below.
+              </p>
             </Card>
           )}
 

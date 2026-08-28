@@ -123,7 +123,6 @@ export interface AvailityClient {
   first_name: string;
   last_name: string;
   member_id: string | null;
-  medicaid_id?: string | null;
   date_of_birth: string | null;
   address?: string | null;
   insurance: string | null;
@@ -291,8 +290,17 @@ export const QUANTITY_TYPE = 'UN - Unit';
 /** Housing supports. Availity fills the description in once the code is picked. */
 export const PROCEDURE_CODE = 'H0044';
 
-/** The patient control number the agency uses: NR in front of the Medicaid ID. */
-export const CONTROL_NUMBER_PREFIX = 'NR';
+/**
+ * The patient control number the agency uses: the client's initials followed by
+ * the member ID, with no separator — Nytia Ruffin on member 233170923305 is
+ * NR233170923305.
+ */
+export function patientControlNumber(client: AvailityClient): string {
+  const initials = `${client.first_name.trim().charAt(0)}${client.last_name.trim().charAt(0)}`;
+  const memberId = client.member_id?.trim() ?? '';
+  if (!initials || !memberId) return '';
+  return `${initials.toUpperCase()}${memberId}`;
+}
 
 export interface DiagnosisCode {
   code: string;
@@ -430,7 +438,7 @@ export function claimSections({
 }: ClaimInput): AvailitySection[] {
   const mco = client.insurance?.trim() ?? '';
   const payer = mco ? settings.payersClaims[mco] : '';
-  const controlId = client.medicaid_id?.trim() || client.member_id?.trim() || '';
+  const controlNumber = patientControlNumber(client);
   const charge =
     selected.cycle.billed_amount ?? rateForLevel(client.level_of_need) ?? null;
   const modifier = selected.modifier?.trim() || settings.defaultModifier;
@@ -585,13 +593,9 @@ export function claimSections({
         {
           label: 'Patient Control Number / Claim Number',
           required: true,
-          value: controlId ? `${CONTROL_NUMBER_PREFIX}${controlId}` : '',
-          note: controlId
-            ? client.medicaid_id?.trim()
-              ? 'NR in front of the Medicaid ID.'
-              : 'NR in front of the member ID — no Medicaid ID on the client record.'
-            : undefined,
-          missing: controlId ? undefined : 'No Medicaid or member ID on the client record',
+          value: controlNumber,
+          note: controlNumber ? "The client's initials, then the member ID." : undefined,
+          missing: controlNumber ? undefined : 'No member ID on the client record',
         },
         { label: 'Place of Service', required: true, value: PLACE_OF_SERVICE, note: 'Always 12 - Home.' },
         { label: 'Frequency Type', required: true, value: FREQUENCY_TYPE },
