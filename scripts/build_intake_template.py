@@ -160,6 +160,10 @@ MULTILINE = [
     ('Additional Notes', 'additional_notes'),
 ]
 
+# Answered in a few words, not a paragraph, so one line is enough even though
+# the form leaves a gap the size of several.
+SINGLE_LINE = {'therapy_schedule'}
+
 
 def add_multiline(doc, names):
     """One roomy box per prose question, filling the space the form leaves."""
@@ -182,16 +186,70 @@ def add_multiline(doc, names):
                 top = y1 + 3
                 if bottom - top < 18:
                     continue
+                one_line = name in SINGLE_LINE
                 w = pymupdf.Widget()
                 w.field_type = pymupdf.PDF_WIDGET_TYPE_TEXT
                 w.field_name = name
-                w.field_flags = pymupdf.PDF_TX_FIELD_IS_MULTILINE
-                w.rect = pymupdf.Rect(left, top, right, bottom - 3)
+                if not one_line:
+                    w.field_flags = pymupdf.PDF_TX_FIELD_IS_MULTILINE
+                w.rect = pymupdf.Rect(
+                    left, top, right, top + 16 if one_line else bottom - 3)
                 w.text_fontsize = 9
                 w.border_width = 0
                 page.add_widget(w)
                 names.append(name)
                 added += 1
+    return added
+
+
+# Money amounts are printed as "$______", one word, so the underscore pass
+# never sees them. Matched on the label that precedes them, in page order.
+DOLLARS = [
+    (1, 'Monthly Amount', 'income_monthly_amount'),
+    (2, 'Monthly Amount', 'benefit_monthly_amount'),
+    (3, 'Phone', 'expense_phone'),
+    (3, 'Car Note', 'expense_car_note'),
+    (3, 'Car Insurance', 'expense_car_insurance'),
+    (3, 'Wi-Fi/Internet', 'expense_internet'),
+    (3, 'Utilities', 'expense_utilities'),
+    (3, 'Other', 'expense_other'),
+    (3, 'Total Monthly Expenses', 'expenses_total'),
+    (3, 'Amount Available', 'application_fee_amount'),
+    (3, '$', 'planned_monthly_rent'),
+]
+
+
+def add_dollars(doc, names):
+    """A field over each "$______", leaving the printed $ visible."""
+    pending = list(DOLLARS)
+    added = 0
+    for pno, page in enumerate(doc):
+        lines = {}
+        for w in page.get_text("words"):
+            lines.setdefault((w[5], w[6]), []).append(w)
+        for key in sorted(lines, key=lambda k: min(w[1] for w in lines[k])):
+            ws = sorted(lines[key], key=lambda w: w[0])
+            money = [w for w in ws if w[4].startswith('$') and '_' in w[4]]
+            if not money:
+                continue
+            text = ' '.join(w[4] for w in ws)
+            match = next((d for d in pending
+                          if d[0] == pno and text.startswith(d[1])), None)
+            if not match:
+                continue
+            pending.remove(match)
+            w = money[0]
+            widget = pymupdf.Widget()
+            widget.field_type = pymupdf.PDF_WIDGET_TYPE_TEXT
+            widget.field_name = match[2]
+            widget.rect = pymupdf.Rect(w[0] + 7, w[1] - 1, w[2], w[3] + 1)
+            widget.text_fontsize = 9
+            widget.border_width = 0
+            page.add_widget(widget)
+            names.append(match[2])
+            added += 1
+    if pending:
+        sys.exit(f'money fields not found: {[d[2] for d in pending]}')
     return added
 
 
@@ -247,6 +305,7 @@ def main():
             names.append(name)
 
     added += add_multiline(doc, names)
+    added += add_dollars(doc, names)
 
     dupes = {n for n in names if names.count(n) > 1}
     if dupes:
