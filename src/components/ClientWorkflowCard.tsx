@@ -15,7 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { useViewAs } from '@/components/ViewAsProvider';
-import { CheckCircle2, ClipboardList, FileText } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FileText, Upload } from 'lucide-react';
 import {
   INTAKE_STATUS_LABEL,
   PACKAGE_STATE_CLASS,
@@ -33,6 +33,7 @@ import {
   FORM_STATUS_SHORT_LABEL,
 } from '@/lib/formSigning';
 import { PDF_TEMPLATES, TemplateFillDialog, type PdfTemplate } from '@/components/forms/TemplateFillDialog';
+import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
 import { regenerateClientCycles } from '@/lib/billingSync';
 import { continuationOverlapsInitial } from '@/lib/billing';
 import { DIGITS_ONLY_HINT, digitsOnly } from '@/lib/ids';
@@ -121,6 +122,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, onOpenIn
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [authorizations, setAuthorizations] = useState<ClientAuthorization[]>([]);
   const [filling, setFilling] = useState<PdfTemplate | null>(null);
+  const [uploadingType, setUploadingType] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState<AuthKind | null>(null);
   const [authNumber, setAuthNumber] = useState('');
   const [authStart, setAuthStart] = useState('');
@@ -459,6 +461,16 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, onOpenIn
                         </Button>
                       </>
                     )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      title={`Upload a completed ${type}`}
+                      aria-label={`Upload a completed ${type}`}
+                      onClick={() => setUploadingType(type)}
+                    >
+                      <Upload className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               );
@@ -467,6 +479,22 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, onOpenIn
         </div>
 
       </CardContent>
+
+      {uploadingType && profileId && (
+        <UploadFormDialog
+          open
+          onClose={() => setUploadingType(null)}
+          profileId={profileId}
+          signerName={signerName}
+          initialFormType={uploadingType}
+          initialClientId={client.id}
+          onSubmitted={() => {
+            setUploadingType(null);
+            loadForms();
+            onUpdate();
+          }}
+        />
+      )}
 
       {filling && profileId && (
         <TemplateFillDialog
