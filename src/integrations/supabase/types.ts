@@ -390,6 +390,7 @@ export type Database = {
           contact_date: string
           created_at: string
           duration_minutes: number | null
+          entered_by: string | null
           employee_id: string
           id: string
           modality: string
@@ -402,6 +403,7 @@ export type Database = {
           contact_date?: string
           created_at?: string
           duration_minutes?: number | null
+          entered_by?: string | null
           employee_id: string
           id?: string
           modality: string
@@ -414,6 +416,7 @@ export type Database = {
           contact_date?: string
           created_at?: string
           duration_minutes?: number | null
+          entered_by?: string | null
           employee_id?: string
           id?: string
           modality?: string
@@ -1326,6 +1329,7 @@ export type Database = {
           contact_method: string | null
           created_at: string
           duration_minutes: number
+          entered_by: string | null
           employee_id: string
           entry_status: string
           face_to_face: boolean
@@ -1343,6 +1347,7 @@ export type Database = {
           contact_method?: string | null
           created_at?: string
           duration_minutes?: number
+          entered_by?: string | null
           employee_id: string
           entry_status?: string
           face_to_face?: boolean
@@ -1360,6 +1365,7 @@ export type Database = {
           contact_method?: string | null
           created_at?: string
           duration_minutes?: number
+          entered_by?: string | null
           employee_id?: string
           entry_status?: string
           face_to_face?: boolean

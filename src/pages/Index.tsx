@@ -10,16 +10,50 @@ import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
 import { StaffTouchpoints } from "@/components/StaffTouchpoints";
 import { FormsHub } from "@/components/forms/FormsHub";
 import { useIsAdmin } from '@/hooks/useIsAdmin';
-import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { SuperadminTouchpoints } from '@/components/SuperadminTouchpoints';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 type View = 'compliance' | 'clients' | 'notes' | 'calendar' | 'forms';
 
+/**
+ * Two different questions, so two views rather than one blended screen:
+ * "how is the whole agency doing" and "what do I personally owe this week".
+ * Admins and superadmins need both; staff only ever see the second.
+ */
+const TouchpointViews: React.FC<{ onOpenClient: (id: string) => void }> = ({ onOpenClient }) => {
+  const [view, setView] = useState<'oversight' | 'mine'>('oversight');
+
+  const Tab: React.FC<{ id: 'oversight' | 'mine'; label: string; hint: string }> = ({ id, label, hint }) => (
+    <button
+      onClick={() => setView(id)}
+      aria-pressed={view === id}
+      className={`rounded-md px-3 py-1.5 text-left transition-colors ${
+        view === id ? 'bg-background shadow-sm' : 'hover:bg-background/60'
+      }`}
+    >
+      <div className="text-sm font-medium">{label}</div>
+      <div className="text-[11px] text-muted-foreground">{hint}</div>
+    </button>
+  );
+
+  return (
+    <div>
+      <div className="px-6 pt-6">
+        <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
+          <Tab id="oversight" label="Oversight" hint="Every case manager" />
+          <Tab id="mine" label="My caseload" hint="Clients assigned to me" />
+        </div>
+      </div>
+      {view === 'oversight'
+        ? <SuperadminTouchpoints onOpenClient={onOpenClient} />
+        : <StaffTouchpoints onOpenClient={onOpenClient} />}
+    </div>
+  );
+};
+
 const Index = () => {
   const { user, loading } = useAuth();
   const { isAdmin, loading: adminLoading } = useIsAdmin();
-  const { isSuperadmin } = useIsSuperadmin();
   const { isViewingAs } = useViewAs();
   const location = useLocation();
   const [activeView, setActiveView] = useState<View>('compliance');
@@ -124,8 +158,12 @@ const Index = () => {
         <Sidebar activeView={activeView} onViewChange={handleViewChange} onOpenNote={handleOpenNote} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
           {activeView === 'compliance' ? (
-            isSuperadmin && !isViewingAs
-              ? <SuperadminTouchpoints onOpenClient={handleOpenClient} />
+            /* Admins and superadmins carry caseloads of their own -- the two
+               largest in the agency belong to them -- so they need the
+               supervisory view *and* their own work queue, not one or the
+               other. Staff see only their own queue, with no switcher. */
+            isAdmin && !isViewingAs
+              ? <TouchpointViews onOpenClient={handleOpenClient} />
               : <StaffTouchpoints onOpenClient={handleOpenClient} />
           ) : activeView === 'clients' ? (
             <ClientManagement
