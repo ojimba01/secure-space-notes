@@ -84,10 +84,10 @@ const bandOf = (days: number): Band =>
   days < 0 ? 'overdue' : days <= 7 ? 'week' : days <= 30 ? 'month' : 'later';
 
 const BANDS: { key: Band; heading: string; note: string; tone: string; dot: string }[] = [
-  { key:'overdue', heading:'Overdue',        note:'The six-month window has closed. These can no longer be filed.', tone:'border-red-300 bg-red-50 text-red-900',      dot:'bg-red-600' },
-  { key:'week',    heading:'Due this week',  note:'File these first.',                                              tone:'border-amber-300 bg-amber-50 text-amber-900', dot:'bg-amber-500' },
-  { key:'month',   heading:'Due this month', note:'',                                                               tone:'border-blue-300 bg-blue-50 text-blue-900',    dot:'bg-blue-600' },
-  { key:'later',   heading:'Later',          note:'Nothing to do yet.',                                             tone:'border-slate-300 bg-white text-slate-700',    dot:'bg-slate-400' },
+  { key:'overdue', heading:'Past the submission deadline', note:'The six-month window has closed. These claims can no longer be submitted.', tone:'border-red-300 bg-red-50 text-red-900',      dot:'bg-red-600' },
+  { key:'week',    heading:'Due this week',                note:'Submit these first.',                                                       tone:'border-amber-300 bg-amber-50 text-amber-900', dot:'bg-amber-500' },
+  { key:'month',   heading:'Due this month',               note:'',                                                                          tone:'border-blue-300 bg-blue-50 text-blue-900',    dot:'bg-blue-600' },
+  { key:'later',   heading:'Not yet due',                  note:'',                                                                          tone:'border-slate-300 bg-white text-slate-700',    dot:'bg-slate-400' },
 ];
 
 const attention = (c: BillingCycle) => isDeadlineAtRisk(c) && !isDeadlinePassed(c);
@@ -284,7 +284,7 @@ export function BillingWorkspace() {
     const next=urgent.find(r=>r.client.id!==fromClientId);
     setBillingClientId(next?.client.id ?? null);
     if(next) toast.success(`Next: ${next.client.first_name} ${next.client.last_name}`);
-    else toast.success('That was the last one closing this month.');
+    else toast.success('All claims due this month have been submitted.');
   };
 
   const [page,setPage]=useState(0);
@@ -562,8 +562,8 @@ export function BillingWorkspace() {
 
       {(urgent.length>0||filedToday>0) && <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
-          <b>{filedToday} filed today</b>
-          <span className="text-muted-foreground"> · {urgent.length} still to file this month</span>
+          <b>{filedToday} submitted today</b>
+          <span className="text-muted-foreground"> · {urgent.length} remaining this month</span>
         </div>
         <div className="h-2 w-40 overflow-hidden rounded-full bg-slate-200">
           <div className="h-full rounded-full bg-emerald-500" style={{width:`${Math.round((filedToday/Math.max(filedToday+urgent.length,1))*100)}%`}}/>
@@ -579,31 +579,37 @@ export function BillingWorkspace() {
         shortlist={urgent.map(r=>({ id:r.client.id, label:`${r.client.first_name} ${r.client.last_name}`, note:r.days<0?'window closed':`${r.days}d`, urgent:r.band!=='month' }))}
       />
 
-      <details className="rounded-lg border bg-white">
-        <summary className="cursor-pointer p-4 text-sm font-medium">Every client with a cycle still to bill ({queue.length})</summary>
-        <div className="space-y-4 border-t p-4">
-      {/* One list, ordered by the last day each claim can be filed. */}
-      <div className="flex flex-wrap items-center gap-2" data-tour="filters">
-        {BANDS.filter(b=>b.key!=='later').map(b=>byBand[b.key].length>0?<span key={b.key} className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${b.tone}`}>
-          <span className={`h-2 w-2 rounded-full ${b.dot}`}/><b>{byBand[b.key].length}</b> {b.heading.toLowerCase()}
-        </span>:null)}
-      </div>
 
-      {queue.length===0 ? <Card className="p-10 text-center">
-        <h3 className="font-semibold">{query.trim()?'No clients match that search':'Nothing to bill right now'}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{query.trim()?'Try a different name or member ID, or clear the search.':'A client appears here when they have a billing cycle that has not been billed yet.'}</p>
-      </Card> : <>
+    </>
+    : <>
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Billing cycles due</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Ordered by submission deadline, soonest first. Select a client to view their cycles.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={()=>setEditData(v=>!v)}>
+            <Pencil className="mr-2 h-4 w-4"/>{editData?'Hide client data':'Edit client data'}
+          </Button>
+        </div>
+      </Card>
+
+      {!editData && <>
+        {queue.length===0 && <Card className="p-10 text-center">
+          <h3 className="font-semibold">{query.trim()?'No clients match that search':'No claims are outstanding'}</h3>
+        </Card>}
+
         {BANDS.filter(b=>b.key!=='later').map(b=>byBand[b.key].length>0?<section key={b.key} className="space-y-3">
           <div>
             <h3 className="font-semibold">{b.heading} ({byBand[b.key].length})</h3>
             {b.note && <p className="text-sm text-muted-foreground">{b.note}</p>}
           </div>
-          {byBand[b.key].map((row,i)=>clientRow(row,i===0))}
+          {byBand[b.key].map(row=>clientRow(row,false))}
         </section>:null)}
 
         {byBand.later.length>0 && <section className="space-y-3">
           <button className="flex w-full items-center justify-between rounded-md border bg-white p-3 text-left text-sm hover:bg-slate-50" onClick={()=>setShowLater(v=>!v)}>
-            <span><b>Later ({byBand.later.length})</b> <span className="text-muted-foreground">— nothing to do yet</span></span>
+            <span><b>Not yet due ({byBand.later.length})</b></span>
             {showLater?<ChevronDown className="h-4 w-4"/>:<ChevronRight className="h-4 w-4"/>}
           </button>
           {showLater && <div className="space-y-3">
@@ -612,33 +618,10 @@ export function BillingWorkspace() {
             <Pager page={page} setPage={setPage} total={byBand.later.length} label="clients"/>
           </div>}
         </section>}
+
+        {lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
+        {extensionClients.length>0 && <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>}
       </>}
-
-          {lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
-          {extensionClients.length>0 && <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>}
-        </div>
-      </details>
-    </>
-    : <>
-      <Card className="p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-semibold">Billing cycles by client</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Whoever's six-month window closes soonest is first. Press a client to see their cycles.</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={()=>setEditData(v=>!v)}>
-            <Pencil className="mr-2 h-4 w-4"/>{editData?'Hide client data':'Edit client data'}
-          </Button>
-        </div>
-      </Card>
-
-      {!editData && (queue.length===0
-        ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No clients match that search':'No client has a cycle left to bill'}</h3></Card>
-        : <div className="space-y-3">
-            <Pager page={page} setPage={setPage} total={queue.length} label="clients"/>
-            {queue.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE).map(row=>clientRow(row,false))}
-            <Pager page={page} setPage={setPage} total={queue.length} label="clients"/>
-          </div>)}
 
       {editData && <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">

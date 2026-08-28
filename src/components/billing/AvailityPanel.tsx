@@ -12,6 +12,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -21,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Check, Copy, Search } from 'lucide-react';
+import { digitsOnly } from '@/lib/ids';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { BillingClient } from '@/hooks/useBilling';
@@ -84,7 +92,14 @@ const NO_EXTRAS: ClientExtras = {
 const OTHER_CODE = '__other__';
 
 /** One Availity box: its label, its value, and a button that copies it. */
-const CopyField: React.FC<AvailityField> = ({ label, value, required, note, missing }) => {
+const CopyField: React.FC<AvailityField & { control?: React.ReactNode }> = ({
+  label,
+  value,
+  required,
+  note,
+  missing,
+  control,
+}) => {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -106,18 +121,20 @@ const CopyField: React.FC<AvailityField> = ({ label, value, required, note, miss
         {label}
       </Label>
       <div className="flex gap-2">
-        <div
-          className={`flex min-h-10 flex-1 items-center rounded-md border px-3 py-2 text-sm ${
-            missing ? 'border-red-300 bg-red-50 text-red-700' : 'border-slate-300 bg-white'
-          }`}
-        >
-          {missing ? missing : value || <span className="text-muted-foreground">(leave blank)</span>}
-        </div>
-        {!missing && value && (
-          <Button type="button" variant="outline" size="icon" onClick={copy} aria-label={`Copy ${label}`}>
-            {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-          </Button>
+        {control ? (
+          <div className="flex-1">{control}</div>
+        ) : (
+          <div
+            className={`flex min-h-10 flex-1 items-center rounded-md border px-3 py-2 text-sm ${
+              missing ? 'border-red-300 bg-red-50 text-red-700' : 'border-slate-300 bg-white'
+            }`}
+          >
+            {missing ? missing : value || <span className="text-muted-foreground">(leave blank)</span>}
+          </div>
         )}
+        <Button type="button" variant="outline" size="icon" onClick={copy} aria-label={`Copy ${label}`}>
+          {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+        </Button>
       </div>
       {note && <p className="text-xs text-muted-foreground">{note}</p>}
     </div>
@@ -138,6 +155,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   const [settings, setSettings] = useState<AvailityProviderSettings | null>(null);
   const [markingSubmitted, setMarkingSubmitted] = useState(false);
   const [page, setPage] = useState<'eligibility' | 'claim'>('eligibility');
+  const [savingClient, setSavingClient] = useState(false);
 
   useEffect(() => {
     loadAvailitySettings().then(setSettings);
@@ -293,6 +311,147 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
     return () => clearTimeout(timer);
   }, [clientId, diagnosisCode, relationship, extras.diagnosis_code, extras.subscriber_relationship]);
 
+  // The answers are written back as they change, but a person filling a form in
+  // wants a Save they can press. This writes the same three answers now and
+  // says so, rather than leaving them wondering whether it took.
+  const saveToClient = async () => {
+    if (!clientId) return;
+    setSavingClient(true);
+    try {
+      const code = diagnosisCode.trim().toUpperCase();
+      const { error } = await supabase
+        .from('clients')
+        .update({
+          diagnosis_code: code || null,
+          subscriber_relationship: relationship,
+        })
+        .eq('id', clientId);
+      if (error) throw error;
+      setExtras((e) => ({ ...e, diagnosis_code: code || null, subscriber_relationship: relationship }));
+      toast.success('Saved to the client record', {
+        description: 'The next cycle for this client opens on these answers.',
+      });
+    } catch (err) {
+      toast.error('Could not save to the client record', {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setSavingClient(false);
+    }
+  };
+
+  const patchClient = async (patch: Record<string, string | null>, label: string) => {
+    if (!clientId) return;
+    const { error } = await supabase.from('clients').update(patch).eq('id', clientId);
+    if (error) {
+      toast.error(`Could not save the ${label}`, { description: error.message });
+      return;
+    }
+    await loadExtras(clientId);
+    toast.success(`${label} saved to the client record`);
+  };
+
+  const controlFor = (edit: AvailityField['edit']): React.ReactNode => {
+    if (edit === 'gender') {
+      return (
+        <Select value={gender} onValueChange={(v) => { setGender(v as AvailityGender); setGenderAssumed(false); }}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {GENDER_OPTIONS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      );
+    }
+    if (edit === 'relationship') {
+      return (
+        <Select value={relationship} onValueChange={(v) => setRelationship(v as Relationship)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {RELATIONSHIP_OPTIONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      );
+    }
+    if (edit === 'diagnosis') {
+      return (
+        <div className="space-y-2">
+          <Select
+            value={findDiagnosisCode(diagnosisCode) ? diagnosisCode : OTHER_CODE}
+            onValueChange={(v) => setDiagnosisCode(v === OTHER_CODE ? customCode : v)}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>The codes we use</SelectLabel>
+                {AGENCY_DIAGNOSIS_CODES.map((d) => (
+                  <SelectItem key={d.code} value={d.code}>{d.code} — {d.description}</SelectItem>
+                ))}
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Other Z59 codes</SelectLabel>
+                {OTHER_DIAGNOSIS_CODES.map((d) => (
+                  <SelectItem key={d.code} value={d.code}>
+                    {d.code} — {d.description}{d.billable === false ? ' (category only)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Something else</SelectLabel>
+                <SelectItem value={OTHER_CODE}>Another code…</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          {!findDiagnosisCode(diagnosisCode) && (
+            <Input
+              placeholder="Type the code without the decimal point, e.g. Z59819"
+              value={customCode}
+              onChange={(e) => { setCustomCode(e.target.value); setDiagnosisCode(e.target.value.trim().toUpperCase()); }}
+            />
+          )}
+        </div>
+      );
+    }
+    // The remaining three live on the client record. A blank box here is the
+    // only place a person notices it is missing, so it is typed in here too.
+    if (edit === 'dob') {
+      return (
+        <Input
+          type="date"
+          defaultValue={extras.date_of_birth ?? ''}
+          onBlur={(e) => {
+            const v = e.target.value;
+            if (v && v !== extras.date_of_birth) patchClient({ date_of_birth: v }, 'date of birth');
+          }}
+        />
+      );
+    }
+    if (edit === 'memberId') {
+      return (
+        <Input
+          defaultValue={client?.member_id ?? ''}
+          placeholder="Member ID"
+          onBlur={(e) => {
+            const v = digitsOnly(e.target.value);
+            if (v && v !== (client?.member_id ?? '')) patchClient({ member_id: v }, 'member ID');
+          }}
+        />
+      );
+    }
+    if (edit === 'address') {
+      return (
+        <Input
+          defaultValue={extras.address ?? ''}
+          placeholder="Street address"
+          onBlur={(e) => {
+            const v = e.target.value.trim();
+            if (v && v !== (extras.address ?? '')) patchClient({ address: v }, 'address');
+          }}
+        />
+      );
+    }
+    return null;
+  };
+
   const renderSections = (list: { title: string; fields: AvailityField[] }[]) =>
     list.map((section) => (
       <Card key={section.title} className="overflow-hidden">
@@ -301,7 +460,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
         </div>
         <div className="grid gap-4 p-4 sm:grid-cols-2">
           {section.fields.map((f) => (
-            <CopyField key={f.label} {...f} />
+            <CopyField key={f.label} {...f} control={f.edit ? controlFor(f.edit) : undefined} />
           ))}
         </div>
       </Card>
@@ -348,15 +507,15 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
         <div className="space-y-3">
           {!!missingProvider.length && (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-              {missingProvider.length} of the agency's own boxes are empty, so some boxes below will
-              be blank. Press <b>Edit agency details</b> to fill them in.
+              {missingProvider.length} of the agency's own details have not been entered, so those
+              boxes will be blank. Press <b>Edit agency details</b> to complete them.
             </div>
           )}
 
           {!!shortlist?.length && (
             <div className="space-y-2">
               <p className="text-sm font-medium">
-                Bill these {shortlist.length} now — their six-month window closes within the month
+                The following {shortlist.length} claims must be submitted this month
               </p>
               <div className="flex flex-wrap gap-2">
                 {shortlist.map((c) => (
@@ -379,7 +538,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-9"
-              placeholder="Or search for any other client by name or member ID"
+              placeholder="Search for another client by name or member ID"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -431,103 +590,21 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
         </div>
       </Card>
 
-      {client && (
-        <>
-          <Card className="p-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">
-                  Patient gender {genderAssumed && '(assumed — the record does not say)'}
-                </Label>
-                <Select
-                  value={gender}
-                  onValueChange={(v) => {
-                    setGender(v as AvailityGender);
-                    setGenderAssumed(extras.gender !== v);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GENDER_OPTIONS.map((g) => (
-                      <SelectItem key={g} value={g}>
-                        {g}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Relationship to subscriber</Label>
-                <Select value={relationship} onValueChange={(v) => setRelationship(v as Relationship)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RELATIONSHIP_OPTIONS.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {r}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {(
-                <div className="space-y-2 sm:col-span-2">
-                  <Label className="text-xs text-muted-foreground">Principal diagnosis code</Label>
-                  <Select
-                    value={findDiagnosisCode(diagnosisCode) ? diagnosisCode : OTHER_CODE}
-                    onValueChange={(v) => setDiagnosisCode(v === OTHER_CODE ? customCode : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectLabel>The codes we use</SelectLabel>
-                        {AGENCY_DIAGNOSIS_CODES.map((d) => (
-                          <SelectItem key={d.code} value={d.code}>
-                            {d.code} — {d.description}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                      <SelectGroup>
-                        <SelectLabel>Other Z59 codes</SelectLabel>
-                        {OTHER_DIAGNOSIS_CODES.map((d) => (
-                          <SelectItem key={d.code} value={d.code}>
-                            {d.code} — {d.description}
-                            {d.billable === false ? ' (category only)' : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                      <SelectGroup>
-                        <SelectLabel>Something else</SelectLabel>
-                        <SelectItem value={OTHER_CODE}>Another code…</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+      <Dialog open={!!client} onOpenChange={(open) => !open && setClientId(null)}>
+        <DialogContent className="flex max-h-[94vh] max-w-6xl flex-col gap-0 p-0">
+          <DialogHeader className="border-b px-6 py-4">
+            <DialogTitle>
+              {client ? `${client.first_name} ${client.last_name}` : ''} — Availity
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Put this beside the Availity page and copy each box across. Nothing is sent to Availity
+              from this app.
+            </p>
+          </DialogHeader>
 
-                  {!findDiagnosisCode(diagnosisCode) && (
-                    <Input
-                      placeholder="Type the code without the decimal point, e.g. Z59819"
-                      value={customCode}
-                      onChange={(e) => {
-                        setCustomCode(e.target.value);
-                        setDiagnosisCode(e.target.value.trim().toUpperCase());
-                      }}
-                    />
-                  )}
-
-                  <p className="text-xs text-muted-foreground">
-                    Which code fits is a judgement about the client, so it is kept on the client
-                    record and every later claim opens on it.
-                  </p>
-                </div>
-              )}
-            </div>
-          </Card>
-
+          <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+        {client && (
+          <>
           {/* One Availity page at a time, chosen by tab, in the order they are
               worked: check the client is covered, then file the claim. */}
           <div className="flex w-fit rounded-lg border bg-white p-1">
@@ -656,8 +733,25 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
           )}
             </>
           )}
-        </>
-      )}
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="flex-wrap gap-2 border-t px-6 py-4">
+            <Button variant="ghost" onClick={() => setClientId(null)}>
+              Close
+            </Button>
+            <Button variant="outline" onClick={saveToClient} disabled={savingClient}>
+              {savingClient ? 'Saving…' : 'Save to client details'}
+            </Button>
+            {page === 'claim' && selected && selected.cycle.billing_status !== 'Submitted' && (
+              <Button onClick={markSubmitted} disabled={markingSubmitted}>
+                {markingSubmitted ? 'Saving…' : `Save and mark cycle ${selected.cycle.cycle_number} as billed`}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
