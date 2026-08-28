@@ -390,8 +390,8 @@ export type Database = {
           contact_date: string
           created_at: string
           duration_minutes: number | null
-          entered_by: string | null
           employee_id: string
+          entered_by: string | null
           id: string
           modality: string
           notes: string | null
@@ -403,8 +403,8 @@ export type Database = {
           contact_date?: string
           created_at?: string
           duration_minutes?: number | null
-          entered_by?: string | null
           employee_id: string
+          entered_by?: string | null
           id?: string
           modality: string
           notes?: string | null
@@ -416,8 +416,8 @@ export type Database = {
           contact_date?: string
           created_at?: string
           duration_minutes?: number | null
-          entered_by?: string | null
           employee_id?: string
+          entered_by?: string | null
           id?: string
           modality?: string
           notes?: string | null
@@ -434,6 +434,13 @@ export type Database = {
           {
             foreignKeyName: "client_contacts_employee_id_fkey"
             columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_contacts_entered_by_fkey"
+            columns: ["entered_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1329,8 +1336,8 @@ export type Database = {
           contact_method: string | null
           created_at: string
           duration_minutes: number
-          entered_by: string | null
           employee_id: string
+          entered_by: string | null
           entry_status: string
           face_to_face: boolean
           id: string
@@ -1347,8 +1354,8 @@ export type Database = {
           contact_method?: string | null
           created_at?: string
           duration_minutes?: number
-          entered_by?: string | null
           employee_id: string
+          entered_by?: string | null
           entry_status?: string
           face_to_face?: boolean
           id?: string
@@ -1365,8 +1372,8 @@ export type Database = {
           contact_method?: string | null
           created_at?: string
           duration_minutes?: number
-          entered_by?: string | null
           employee_id?: string
+          entered_by?: string | null
           entry_status?: string
           face_to_face?: boolean
           id?: string
@@ -1395,6 +1402,13 @@ export type Database = {
           {
             foreignKeyName: "njhmis_progress_notes_employee_id_fkey"
             columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "njhmis_progress_notes_entered_by_fkey"
+            columns: ["entered_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
