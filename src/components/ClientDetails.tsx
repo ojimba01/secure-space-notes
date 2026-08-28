@@ -19,6 +19,7 @@ import { AuthorizationsSection } from '@/components/AuthorizationsSection';
 
 import { serviceStartDate } from '@/lib/workflow';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ComplianceCard } from '@/components/ComplianceCard';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -61,16 +62,19 @@ interface ClientDetailsProps {
   client: Client;
   onBack: () => void;
   onUpdate: () => void;
+  /** Tab to open on. Defaults to the overview. */
+  initialTab?: string;
 }
 
-export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, onUpdate }) => {
+export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, onUpdate, initialTab }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(initialTab ?? 'overview');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [intakeOpen, setIntakeOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { isAdmin } = useIsAdmin();
   const { isViewingAs } = useViewAs();
@@ -240,7 +244,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         <ClientWorkflowCard
           client={client}
           onUpdate={onUpdate}
-          onOpenIntake={() => setActiveTab('intake')}
+          onOpenIntake={() => setIntakeOpen(true)}
         />
 
         <AuthorizationsSection clientId={client.id} onUpdate={onUpdate} />
@@ -287,12 +291,17 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           </TabsContent>
 
           <TabsContent value="intake">
-            <ClientIntakeForm
-              clientId={client.id}
-              clientFirstName={client.first_name}
-              clientLastName={client.last_name}
-              onUpdate={onUpdate}
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Client Intake</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  The intake questionnaire opens as a form.
+                </p>
+                <Button onClick={() => setIntakeOpen(true)}>Open the Client Intake form</Button>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="forms">
@@ -349,6 +358,20 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           </div>
         </div>
       )}
+
+      <Dialog open={intakeOpen} onOpenChange={setIntakeOpen}>
+        <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Client Intake</DialogTitle>
+          </DialogHeader>
+          <ClientIntakeForm
+            clientId={client.id}
+            clientFirstName={client.first_name}
+            clientLastName={client.last_name}
+            onUpdate={onUpdate}
+          />
+        </DialogContent>
+      </Dialog>
 
       <CloseCaseDialog
         open={closeDialogOpen}

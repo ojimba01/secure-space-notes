@@ -159,7 +159,7 @@ export const CloseCaseDialog: React.FC<Props> = ({
             </Select>
             {reason === 'Other' && (
               <Input
-                placeholder="Say briefly why"
+                placeholder="Reason for closing"
                 value={reasonOther}
                 onChange={(e) => setReasonOther(e.target.value)}
               />
@@ -183,7 +183,7 @@ export const CloseCaseDialog: React.FC<Props> = ({
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Anything the next person should know."
+              placeholder="Notes for the record"
             />
           </div>
 

@@ -31,6 +31,13 @@ import {
   FORM_STATUS_SHORT_LABEL,
   FORM_TYPES,
 } from '@/lib/formSigning';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
 import { FormDetailDialog } from '@/components/forms/FormDetailDialog';
 import {
@@ -75,9 +82,17 @@ const PAGE_SIZE = 10;
 const statusVariant = (status: string) => FORM_STATUS_CLASS[status] ?? 'bg-muted text-muted-foreground';
 
 
-export const FormsHub: React.FC = () => {
+interface FormsHubProps {
+  /** Opens a client's record on their Intake tab. */
+  onOpenClientIntake?: (clientId: string) => void;
+}
+
+export const FormsHub: React.FC<FormsHubProps> = ({ onOpenClientIntake }) => {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
+  const [intakePickerOpen, setIntakePickerOpen] = useState(false);
+  const [intakeQuery, setIntakeQuery] = useState('');
+  const [intakeClients, setIntakeClients] = useState<{ id: string; first_name: string; last_name: string }[]>([]);
   const { isViewingAs } = useViewAs();
   const profileId = useEffectiveProfileId();
 
@@ -239,16 +254,37 @@ export const FormsHub: React.FC = () => {
             to them, with their details filled in.
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Card className="p-4 flex flex-col gap-2 border-dashed">
+            <Card className="p-4 flex flex-col gap-2">
               <div className="flex items-start gap-2">
                 <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                 <div>
                   <div className="text-sm font-medium leading-tight">Client Intake</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    The intake questionnaire. It is a screen rather than a PDF, so it is filled in
-                    on the client's own record — open the client and use the Intake tab.
+                    The intake questionnaire. Answers save onto the client's record rather than into
+                    a PDF, so it opens on their Intake tab.
                   </p>
                 </div>
+              </div>
+              <div className="mt-auto flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  disabled={!onOpenClientIntake}
+                  onClick={async () => {
+                    setIntakeQuery('');
+                    setIntakePickerOpen(true);
+                    const { data } = await supabase
+                      .from('clients')
+                      .select('id, first_name, last_name')
+                      .is('deleted_at', null)
+                      .eq('status', 'active')
+                      .order('last_name');
+                    setIntakeClients(data ?? []);
+                  }}
+                >
+                  Fill out &amp; submit
+                </Button>
               </div>
             </Card>
             {PDF_TEMPLATES.map((t) => (
@@ -448,6 +484,48 @@ export const FormsHub: React.FC = () => {
           onSubmitted={fetchForms}
         />
       )}
+
+      <Dialog open={intakePickerOpen} onOpenChange={setIntakePickerOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select a client</DialogTitle>
+            <DialogDescription>
+              The intake is saved to the client's record. Select the client it belongs to.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder="Search by client name"
+            value={intakeQuery}
+            onChange={(e) => setIntakeQuery(e.target.value)}
+          />
+          <div className="max-h-72 space-y-1 overflow-y-auto">
+            {intakeClients
+              .filter((c) =>
+                `${c.first_name} ${c.last_name}`
+                  .toLowerCase()
+                  .includes(intakeQuery.trim().toLowerCase()),
+              )
+              .slice(0, 40)
+              .map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-accent"
+                  onClick={() => {
+                    setIntakePickerOpen(false);
+                    onOpenClientIntake?.(c.id);
+                  }}
+                >
+                  {c.last_name}, {c.first_name}
+                </button>
+              ))}
+            {!intakeClients.length && (
+              <p className="px-3 py-2 text-sm text-muted-foreground">Loading clients.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {uploadOpen && profileId && (
         <UploadFormDialog
