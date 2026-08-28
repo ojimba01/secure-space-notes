@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
+import { DIGITS_ONLY_HINT, digitsOnly } from '@/lib/ids';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { regenerateClientCycles } from '@/lib/billingSync';
@@ -322,8 +323,13 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                   <FormItem>
                     <FormLabel>Member ID</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input
+                        {...field}
+                        inputMode="numeric"
+                        onChange={(e) => field.onChange(digitsOnly(e.target.value))}
+                      />
                     </FormControl>
+                    <FormDescription>{DIGITS_ONLY_HINT}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -230,17 +230,15 @@ export const FormsHub: React.FC = () => {
         client's own lifecycle card, which already knows the client and
         pre-fills the template — this is the escape hatch for everything else.
       */}
-      <details className="rounded-md border">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
-          Start a blank form
-        </summary>
+      <div className="rounded-md border">
+        <div className="px-4 py-3 text-sm font-medium">Start a blank form</div>
         <div className="border-t p-4 space-y-3">
           <p className="text-xs text-muted-foreground">
             Opens an empty official template. For a client's required assessments, open the
             client and use their case lifecycle card instead — the form arrives already linked
             to them, with their details filled in.
           </p>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {PDF_TEMPLATES.map((t) => (
               <Card key={t.file} className="p-4 flex flex-col gap-2">
                 <div className="flex items-start gap-2">
@@ -270,7 +268,7 @@ export const FormsHub: React.FC = () => {
             ))}
           </div>
         </div>
-      </details>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">

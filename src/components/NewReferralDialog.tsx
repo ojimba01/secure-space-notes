@@ -3,11 +3,12 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
+import { DIGITS_ONLY_HINT, digitsOnly } from '@/lib/ids';
 import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -190,7 +191,7 @@ export const NewReferralDialog: React.FC<Props> = ({ open, onOpenChange, onCreat
                 <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="member_id" render={({ field }) => (
-                <FormItem><FormLabel>Member ID</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Member ID</FormLabel><FormControl><Input {...field} inputMode="numeric" onChange={(e) => field.onChange(digitsOnly(e.target.value))} /></FormControl><FormDescription>{DIGITS_ONLY_HINT}</FormDescription><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="njhmis_id" render={({ field }) => (
                 <FormItem><FormLabel>NJHMIS ID</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
