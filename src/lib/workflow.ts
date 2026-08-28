@@ -141,8 +141,9 @@ export function nextAction(
     if (c.intake_status !== 'complete') {
       return {
         kind: 'schedule_intake',
-        label: 'Complete the intake phone call',
-        detail: 'Speak with the member, then mark the intake complete to unlock the assessments.',
+        label: 'Complete the intake',
+        detail:
+          'Work through the Client Intake form with the member. Signing it unlocks the assessments — or mark the step complete if the intake was taken by phone.',
       };
     }
     if (!has('Level of Need Assessment Tool')) {

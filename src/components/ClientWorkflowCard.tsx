@@ -57,6 +57,8 @@ interface Props {
     mco_housing_manager?: string | null;
   };
   onUpdate: () => void;
+  /** Jumps to the Client Intake tab on the client record. */
+  onOpenIntake?: () => void;
 }
 
 interface FormSummary {
@@ -107,7 +109,7 @@ const workflowPurposeFor = (
  * authorization entry that moves the case forward (and rebuilds billing when
  * it does).
  */
-export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
+export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, onOpenIntake }) => {
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
   const { isViewingAs } = useViewAs();
@@ -290,11 +292,21 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
           </Button>
         );
       case 'schedule_intake':
+        // The intake form completes this step when it is signed. The manual
+        // button stays for intakes taken by phone without the form.
         return (
-          <Button onClick={markIntakeComplete}>
-            <CheckCircle2 className="mr-2 h-4 w-4" />
-            Mark intake complete
-          </Button>
+          <>
+            {onOpenIntake && (
+              <Button onClick={onOpenIntake}>
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Open the Client Intake form
+              </Button>
+            )}
+            <Button variant="outline" onClick={markIntakeComplete}>
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Mark intake complete
+            </Button>
+          </>
         );
       case 'record_authorization':
         return (

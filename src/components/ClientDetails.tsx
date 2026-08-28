@@ -24,6 +24,7 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
 import { ClientFormsDocuments } from '@/components/forms/ClientFormsDocuments';
+import { ClientIntakeForm } from '@/components/intake/ClientIntakeForm';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 interface Client {
@@ -234,7 +235,11 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           </CardContent>
         </Card>
 
-        <ClientWorkflowCard client={client} onUpdate={onUpdate} />
+        <ClientWorkflowCard
+          client={client}
+          onUpdate={onUpdate}
+          onOpenIntake={() => setActiveTab('intake')}
+        />
 
         <AuthorizationsSection clientId={client.id} onUpdate={onUpdate} />
 
@@ -252,8 +257,9 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`grid w-full ${isSuperadmin ? 'grid-cols-8' : 'grid-cols-7'}`}>
+          <TabsList className={`grid w-full ${isSuperadmin ? 'grid-cols-9' : 'grid-cols-8'}`}>
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="intake">Intake</TabsTrigger>
             <TabsTrigger value="forms">Forms</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
@@ -276,6 +282,15 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="intake">
+            <ClientIntakeForm
+              clientId={client.id}
+              clientFirstName={client.first_name}
+              clientLastName={client.last_name}
+              onUpdate={onUpdate}
+            />
           </TabsContent>
 
           <TabsContent value="forms">
