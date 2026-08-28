@@ -390,8 +390,8 @@ export type Database = {
           contact_date: string
           created_at: string
           duration_minutes: number | null
-          entered_by: string | null
           employee_id: string
+          entered_by: string | null
           id: string
           modality: string
           notes: string | null
@@ -403,8 +403,8 @@ export type Database = {
           contact_date?: string
           created_at?: string
           duration_minutes?: number | null
-          entered_by?: string | null
           employee_id: string
+          entered_by?: string | null
           id?: string
           modality: string
           notes?: string | null
@@ -416,8 +416,8 @@ export type Database = {
           contact_date?: string
           created_at?: string
           duration_minutes?: number | null
-          entered_by?: string | null
           employee_id?: string
+          entered_by?: string | null
           id?: string
           modality?: string
           notes?: string | null
@@ -434,6 +434,13 @@ export type Database = {
           {
             foreignKeyName: "client_contacts_employee_id_fkey"
             columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_contacts_entered_by_fkey"
+            columns: ["entered_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -687,6 +694,411 @@ export type Database = {
           },
         ]
       }
+      client_intake_household_members: {
+        Row: {
+          age: number | null
+          created_at: string
+          id: string
+          intake_id: string
+          name: string
+          relationship: string | null
+          sort_order: number
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string
+          id?: string
+          intake_id: string
+          name: string
+          relationship?: string | null
+          sort_order?: number
+        }
+        Update: {
+          age?: number | null
+          created_at?: string
+          id?: string
+          intake_id?: string
+          name?: string
+          relationship?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_intake_household_members_intake_id_fkey"
+            columns: ["intake_id"]
+            isOneToOne: false
+            referencedRelation: "client_intakes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_intakes: {
+        Row: {
+          accommodation_other: string | null
+          accommodations: string[]
+          additional_comments: string | null
+          additional_notes: string | null
+          alien_number: string | null
+          application_fee_amount: number | null
+          applied_for_voucher: boolean | null
+          bank_name: string | null
+          bedrooms_needed: string | null
+          benefit_monthly_amount: number | null
+          benefit_type: string | null
+          birth_city: string | null
+          birth_country: string | null
+          birth_date: string | null
+          birth_state: string | null
+          client_id: string
+          client_signature_name: string | null
+          client_signed_date: string | null
+          completed_at: string | null
+          completed_by: string | null
+          counties_of_interest: string[]
+          county_other: string | null
+          created_at: string
+          created_by: string | null
+          currently_employed: boolean | null
+          developmental_disability: boolean | null
+          developmental_disability_detail: string | null
+          domestic_violence_victim: boolean | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relationship: string | null
+          employer_name: string | null
+          eviction_or_record_detail: string | null
+          expense_car_insurance: number | null
+          expense_car_note: number | null
+          expense_internet: number | null
+          expense_other: number | null
+          expense_phone: number | null
+          expense_utilities: number | null
+          expenses_total: number | null
+          gender: string | null
+          has_application_fee_funds: boolean | null
+          has_bank_account: boolean | null
+          has_birth_certificate: boolean | null
+          has_eviction_or_record: boolean | null
+          has_household_members: boolean | null
+          has_income_proof: boolean | null
+          has_social_security_card: boolean | null
+          has_transportation: boolean | null
+          has_valid_id: boolean | null
+          health_impact: string | null
+          highest_grade: string | null
+          hiv_aids: boolean | null
+          homeless_duration: string | null
+          homelessness_cause: string | null
+          hours_per_week: number | null
+          housing_for_self_only: boolean | null
+          housing_status: string | null
+          housing_status_other: string | null
+          id: string
+          in_school: boolean | null
+          in_vocational_training: boolean | null
+          income_monthly_amount: number | null
+          income_type: string | null
+          last_address: string | null
+          last_address_duration: string | null
+          last_hospitalization_date: string | null
+          living_unsheltered: boolean | null
+          living_unsheltered_detail: string | null
+          marital_status: string | null
+          marital_status_other: string | null
+          mco_number: string | null
+          medicaid_number: string | null
+          medical_diagnoses: string | null
+          mental_health_condition: boolean | null
+          mental_health_diagnoses: string | null
+          mental_health_provider: string | null
+          mental_health_provider_phone: string | null
+          needs_accommodation: boolean | null
+          pcp_name: string | null
+          pcp_phone: string | null
+          pcp_practice: string | null
+          physical_condition: boolean | null
+          physical_condition_detail: string | null
+          planned_monthly_rent: number | null
+          preferred_apartment_type: string | null
+          preferred_housing_type: string | null
+          preferred_housing_type_other: string | null
+          pregnant: string | null
+          present_address: string | null
+          psychiatrist_name: string | null
+          psychiatrist_phone: string | null
+          race: string | null
+          receives_benefits: boolean | null
+          school_program: string | null
+          ssn: string | null
+          staff_signature_name: string | null
+          staff_signed_date: string | null
+          status: string
+          substance_use: boolean | null
+          substance_use_detail: string | null
+          therapy_schedule: string | null
+          transportation_other: string | null
+          transportation_types: string[]
+          updated_at: string
+          us_citizen: boolean | null
+          veteran: boolean | null
+          vocational_program: string | null
+          voucher_county: string | null
+          voucher_type_other: string | null
+          voucher_types: string[]
+          wage: string | null
+        }
+        Insert: {
+          accommodation_other?: string | null
+          accommodations?: string[]
+          additional_comments?: string | null
+          additional_notes?: string | null
+          alien_number?: string | null
+          application_fee_amount?: number | null
+          applied_for_voucher?: boolean | null
+          bank_name?: string | null
+          bedrooms_needed?: string | null
+          benefit_monthly_amount?: number | null
+          benefit_type?: string | null
+          birth_city?: string | null
+          birth_country?: string | null
+          birth_date?: string | null
+          birth_state?: string | null
+          client_id: string
+          client_signature_name?: string | null
+          client_signed_date?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          counties_of_interest?: string[]
+          county_other?: string | null
+          created_at?: string
+          created_by?: string | null
+          currently_employed?: boolean | null
+          developmental_disability?: boolean | null
+          developmental_disability_detail?: string | null
+          domestic_violence_victim?: boolean | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          employer_name?: string | null
+          eviction_or_record_detail?: string | null
+          expense_car_insurance?: number | null
+          expense_car_note?: number | null
+          expense_internet?: number | null
+          expense_other?: number | null
+          expense_phone?: number | null
+          expense_utilities?: number | null
+          expenses_total?: number | null
+          gender?: string | null
+          has_application_fee_funds?: boolean | null
+          has_bank_account?: boolean | null
+          has_birth_certificate?: boolean | null
+          has_eviction_or_record?: boolean | null
+          has_household_members?: boolean | null
+          has_income_proof?: boolean | null
+          has_social_security_card?: boolean | null
+          has_transportation?: boolean | null
+          has_valid_id?: boolean | null
+          health_impact?: string | null
+          highest_grade?: string | null
+          hiv_aids?: boolean | null
+          homeless_duration?: string | null
+          homelessness_cause?: string | null
+          hours_per_week?: number | null
+          housing_for_self_only?: boolean | null
+          housing_status?: string | null
+          housing_status_other?: string | null
+          id?: string
+          in_school?: boolean | null
+          in_vocational_training?: boolean | null
+          income_monthly_amount?: number | null
+          income_type?: string | null
+          last_address?: string | null
+          last_address_duration?: string | null
+          last_hospitalization_date?: string | null
+          living_unsheltered?: boolean | null
+          living_unsheltered_detail?: string | null
+          marital_status?: string | null
+          marital_status_other?: string | null
+          mco_number?: string | null
+          medicaid_number?: string | null
+          medical_diagnoses?: string | null
+          mental_health_condition?: boolean | null
+          mental_health_diagnoses?: string | null
+          mental_health_provider?: string | null
+          mental_health_provider_phone?: string | null
+          needs_accommodation?: boolean | null
+          pcp_name?: string | null
+          pcp_phone?: string | null
+          pcp_practice?: string | null
+          physical_condition?: boolean | null
+          physical_condition_detail?: string | null
+          planned_monthly_rent?: number | null
+          preferred_apartment_type?: string | null
+          preferred_housing_type?: string | null
+          preferred_housing_type_other?: string | null
+          pregnant?: string | null
+          present_address?: string | null
+          psychiatrist_name?: string | null
+          psychiatrist_phone?: string | null
+          race?: string | null
+          receives_benefits?: boolean | null
+          school_program?: string | null
+          ssn?: string | null
+          staff_signature_name?: string | null
+          staff_signed_date?: string | null
+          status?: string
+          substance_use?: boolean | null
+          substance_use_detail?: string | null
+          therapy_schedule?: string | null
+          transportation_other?: string | null
+          transportation_types?: string[]
+          updated_at?: string
+          us_citizen?: boolean | null
+          veteran?: boolean | null
+          vocational_program?: string | null
+          voucher_county?: string | null
+          voucher_type_other?: string | null
+          voucher_types?: string[]
+          wage?: string | null
+        }
+        Update: {
+          accommodation_other?: string | null
+          accommodations?: string[]
+          additional_comments?: string | null
+          additional_notes?: string | null
+          alien_number?: string | null
+          application_fee_amount?: number | null
+          applied_for_voucher?: boolean | null
+          bank_name?: string | null
+          bedrooms_needed?: string | null
+          benefit_monthly_amount?: number | null
+          benefit_type?: string | null
+          birth_city?: string | null
+          birth_country?: string | null
+          birth_date?: string | null
+          birth_state?: string | null
+          client_id?: string
+          client_signature_name?: string | null
+          client_signed_date?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          counties_of_interest?: string[]
+          county_other?: string | null
+          created_at?: string
+          created_by?: string | null
+          currently_employed?: boolean | null
+          developmental_disability?: boolean | null
+          developmental_disability_detail?: string | null
+          domestic_violence_victim?: boolean | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          employer_name?: string | null
+          eviction_or_record_detail?: string | null
+          expense_car_insurance?: number | null
+          expense_car_note?: number | null
+          expense_internet?: number | null
+          expense_other?: number | null
+          expense_phone?: number | null
+          expense_utilities?: number | null
+          expenses_total?: number | null
+          gender?: string | null
+          has_application_fee_funds?: boolean | null
+          has_bank_account?: boolean | null
+          has_birth_certificate?: boolean | null
+          has_eviction_or_record?: boolean | null
+          has_household_members?: boolean | null
+          has_income_proof?: boolean | null
+          has_social_security_card?: boolean | null
+          has_transportation?: boolean | null
+          has_valid_id?: boolean | null
+          health_impact?: string | null
+          highest_grade?: string | null
+          hiv_aids?: boolean | null
+          homeless_duration?: string | null
+          homelessness_cause?: string | null
+          hours_per_week?: number | null
+          housing_for_self_only?: boolean | null
+          housing_status?: string | null
+          housing_status_other?: string | null
+          id?: string
+          in_school?: boolean | null
+          in_vocational_training?: boolean | null
+          income_monthly_amount?: number | null
+          income_type?: string | null
+          last_address?: string | null
+          last_address_duration?: string | null
+          last_hospitalization_date?: string | null
+          living_unsheltered?: boolean | null
+          living_unsheltered_detail?: string | null
+          marital_status?: string | null
+          marital_status_other?: string | null
+          mco_number?: string | null
+          medicaid_number?: string | null
+          medical_diagnoses?: string | null
+          mental_health_condition?: boolean | null
+          mental_health_diagnoses?: string | null
+          mental_health_provider?: string | null
+          mental_health_provider_phone?: string | null
+          needs_accommodation?: boolean | null
+          pcp_name?: string | null
+          pcp_phone?: string | null
+          pcp_practice?: string | null
+          physical_condition?: boolean | null
+          physical_condition_detail?: string | null
+          planned_monthly_rent?: number | null
+          preferred_apartment_type?: string | null
+          preferred_housing_type?: string | null
+          preferred_housing_type_other?: string | null
+          pregnant?: string | null
+          present_address?: string | null
+          psychiatrist_name?: string | null
+          psychiatrist_phone?: string | null
+          race?: string | null
+          receives_benefits?: boolean | null
+          school_program?: string | null
+          ssn?: string | null
+          staff_signature_name?: string | null
+          staff_signed_date?: string | null
+          status?: string
+          substance_use?: boolean | null
+          substance_use_detail?: string | null
+          therapy_schedule?: string | null
+          transportation_other?: string | null
+          transportation_types?: string[]
+          updated_at?: string
+          us_citizen?: boolean | null
+          veteran?: boolean | null
+          vocational_program?: string | null
+          voucher_county?: string | null
+          voucher_type_other?: string | null
+          voucher_types?: string[]
+          wage?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_intakes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_intakes_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_intakes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_month_compliance: {
         Row: {
           activities_done: Json
@@ -884,6 +1296,7 @@ export type Database = {
           level_of_need: string | null
           lon_score: number | null
           mco_housing_manager: string | null
+          medicaid_id: string | null
           member_id: string | null
           next_action_due_date: string | null
           njhmis_id: string | null
@@ -941,6 +1354,7 @@ export type Database = {
           level_of_need?: string | null
           lon_score?: number | null
           mco_housing_manager?: string | null
+          medicaid_id?: string | null
           member_id?: string | null
           next_action_due_date?: string | null
           njhmis_id?: string | null
@@ -998,6 +1412,7 @@ export type Database = {
           level_of_need?: string | null
           lon_score?: number | null
           mco_housing_manager?: string | null
+          medicaid_id?: string | null
           member_id?: string | null
           next_action_due_date?: string | null
           njhmis_id?: string | null
@@ -1329,8 +1744,8 @@ export type Database = {
           contact_method: string | null
           created_at: string
           duration_minutes: number
-          entered_by: string | null
           employee_id: string
+          entered_by: string | null
           entry_status: string
           face_to_face: boolean
           id: string
@@ -1347,8 +1762,8 @@ export type Database = {
           contact_method?: string | null
           created_at?: string
           duration_minutes?: number
-          entered_by?: string | null
           employee_id: string
+          entered_by?: string | null
           entry_status?: string
           face_to_face?: boolean
           id?: string
@@ -1365,8 +1780,8 @@ export type Database = {
           contact_method?: string | null
           created_at?: string
           duration_minutes?: number
-          entered_by?: string | null
           employee_id?: string
+          entered_by?: string | null
           entry_status?: string
           face_to_face?: boolean
           id?: string
@@ -1395,6 +1810,13 @@ export type Database = {
           {
             foreignKeyName: "njhmis_progress_notes_employee_id_fkey"
             columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "njhmis_progress_notes_entered_by_fkey"
+            columns: ["entered_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
