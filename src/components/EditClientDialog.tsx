@@ -53,7 +53,6 @@ const clientSchema = z.object({
   hsp_150_date: z.string().optional(),
   hsp_180_date: z.string().optional(),
   hsp_due_date: z.string().optional(),
-  next_action_due_date: z.string().optional(),
   closed_date: z.string().optional(),
   reason_closed: z.string().trim().max(100).optional(),
   status: z.enum(['active', 'inactive']),
@@ -83,7 +82,6 @@ interface Client {
   mco_housing_manager?: string;
   assessment_due_date?: string;
   hsp_due_date?: string;
-  next_action_due_date?: string;
   closed_date?: string;
   reason_closed?: string;
   notes?: string;
@@ -127,13 +125,20 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       hsp_150_date: client.hsp_150_date || '',
       hsp_180_date: client.hsp_180_date || '',
       hsp_due_date: client.hsp_due_date || '',
-      next_action_due_date: client.next_action_due_date || '',
       closed_date: client.closed_date || '',
       reason_closed: client.reason_closed || '',
       status: client.status as 'active' | 'inactive',
       notes: client.notes || '',
     },
   });
+
+  /**
+   * Only United assigns a housing specialist, so only a United client is asked
+   * for one. Watched rather than read once, so the box appears and disappears
+   * as the payer is changed rather than on the next open.
+   */
+  const insurance = form.watch('insurance');
+  const isUnited = (insurance ?? '').toLowerCase().includes('united');
 
   const handleSubmit = async (data: ClientFormData) => {
     // Sandbox (view-as): show the change happened, but skip the DB write.
@@ -157,7 +162,6 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           insurance: data.insurance || null,
           level_of_need: data.level_of_need || null,
           county: data.county || null,
-          mco_housing_manager: data.mco_housing_manager || null,
           date_of_birth: data.date_of_birth || null,
           intake_date: data.intake_date || null,
           assessment_due_date: data.assessment_due_date || null,
@@ -165,9 +169,9 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           hsp_150_date: data.hsp_150_date || null,
           hsp_180_date: data.hsp_180_date || null,
           hsp_due_date: data.hsp_due_date || null,
-          next_action_due_date: data.next_action_due_date || null,
           closed_date: data.closed_date || null,
           reason_closed: data.reason_closed || null,
+          ...(isUnited ? { mco_housing_manager: data.mco_housing_manager || null } : {}),
           status: data.status,
           notes: data.notes || null,
         })
@@ -339,7 +343,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                 name="insurance"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Insurance</FormLabel>
+                    <FormLabel>Insurance (MCO)</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || ''}>
                       <FormControl>
                         <SelectTrigger>
@@ -457,24 +461,23 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField control={form.control} name="mco_housing_manager" render={({ field }) => (
-                <FormItem><FormLabel>MCO Housing Manager</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
-            </div>
+            {isUnited && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="mco_housing_manager" render={({ field }) => (
+                  <FormItem><FormLabel>MCO Housing Specialist</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="intake_date" render={({ field }) => (
-                <FormItem><FormLabel>Intake Date (Assessment Start)</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Intake Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="assessment_due_date" render={({ field }) => (
-                <FormItem><FormLabel>Assessment Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Intake Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="hsp_due_date" render={({ field }) => (
                 <FormItem><FormLabel>HSP Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="next_action_due_date" render={({ field }) => (
-                <FormItem><FormLabel>Next Action Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
 

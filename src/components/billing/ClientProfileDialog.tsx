@@ -167,7 +167,10 @@ export function ClientProfileDialog({ clientId, onClose }: { clientId: string | 
               <Field label="Member ID" value={client.member_id} />
               <Field label="MCO" value={client.insurance} />
               <Field label="Assigned case manager" value={staff ?? 'Unassigned'} />
-              <Field label="MCO housing manager" value={client.mco_housing_manager} />
+              {/* Only United assigns one, so it is only shown for a United client. */}
+              {(client.insurance ?? '').toLowerCase().includes('united') && (
+                <Field label="MCO housing specialist" value={client.mco_housing_manager} />
+              )}
               <Field label="Phone" value={client.phone} />
               <Field label="Email" value={client.email} />
               <Field label="County" value={client.county} />
