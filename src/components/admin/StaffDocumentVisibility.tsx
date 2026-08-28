@@ -102,16 +102,26 @@ export const StaffDocumentVisibility: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
-            {shown.map((type) => (
-              <label key={type} className="flex items-start gap-2 text-sm cursor-pointer">
-                <Checkbox
-                  checked={hidden.has(type)}
-                  onCheckedChange={() => toggle(type)}
-                  className="mt-0.5"
-                />
-                <span>{type}</span>
-              </label>
-            ))}
+            {/* Checkbox and label as siblings joined by id, not a label wrapped
+                around the control. The control is a button, and a click on it
+                inside a wrapping label can reach the handler twice — which
+                looks exactly like a checkbox that will not tick. */}
+            {shown.map((type) => {
+              const id = `hide-${type.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+              return (
+                <div key={type} className="flex items-start gap-2 text-sm">
+                  <Checkbox
+                    id={id}
+                    checked={hidden.has(type)}
+                    onCheckedChange={() => toggle(type)}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor={id} className="cursor-pointer select-none">
+                    {type}
+                  </label>
+                </div>
+              );
+            })}
             {shown.length === 0 && (
               <p className="text-sm text-muted-foreground">No document type matches that.</p>
             )}
