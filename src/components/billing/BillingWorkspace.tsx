@@ -414,7 +414,7 @@ export function BillingWorkspace() {
       </div>}
     </Card>}
 
-    {section==='availity' ? <AvailityPanel clients={clients}/>
+    {section==='availity' ? <AvailityPanel clients={clients} cycles={cycles}/>
     : section==='revenue' ? <RevenueTab clients={clients} cycles={cycles} viewOverride={practice?practiceRevenueView:undefined} onViewChange={practice?setPracticeRevenueView:undefined}/>
     : section==='deadlines' ? <>
       <div className="flex flex-wrap gap-2" data-tour="filters">

@@ -1,35 +1,77 @@
 // Availity staging.
 //
-// Eligibility checks happen on Availity's own website, not here. Rather than
-// have the billing person read one screen and retype it into another, the app
-// mirrors the Availity page field for field, in the same order, with the
-// client's answers already filled in and a copy button beside each one.
+// Eligibility checks and claims are filed on Availity's own website, not here.
+// Rather than have the billing person read one screen and retype it into
+// another, the app mirrors each Availity page field for field, in the same
+// order, already filled in, with a copy button beside every box.
 //
 // Nothing is submitted to Availity from this app. It is a copy source.
 
 import { supabase } from '@/integrations/supabase/client';
-import { todayAgency } from '@/lib/billing';
+import {
+  daysToFinalDeadline,
+  finalDeadlineFor,
+  hasCycleEnded,
+  isCycleResolved,
+  rateForLevel,
+  todayAgency,
+  type BillingCycle,
+} from '@/lib/billing';
+import type { ClientAuthorization } from '@/lib/authorizations';
 
 export const AVAILITY_SETTINGS_KEY = 'availity_provider';
 
 export interface AvailityProviderSettings {
-  /** The "Organization" dropdown on Availity's Get Started panel. */
+  /** The "Organization" dropdown, on both pages. */
   organization: string;
-  /** The provider as Availity lists it, also used for the last-name box. */
+  /** The provider as Availity lists it, also used for the last-name boxes. */
   providerName: string;
+  contactName: string;
+  specialtyCode: string;
   providerNpi: string;
-  providerTaxId: string;
-  /** MCO on the client record → the exact entry to pick in Availity's Payer list. */
-  payers: Record<string, string>;
+  providerEin: string;
+  addressLine1: string;
+  city: string;
+  state: string;
+  zip: string;
+  phone: string;
+  fax: string;
+  /** Line-level modifier on H0044 when the authorization does not set one. */
+  defaultModifier: string;
+  /** MCO on the client record → the exact Payer entry on the eligibility page. */
+  payersEligibility: Record<string, string>;
+  /** MCO on the client record → the exact Payer entry on the claims page. */
+  payersClaims: Record<string, string>;
 }
 
-const EMPTY: AvailityProviderSettings = {
+export const EMPTY_SETTINGS: AvailityProviderSettings = {
   organization: '',
   providerName: '',
+  contactName: '',
+  specialtyCode: '',
   providerNpi: '',
-  providerTaxId: '',
-  payers: {},
+  providerEin: '',
+  addressLine1: '',
+  city: '',
+  state: '',
+  zip: '',
+  phone: '',
+  fax: '',
+  defaultModifier: '',
+  payersEligibility: {},
+  payersClaims: {},
 };
+
+/** Which of the provider fields have to be filled in before a claim is usable. */
+export const REQUIRED_PROVIDER_FIELDS: (keyof AvailityProviderSettings)[] = [
+  'organization',
+  'providerName',
+  'providerNpi',
+  'providerEin',
+  'addressLine1',
+  'city',
+  'zip',
+];
 
 export async function loadAvailitySettings(): Promise<AvailityProviderSettings> {
   const { data, error } = await supabase
@@ -37,15 +79,9 @@ export async function loadAvailitySettings(): Promise<AvailityProviderSettings> 
     .select('value')
     .eq('key', AVAILITY_SETTINGS_KEY)
     .maybeSingle();
-  if (error || !data?.value || typeof data.value !== 'object') return EMPTY;
+  if (error || !data?.value || typeof data.value !== 'object') return EMPTY_SETTINGS;
   const value = data.value as Partial<AvailityProviderSettings>;
-  return {
-    organization: value.organization ?? '',
-    providerName: value.providerName ?? '',
-    providerNpi: value.providerNpi ?? '',
-    providerTaxId: value.providerTaxId ?? '',
-    payers: (value.payers as Record<string, string>) ?? {},
-  };
+  return { ...EMPTY_SETTINGS, ...value };
 }
 
 /** Admin-only, enforced by the settings table's policy. */
@@ -58,7 +94,7 @@ export async function saveAvailitySettings(settings: AvailityProviderSettings): 
 }
 
 // ---------------------------------------------------------------------------
-// The Eligibility and Benefits page
+// Shared field shapes
 // ---------------------------------------------------------------------------
 
 export const RELATIONSHIP_OPTIONS = ['Self', 'Spouse', 'Child', 'Other Adult'] as const;
@@ -66,24 +102,6 @@ export type Relationship = (typeof RELATIONSHIP_OPTIONS)[number];
 
 export const GENDER_OPTIONS = ['Female', 'Male'] as const;
 export type AvailityGender = (typeof GENDER_OPTIONS)[number];
-
-/** Availity's own wording for how the patient is looked up. */
-export const PATIENT_SEARCH_OPTION = 'Patient ID, Date of Birth';
-
-/**
- * The service type the agency's work is checked under. Housing supports do not
- * have an obvious entry in Availity's list, so Case Management is what is used
- * until that is settled.
- */
-export const BENEFIT_SERVICE_TYPE = 'Case Management - CQ';
-
-export interface AvailityClient {
-  first_name: string;
-  last_name: string;
-  member_id: string | null;
-  date_of_birth: string | null;
-  insurance: string | null;
-}
 
 export interface AvailityField {
   label: string;
@@ -94,8 +112,6 @@ export interface AvailityField {
   note?: string;
   /** What is missing, when the app cannot fill the field. */
   missing?: string;
-  /** Fields Availity fills in itself once the provider is picked. */
-  copyable?: boolean;
 }
 
 export interface AvailitySection {
@@ -103,13 +119,36 @@ export interface AvailitySection {
   fields: AvailityField[];
 }
 
-/** MM/DD/YYYY, the format the Availity date boxes use. */
+export interface AvailityClient {
+  first_name: string;
+  last_name: string;
+  member_id: string | null;
+  medicaid_id?: string | null;
+  date_of_birth: string | null;
+  address?: string | null;
+  insurance: string | null;
+  level_of_need?: string | null;
+}
+
+/** MM/DD/YYYY, the format every Availity date box uses. */
 export function usDate(iso: string | null | undefined): string {
   if (!iso) return '';
   const [y, m, d] = iso.slice(0, 10).split('-');
   if (!y || !m || !d) return '';
   return `${m}/${d}/${y}`;
 }
+
+// ---------------------------------------------------------------------------
+// Page 1 — Eligibility and Benefits
+// ---------------------------------------------------------------------------
+
+export const PATIENT_SEARCH_OPTION = 'Patient ID, Date of Birth';
+
+/**
+ * The service type eligibility is checked under. Housing supports have no entry
+ * of their own in Availity's list, so Case Management is what is used.
+ */
+export const BENEFIT_SERVICE_TYPE = 'Case Management - CQ';
 
 export interface EligibilityInput {
   client: AvailityClient;
@@ -122,9 +161,6 @@ export interface EligibilityInput {
   asOfDate?: string;
 }
 
-/**
- * The Eligibility and Benefits page, section by section, in Availity's order.
- */
 export function eligibilitySections({
   client,
   settings,
@@ -134,7 +170,7 @@ export function eligibilitySections({
   asOfDate,
 }: EligibilityInput): AvailitySection[] {
   const mco = client.insurance?.trim() ?? '';
-  const payer = mco ? settings.payers[mco] : '';
+  const payer = mco ? settings.payersEligibility[mco] : '';
 
   return [
     {
@@ -150,14 +186,12 @@ export function eligibilitySections({
           label: 'Payer',
           required: true,
           value: payer ?? '',
-          note: payer
-            ? `${mco} clients use this exact entry — there is more than one ${mco} in the list.`
-            : undefined,
+          note: payer ? `${mco} appears more than once in the list — this is the entry that works.` : undefined,
           missing: !mco
             ? 'No MCO on the client record'
             : payer
               ? undefined
-              : `No Availity payer recorded for ${mco} — add it in provider details`,
+              : `No eligibility payer recorded for ${mco} — add it in provider details`,
         },
       ],
     },
@@ -176,19 +210,15 @@ export function eligibilitySections({
         },
         {
           label: 'Provider Tax ID',
-          value: settings.providerTaxId,
-          missing: settings.providerTaxId ? undefined : 'Set the tax ID in provider details',
+          value: settings.providerEin,
+          missing: settings.providerEin ? undefined : 'Set the EIN in provider details',
         },
         {
           label: 'Organization or Provider Last Name',
           value: settings.providerName,
           missing: settings.providerName ? undefined : 'Set the provider in provider details',
         },
-        {
-          label: 'Provider First Name',
-          value: '',
-          note: 'Left blank — the provider is an organisation.',
-        },
+        { label: 'Provider First Name', value: '', note: 'Left blank — the provider is an organisation.' },
       ],
     },
     {
@@ -236,6 +266,365 @@ export function eligibilitySections({
           value: BENEFIT_SERVICE_TYPE,
           note: 'Housing supports have no entry of their own, so Case Management is used.',
         },
+      ],
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Page 2 — Claims and Encounters (professional claim)
+// ---------------------------------------------------------------------------
+
+export const CLAIM_TYPE = 'Professional Claim';
+export const RESPONSIBILITY_SEQUENCE = 'Primary';
+export const REMIT_TO_PROVIDER = 'Y - Yes';
+export const PLACE_OF_SERVICE = '12 - Home';
+export const FREQUENCY_TYPE = '1 - Admit Through Discharge Claim (a)';
+export const ACCEPTS_ASSIGNMENT = 'A - Assigned';
+export const RELEASE_OF_INFORMATION =
+  'Y - Yes Provider has a Signed Statement Permitting Release of Medical Billing Data Related to a Claim';
+export const SIGNATURE_ON_FILE = 'Yes';
+export const CLAIM_FILING_INDICATOR = 'MC - Medicaid';
+export const COUNTRY = 'United States';
+export const QUANTITY_TYPE = 'UN - Unit';
+
+/** Housing supports. Availity fills the description in once the code is picked. */
+export const PROCEDURE_CODE = 'H0044';
+
+/** The patient control number the agency uses: NR in front of the Medicaid ID. */
+export const CONTROL_NUMBER_PREFIX = 'NR';
+
+/**
+ * The Z59 codes Availity offers for this client group. Availity drops the
+ * decimal point, so Z59.00 is typed Z5900.
+ */
+export const DIAGNOSIS_CODES = [
+  { code: 'Z5900', label: 'Z5900 - Homelessness unspecified' },
+  { code: 'Z590', label: 'Z590 - Homelessness' },
+  { code: 'Z5901', label: 'Z5901 - Sheltered homelessness' },
+  { code: 'Z5902', label: 'Z5902 - Unsheltered homelessness' },
+  { code: 'Z591', label: 'Z591 - Inadequate housing' },
+  { code: 'Z5910', label: 'Z5910 - Inadequate housing, unspecified' },
+  { code: 'Z5911', label: 'Z5911 - Inadequate housing environmental temperature' },
+  { code: 'Z5912', label: 'Z5912 - Inadequate housing utilities' },
+] as const;
+
+export const DEFAULT_DIAGNOSIS_CODE = 'Z5900';
+
+export interface BillableCycle {
+  cycle: BillingCycle;
+  /** cycle_end + six months: the last day this cycle can be filed. */
+  deadline: string;
+  daysLeft: number;
+  /** False once the six-month window has closed. */
+  billable: boolean;
+  /** The authorization number that covers this cycle's service dates. */
+  priorAuthNumber: string | null;
+  /** The authorization's own modifier, when it sets one. */
+  modifier: string | null;
+}
+
+/** The authorization whose dates cover a given day. */
+function authorizationFor(
+  authorizations: ClientAuthorization[],
+  day: string,
+): ClientAuthorization | null {
+  return (
+    authorizations.find(
+      (a) => a.start_date && a.start_date <= day && (!a.end_date || a.end_date >= day),
+    ) ?? null
+  );
+}
+
+/**
+ * Cycles that can still be filed, oldest first.
+ *
+ * A cycle is filed after its service period ends, and Availity will not take it
+ * more than six months after that. The oldest cycle still inside that window is
+ * the one closest to being lost, so it is the one the screen opens on.
+ */
+export function billableCycles(
+  cycles: BillingCycle[],
+  authorizations: ClientAuthorization[],
+  today = todayAgency(),
+): BillableCycle[] {
+  return cycles
+    .filter((c) => hasCycleEnded(c, today))
+    .sort((a, b) => a.cycle_start.localeCompare(b.cycle_start))
+    .map((cycle) => {
+      const auth = authorizationFor(authorizations, cycle.cycle_start);
+      const daysLeft = daysToFinalDeadline(cycle, today);
+      return {
+        cycle,
+        deadline: finalDeadlineFor(cycle),
+        daysLeft,
+        billable: daysLeft >= 0,
+        priorAuthNumber: auth?.authorization_number ?? null,
+        modifier: auth?.billing_modifier ?? null,
+      };
+    });
+}
+
+/**
+ * Which cycle to open on: the oldest one that can still be filed and has not
+ * been dealt with. Falls back to the oldest still inside the window.
+ */
+export function defaultCycle(rows: BillableCycle[]): BillableCycle | null {
+  const open = rows.filter(
+    (r) => r.billable && !isCycleResolved(r.cycle) && r.cycle.billing_status !== 'Submitted',
+  );
+  return open[0] ?? rows.find((r) => r.billable) ?? null;
+}
+
+export interface ClaimInput {
+  client: AvailityClient;
+  settings: AvailityProviderSettings;
+  gender: AvailityGender;
+  genderAssumed: boolean;
+  relationship: Relationship;
+  selected: BillableCycle;
+  diagnosisCode: string;
+}
+
+export function claimSections({
+  client,
+  settings,
+  gender,
+  genderAssumed,
+  relationship,
+  selected,
+  diagnosisCode,
+}: ClaimInput): AvailitySection[] {
+  const mco = client.insurance?.trim() ?? '';
+  const payer = mco ? settings.payersClaims[mco] : '';
+  const controlId = client.medicaid_id?.trim() || client.member_id?.trim() || '';
+  const charge =
+    selected.cycle.billed_amount ?? rateForLevel(client.level_of_need) ?? null;
+  const modifier = selected.modifier?.trim() || settings.defaultModifier;
+
+  const providerMissing = (value: string, field: string) =>
+    value ? undefined : `Set the ${field} in provider details`;
+
+  return [
+    {
+      title: 'Insurance Company / Benefit Plan Information',
+      fields: [
+        {
+          label: 'Organization',
+          value: settings.organization,
+          missing: providerMissing(settings.organization, 'organization'),
+        },
+        { label: 'Claim Type', value: CLAIM_TYPE },
+        {
+          label: 'Payer',
+          value: payer ?? '',
+          note: payer ? `${mco}'s claims entry — worded differently from the eligibility list.` : undefined,
+          missing: !mco
+            ? 'No MCO on the client record'
+            : payer
+              ? undefined
+              : `No claims payer recorded for ${mco} — add it in provider details`,
+        },
+        { label: 'Responsibility Sequence', value: RESPONSIBILITY_SEQUENCE },
+      ],
+    },
+    {
+      title: 'Patient Information',
+      fields: [
+        {
+          label: 'Select a Patient',
+          value: `${client.last_name}, ${client.first_name}`,
+          note: 'Type this into the search. Picking the registered patient fills the boxes below.',
+        },
+        { label: 'Last Name', required: true, value: client.last_name },
+        { label: 'First Name', required: true, value: client.first_name },
+        { label: 'Middle Name', value: '' },
+        { label: 'Suffix', value: '' },
+        {
+          label: 'Date of Birth',
+          required: true,
+          value: usDate(client.date_of_birth),
+          missing: client.date_of_birth ? undefined : 'No date of birth on the client record',
+        },
+        {
+          label: 'Gender',
+          required: true,
+          value: gender,
+          note: genderAssumed ? 'Assumed — the client record does not say.' : 'From the client intake.',
+        },
+        { label: 'Relationship', required: true, value: relationship },
+        {
+          label: 'Address',
+          required: true,
+          value: client.address?.trim() ?? '',
+          note: client.address?.trim()
+            ? 'One line on the client record. Availity splits address, city, state and ZIP — separate them as you paste.'
+            : undefined,
+          missing: client.address?.trim() ? undefined : 'No address on the client record',
+        },
+        { label: 'Address 2', value: '' },
+        { label: 'Country', value: COUNTRY },
+      ],
+    },
+    {
+      title: 'Subscriber Information',
+      fields: [
+        {
+          label: 'Subscriber / Insured ID',
+          required: true,
+          value: client.member_id ?? '',
+          missing: client.member_id ? undefined : 'No member ID on the client record',
+        },
+        { label: 'Group Number', value: '' },
+        { label: 'Authorized Plan to Remit Payment to Provider?', required: true, value: REMIT_TO_PROVIDER },
+      ],
+    },
+    {
+      title: 'Billing Provider Information',
+      fields: [
+        {
+          label: 'Organization / Last Name',
+          required: true,
+          value: settings.providerName,
+          missing: providerMissing(settings.providerName, 'provider name'),
+        },
+        { label: 'First Name', value: '' },
+        { label: 'Middle Name', value: '' },
+        {
+          label: 'NPI',
+          required: true,
+          value: settings.providerNpi,
+          missing: providerMissing(settings.providerNpi, 'NPI'),
+        },
+        {
+          label: 'EIN',
+          required: true,
+          value: settings.providerEin,
+          missing: providerMissing(settings.providerEin, 'EIN'),
+        },
+        { label: 'Specialty Code', value: settings.specialtyCode },
+        {
+          label: 'Address',
+          required: true,
+          value: settings.addressLine1,
+          missing: providerMissing(settings.addressLine1, 'billing address'),
+        },
+        { label: 'Address 2', value: '' },
+        { label: 'Country', value: COUNTRY },
+        {
+          label: 'City',
+          required: true,
+          value: settings.city,
+          missing: providerMissing(settings.city, 'city'),
+        },
+        { label: 'State', required: true, value: settings.state },
+        {
+          label: 'Zip Code',
+          required: true,
+          value: settings.zip,
+          missing: providerMissing(settings.zip, 'ZIP code'),
+        },
+        {
+          label: 'Pay-to address is the same as the billing address',
+          value: 'Ticked',
+          note: 'A checkbox, not a box to paste into.',
+        },
+      ],
+    },
+    {
+      title: 'Contact Information',
+      fields: [
+        {
+          label: 'Contact Name',
+          required: true,
+          value: settings.contactName,
+          missing: providerMissing(settings.contactName, 'contact name'),
+        },
+        { label: 'Phone', value: settings.phone, missing: providerMissing(settings.phone, 'phone') },
+        { label: 'Extension', value: '' },
+        { label: 'Fax', value: settings.fax, missing: providerMissing(settings.fax, 'fax') },
+        { label: 'Email', value: '' },
+      ],
+    },
+    {
+      title: 'Claim Information',
+      fields: [
+        {
+          label: 'Patient Control Number / Claim Number',
+          required: true,
+          value: controlId ? `${CONTROL_NUMBER_PREFIX}${controlId}` : '',
+          note: controlId
+            ? client.medicaid_id?.trim()
+              ? 'NR in front of the Medicaid ID.'
+              : 'NR in front of the member ID — no Medicaid ID on the client record.'
+            : undefined,
+          missing: controlId ? undefined : 'No Medicaid or member ID on the client record',
+        },
+        { label: 'Place of Service', required: true, value: PLACE_OF_SERVICE, note: 'Always 12 - Home.' },
+        { label: 'Frequency Type', required: true, value: FREQUENCY_TYPE },
+        { label: 'Provider Accepts Assignment', required: true, value: ACCEPTS_ASSIGNMENT },
+        { label: 'Release of Information', required: true, value: RELEASE_OF_INFORMATION },
+        { label: 'Provider Signature on File', required: true, value: SIGNATURE_ON_FILE },
+        { label: 'Claim Filing Indicator', required: true, value: CLAIM_FILING_INDICATOR },
+        {
+          label: 'Prior Authorization Number',
+          value: selected.priorAuthNumber ?? '',
+          note: selected.priorAuthNumber
+            ? 'The authorization covering these service dates.'
+            : undefined,
+          missing: selected.priorAuthNumber
+            ? undefined
+            : 'No authorization number recorded for the period these dates fall in',
+        },
+        { label: 'Medical Record Number', value: '' },
+      ],
+    },
+    {
+      title: 'Diagnosis Codes',
+      fields: [
+        {
+          label: 'Principal Diagnosis Code',
+          required: true,
+          value: diagnosisCode,
+          note: 'Availity drops the decimal point, so Z59.00 is typed Z5900.',
+        },
+      ],
+    },
+    {
+      title: 'Lines — line 1',
+      fields: [
+        { label: 'Service From Date', required: true, value: usDate(selected.cycle.cycle_start) },
+        { label: 'Service To Date', value: usDate(selected.cycle.cycle_end) },
+        { label: 'Place of Service', value: PLACE_OF_SERVICE },
+        {
+          label: 'Procedure Code',
+          required: true,
+          value: PROCEDURE_CODE,
+          note: 'Type the code alone — Availity fills in the description.',
+        },
+        {
+          label: 'Modifier',
+          value: modifier,
+          note: selected.modifier?.trim()
+            ? 'From this authorization.'
+            : 'The default. An authorization can override it.',
+          missing: modifier ? undefined : 'No modifier set in provider details',
+        },
+        { label: 'Diagnosis Code Pointer 1', required: true, value: diagnosisCode },
+        {
+          label: 'Charge Amount',
+          required: true,
+          value: charge === null ? '' : charge.toFixed(2),
+          note:
+            charge === null
+              ? undefined
+              : selected.cycle.billed_amount !== null
+                ? "This cycle's billed amount."
+                : `The ${client.level_of_need ?? 'level of need'} rate.`,
+          missing: charge === null ? 'No level of need, so the cycle has no rate' : undefined,
+        },
+        { label: 'Quantity', required: true, value: '1' },
+        { label: 'Quantity Type', required: true, value: QUANTITY_TYPE },
       ],
     },
   ];
