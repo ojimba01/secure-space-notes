@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { ComplianceEscalations } from '@/components/ComplianceEscalations';
-import { TouchpointSettings } from '@/components/admin/TouchpointSettings';
 import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from '@/components/Sidebar';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
@@ -338,8 +337,6 @@ const Admin = () => {
         </div>
 
         {/* Compliance escalations */}
-        <TouchpointSettings />
-
         <ComplianceEscalations />
 
         {/* Employees List */}
