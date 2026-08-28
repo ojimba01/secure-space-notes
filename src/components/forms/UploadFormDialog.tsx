@@ -24,6 +24,7 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 import { FORM_TYPES, STAFF_SELECTABLE_TYPES } from '@/lib/formSigning';
+import { startDocumentQueue } from '@/lib/documentQueue';
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
 import { identityFromFields, recognizeDocument } from '@/lib/documentRecognition';
 import { Upload } from 'lucide-react';
@@ -258,6 +259,10 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
           variant: 'destructive',
         });
       }
+
+      // The row is saved and queued; reading it happens in the background so
+      // nobody waits on a scan. See documentQueue.ts.
+      startDocumentQueue();
 
       toast({
         title: 'Form submitted',

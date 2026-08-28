@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
@@ -7,14 +7,22 @@ import { BulkDocumentImport } from '@/components/admin/BulkDocumentImport';
 import { ImportHistory } from '@/components/admin/ImportHistory';
 import { TemplateRegistry } from '@/components/admin/TemplateRegistry';
 import { TouchpointSettings } from '@/components/admin/TouchpointSettings';
+import { DocumentReading } from '@/components/admin/DocumentReading';
 
 /**
  * Operational utilities for Admin/Superadmin only. Staff never reach this
  * route — the router guards it and the sidebar entry is hidden for them.
  */
+const TABS = ['import', 'reading', 'history', 'templates', 'touchpoints'] as const;
+
 const AdvancedToolsPage: React.FC = () => {
   const navigate = useNavigate();
   const [importsKey, setImportsKey] = useState(0);
+  // The sidebar names a specific tool, so it opens on that tool rather than
+  // landing everyone on Bulk document import and leaving them to find it.
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('tab');
+  const tab = TABS.includes(requested as (typeof TABS)[number]) ? requested! : 'import';
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
@@ -34,9 +42,10 @@ const AdvancedToolsPage: React.FC = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="import">
+      <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>
         <TabsList>
           <TabsTrigger value="import">Bulk document import</TabsTrigger>
+          <TabsTrigger value="reading">Reading documents</TabsTrigger>
           <TabsTrigger value="history">Import history</TabsTrigger>
           <TabsTrigger value="templates">Template management</TabsTrigger>
           <TabsTrigger value="touchpoints">Touchpoint settings</TabsTrigger>
@@ -44,6 +53,10 @@ const AdvancedToolsPage: React.FC = () => {
 
         <TabsContent value="import" className="pt-4">
           <BulkDocumentImport onImported={() => setImportsKey((k) => k + 1)} />
+        </TabsContent>
+
+        <TabsContent value="reading" className="pt-4">
+          <DocumentReading />
         </TabsContent>
 
         <TabsContent value="history" className="pt-4">

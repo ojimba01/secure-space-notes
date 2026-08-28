@@ -17,7 +17,7 @@ import {
 } from '@/lib/formSigning';
 import { formDownloadName } from '@/lib/formAutofill';
 import { FormDetailDialog } from '@/components/forms/FormDetailDialog';
-import type { FormRow } from '@/components/forms/FormsHub';
+import { FORM_LIST_COLUMNS, type FormRow } from '@/components/forms/FormsHub';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
@@ -78,7 +78,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       const { data, error } = await supabase
         .from('client_forms')
         .select(
-          `*, clients:client_id (first_name, last_name), profiles:employee_id (first_name, last_name)`,
+          `${FORM_LIST_COLUMNS}, clients:client_id (first_name, last_name), profiles:employee_id (first_name, last_name)`,
         )
         .eq('client_id', clientId)
         .order('created_at', { ascending: false });

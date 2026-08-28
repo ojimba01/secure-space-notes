@@ -568,14 +568,21 @@ export type Database = {
           due_date: string | null
           employee_id: string
           external_status: string
+          extracted_text: string | null
           file_hash: string | null
           file_path: string | null
           file_size: number | null
           form_type: string
           id: string
           import_batch_id: string | null
+          ocr_applied: boolean
+          page_count: number | null
           mco_response_at: string | null
           original_file_path: string | null
+          processed_at: string | null
+          processing_error: string | null
+          processing_started_at: string | null
+          processing_status: string
           review_note: string | null
           sent_to_mco_at: string | null
           signature_name: string | null
@@ -585,6 +592,9 @@ export type Database = {
           source_filename: string | null
           status: string
           template_version: string | null
+          text_char_count: number | null
+          text_search: unknown | null
+          text_truncated: boolean
           title: string
           updated_at: string
           workflow_purpose: string | null
@@ -598,14 +608,21 @@ export type Database = {
           due_date?: string | null
           employee_id: string
           external_status?: string
+          extracted_text?: string | null
           file_hash?: string | null
           file_path?: string | null
           file_size?: number | null
           form_type: string
           id?: string
           import_batch_id?: string | null
+          ocr_applied?: boolean
+          page_count?: number | null
           mco_response_at?: string | null
           original_file_path?: string | null
+          processed_at?: string | null
+          processing_error?: string | null
+          processing_started_at?: string | null
+          processing_status?: string
           review_note?: string | null
           sent_to_mco_at?: string | null
           signature_name?: string | null
@@ -615,6 +632,8 @@ export type Database = {
           source_filename?: string | null
           status?: string
           template_version?: string | null
+          text_char_count?: number | null
+          text_truncated?: boolean
           title: string
           updated_at?: string
           workflow_purpose?: string | null
@@ -628,14 +647,21 @@ export type Database = {
           due_date?: string | null
           employee_id?: string
           external_status?: string
+          extracted_text?: string | null
           file_hash?: string | null
           file_path?: string | null
           file_size?: number | null
           form_type?: string
           id?: string
           import_batch_id?: string | null
+          ocr_applied?: boolean
+          page_count?: number | null
           mco_response_at?: string | null
           original_file_path?: string | null
+          processed_at?: string | null
+          processing_error?: string | null
+          processing_started_at?: string | null
+          processing_status?: string
           review_note?: string | null
           sent_to_mco_at?: string | null
           signature_name?: string | null
@@ -645,6 +671,8 @@ export type Database = {
           source_filename?: string | null
           status?: string
           template_version?: string | null
+          text_char_count?: number | null
+          text_truncated?: boolean
           title?: string
           updated_at?: string
           workflow_purpose?: string | null
