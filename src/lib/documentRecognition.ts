@@ -23,6 +23,7 @@ export type Confidence = 'high' | 'medium' | 'low' | 'none';
 /** Every document type the agency actually files. */
 export const DOCUMENT_TYPES = [
   'Initial Assessment Tool',
+  'Client Intake',
   'Level of Need Assessment Tool',
   'Housing Stabilization Plan',
   'MCO Authorization Request',
