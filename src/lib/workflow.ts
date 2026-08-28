@@ -115,7 +115,7 @@ export function nextAction(
   }
 
   if (stage === 'referred') {
-    if (!has('Initial Assessment Tool')) {
+    if (!has('Initial Assessment (IAT)')) {
       return {
         kind: 'submit_iat',
         label: 'Complete the Initial Assessment Tool',
@@ -146,14 +146,14 @@ export function nextAction(
           'Work through the Client Intake form with the member. Signing it unlocks the assessments — or mark the step complete if the intake was taken by phone.',
       };
     }
-    if (!has('Level of Need Assessment Tool')) {
+    if (!has('Level of Need (LON)')) {
       return {
         kind: 'complete_lon',
         label: 'Complete the Level of Need assessment',
         detail: 'The LoN score sets the tier used for the continuation authorization.',
       };
     }
-    if (!has('Housing Stabilization Plan')) {
+    if (!has('Housing Stabilization Plan (HSP)')) {
       return {
         kind: 'submit_hsp',
         label: 'Submit the Housing Stabilization Plan',
@@ -188,8 +188,8 @@ export function nextAction(
 // ---------------------------------------------------------------------------
 
 export const CONTINUATION_PACKAGE_FORMS = [
-  'Level of Need Assessment Tool',
-  'Housing Stabilization Plan',
+  'Level of Need (LON)',
+  'Housing Stabilization Plan (HSP)',
 ] as const;
 
 export type PackageState =

@@ -29,15 +29,16 @@ interface Props {
 
 /** Display groups, in lifecycle order. */
 const GROUPS: { title: string; match: (f: FormRow) => boolean }[] = [
-  { title: 'Intake / IAT', match: (f) => f.form_type === 'Initial Assessment Tool' },
-  { title: 'Level of Need', match: (f) => f.form_type === 'Level of Need Assessment Tool' },
-  { title: 'Housing Stabilization Plan', match: (f) => f.form_type === 'Housing Stabilization Plan' },
+  { title: 'Intake / IAT', match: (f) => f.form_type === 'Initial Assessment (IAT)' },
+  { title: 'Level of Need', match: (f) => f.form_type === 'Level of Need (LON)' },
+  { title: 'Housing Stabilization Plan (HSP)', match: (f) => f.form_type === 'Housing Stabilization Plan (HSP)' },
   {
     title: 'MCO referrals / authorizations',
-    // Imported authorization paperwork arrives as "Other" with no workflow
-    // purpose, so the filename/title is the only signal available.
+    // Imported authorization paperwork the classifier could not place arrives
+    // as "Unsorted" with no workflow purpose, so the filename/title is the
+    // only signal available.
     match: (f) =>
-      f.form_type === 'Other' &&
+      f.form_type === 'Unsorted' &&
       (f.workflow_purpose === 'initial_authorization' ||
         /authorization|referral|auth\b/i.test(`${f.title} ${f.source_filename ?? ''}`)),
   },

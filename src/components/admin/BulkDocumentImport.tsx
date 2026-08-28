@@ -197,7 +197,7 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
             key(p),
             {
               clientId: p.proposedClientId ?? '',
-              formType: p.proposedFormType ?? 'Other',
+              formType: p.proposedFormType ?? 'Unsorted',
               // Pre-selected only when BOTH the client match and the
               // document type are strong. A filename can identify the right
               // client and still mislabel the form, and a bulk accept would

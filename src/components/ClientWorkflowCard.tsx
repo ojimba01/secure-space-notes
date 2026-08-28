@@ -74,9 +74,9 @@ interface FormSummary {
 // The forms a case is worked through, in the order they are done.
 const TRACKED_FORMS = [
   'Client Intake',
-  'Initial Assessment Tool',
-  'Level of Need Assessment Tool',
-  'Housing Stabilization Plan',
+  'Initial Assessment (IAT)',
+  'Level of Need (LON)',
+  'Housing Stabilization Plan (HSP)',
 ];
 
 const AUTH_KIND: Record<string, AuthorizationType> = {
@@ -101,7 +101,7 @@ const workflowPurposeFor = (
   formType: string,
   authorizations: ClientAuthorization[],
 ): string => {
-  if (formType === 'Initial Assessment Tool') return 'initial_authorization';
+  if (formType === 'Initial Assessment (IAT)') return 'initial_authorization';
   const hasContinuation = authorizations.some(
     (a) => a.authorization_type === 'continuation_150' || a.authorization_type === 'reauthorization_180',
   );
@@ -308,21 +308,21 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
     switch (action.kind) {
       case 'submit_iat':
         return (
-          <Button onClick={() => setFilling(templateFor('Initial Assessment Tool') ?? null)}>
+          <Button onClick={() => setFilling(templateFor('Initial Assessment (IAT)') ?? null)}>
             <FileText className="mr-2 h-4 w-4" />
             Open the IAT
           </Button>
         );
       case 'complete_lon':
         return (
-          <Button onClick={() => setFilling(templateFor('Level of Need Assessment Tool') ?? null)}>
+          <Button onClick={() => setFilling(templateFor('Level of Need (LON)') ?? null)}>
             <FileText className="mr-2 h-4 w-4" />
             Open the LoN assessment
           </Button>
         );
       case 'submit_hsp':
         return (
-          <Button onClick={() => setFilling(templateFor('Housing Stabilization Plan') ?? null)}>
+          <Button onClick={() => setFilling(templateFor('Housing Stabilization Plan (HSP)') ?? null)}>
             <FileText className="mr-2 h-4 w-4" />
             Open the HSP
           </Button>
