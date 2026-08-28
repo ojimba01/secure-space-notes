@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AddClientDialog } from '@/components/AddClientDialog';
 import { NewReferralDialog } from '@/components/NewReferralDialog';
 import { STAGE_LABEL, WORKFLOW_STAGES, isSetupComplete } from '@/lib/workflow';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
@@ -108,6 +109,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [showReferralDialog, setShowReferralDialog] = useState(false);
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [selectionMode, setSelectionMode] = useState(false);
@@ -375,12 +377,24 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
             <Button
               size="sm"
               className="md:size-default"
-              onClick={() => setShowReferralDialog(true)}
+              onClick={() => setShowAddDialog(true)}
               disabled={!isAdmin && behindCount >= 5}
-              title={!isAdmin && behindCount >= 5 ? "You have 5 or more clients needing attention. Complete those touchpoints to drop below 5 before taking new referrals." : undefined}
+              title={!isAdmin && behindCount >= 5 ? "You have 5 or more clients needing attention. Complete those touchpoints to drop below 5 before taking on new clients." : undefined}
             >
               <Plus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Add new client</span>
+              <span className="md:hidden">Add</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="md:size-default"
+              onClick={() => setShowReferralDialog(true)}
+              disabled={!isAdmin && behindCount >= 5}
+              title="Record a referral, with where it came from and when it arrived."
+            >
               <span className="hidden md:inline">New Referral</span>
+              <span className="md:hidden">Referral</span>
             </Button>
           </div>
         )}
@@ -563,6 +577,12 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           )}
         </div>
       )}
+
+      <AddClientDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onClientAdded={fetchClients}
+      />
 
       <NewReferralDialog
         open={showReferralDialog}
