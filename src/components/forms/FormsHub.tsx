@@ -239,6 +239,18 @@ export const FormsHub: React.FC = () => {
             to them, with their details filled in.
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Card className="p-4 flex flex-col gap-2 border-dashed">
+              <div className="flex items-start gap-2">
+                <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <div className="text-sm font-medium leading-tight">Client Intake</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    The intake questionnaire. It is a screen rather than a PDF, so it is filled in
+                    on the client's own record — open the client and use the Intake tab.
+                  </p>
+                </div>
+              </div>
+            </Card>
             {PDF_TEMPLATES.map((t) => (
               <Card key={t.file} className="p-4 flex flex-col gap-2">
                 <div className="flex items-start gap-2">
