@@ -568,6 +568,19 @@ export type Database = {
           due_date: string | null
           employee_id: string
           external_status: string
+          field_authorization_number: string | null
+          field_icd10_code: string | null
+          field_medicaid_id: string | null
+          field_member_dob: string | null
+          field_member_id: string | null
+          field_member_name: string | null
+          field_notice_date: string | null
+          field_service_end: string | null
+          field_service_start: string | null
+          field_submission_date: string | null
+          field_total_charges: number | null
+          fields_conflict: Json | null
+          fields_extracted_at: string | null
           extracted_text: string | null
           file_hash: string | null
           file_path: string | null
@@ -575,6 +588,7 @@ export type Database = {
           form_type: string
           id: string
           import_batch_id: string | null
+          name_matches_client: boolean | null
           ocr_applied: boolean
           page_count: number | null
           mco_response_at: string | null
@@ -608,6 +622,19 @@ export type Database = {
           due_date?: string | null
           employee_id: string
           external_status?: string
+          field_authorization_number?: string | null
+          field_icd10_code?: string | null
+          field_medicaid_id?: string | null
+          field_member_dob?: string | null
+          field_member_id?: string | null
+          field_member_name?: string | null
+          field_notice_date?: string | null
+          field_service_end?: string | null
+          field_service_start?: string | null
+          field_submission_date?: string | null
+          field_total_charges?: number | null
+          fields_conflict?: Json | null
+          fields_extracted_at?: string | null
           extracted_text?: string | null
           file_hash?: string | null
           file_path?: string | null
@@ -615,6 +642,7 @@ export type Database = {
           form_type: string
           id?: string
           import_batch_id?: string | null
+          name_matches_client?: boolean | null
           ocr_applied?: boolean
           page_count?: number | null
           mco_response_at?: string | null
@@ -647,6 +675,19 @@ export type Database = {
           due_date?: string | null
           employee_id?: string
           external_status?: string
+          field_authorization_number?: string | null
+          field_icd10_code?: string | null
+          field_medicaid_id?: string | null
+          field_member_dob?: string | null
+          field_member_id?: string | null
+          field_member_name?: string | null
+          field_notice_date?: string | null
+          field_service_end?: string | null
+          field_service_start?: string | null
+          field_submission_date?: string | null
+          field_total_charges?: number | null
+          fields_conflict?: Json | null
+          fields_extracted_at?: string | null
           extracted_text?: string | null
           file_hash?: string | null
           file_path?: string | null
@@ -654,6 +695,7 @@ export type Database = {
           form_type?: string
           id?: string
           import_batch_id?: string | null
+          name_matches_client?: boolean | null
           ocr_applied?: boolean
           page_count?: number | null
           mco_response_at?: string | null

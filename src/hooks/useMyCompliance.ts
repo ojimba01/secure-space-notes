@@ -122,7 +122,7 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
 
     const { data: cls } = await supabase
       .from('clients')
-      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_30_start, auth_150_start, hsp_150_date, status')
+      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, status')
       .eq('assigned_employee_id', profileId)
       .eq('status', 'active');
 

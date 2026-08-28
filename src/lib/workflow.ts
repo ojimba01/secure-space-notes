@@ -44,6 +44,26 @@ export interface WorkflowClient {
   hsp_150_date?: string | null;
   level_of_need?: string | null;
   hsp_submitted?: boolean | null;
+  /** Proof the plan went in, whatever the flag says. See hspSubmitted. */
+  auth_150_number?: string | null;
+  auth_180_number?: string | null;
+}
+
+/**
+ * Whether the Housing Stabilization Plan has been submitted.
+ *
+ * The flag, or a 150-day or 180-day authorization number. The agency only
+ * receives one of those *after* the plan has gone in, so the number is proof
+ * the plan was submitted — and the flag is routinely left unticked while the
+ * paperwork proving it sits in the client's file.
+ *
+ * Derived rather than backfilled on purpose. Writing the flag would freeze
+ * today's answer into the data; reading it means every screen agrees the
+ * moment an authorization number is entered or read off an approval letter.
+ */
+export function hspSubmitted(c: WorkflowClient): boolean {
+  if (c.hsp_submitted === true) return true;
+  return !!(c.auth_150_number ?? '').trim() || !!(c.auth_180_number ?? '').trim();
 }
 
 /**
@@ -68,7 +88,7 @@ export function serviceStartDate(c: WorkflowClient): string | null {
 export function isSetupComplete(c: WorkflowClient): boolean {
   const tier = c.level_of_need;
   return (
-    c.hsp_submitted === true &&
+    hspSubmitted(c) &&
     !!serviceStartDate(c) &&
     (tier === 'High Level' || tier === 'Low Level')
   );
@@ -77,7 +97,7 @@ export function isSetupComplete(c: WorkflowClient): boolean {
 /** Which setup pieces are missing — Admin/Superadmin facing. */
 export function missingSetupParts(c: WorkflowClient): string[] {
   const parts: string[] = [];
-  if (c.hsp_submitted !== true) parts.push('HSP submission');
+  if (!hspSubmitted(c)) parts.push('HSP submission');
   if (!serviceStartDate(c)) parts.push('HSP approval / authorization start date');
   if (c.level_of_need !== 'High Level' && c.level_of_need !== 'Low Level') parts.push('level of need');
   return parts;

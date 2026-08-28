@@ -686,3 +686,21 @@ export function identityFromFields(
       return {};
   }
 }
+
+/**
+ * The values a fillable PDF's own form fields hold, keyed by field name.
+ *
+ * Exported for the field extractor: on the state's forms the printed page
+ * carries only the questions, and every answer lives here. Returns an empty
+ * object for a PDF with no form, which is the normal case for a letter.
+ */
+export async function readFormValues(
+  bytes: ArrayBuffer | Uint8Array,
+): Promise<Record<string, string>> {
+  try {
+    const doc = await loadPdf(bytes);
+    return readFieldValues(doc);
+  } catch {
+    return {};
+  }
+}
