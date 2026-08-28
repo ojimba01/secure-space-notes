@@ -108,9 +108,29 @@ export function generateCyclesForClient(client: {
         ? '150-Day'
         : '180-Day';
     cycles.push({ cycle_number: n, phase, cycle_start: cycleStart, cycle_end: cycleEnd, billed_amount: amount });
-    if (endOfRun && daysBetween(cycleEnd, endOfRun) >= 0) break; // covered end-of-run
+    if (endOfRun && daysBetween(endOfRun, cycleEnd) >= 0) break; // covered end-of-run
   }
   return cycles;
+}
+
+/**
+ * True when the continuation authorization starts before the initial 30-day
+ * period has finished, so both cover the same days.
+ *
+ * Cycle 1 runs the full 30 days from auth_30_start. A continuation that starts
+ * inside that window bills days twice; one that starts on the window's last day
+ * is the usual version of the mistake, because that date is what the
+ * authorization letter shows as the end of the initial period. Starting on the
+ * same day as the initial period is not an overlap — that is one continuous run
+ * whose first 30 days are the initial authorization.
+ */
+export function continuationOverlapsInitial(
+  auth30Start: string | null | undefined,
+  auth150Start: string | null | undefined,
+): boolean {
+  if (!auth30Start || !auth150Start) return false;
+  const offset = daysBetween(auth30Start, auth150Start);
+  return offset > 0 && offset < CYCLE_LENGTH_DAYS;
 }
 
 // The current cycle number = the one whose 30-day range contains today.

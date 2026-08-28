@@ -34,6 +34,7 @@ import {
 } from '@/lib/formSigning';
 import { PDF_TEMPLATES, TemplateFillDialog, type PdfTemplate } from '@/components/forms/TemplateFillDialog';
 import { regenerateClientCycles } from '@/lib/billingSync';
+import { continuationOverlapsInitial } from '@/lib/billing';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 import {
   AUTHORIZATION_TYPE_LABEL,
@@ -52,6 +53,7 @@ interface Props {
     id: string;
     first_name: string;
     last_name: string;
+    auth_30_start?: string | null;
     auth_30_number?: string | null;
     auth_150_number?: string | null;
     mco_housing_manager?: string | null;
@@ -481,6 +483,15 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, onOpenIn
                 value={authStart}
                 onChange={(e) => setAuthStart(e.target.value)}
               />
+              {authOpen === 'continuation' &&
+                continuationOverlapsInitial(client.auth_30_start, authStart) && (
+                  <p className="rounded-md border border-amber-400 bg-amber-50 p-2 text-xs text-amber-900">
+                    This starts before the initial 30-day period that began{' '}
+                    {fmt(client.auth_30_start)} has finished, so both would cover the same days. If
+                    you are reading the date the initial period <i>ended</i>, the continuation
+                    usually starts the day after it — or on the same day services began.
+                  </p>
+                )}
               <p className="text-xs text-muted-foreground">
                 Saving this adds an authorization record, rebuilds the billing cycles and the
                 touchpoint schedule. End dates are calculated automatically.

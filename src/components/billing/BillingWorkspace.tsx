@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { BillingCycle, APPROVAL_STATES, ApprovalState, MCO_OPTIONS, isDeadlineAtRisk, isDeadlinePassed, isPastFilingWindow, isCycleResolved, finalDeadlineFor, deadlineLabel, daysToFinalDeadline, normalizeLevel, findPossibleDuplicates, needsExtensionReview, daysUntil150End, projected180Start, addDays, todayAgency } from '@/lib/billing';
+import { BillingCycle, APPROVAL_STATES, ApprovalState, MCO_OPTIONS, isDeadlineAtRisk, isDeadlinePassed, isPastFilingWindow, continuationOverlapsInitial, isCycleResolved, finalDeadlineFor, deadlineLabel, daysToFinalDeadline, normalizeLevel, findPossibleDuplicates, needsExtensionReview, daysUntil150End, projected180Start, addDays, todayAgency } from '@/lib/billing';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -669,6 +669,11 @@ function CycleGrid({client,cycles,updateCycle,tour,practice}:{client:BillingClie
   const sorted = [...cycles].sort((a,b)=>a.cycle_number-b.cycle_number);
   return <div className="border-t bg-white p-4" data-tour={tour?'cycle-table':undefined}>
     {allResolved && <div className="mb-3 rounded-md border border-green-300 bg-green-50 p-3 text-sm font-medium text-green-800">Every cycle is approved or closed. Nothing else is outstanding for this client.</div>}
+    {continuationOverlapsInitial(client.auth_30_start, client.auth_150_start) && <div className="mb-3 rounded-md border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
+      <p className="font-medium">These dates look wrong.</p>
+      <p className="mt-1">The 150-day authorization starts on {client.auth_150_start}, before the initial 30-day period that began {client.auth_30_start} has finished. Every cycle below is built from that date, so they are all shifted. The usual cause is the continuation start being entered as the date the initial period <i>ended</i> rather than the date it began.</p>
+      <p className="mt-1">Correct the 150-day authorization start under Add or set up client billing. The cycles rebuild from it automatically.</p>
+    </div>}
     <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-sm"><thead><tr className="bg-slate-100">{['Cycle','Authorization','End date','Final deadline','Approved?','Billing status','Payment status','Claim number'].map(x=><th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>
       {sorted.map((c,i)=>{
       const risk=isDeadlineAtRisk(c);
