@@ -188,6 +188,9 @@ export function BillingWorkspace() {
   const [showLater,setShowLater]=useState(false);
   // The agency's own boxes are the same every time, so they start folded away.
   const [agencyOpen,setAgencyOpen]=useState(false);
+  // The editable data grid is the only home for hsp_submitted and Add client
+  // row, so it stays reachable behind a toggle rather than being deleted.
+  const [editData,setEditData]=useState(false);
   // Raised after a cycle is marked billed, to ask about the touchpoint.
   const [billedPrompt,setBilledPrompt]=useState<TouchpointContext|null>(null);
   const [touchpointFor,setTouchpointFor]=useState<TouchpointContext|null>(null);
@@ -270,6 +273,19 @@ export function BillingWorkspace() {
   // The clients to bill now: their soonest cycle passes its six-month filing
   // deadline within the month, so leaving it loses the money outright.
   const urgent=useMemo(()=>queue.filter(r=>r.band!=='later'),[queue]);
+
+  // How much of this month's filing is already done. Counted from the cycles
+  // themselves rather than kept in state, so it survives a reload.
+  const filedToday=useMemo(()=>cycles.filter(c=>c.submitted_date===todayAgency()).length,[cycles]);
+
+  // Marking a cycle billed moves straight on to the next client whose window
+  // closes soonest, so the month can be cleared in one sitting.
+  const advanceToNext=(fromClientId:string)=>{
+    const next=urgent.find(r=>r.client.id!==fromClientId);
+    setBillingClientId(next?.client.id ?? null);
+    if(next) toast.success(`Next: ${next.client.first_name} ${next.client.last_name}`);
+    else toast.success('That was the last one closing this month.');
+  };
 
   const [page,setPage]=useState(0);
   useEffect(()=>{setPage(0);},[query]);
@@ -493,7 +509,7 @@ export function BillingWorkspace() {
           The cycle is marked as billed. Have this client's touchpoints been entered in NJHMIS for it?
         </p>
         <DialogFooter>
-          <Button variant="outline" onClick={()=>setBilledPrompt(null)}>Yes, already entered</Button>
+          <Button variant="outline" onClick={()=>{const id=billedPrompt?.clientId;setBilledPrompt(null);if(id)advanceToNext(id);}}>Yes, already entered</Button>
           <Button onClick={()=>{setTouchpointFor(billedPrompt);setBilledPrompt(null);}}>No, add a touchpoint now</Button>
         </DialogFooter>
       </DialogContent>
@@ -503,7 +519,7 @@ export function BillingWorkspace() {
       open={!!touchpointFor}
       onOpenChange={(o)=>!o&&setTouchpointFor(null)}
       context={touchpointFor}
-      onSaved={()=>setTouchpointFor(null)}
+      onSaved={()=>{const id=touchpointFor?.clientId;setTouchpointFor(null);if(id)advanceToNext(id);}}
     />
 
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -518,7 +534,7 @@ export function BillingWorkspace() {
       </div>
     </div>
 
-    {(section==='bill'||section==='data') && <Card className="p-4" data-tour="search">
+    {section==='data' && <Card className="p-4" data-tour="search">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input className="pl-9" placeholder="Search clients by name, member ID, or MCO…" value={query} onChange={e=>setQuery(e.target.value)} />
@@ -543,6 +559,16 @@ export function BillingWorkspace() {
         </Button>
       </div>
       {agencyOpen && <ProviderSetup/>}
+
+      {(urgent.length>0||filedToday>0) && <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
+        <div>
+          <b>{filedToday} filed today</b>
+          <span className="text-muted-foreground"> · {urgent.length} still to file this month</span>
+        </div>
+        <div className="h-2 w-40 overflow-hidden rounded-full bg-slate-200">
+          <div className="h-full rounded-full bg-emerald-500" style={{width:`${Math.round((filedToday/Math.max(filedToday+urgent.length,1))*100)}%`}}/>
+        </div>
+      </Card>}
 
       <AvailityPanel
         clients={clients}
@@ -593,7 +619,28 @@ export function BillingWorkspace() {
         </div>
       </details>
     </>
-    : <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 space-y-4">
+    : <>
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Billing cycles by client</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Whoever's six-month window closes soonest is first. Press a client to see their cycles.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={()=>setEditData(v=>!v)}>
+            <Pencil className="mr-2 h-4 w-4"/>{editData?'Hide client data':'Edit client data'}
+          </Button>
+        </div>
+      </Card>
+
+      {!editData && (queue.length===0
+        ? <Card className="p-10 text-center"><h3 className="font-semibold">{query.trim()?'No clients match that search':'No client has a cycle left to bill'}</h3></Card>
+        : <div className="space-y-3">
+            <Pager page={page} setPage={setPage} total={queue.length} label="clients"/>
+            {queue.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE).map(row=>clientRow(row,false))}
+            <Pager page={page} setPage={setPage} total={queue.length} label="clients"/>
+          </div>)}
+
+      {editData && <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 font-semibold text-indigo-900"><Pencil className="h-4 w-4"/>Edit mode — add or set up client billing</h2>
@@ -622,6 +669,7 @@ export function BillingWorkspace() {
         </div>
       </Card>}
     </div>}
+    </>}
   </div>;
 }
 

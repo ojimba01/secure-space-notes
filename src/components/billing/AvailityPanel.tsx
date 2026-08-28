@@ -68,6 +68,7 @@ interface ClientExtras {
   gender: AvailityGender | null;
   /** The principal diagnosis already agreed for this client, when there is one. */
   diagnosis_code: string | null;
+  subscriber_relationship: string | null;
 }
 
 const NO_EXTRAS: ClientExtras = {
@@ -76,6 +77,7 @@ const NO_EXTRAS: ClientExtras = {
   address: null,
   gender: null,
   diagnosis_code: null,
+  subscriber_relationship: null,
 };
 
 /** The value the code dropdown uses for "something not in the list". */
@@ -132,7 +134,6 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   const [relationship, setRelationship] = useState<Relationship>('Self');
   const [diagnosisCode, setDiagnosisCode] = useState<string>(DEFAULT_DIAGNOSIS_CODE);
   const [customCode, setCustomCode] = useState('');
-  const [savingDiagnosis, setSavingDiagnosis] = useState(false);
   const [cycleId, setCycleId] = useState<string | null>(null);
   const [settings, setSettings] = useState<AvailityProviderSettings | null>(null);
   const [markingSubmitted, setMarkingSubmitted] = useState(false);
@@ -154,7 +155,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
     const [clientRow, intakeRow, auths] = await Promise.all([
       supabase
         .from('clients')
-        .select('date_of_birth, medicaid_id, address, diagnosis_code')
+        .select('date_of_birth, medicaid_id, address, diagnosis_code, subscriber_relationship')
         .eq('id', id)
         .maybeSingle(),
       supabase.from('client_intakes').select('gender').eq('client_id', id).maybeSingle(),
@@ -164,19 +165,21 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
     const known: AvailityGender | null =
       intakeGender === 'Male' ? 'Male' : intakeGender === 'Female' ? 'Female' : null;
     const stored = clientRow.data?.diagnosis_code?.trim() || null;
+    const storedRelationship = clientRow.data?.subscriber_relationship?.trim() || null;
     setExtras({
       date_of_birth: clientRow.data?.date_of_birth ?? null,
       medicaid_id: clientRow.data?.medicaid_id ?? null,
       address: clientRow.data?.address ?? null,
       gender: known,
       diagnosis_code: stored,
+      subscriber_relationship: storedRelationship,
     });
     // Reopen on whatever was agreed for this client last time.
     setDiagnosisCode(stored ?? DEFAULT_DIAGNOSIS_CODE);
     setCustomCode(stored && !findDiagnosisCode(stored) ? stored : '');
     setGender(known ?? 'Female');
     setGenderAssumed(!known);
-    setRelationship('Self');
+    setRelationship((storedRelationship as Relationship) ?? 'Self');
     setAuthorizations(auths);
   }, []);
 
@@ -251,25 +254,6 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
     });
   }, [availityClient, settings, gender, genderAssumed, relationship, selected, diagnosisCode]);
 
-  const saveDiagnosis = async () => {
-    if (!clientId) return;
-    const code = diagnosisCode.trim().toUpperCase();
-    if (!code) return;
-    setSavingDiagnosis(true);
-    try {
-      const { error } = await supabase
-        .from('clients')
-        .update({ diagnosis_code: code })
-        .eq('id', clientId);
-      if (error) throw error;
-      setExtras((e) => ({ ...e, diagnosis_code: code }));
-      toast.success(`${code} kept for this client`);
-    } catch (err: any) {
-      toast.error('Could not save the diagnosis code', { description: err.message });
-    } finally {
-      setSavingDiagnosis(false);
-    }
-  };
 
   /**
    * Filing the claim on Availity is the real event; this records that it
@@ -277,6 +261,38 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
    * as the claim number when there is not one already, and the picker moves on
    * to the next cycle so a backlog can be worked straight through.
    */
+  // The answers that describe the client rather than the claim are written back
+  // as they are changed, so the next cycle opens on them and nobody retypes.
+  // Debounced because the custom diagnosis box is typed into character by
+  // character.
+  useEffect(() => {
+    if (!clientId) return;
+    const code = diagnosisCode.trim().toUpperCase();
+    const changed =
+      (code || null) !== extras.diagnosis_code ||
+      relationship !== (extras.subscriber_relationship ?? 'Self');
+    if (!changed) return;
+    const timer = setTimeout(async () => {
+      const patch: { diagnosis_code?: string; subscriber_relationship?: string } = {};
+      if (code && code !== extras.diagnosis_code) patch.diagnosis_code = code;
+      if (relationship !== (extras.subscriber_relationship ?? 'Self')) {
+        patch.subscriber_relationship = relationship;
+      }
+      if (!Object.keys(patch).length) return;
+      const { error } = await supabase.from('clients').update(patch).eq('id', clientId);
+      if (error) {
+        toast.error('Could not remember that for this client', { description: error.message });
+        return;
+      }
+      setExtras((e) => ({
+        ...e,
+        diagnosis_code: patch.diagnosis_code ?? e.diagnosis_code,
+        subscriber_relationship: patch.subscriber_relationship ?? e.subscriber_relationship,
+      }));
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [clientId, diagnosisCode, relationship, extras.diagnosis_code, extras.subscriber_relationship]);
+
   const renderSections = (list: { title: string; fields: AvailityField[] }[]) =>
     list.map((section) => (
       <Card key={section.title} className="overflow-hidden">
@@ -503,20 +519,10 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
                     />
                   )}
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-xs text-muted-foreground">
-                      Which code fits is a judgement about the client, so it is kept on the client
-                      record and every later claim opens on it.
-                    </p>
-                    {extras.diagnosis_code !== (diagnosisCode.trim() || null) && !!diagnosisCode.trim() && (
-                      <Button size="sm" variant="outline" onClick={saveDiagnosis} disabled={savingDiagnosis}>
-                        {savingDiagnosis ? 'Saving…' : 'Keep this for this client'}
-                      </Button>
-                    )}
-                    {extras.diagnosis_code && extras.diagnosis_code === diagnosisCode.trim() && (
-                      <Badge variant="secondary">Saved for this client</Badge>
-                    )}
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Which code fits is a judgement about the client, so it is kept on the client
+                    record and every later claim opens on it.
+                  </p>
                 </div>
               )}
             </div>
