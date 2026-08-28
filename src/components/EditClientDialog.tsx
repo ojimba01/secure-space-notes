@@ -17,8 +17,8 @@ import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { regenerateClientCycles } from '@/lib/billingSync';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 import { useViewAs } from '@/components/ViewAsProvider';
+import { MCO_OPTIONS } from '@/lib/billing';
 
-const INSURANCE_OPTIONS = ['Aetna', 'Horizon', 'Wellpoint', 'United Health', 'Fidelis'] as const;
 
 const LON_OPTIONS = ['Low Level', 'High Level'] as const;
 
@@ -347,7 +347,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {INSURANCE_OPTIONS.map((opt) => (
+                        {MCO_OPTIONS.map((opt) => (
                           <SelectItem key={opt} value={opt}>{opt}</SelectItem>
                         ))}
                       </SelectContent>

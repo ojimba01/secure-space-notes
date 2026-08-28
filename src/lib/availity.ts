@@ -112,6 +112,12 @@ export interface AvailityField {
   note?: string;
   /** What is missing, when the app cannot fill the field. */
   missing?: string;
+  /**
+   * Answered on this screen rather than copied from it. The panel renders the
+   * control in the field's own place, so the order still matches Availity's
+   * page exactly and nothing has to be answered somewhere above.
+   */
+  edit?: 'gender' | 'relationship' | 'diagnosis' | 'dob' | 'memberId' | 'address';
 }
 
 export interface AvailitySection {
@@ -179,18 +185,18 @@ export function eligibilitySections({
           label: 'Organization',
           required: true,
           value: settings.organization,
-          missing: settings.organization ? undefined : 'Set the organization in provider details',
+          missing: settings.organization ? undefined : 'Set the organization in the agency boxes above',
         },
         {
           label: 'Payer',
           required: true,
-          value: payer ?? '',
-          note: payer ? `${mco} appears more than once in the list — this is the entry that works.` : undefined,
-          missing: !mco
-            ? 'No MCO on the client record'
-            : payer
-              ? undefined
-              : `No eligibility payer recorded for ${mco} — add it in provider details`,
+          value: payer ?? mco ?? '',
+          note: payer
+            ? `${mco} appears more than once in the list — this is the entry that works.`
+            : mco
+              ? `The exact Availity wording for ${mco} has not been recorded, so the plan name is shown. Check it against the Payer list.`
+              : undefined,
+          missing: mco ? undefined : 'No MCO on the client record',
         },
       ],
     },
@@ -200,22 +206,22 @@ export function eligibilitySections({
         {
           label: 'Provider',
           value: settings.providerName,
-          missing: settings.providerName ? undefined : 'Set the provider in provider details',
+          missing: settings.providerName ? undefined : 'Set the provider in the agency boxes above',
         },
         {
           label: 'Provider NPI',
           value: settings.providerNpi,
-          missing: settings.providerNpi ? undefined : 'Set the NPI in provider details',
+          missing: settings.providerNpi ? undefined : 'Set the NPI in the agency boxes above',
         },
         {
           label: 'Provider Tax ID',
           value: settings.providerEin,
-          missing: settings.providerEin ? undefined : 'Set the EIN in provider details',
+          missing: settings.providerEin ? undefined : 'Set the EIN in the agency boxes above',
         },
         {
           label: 'Organization or Provider Last Name',
           value: settings.providerName,
-          missing: settings.providerName ? undefined : 'Set the provider in provider details',
+          missing: settings.providerName ? undefined : 'Set the provider in the agency boxes above',
         },
         { label: 'Provider First Name', value: '', note: 'Left blank — the provider is an organisation.' },
       ],
@@ -228,17 +234,18 @@ export function eligibilitySections({
           label: 'Patient ID',
           required: true,
           value: client.member_id ?? '',
-          missing: client.member_id ? undefined : 'No member ID on the client record',
+          edit: 'memberId',
         },
         {
           label: 'Date of Birth',
           required: true,
           value: usDate(client.date_of_birth),
-          missing: client.date_of_birth ? undefined : 'No date of birth on the client record',
+          edit: 'dob',
         },
         {
           label: 'Patient Gender',
           value: gender,
+          edit: 'gender',
           note: genderAssumed
             ? 'Assumed — the client record does not say. Check before submitting.'
             : 'From the client intake.',
@@ -246,7 +253,8 @@ export function eligibilitySections({
         {
           label: "Patient's Relationship to Subscriber",
           value: relationship,
-          note: relationship === 'Self' ? 'The default. Change it above if it is wrong.' : undefined,
+          edit: 'relationship',
+          note: 'Kept on the client record, so the next claim opens on it.',
         },
       ],
     },
@@ -444,7 +452,7 @@ export function claimSections({
   const modifier = selected.modifier?.trim() || settings.defaultModifier;
 
   const providerMissing = (value: string, field: string) =>
-    value ? undefined : `Set the ${field} in provider details`;
+    value ? undefined : `Set the ${field} in the agency boxes above`;
 
   return [
     {
@@ -458,13 +466,13 @@ export function claimSections({
         { label: 'Claim Type', value: CLAIM_TYPE },
         {
           label: 'Payer',
-          value: payer ?? '',
-          note: payer ? `${mco}'s claims entry — worded differently from the eligibility list.` : undefined,
-          missing: !mco
-            ? 'No MCO on the client record'
-            : payer
-              ? undefined
-              : `No claims payer recorded for ${mco} — add it in provider details`,
+          value: payer ?? mco ?? '',
+          note: payer
+            ? `${mco}'s claims entry — worded differently from the eligibility list.`
+            : mco
+              ? `The exact Availity wording for ${mco} has not been recorded, so the plan name is shown. Check it against the Payer list.`
+              : undefined,
+          missing: mco ? undefined : 'No MCO on the client record',
         },
         { label: 'Responsibility Sequence', value: RESPONSIBILITY_SEQUENCE },
       ],
@@ -485,23 +493,24 @@ export function claimSections({
           label: 'Date of Birth',
           required: true,
           value: usDate(client.date_of_birth),
-          missing: client.date_of_birth ? undefined : 'No date of birth on the client record',
+          edit: 'dob',
         },
         {
           label: 'Gender',
           required: true,
           value: gender,
+          edit: 'gender',
           note: genderAssumed ? 'Assumed — the client record does not say.' : 'From the client intake.',
         },
-        { label: 'Relationship', required: true, value: relationship },
+        { label: 'Relationship', required: true, value: relationship, edit: 'relationship' },
         {
           label: 'Address',
           required: true,
           value: client.address?.trim() ?? '',
+          edit: 'address',
           note: client.address?.trim()
             ? 'One line on the client record. Availity splits address, city, state and ZIP — separate them as you paste.'
             : undefined,
-          missing: client.address?.trim() ? undefined : 'No address on the client record',
         },
         { label: 'Address 2', value: '' },
         { label: 'Country', value: COUNTRY },
@@ -514,7 +523,7 @@ export function claimSections({
           label: 'Subscriber / Insured ID',
           required: true,
           value: client.member_id ?? '',
-          missing: client.member_id ? undefined : 'No member ID on the client record',
+          edit: 'memberId',
         },
         { label: 'Group Number', value: '' },
         { label: 'Authorized Plan to Remit Payment to Provider?', required: true, value: REMIT_TO_PROVIDER },
@@ -623,6 +632,7 @@ export function claimSections({
           label: 'Principal Diagnosis Code',
           required: true,
           value: diagnosisCode,
+          edit: 'diagnosis',
           note: `${diagnosisLabel(diagnosisCode)}. Availity drops the decimal point, so Z59.00 is typed Z5900.`,
           missing:
             findDiagnosisCode(diagnosisCode)?.billable === false
@@ -649,7 +659,7 @@ export function claimSections({
           note: selected.modifier?.trim()
             ? 'From this authorization.'
             : 'The default. An authorization can override it.',
-          missing: modifier ? undefined : 'No modifier set in provider details',
+          missing: modifier ? undefined : 'No modifier set in the agency boxes above',
         },
         { label: 'Diagnosis Code Pointer 1', required: true, value: diagnosisCode },
         {

@@ -1309,6 +1309,7 @@ export type Database = {
           referred_by: string | null
           service_type: string | null
           status: string | null
+          subscriber_relationship: string | null
           updated_at: string | null
           workflow_stage: string
           workflow_stage_updated_at: string | null
@@ -1367,6 +1368,7 @@ export type Database = {
           referred_by?: string | null
           service_type?: string | null
           status?: string | null
+          subscriber_relationship?: string | null
           updated_at?: string | null
           workflow_stage?: string
           workflow_stage_updated_at?: string | null
@@ -1425,6 +1427,7 @@ export type Database = {
           referred_by?: string | null
           service_type?: string | null
           status?: string | null
+          subscriber_relationship?: string | null
           updated_at?: string | null
           workflow_stage?: string
           workflow_stage_updated_at?: string | null
