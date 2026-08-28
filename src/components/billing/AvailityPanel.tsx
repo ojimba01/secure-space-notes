@@ -57,9 +57,9 @@ interface Props {
   initialClientId?: string | null;
   /** Fired once a cycle has been marked billed, so the flow can ask about touchpoints. */
   onBilled?: (clientId: string, cycleId: string) => void;
+  /** The clients whose filing window closes this month, shown as one-press buttons. */
+  shortlist?: { id: string; label: string; note: string; urgent: boolean }[];
 }
-
-type Page = 'eligibility' | 'claim';
 
 interface ClientExtras {
   date_of_birth: string | null;
@@ -122,8 +122,7 @@ const CopyField: React.FC<AvailityField> = ({ label, value, required, note, miss
   );
 };
 
-export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, initialClientId, onBilled }) => {
-  const [page, setPage] = useState<Page>('eligibility');
+export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, initialClientId, onBilled, shortlist }) => {
   const [query, setQuery] = useState('');
   const [clientId, setClientId] = useState<string | null>(null);
   const [extras, setExtras] = useState<ClientExtras>(NO_EXTRAS);
@@ -137,6 +136,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   const [cycleId, setCycleId] = useState<string | null>(null);
   const [settings, setSettings] = useState<AvailityProviderSettings | null>(null);
   const [markingSubmitted, setMarkingSubmitted] = useState(false);
+  const [page, setPage] = useState<'eligibility' | 'claim'>('eligibility');
 
   useEffect(() => {
     loadAvailitySettings().then(setSettings);
@@ -232,18 +232,14 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
     };
   }, [client, extras]);
 
-  const sections = useMemo(() => {
+  // Both Availity pages are worked in order for one client, so both are built.
+  const eligibilityFields = useMemo(() => {
     if (!availityClient || !settings) return [];
-    if (page === 'eligibility') {
-      return eligibilitySections({
-        client: availityClient,
-        settings,
-        gender,
-        genderAssumed,
-        relationship,
-      });
-    }
-    if (!selected) return [];
+    return eligibilitySections({ client: availityClient, settings, gender, genderAssumed, relationship });
+  }, [availityClient, settings, gender, genderAssumed, relationship]);
+
+  const claimFields = useMemo(() => {
+    if (!availityClient || !settings || !selected) return [];
     return claimSections({
       client: availityClient,
       settings,
@@ -253,7 +249,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
       selected,
       diagnosisCode,
     });
-  }, [availityClient, settings, page, gender, genderAssumed, relationship, selected, diagnosisCode]);
+  }, [availityClient, settings, gender, genderAssumed, relationship, selected, diagnosisCode]);
 
   const saveDiagnosis = async () => {
     if (!clientId) return;
@@ -281,6 +277,20 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
    * as the claim number when there is not one already, and the picker moves on
    * to the next cycle so a backlog can be worked straight through.
    */
+  const renderSections = (list: { title: string; fields: AvailityField[] }[]) =>
+    list.map((section) => (
+      <Card key={section.title} className="overflow-hidden">
+        <div className="border-b bg-slate-50 px-4 py-3">
+          <h3 className="text-base font-semibold text-slate-900">{section.title}</h3>
+        </div>
+        <div className="grid gap-4 p-4 sm:grid-cols-2">
+          {section.fields.map((f) => (
+            <CopyField key={f.label} {...f} />
+          ))}
+        </div>
+      </Card>
+    ));
+
   const markSubmitted = async () => {
     if (!selected || !availityClient) return;
     setMarkingSubmitted(true);
@@ -319,64 +329,88 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   return (
     <div className="space-y-4">
       <Card className="p-4">
-        <h2 className="text-lg font-semibold">Availity information</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          The two Availity pages, in the same order, filled in for this client. Put this beside the
-          real page and copy each box across. Nothing is sent to Availity from this app.
-        </p>
-
-        {!!missingProvider.length && (
-          <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-            {missingProvider.length} of the agency's own billing details are missing, so some boxes
-            below will be empty. Add them under <b>Billing details</b>.
-          </div>
-        )}
-      </Card>
-
-      <Card className="p-4">
         <div className="space-y-3">
-          <div className="flex rounded-lg border bg-white p-1">
-            <Button
-              variant={page === 'eligibility' ? 'default' : 'ghost'}
-              onClick={() => setPage('eligibility')}
-            >
-              Eligibility and benefits
-            </Button>
-            <Button variant={page === 'claim' ? 'default' : 'ghost'} onClick={() => setPage('claim')}>
-              Claims and encounters
-            </Button>
-          </div>
+          {!!missingProvider.length && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              {missingProvider.length} of the agency's own boxes are empty, so some boxes below will
+              be blank. Press <b>Edit agency details</b> to fill them in.
+            </div>
+          )}
 
-          {/* The list of clients to bill picks the client, so its own picker is
-              only shown when this panel is opened on its own. */}
-          {!initialClientId && (
-            <>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  placeholder="Find a client by name or member ID"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-              </div>
+          {!!shortlist?.length && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">
+                Bill these {shortlist.length} now — their six-month window closes within the month
+              </p>
               <div className="flex flex-wrap gap-2">
-                {matches.map((c) => (
+                {shortlist.map((c) => (
                   <Button
                     key={c.id}
                     size="sm"
                     variant={c.id === clientId ? 'default' : 'outline'}
+                    className={c.id === clientId ? '' : c.urgent ? 'border-red-300 text-red-800 hover:bg-red-50' : ''}
                     onClick={() => setClientId(c.id)}
                   >
-                    {c.last_name}, {c.first_name}
-                    {c.insurance ? ` · ${c.insurance}` : ''}
+                    {c.label}
+                    <span className="ml-1.5 opacity-70">· {c.note}</span>
                   </Button>
                 ))}
-                {!matches.length && (
-                  <p className="text-sm text-muted-foreground">No active client matches that.</p>
-                )}
               </div>
-            </>
+            </div>
+          )}
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Or search for any other client by name or member ID"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+
+          {/* Results only while searching. There are far too many clients to
+              list them all as buttons. */}
+          {!!query.trim() && (
+            <div className="divide-y rounded-md border">
+              {matches.slice(0, 8).map((c) => (
+                <button
+                  key={c.id}
+                  className={`flex w-full items-center justify-between gap-3 p-3 text-left text-sm hover:bg-slate-50 ${c.id === clientId ? 'bg-slate-100' : ''}`}
+                  onClick={() => {
+                    setClientId(c.id);
+                    setQuery('');
+                  }}
+                >
+                  <span>
+                    <b>
+                      {c.last_name}, {c.first_name}
+                    </b>
+                    <span className="text-muted-foreground">
+                      {' '}
+                      · {c.member_id ?? 'No member ID'} · {c.insurance ?? 'No MCO'}
+                    </span>
+                  </span>
+                </button>
+              ))}
+              {!matches.length && (
+                <p className="p-3 text-sm text-muted-foreground">No active client matches that.</p>
+              )}
+            </div>
+          )}
+
+          {client && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-slate-50 px-3 py-2 text-sm">
+              <span>
+                <b>
+                  {client.first_name} {client.last_name}
+                </b>
+                <span className="text-muted-foreground">
+                  {' '}
+                  · {client.member_id ?? 'No member ID'} · {client.insurance ?? 'No MCO'}
+                </span>
+              </span>
+            </div>
           )}
         </div>
       </Card>
@@ -423,7 +457,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
                   </SelectContent>
                 </Select>
               </div>
-              {page === 'claim' && (
+              {(
                 <div className="space-y-2 sm:col-span-2">
                   <Label className="text-xs text-muted-foreground">Principal diagnosis code</Label>
                   <Select
@@ -488,7 +522,34 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
             </div>
           </Card>
 
+          {/* One Availity page at a time, chosen by tab, in the order they are
+              worked: check the client is covered, then file the claim. */}
+          <div className="flex w-fit rounded-lg border bg-white p-1">
+            <Button
+              variant={page === 'eligibility' ? 'default' : 'ghost'}
+              onClick={() => setPage('eligibility')}
+            >
+              Eligibility and Benefits
+            </Button>
+            <Button variant={page === 'claim' ? 'default' : 'ghost'} onClick={() => setPage('claim')}>
+              Claims and Encounters
+            </Button>
+          </div>
+
+          {page === 'eligibility' && (
+            <>
+              {renderSections(eligibilityFields)}
+              <Card className="border-slate-300 bg-slate-50 p-4">
+                <p className="text-sm">
+                  Then press <span className="font-semibold">Submit</span> at the bottom of the
+                  Availity page.
+                </p>
+              </Card>
+            </>
+          )}
+
           {page === 'claim' && (
+            <>
             <Card className="p-4">
               <div className="mb-2">
                 <p className="text-sm font-medium">Which cycle are you billing?</p>
@@ -540,74 +601,53 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
                 </div>
               )}
             </Card>
-          )}
 
-          {page === 'claim' && selected && (
+          {selected && (
             <Card className="border-slate-300 bg-slate-50 p-4">
               <p className="text-sm font-medium">What changes from one claim to the next</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Only the patient information, the patient control number, the prior authorization
                 number, the diagnosis code, the service dates, and — for a High level client — the
-                charge amount. Everything else on this page is the same every time, and is filled in
-                below.
+                charge amount. Everything else is the same every time, and is filled in below.
               </p>
             </Card>
           )}
 
-          {page === 'claim' && !selected ? null : (
+          {selected && (
             <>
-              {sections.map((section) => (
-                <Card key={section.title} className="overflow-hidden">
-                  <div className="border-b bg-slate-50 px-4 py-3">
-                    <h3 className="text-base font-semibold text-slate-900">{section.title}</h3>
-                  </div>
-                  <div className="grid gap-4 p-4 sm:grid-cols-2">
-                    {section.fields.map((f) => (
-                      <CopyField key={f.label} {...f} />
-                    ))}
-                  </div>
-                </Card>
-              ))}
+              {renderSections(claimFields)}
 
               <Card className="border-slate-300 bg-slate-50 p-4">
-                {page === 'eligibility' ? (
+                <div className="space-y-3">
                   <p className="text-sm">
-                    Then press <span className="font-semibold">Submit</span> at the bottom of the
-                    Availity page.
+                    Then press <span className="font-semibold">Continue</span> at the bottom of the
+                    Availity page — the claim is reviewed on the next screen before it is sent.{' '}
+                    <span className="font-semibold">Save as Draft</span> keeps it if you need to stop.
                   </p>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm">
-                      Then press <span className="font-semibold">Continue</span> at the bottom of the
-                      Availity page — the claim is reviewed on the next screen before it is sent.{' '}
-                      <span className="font-semibold">Save as Draft</span> keeps it if you need to
-                      stop.
-                    </p>
-                    {selected && (
-                      <div className="flex flex-wrap items-center gap-3 border-t pt-3">
-                        {selected.cycle.billing_status === 'Submitted' ? (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800">
-                            Cycle {selected.cycle.cycle_number} is already billed
-                          </Badge>
-                        ) : (
-                          <>
-                            <Button onClick={markSubmitted} disabled={markingSubmitted}>
-                              {markingSubmitted
-                                ? 'Saving…'
-                                : `Mark cycle ${selected.cycle.cycle_number} as billed`}
-                            </Button>
-                            <p className="text-xs text-muted-foreground">
-                              Saves today as the date billed and stores the control number as the
-                              claim number. The cycle then moves to Revenue. Press this after Availity
-                              accepts the claim, not before.
-                            </p>
-                          </>
-                        )}
-                      </div>
+                  <div className="flex flex-wrap items-center gap-3 border-t pt-3">
+                    {selected.cycle.billing_status === 'Submitted' ? (
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        Cycle {selected.cycle.cycle_number} is already billed
+                      </Badge>
+                    ) : (
+                      <>
+                        <Button onClick={markSubmitted} disabled={markingSubmitted}>
+                          {markingSubmitted
+                            ? 'Saving…'
+                            : `Mark cycle ${selected.cycle.cycle_number} as billed`}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          Saves today as the date billed and stores the control number as the claim
+                          number. The cycle then moves to Revenue. Press this after Availity accepts
+                          the claim, not before.
+                        </p>
+                      </>
                     )}
                   </div>
-                )}
+                </div>
               </Card>
+            </>
+          )}
             </>
           )}
         </>

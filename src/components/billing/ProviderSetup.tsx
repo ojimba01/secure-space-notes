@@ -89,7 +89,7 @@ export const ProviderSetup: React.FC<{ onChanged?: (s: AvailityProviderSettings)
     return (
       <Card className="p-10 text-center text-sm text-muted-foreground">
         <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
-        Loading billing details…
+        Loading Availity details…
       </Card>
     );
   }
@@ -99,7 +99,7 @@ export const ProviderSetup: React.FC<{ onChanged?: (s: AvailityProviderSettings)
       <Card className="p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">The agency's billing details</h2>
+            <h2 className="text-lg font-semibold">The agency's Availity details</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               These are the same on every claim. Add them once here and the app fills them in for each
               client. Nothing is sent to Availity from this app.
@@ -181,7 +181,7 @@ export const ProviderSetup: React.FC<{ onChanged?: (s: AvailityProviderSettings)
 
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving} size="lg">
-          {saving ? 'Saving…' : 'Save billing details'}
+          {saving ? 'Saving…' : 'Save Availity details'}
         </Button>
       </div>
     </div>

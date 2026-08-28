@@ -19,6 +19,7 @@ import { ClientProfileDialog } from '@/components/billing/ClientProfileDialog';
 import { RevenueTab } from '@/components/billing/RevenueTab';
 import { BillingTutorial, BillingTutorialStep } from '@/components/billing/BillingTutorial';
 import { ProviderSetup } from '@/components/billing/ProviderSetup';
+import { SubmittedClaims } from '@/components/billing/SubmittedClaims';
 import { AddTouchpointDialog, type TouchpointContext } from '@/components/AddTouchpointDialog';
 import { AvailityPanel } from '@/components/billing/AvailityPanel';
 
@@ -75,7 +76,7 @@ const HOW_TO_READ = 'Cycle 1 is the initial 30-day authorization and is billable
 // has closed the money cannot be claimed at all, so it is no longer work: those
 // cycles move to their own list rather than sitting in a queue asking for action.
 /** The four steps of billing, in the order they are done. */
-type Section = 'details' | 'bill' | 'revenue' | 'data';
+type Section = 'bill' | 'submitted' | 'revenue' | 'data';
 
 /** How close a cycle is to the last day it can be filed. */
 type Band = 'overdue' | 'week' | 'month' | 'later';
@@ -185,6 +186,8 @@ export function BillingWorkspace() {
   // The client whose Availity boxes are open. Null means the list is showing.
   const [billingClientId,setBillingClientId]=useState<string|null>(null);
   const [showLater,setShowLater]=useState(false);
+  // The agency's own boxes are the same every time, so they start folded away.
+  const [agencyOpen,setAgencyOpen]=useState(false);
   // Raised after a cycle is marked billed, to ask about the touchpoint.
   const [billedPrompt,setBilledPrompt]=useState<TouchpointContext|null>(null);
   const [touchpointFor,setTouchpointFor]=useState<TouchpointContext|null>(null);
@@ -264,6 +267,10 @@ export function BillingWorkspace() {
     return out;
   },[queue]);
 
+  // The clients to bill now: their soonest cycle passes its six-month filing
+  // deadline within the month, so leaving it loses the money outright.
+  const urgent=useMemo(()=>queue.filter(r=>r.band!=='later'),[queue]);
+
   const [page,setPage]=useState(0);
   useEffect(()=>{setPage(0);},[query]);
   const laterPaged=byBand.later.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
@@ -320,7 +327,7 @@ export function BillingWorkspace() {
             </div>
           </div>
         </button>
-        <Button onClick={()=>setBillingClientId(c.id)}>Add billing</Button>
+        <Button onClick={()=>{setBillingClientId(c.id);window.scrollTo({top:0,behavior:'smooth'});}}>Add billing</Button>
         <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={tour}/>
       </div>
       {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={cycleWriter} tour={tour} practice={!!practice}/>}
@@ -501,8 +508,8 @@ export function BillingWorkspace() {
 
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-white p-1" data-tour="sections">
-        <StepButton step={1} label="Billing details" active={section==='details'} onClick={()=>setSection('details')} tour="section-details"/>
-        <StepButton step={2} label="Clients to bill" count={queue.length} active={section==='bill'} onClick={()=>{setSection('bill');setBillingClientId(null);}} tour="section-bill"/>
+        <StepButton step={1} label="Clients to bill" active={section==='bill'} onClick={()=>setSection('bill')} tour="section-bill"/>
+        <StepButton step={2} label="Submitted claims" active={section==='submitted'} onClick={()=>setSection('submitted')} tour="section-submitted"/>
         {isSuperadmin && <StepButton step={3} label="Revenue" active={section==='revenue'} onClick={()=>setSection('revenue')} tour="section-revenue"/>}
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -511,7 +518,7 @@ export function BillingWorkspace() {
       </div>
     </div>
 
-    {(section==='bill'||section==='data') && !billingClientId && <Card className="p-4" data-tour="search">
+    {(section==='bill'||section==='data') && <Card className="p-4" data-tour="search">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input className="pl-9" placeholder="Search clients by name, member ID, or MCO…" value={query} onChange={e=>setQuery(e.target.value)} />
@@ -525,12 +532,30 @@ export function BillingWorkspace() {
       </div>}
     </Card>}
 
-    {section==='details' ? <ProviderSetup/>
-    : section==='revenue' ? <RevenueTab clients={clients} cycles={cycles} viewOverride={practice?practiceRevenueView:undefined} onViewChange={practice?setPracticeRevenueView:undefined}/>
-    : section==='bill' ? (billingClientId ? <>
-      <Button variant="ghost" className="-ml-2 w-fit" onClick={()=>setBillingClientId(null)}><ChevronLeft className="mr-1 h-4 w-4"/>Back to clients to bill</Button>
-      <AvailityPanel clients={clients} cycles={cycles} updateCycle={cycleWriter} initialClientId={billingClientId} onBilled={handleBilled}/>
-    </> : <>
+    {section==='revenue' ? <RevenueTab clients={clients} cycles={cycles} viewOverride={practice?practiceRevenueView:undefined} onViewChange={practice?setPracticeRevenueView:undefined}/>
+    : section==='submitted' ? <SubmittedClaims clients={clients} cycles={cycles} updateCycle={cycleWriter}/>
+    : section==='bill' ? <>
+      {/* Filing a claim and the Availity boxes are the same job, so they are one
+          step: the clients whose window closes this month, then the form. */}
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" onClick={()=>setAgencyOpen(v=>!v)}>
+          <Pencil className="mr-2 h-4 w-4"/>{agencyOpen?'Hide agency details':'Edit agency details'}
+        </Button>
+      </div>
+      {agencyOpen && <ProviderSetup/>}
+
+      <AvailityPanel
+        clients={clients}
+        cycles={cycles}
+        updateCycle={cycleWriter}
+        initialClientId={billingClientId}
+        onBilled={handleBilled}
+        shortlist={urgent.map(r=>({ id:r.client.id, label:`${r.client.first_name} ${r.client.last_name}`, note:r.days<0?'window closed':`${r.days}d`, urgent:r.band!=='month' }))}
+      />
+
+      <details className="rounded-lg border bg-white">
+        <summary className="cursor-pointer p-4 text-sm font-medium">Every client with a cycle still to bill ({queue.length})</summary>
+        <div className="space-y-4 border-t p-4">
       {/* One list, ordered by the last day each claim can be filed. */}
       <div className="flex flex-wrap items-center gap-2" data-tour="filters">
         {BANDS.filter(b=>b.key!=='later').map(b=>byBand[b.key].length>0?<span key={b.key} className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${b.tone}`}>
@@ -563,9 +588,11 @@ export function BillingWorkspace() {
         </section>}
       </>}
 
-      {lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
-      {extensionClients.length>0 && <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>}
-    </>)
+          {lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
+          {extensionClients.length>0 && <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>}
+        </div>
+      </details>
+    </>
     : <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
