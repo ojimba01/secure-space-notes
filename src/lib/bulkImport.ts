@@ -548,3 +548,86 @@ const markItem = async (
     .eq('batch_id', batchId);
   if (error) throw new Error(error.message);
 };
+
+/** What deleting an import would actually remove. */
+export interface ImportRemoval {
+  batchId: string;
+  /** Staged rows: the record of what was proposed. Always removed. */
+  stagedItems: number;
+  /** Documents this import actually filed on client records. */
+  documents: number;
+  /** Stored files behind those documents. */
+  storedFiles: number;
+}
+
+/**
+ * Count what deleting an import would take with it, before anything is deleted.
+ *
+ * An import left in review and an import that filed two hundred documents are
+ * very different things to delete, and the difference is invisible from the
+ * batch row alone — so it is counted and shown before the question is asked.
+ */
+export async function describeImportRemoval(batchId: string): Promise<ImportRemoval> {
+  const [{ count: stagedItems }, { data: forms }] = await Promise.all([
+    supabase
+      .from('document_import_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('batch_id', batchId),
+    supabase.from('client_forms').select('id, file_path').eq('import_batch_id', batchId),
+  ]);
+
+  return {
+    batchId,
+    stagedItems: stagedItems ?? 0,
+    documents: forms?.length ?? 0,
+    storedFiles: (forms ?? []).filter((f) => f.file_path).length,
+  };
+}
+
+/**
+ * Delete an import and everything it created.
+ *
+ * The order matters: stored files first, then the documents that point at
+ * them, then the staged rows, then the batch. Deleting the batch first would
+ * leave orphans behind with nothing left naming them.
+ *
+ * Only documents carrying this `import_batch_id` are touched. A document
+ * someone uploaded by hand, or one from a different import, is never in scope
+ * however similar it looks.
+ */
+export async function deleteImportBatch(batchId: string): Promise<ImportRemoval> {
+  const removal = await describeImportRemoval(batchId);
+
+  const { data: forms } = await supabase
+    .from('client_forms')
+    .select('id, file_path')
+    .eq('import_batch_id', batchId);
+
+  const paths = (forms ?? []).map((f) => f.file_path).filter((p): p is string => !!p);
+  if (paths.length) {
+    // Storage failures are not fatal. A file left behind costs disk; a
+    // document row left pointing at a deleted file breaks the client record.
+    await supabase.storage.from('client-files').remove(paths).catch(() => undefined);
+  }
+
+  const formIds = (forms ?? []).map((f) => f.id);
+  if (formIds.length) {
+    await supabase.from('client_form_versions').delete().in('client_form_id', formIds);
+    const { error } = await supabase.from('client_forms').delete().in('id', formIds);
+    if (error) throw error;
+  }
+
+  const { error: itemsError } = await supabase
+    .from('document_import_items')
+    .delete()
+    .eq('batch_id', batchId);
+  if (itemsError) throw itemsError;
+
+  const { error: batchError } = await supabase
+    .from('document_import_batches')
+    .delete()
+    .eq('id', batchId);
+  if (batchError) throw batchError;
+
+  return removal;
+}

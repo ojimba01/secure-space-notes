@@ -4,7 +4,14 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { deleteImportBatch, describeImportRemoval, type ImportRemoval } from '@/lib/bulkImport';
 
 interface Batch {
   id: string;
@@ -54,6 +61,10 @@ export const ImportHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey = 
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [items, setItems] = useState<Record<string, Item[]>>({});
+  /** The import being deleted, with a count of what that would remove. */
+  const [pendingDelete, setPendingDelete] = useState<ImportRemoval | null>(null);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,6 +118,46 @@ export const ImportHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey = 
     }
   };
 
+  const askDelete = async (batchId: string) => {
+    try {
+      setConfirmText('');
+      setPendingDelete(await describeImportRemoval(batchId));
+    } catch (e) {
+      toast({
+        title: 'Could not work out what this import holds',
+        description: e instanceof Error ? e.message : undefined,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      const removed = await deleteImportBatch(pendingDelete.batchId);
+      toast({
+        title: 'Import deleted',
+        description: removed.documents > 0
+          ? `${removed.stagedItems} staged rows and ${removed.documents} document${removed.documents === 1 ? '' : 's'} removed.`
+          : `${removed.stagedItems} staged row${removed.stagedItems === 1 ? '' : 's'} removed. No client record was touched.`,
+      });
+      setPendingDelete(null);
+      await load();
+    } catch (e) {
+      toast({
+        title: 'The import could not be deleted',
+        description: e instanceof Error ? e.message : undefined,
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  /** Removing filed documents is destructive, so that case is typed out. */
+  const needsTypedConfirm = (pendingDelete?.documents ?? 0) > 0;
+
   return (
     <Card>
       <CardHeader>
@@ -120,9 +171,10 @@ export const ImportHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey = 
         ) : (
           batches.map((batch) => (
             <div key={batch.id} className="rounded-md border">
+              <div className="flex w-full items-center gap-2 pr-3">
               <button
                 onClick={() => toggle(batch.id)}
-                className="flex w-full items-center justify-between gap-2 p-3 text-left hover:bg-accent/50"
+                className="flex flex-1 min-w-0 items-center justify-between gap-2 p-3 text-left hover:bg-accent/50"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {expanded === batch.id ? (
@@ -152,6 +204,17 @@ export const ImportHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey = 
                   {batch.status}
                 </Badge>
               </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Delete this import"
+                title="Delete this import"
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={() => askDelete(batch.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+              </div>
 
               {expanded === batch.id && (
                 <div className="border-t divide-y">
@@ -200,6 +263,75 @@ export const ImportHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey = 
           Refresh
         </Button>
       </CardContent>
+
+      <AlertDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDelete(null);
+            setConfirmText('');
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this import?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  {pendingDelete?.stagedItems ?? 0} staged row
+                  {(pendingDelete?.stagedItems ?? 0) === 1 ? '' : 's'} will be removed, along with
+                  the record of what this import proposed.
+                </p>
+                {needsTypedConfirm ? (
+                  <p>
+                    <span className="font-semibold">
+                      {pendingDelete?.documents} document
+                      {pendingDelete?.documents === 1 ? '' : 's'} filed on client records
+                    </span>{' '}
+                    will also be deleted, with {pendingDelete?.storedFiles} stored file
+                    {pendingDelete?.storedFiles === 1 ? '' : 's'} and their version history. This
+                    cannot be undone. Type <span className="font-semibold">Delete</span> to
+                    proceed.
+                  </p>
+                ) : (
+                  <p>
+                    This import filed nothing on any client record, so no client document is
+                    affected. The files can be imported again afterwards.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {needsTypedConfirm && (
+            <div className="space-y-2 py-2">
+              <Label htmlFor="confirm-delete-import">Type "Delete"</Label>
+              <Input
+                id="confirm-delete-import"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="Delete"
+                autoComplete="off"
+              />
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting || (needsTypedConfirm && confirmText !== 'Delete')}
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting' : 'Delete import'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
