@@ -71,7 +71,9 @@ interface FormSummary {
   created_at: string;
 }
 
+// The forms a case is worked through, in the order they are done.
 const TRACKED_FORMS = [
+  'Client Intake',
   'Initial Assessment Tool',
   'Level of Need Assessment Tool',
   'Housing Stabilization Plan',
@@ -202,6 +204,36 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, onOpenIn
       return;
     }
     toast({ title: 'Intake marked complete', description: 'The assessment packet is now the next step.' });
+    onUpdate();
+  };
+
+  /**
+   * These forms are often completed on paper or in a meeting. Recording that
+   * without a file keeps the lifecycle honest — the alternative is staff
+   * uploading a scan they do not have, or the case looking stuck when it is not.
+   */
+  const markFormComplete = async (formType: string) => {
+    if (guard()) return;
+    const { error } = await supabase.from('client_forms').insert({
+      client_id: client.id,
+      employee_id: profileId,
+      form_type: formType,
+      title: formType,
+      status: 'approved',
+      notes: `Recorded as complete by ${signerName} without a file — completed outside the app.`,
+      signature_name: signerName,
+      signed_by: profileId,
+      signed_at: new Date().toISOString(),
+    });
+    if (error) {
+      toast({ title: 'Could not record the form', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({
+      title: `${formType} marked complete`,
+      description: 'Recorded without a file. Upload the document later if you have one.',
+    });
+    loadForms();
     onUpdate();
   };
 
@@ -394,7 +426,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, onOpenIn
         </div>
 
         <div>
-          <p className="mb-2 text-sm font-medium text-muted-foreground">Assessment packet</p>
+          <p className="mb-2 text-sm font-medium text-muted-foreground">Forms</p>
           <div className="divide-y rounded-md border">
             {TRACKED_FORMS.map((type) => {
               const f = latest(type);
@@ -414,13 +446,18 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, onOpenIn
                       </Badge>
                     )}
                     {(!f || f.status === 'changes_requested') && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setFilling(templateFor(type) ?? null)}
-                      >
-                        {f ? 'Redo' : 'Fill out'}
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setFilling(templateFor(type) ?? null)}
+                        >
+                          {f ? 'Redo' : 'Fill out'}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => markFormComplete(type)}>
+                          Mark as complete
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
