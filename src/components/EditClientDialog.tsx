@@ -471,10 +471,10 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField control={form.control} name="intake_date" render={({ field }) => (
-                <FormItem><FormLabel>Intake Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Intake Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="assessment_due_date" render={({ field }) => (
-                <FormItem><FormLabel>Intake Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Intake End Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="hsp_due_date" render={({ field }) => (
                 <FormItem><FormLabel>HSP Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>

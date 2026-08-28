@@ -68,13 +68,21 @@ type ClientFormData = z.infer<typeof clientSchema>;
 interface AddClientDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onClientAdded: () => void;
+  /**
+   * `created` names the client that was just added, so the caller can carry on
+   * with them — recording a touchpoint, for instance, which needs a client
+   * that exists.
+   */
+  onClientAdded: (created?: { id: string; name: string; levelOfNeed: string | null }) => void;
+  /** Called instead of onClientAdded when the touchpoint button was used. */
+  onAddTouchpoint?: (created: { id: string; name: string; levelOfNeed: string | null }) => void;
 }
 
 export const AddClientDialog: React.FC<AddClientDialogProps> = ({
   open,
   onOpenChange,
   onClientAdded,
+  onAddTouchpoint,
 }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -126,7 +134,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
   const insuranceValue = form.watch('insurance');
   const isUnited = (insuranceValue ?? '').toLowerCase().includes('united');
 
-  const handleSubmit = async (data: ClientFormData) => {
+  const handleSubmit = async (data: ClientFormData, thenTouchpoint = false) => {
     setIsSubmitting(true);
     
     try {
@@ -220,13 +228,20 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
 
 
       toast({
-        title: "Client Added",
-        description: "New client has been added successfully.",
+        title: 'Client added',
+        description: `${data.first_name} ${data.last_name} is now on the client list.`,
       });
 
-      onClientAdded();
+      const created = {
+        id: inserted.id,
+        name: `${data.first_name} ${data.last_name}`.trim(),
+        levelOfNeed: data.level_of_need || null,
+      };
+
       onOpenChange(false);
       form.reset();
+      if (thenTouchpoint && onAddTouchpoint) onAddTouchpoint(created);
+      else onClientAdded(created);
     } catch (error: any) {
       toast({
         title: "Error adding client",
@@ -246,7 +261,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit((d) => handleSubmit(d, false))} className="space-y-4">
             {/* Section: Client info */}
             <div className="rounded-md border p-4 space-y-4">
               <h4 className="text-sm font-semibold">Client Info</h4>
@@ -343,10 +358,10 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
               <h4 className="text-sm font-semibold">Dates &amp; Authorizations</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="intake_date" render={({ field }) => (
-                  <FormItem><FormLabel>Intake Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Intake Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="assessment_due_date" render={({ field }) => (
-                  <FormItem><FormLabel>Intake Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Intake End Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="iat_date" render={({ field }) => (
                   <FormItem><FormLabel>IAT Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
@@ -407,12 +422,22 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
               <FormItem><FormLabel>Initial Notes</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
             )} />
 
-            <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
-              You can set scheduled visit availability date ranges after creating the client, by editing their record.
-            </p>
+            {/* Saves the client, then opens their touchpoint straight away —
+                the usual next step, and the client has to exist first. */}
+            <div className="flex items-center gap-3 rounded-md border border-dashed p-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSubmitting}
+                onClick={() => form.handleSubmit((d) => handleSubmit(d, true))()}
+              >
+                Add touchpoint
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Saves this client, then opens their first touchpoint.
+              </span>
+            </div>
 
-
-            
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel

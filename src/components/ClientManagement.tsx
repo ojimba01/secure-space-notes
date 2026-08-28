@@ -12,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
-import { NewReferralDialog } from '@/components/NewReferralDialog';
+import { AddTouchpointDialog } from '@/components/AddTouchpointDialog';
 import { STAGE_LABEL, WORKFLOW_STAGES, isSetupComplete } from '@/lib/workflow';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -110,7 +110,12 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [showReferralDialog, setShowReferralDialog] = useState(false);
+  /** Closed cases are out of the way until somebody asks for them. */
+  const [showClosed, setShowClosed] = useState(false);
+  /** The client just created, waiting for their first touchpoint. */
+  const [touchpointFor, setTouchpointFor] = useState<
+    { id: string; name: string; levelOfNeed: string | null } | null
+  >(null);
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -133,7 +138,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
     if (user && !adminLoading) {
       fetchClients();
     }
-  }, [user, adminLoading, isAdmin]);
+  }, [user, adminLoading, isAdmin, showClosed]);
 
   useEffect(() => {
     if (initialClientId && clients.length) {
@@ -196,7 +201,8 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       // and showing it here would put a "fix this" task in a staff view that
       // cannot fix it.
       const all = data || [];
-      const list = isAdmin ? all : all.filter((c) => isSetupComplete(c));
+      const visible = showClosed ? all : all.filter((c) => c.status !== 'closed');
+      const list = isAdmin ? visible : visible.filter((c) => isSetupComplete(c));
       setClients(list);
       // Keep the currently open client detail in sync with the latest data
       setSelectedClient((current) =>
@@ -385,17 +391,6 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               <span className="hidden md:inline">Add new client</span>
               <span className="md:hidden">Add</span>
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="md:size-default"
-              onClick={() => setShowReferralDialog(true)}
-              disabled={!isAdmin && behindCount >= 5}
-              title="Record a referral, with where it came from and when it arrived."
-            >
-              <span className="hidden md:inline">New Referral</span>
-              <span className="md:hidden">Referral</span>
-            </Button>
           </div>
         )}
         {isAdmin && selectionMode && (
@@ -486,6 +481,14 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
             ))}
           </SelectContent>
         </Select>
+        {/* A closed case is not work. It stays out of the list until asked for. */}
+        <Button
+          variant={showClosed ? 'default' : 'outline'}
+          className="shrink-0"
+          onClick={() => setShowClosed((v) => !v)}
+        >
+          {showClosed ? 'Hide closed cases' : 'View closed cases'}
+        </Button>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="shrink-0">
@@ -581,19 +584,34 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       <AddClientDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
-        onClientAdded={fetchClients}
-      />
-
-      <NewReferralDialog
-        open={showReferralDialog}
-        onOpenChange={setShowReferralDialog}
-        onCreated={async (id) => {
+        onClientAdded={() => fetchClients()}
+        onAddTouchpoint={async (created) => {
           await fetchClients();
-          // Drop straight onto the new record — the IAT is the next step.
-          const { data } = await supabase.from('clients').select('*').eq('id', id).maybeSingle();
-          if (data) setSelectedClient(data as Client);
+          setTouchpointFor(created);
         }}
       />
+
+      <AddTouchpointDialog
+        open={!!touchpointFor}
+        onOpenChange={(open) => !open && setTouchpointFor(null)}
+        context={
+          touchpointFor
+            ? {
+                clientId: touchpointFor.id,
+                clientName: touchpointFor.name,
+                levelOfNeed: touchpointFor.levelOfNeed,
+                // Locked: a client created a moment ago is not yet
+                // setup-complete, so it would not appear in the picker.
+                locked: true,
+              }
+            : null
+        }
+        onSaved={() => {
+          setTouchpointFor(null);
+          fetchClients();
+        }}
+      />
+
 
 
 
