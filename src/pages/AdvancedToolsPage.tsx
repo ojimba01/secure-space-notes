@@ -9,6 +9,7 @@ import { TemplateRegistry } from '@/components/admin/TemplateRegistry';
 import { TouchpointSettings } from '@/components/admin/TouchpointSettings';
 import { DocumentReading } from '@/components/admin/DocumentReading';
 import { ClientFieldImport } from '@/components/admin/ClientFieldImport';
+import { StaffDocumentVisibility } from '@/components/admin/StaffDocumentVisibility';
 
 /**
  * Operational utilities for Admin/Superadmin only. Staff never reach this
@@ -50,6 +51,7 @@ const AdvancedToolsPage: React.FC = () => {
           <TabsTrigger value="reading">Reading documents</TabsTrigger>
           <TabsTrigger value="history">Import history</TabsTrigger>
           <TabsTrigger value="templates">Template management</TabsTrigger>
+          <TabsTrigger value="visibility">Document visibility</TabsTrigger>
           <TabsTrigger value="touchpoints">Touchpoint settings</TabsTrigger>
         </TabsList>
 
@@ -71,6 +73,10 @@ const AdvancedToolsPage: React.FC = () => {
 
         <TabsContent value="templates" className="pt-4">
           <TemplateRegistry />
+        </TabsContent>
+
+        <TabsContent value="visibility" className="pt-4">
+          <StaffDocumentVisibility />
         </TabsContent>
 
         <TabsContent value="touchpoints" className="pt-4">
