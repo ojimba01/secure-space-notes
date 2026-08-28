@@ -62,19 +62,19 @@ export const PDF_TEMPLATES: PdfTemplate[] = [
   {
     formType: 'Initial Assessment Tool',
     file: '/form-templates/initial-assessment-tool.pdf',
-    label: 'Initial Assessment Tool',
+    label: 'Initial Assessment Tool (IAT)',
     description: 'Request Housing Supports services and document eligibility.',
   },
   {
     formType: 'Level of Need Assessment Tool',
     file: '/form-templates/level-of-need-assessment-tool.pdf',
-    label: 'Level of Need Assessment Tool',
+    label: 'Level of Need Assessment Tool (LoN)',
     description: 'Scored assessment for authorization and reauthorization.',
   },
   {
     formType: 'Housing Stabilization Plan',
     file: '/form-templates/housing-stabilization-plan.pdf',
-    label: 'Housing Stabilization Plan',
+    label: 'Housing Stabilization Plan (HSP)',
     description: 'Individualized goals and activities plan built with the member.',
   },
   {
