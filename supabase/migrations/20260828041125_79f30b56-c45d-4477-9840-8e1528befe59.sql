@@ -1,37 +1,15 @@
--- ============================================================
--- Client Intake
---
--- The agency's paper intake form, as a real screen. One row per client,
--- typed columns rather than a JSONB blob, plus child rows for the household
--- members question. A handful of answers also belong on the client record
--- (name, DOB, phone, MCO #, Medicaid #); the app writes those through when
--- the client field is empty and asks about conflicts rather than overwriting.
---
--- Idempotent: running it twice is harmless.
--- ============================================================
-
 -- 1. Medicaid number on the client record --------------------
--- Q5 collects it, the workbook has a column for it, and the sheet importer
--- has been reading and dropping it for want of somewhere to put it.
+
 ALTER TABLE public.clients
-  ADD COLUMN IF NOT EXISTS medicaid_id text;
+ADD COLUMN IF NOT EXISTS medicaid_id text;
 
 -- 2. The intake record ---------------------------------------
--- Sensitive answers (SSN, HIV status, substance use, domestic violence,
--- pregnancy) are all nullable on purpose: the form itself says Q40 is
--- collected "only when necessary", and none of them may be required.
 CREATE TABLE IF NOT EXISTS public.client_intakes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id uuid NOT NULL UNIQUE REFERENCES public.clients(id) ON DELETE CASCADE,
-
   status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'complete')),
   completed_at timestamptz,
   completed_by uuid REFERENCES public.profiles(id),
-
-  -- Client information (Q1-Q8) -------------------------------
-  -- The form asks for the birth date again at the top of page 1. It is kept
-  -- here as the client said it, and written through to clients.date_of_birth
-  -- when that column is empty.
   birth_date date,
   ssn text,
   gender text,
@@ -51,8 +29,6 @@ CREATE TABLE IF NOT EXISTS public.client_intakes (
   race text,
   us_citizen boolean,
   alien_number text,
-
-  -- Medical (Q9-Q17) -----------------------------------------
   pcp_name text,
   pcp_phone text,
   pcp_practice text,
@@ -68,8 +44,6 @@ CREATE TABLE IF NOT EXISTS public.client_intakes (
   psychiatrist_name text,
   psychiatrist_phone text,
   mental_health_diagnoses text,
-
-  -- Income and financial (Q18-Q22) ---------------------------
   has_income_proof boolean,
   income_type text,
   income_monthly_amount numeric,
@@ -82,8 +56,6 @@ CREATE TABLE IF NOT EXISTS public.client_intakes (
   hours_per_week numeric,
   wage text,
   last_hospitalization_date date,
-
-  -- Housing history (Q23-Q33) --------------------------------
   last_address text,
   last_address_duration text,
   present_address text,
@@ -102,8 +74,6 @@ CREATE TABLE IF NOT EXISTS public.client_intakes (
   needs_accommodation boolean,
   accommodations text[] NOT NULL DEFAULT '{}',
   accommodation_other text,
-
-  -- Monthly expenses and rental needs (Q34-Q39) --------------
   expense_phone numeric,
   expense_car_note numeric,
   expense_car_insurance numeric,
@@ -119,8 +89,6 @@ CREATE TABLE IF NOT EXISTS public.client_intakes (
   housing_for_self_only boolean,
   counties_of_interest text[] NOT NULL DEFAULT '{}',
   county_other text,
-
-  -- Additional client information (Q40-Q47) ------------------
   hiv_aids boolean,
   substance_use boolean,
   substance_use_detail text,
@@ -132,8 +100,6 @@ CREATE TABLE IF NOT EXISTS public.client_intakes (
   school_program text,
   in_vocational_training boolean,
   vocational_program text,
-
-  -- Housing preferences (Q48-Q53) ----------------------------
   preferred_housing_type text,
   preferred_housing_type_other text,
   has_transportation boolean,
@@ -143,14 +109,11 @@ CREATE TABLE IF NOT EXISTS public.client_intakes (
   bedrooms_needed text,
   has_household_members boolean,
   additional_comments text,
-
-  -- Certification --------------------------------------------
   client_signature_name text,
   client_signed_date date,
   staff_signature_name text,
   staff_signed_date date,
   additional_notes text,
-
   created_by uuid REFERENCES public.profiles(id),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -171,11 +134,9 @@ CREATE TABLE IF NOT EXISTS public.client_intake_household_members (
 );
 
 CREATE INDEX IF NOT EXISTS idx_intake_household_intake
-  ON public.client_intake_household_members(intake_id);
+ON public.client_intake_household_members(intake_id);
 
 -- 4. Access -------------------------------------------------
--- Same rule as every other client record: admins, plus the case manager the
--- client is assigned to. Deletes are admin-only.
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.client_intakes TO authenticated;
 GRANT ALL ON public.client_intakes TO service_role;
 ALTER TABLE public.client_intakes ENABLE ROW LEVEL SECURITY;
@@ -213,52 +174,51 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.client_intake_household_members T
 GRANT ALL ON public.client_intake_household_members TO service_role;
 ALTER TABLE public.client_intake_household_members ENABLE ROW LEVEL SECURITY;
 
--- Household rows inherit their client from the intake they hang off.
 DROP POLICY IF EXISTS "Staff and admins can view household members"
-  ON public.client_intake_household_members;
+ON public.client_intake_household_members;
 CREATE POLICY "Staff and admins can view household members"
 ON public.client_intake_household_members FOR SELECT TO authenticated
 USING (
   EXISTS (
     SELECT 1 FROM public.client_intakes i
     WHERE i.id = intake_id
-      AND (public.is_admin(auth.uid()) OR public.is_assigned_to_client(auth.uid(), i.client_id))
+    AND (public.is_admin(auth.uid()) OR public.is_assigned_to_client(auth.uid(), i.client_id))
   )
 );
 
 DROP POLICY IF EXISTS "Staff and admins can insert household members"
-  ON public.client_intake_household_members;
+ON public.client_intake_household_members;
 CREATE POLICY "Staff and admins can insert household members"
 ON public.client_intake_household_members FOR INSERT TO authenticated
 WITH CHECK (
   EXISTS (
     SELECT 1 FROM public.client_intakes i
     WHERE i.id = intake_id
-      AND (public.is_admin(auth.uid()) OR public.is_assigned_to_client(auth.uid(), i.client_id))
+    AND (public.is_admin(auth.uid()) OR public.is_assigned_to_client(auth.uid(), i.client_id))
   )
 );
 
 DROP POLICY IF EXISTS "Staff and admins can update household members"
-  ON public.client_intake_household_members;
+ON public.client_intake_household_members;
 CREATE POLICY "Staff and admins can update household members"
 ON public.client_intake_household_members FOR UPDATE TO authenticated
 USING (
   EXISTS (
     SELECT 1 FROM public.client_intakes i
     WHERE i.id = intake_id
-      AND (public.is_admin(auth.uid()) OR public.is_assigned_to_client(auth.uid(), i.client_id))
+    AND (public.is_admin(auth.uid()) OR public.is_assigned_to_client(auth.uid(), i.client_id))
   )
 );
 
 DROP POLICY IF EXISTS "Staff and admins can delete household members"
-  ON public.client_intake_household_members;
+ON public.client_intake_household_members;
 CREATE POLICY "Staff and admins can delete household members"
 ON public.client_intake_household_members FOR DELETE TO authenticated
 USING (
   EXISTS (
     SELECT 1 FROM public.client_intakes i
     WHERE i.id = intake_id
-      AND (public.is_admin(auth.uid()) OR public.is_assigned_to_client(auth.uid(), i.client_id))
+    AND (public.is_admin(auth.uid()) OR public.is_assigned_to_client(auth.uid(), i.client_id))
   )
 );
 
@@ -266,3 +226,30 @@ DROP TRIGGER IF EXISTS update_client_intakes_updated_at ON public.client_intakes
 CREATE TRIGGER update_client_intakes_updated_at
 BEFORE UPDATE ON public.client_intakes
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+INSERT INTO public.compliance_settings (key, value, description) VALUES (
+  'availity_provider',
+  jsonb_build_object(
+    'organization', 'Supportive Care Management, LLC',
+    'providerName', 'SUPPORTIVE CARE MANAGEMENT, LLC',
+    'contactName', 'SUPPORTIVE CARE MANAGEMENT, LLC',
+    'specialtyCode', '251B00000X - Case Management',
+    'state', 'New Jersey',
+    'providerNpi', '',
+    'providerEin', '',
+    'addressLine1', '',
+    'city', '',
+    'zip', '',
+    'phone', '',
+    'fax', '',
+    'defaultModifier', 'UI',
+    'payersEligibility', jsonb_build_object(
+      'Aetna', 'Aetna Better Health all plans and NJ-VA MAPD-DSNP'
+    ),
+    'payersClaims', jsonb_build_object(
+      'Aetna', 'AETNA BETTER HEALTH NEW JERSEY'
+    )
+  ),
+  'Provider identifiers, address and Availity payer names used by the Availity staging screens.'
+)
+ON CONFLICT (key) DO NOTHING;

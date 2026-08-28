@@ -390,8 +390,8 @@ export type Database = {
           contact_date: string
           created_at: string
           duration_minutes: number | null
-          entered_by: string | null
           employee_id: string
+          entered_by: string | null
           id: string
           modality: string
           notes: string | null
@@ -403,8 +403,8 @@ export type Database = {
           contact_date?: string
           created_at?: string
           duration_minutes?: number | null
-          entered_by?: string | null
           employee_id: string
+          entered_by?: string | null
           id?: string
           modality: string
           notes?: string | null
@@ -416,8 +416,8 @@ export type Database = {
           contact_date?: string
           created_at?: string
           duration_minutes?: number | null
-          entered_by?: string | null
           employee_id?: string
+          entered_by?: string | null
           id?: string
           modality?: string
           notes?: string | null
@@ -434,6 +434,13 @@ export type Database = {
           {
             foreignKeyName: "client_contacts_employee_id_fkey"
             columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_contacts_entered_by_fkey"
+            columns: ["entered_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -735,12 +742,12 @@ export type Database = {
           application_fee_amount: number | null
           applied_for_voucher: boolean | null
           bank_name: string | null
-          birth_date: string | null
           bedrooms_needed: string | null
           benefit_monthly_amount: number | null
           benefit_type: string | null
           birth_city: string | null
           birth_country: string | null
+          birth_date: string | null
           birth_state: string | null
           client_id: string
           client_signature_name: string | null
@@ -849,12 +856,12 @@ export type Database = {
           application_fee_amount?: number | null
           applied_for_voucher?: boolean | null
           bank_name?: string | null
-          birth_date?: string | null
           bedrooms_needed?: string | null
           benefit_monthly_amount?: number | null
           benefit_type?: string | null
           birth_city?: string | null
           birth_country?: string | null
+          birth_date?: string | null
           birth_state?: string | null
           client_id: string
           client_signature_name?: string | null
@@ -963,12 +970,12 @@ export type Database = {
           application_fee_amount?: number | null
           applied_for_voucher?: boolean | null
           bank_name?: string | null
-          birth_date?: string | null
           bedrooms_needed?: string | null
           benefit_monthly_amount?: number | null
           benefit_type?: string | null
           birth_city?: string | null
           birth_country?: string | null
+          birth_date?: string | null
           birth_state?: string | null
           client_id?: string
           client_signature_name?: string | null
@@ -1737,8 +1744,8 @@ export type Database = {
           contact_method: string | null
           created_at: string
           duration_minutes: number
-          entered_by: string | null
           employee_id: string
+          entered_by: string | null
           entry_status: string
           face_to_face: boolean
           id: string
@@ -1755,8 +1762,8 @@ export type Database = {
           contact_method?: string | null
           created_at?: string
           duration_minutes?: number
-          entered_by?: string | null
           employee_id: string
+          entered_by?: string | null
           entry_status?: string
           face_to_face?: boolean
           id?: string
@@ -1773,8 +1780,8 @@ export type Database = {
           contact_method?: string | null
           created_at?: string
           duration_minutes?: number
-          entered_by?: string | null
           employee_id?: string
+          entered_by?: string | null
           entry_status?: string
           face_to_face?: boolean
           id?: string
@@ -1803,6 +1810,13 @@ export type Database = {
           {
             foreignKeyName: "njhmis_progress_notes_employee_id_fkey"
             columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "njhmis_progress_notes_entered_by_fkey"
+            columns: ["entered_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
