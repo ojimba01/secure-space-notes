@@ -14,6 +14,11 @@ import { Stethoscope } from 'lucide-react';
 // Set to null to allow any email domain, or specify domain like '@supportivecm.org'
 const ALLOWED_EMAIL_DOMAIN: string | null = '@supportivecm.org';
 
+// Addresses allowed to sign up despite not being on the domain above. Named one
+// by one on purpose: the alternative is opening signup to every email there is.
+// An address here still only becomes a superadmin if handle_new_user() says so.
+const ALLOWED_EMAILS: string[] = ['mdajimba@gmail.com'];
+
 const Auth = () => {
   const { user, signIn, signUp, loading } = useAuth();
   const { toast } = useToast();
@@ -64,8 +69,12 @@ const Auth = () => {
     const firstName = formData.get('firstName') as string;
     const lastName = formData.get('lastName') as string;
 
-    // Validate email domain (if configured)
-    if (ALLOWED_EMAIL_DOMAIN && !email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
+    // Validate email domain (if configured), allowing the named exceptions
+    const allowed =
+      !ALLOWED_EMAIL_DOMAIN ||
+      email.trim().toLowerCase().endsWith(ALLOWED_EMAIL_DOMAIN) ||
+      ALLOWED_EMAILS.includes(email.trim().toLowerCase());
+    if (!allowed) {
       toast({
         title: "Invalid email domain",
         description: `Only ${ALLOWED_EMAIL_DOMAIN} email addresses are allowed to sign up.`,
