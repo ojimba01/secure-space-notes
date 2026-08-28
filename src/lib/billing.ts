@@ -17,7 +17,17 @@ export type BillingStatus = (typeof BILLING_STATUSES)[number];
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
 // Cycle-level claim resolution. A cycle is finished once it is Approved or Closed.
-export const APPROVAL_STATES = ['Approved', 'Closed', 'Denied (will resubmit)'] as const;
+// 'Filed before this app' means the claim was handled outside this system.
+// The cycles were backfilled to Feb 2025 and most were already past their
+// six-month deadline the day they were created, so treating them as unfiled
+// work was wrong. It resolves a cycle the way Approved and Closed do, without
+// asserting the money was lost.
+export const APPROVAL_STATES = [
+  'Approved',
+  'Closed',
+  'Denied (will resubmit)',
+  'Filed before this app',
+] as const;
 export type ApprovalState = (typeof APPROVAL_STATES)[number];
 
 // Claims must be submitted within 6 months of the cycle end date.
@@ -185,7 +195,11 @@ export function daysToFinalDeadline(
 }
 
 export function isCycleResolved(cycle: Pick<BillingCycle, 'approval_state'>): boolean {
-  return cycle.approval_state === 'Approved' || cycle.approval_state === 'Closed';
+  return (
+    cycle.approval_state === 'Approved' ||
+    cycle.approval_state === 'Closed' ||
+    cycle.approval_state === 'Filed before this app'
+  );
 }
 
 // A cycle needs attention when it has ended, is not yet approved or closed,
