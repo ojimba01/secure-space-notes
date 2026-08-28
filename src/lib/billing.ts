@@ -187,12 +187,35 @@ export function isDeadlinePassed(
   return daysToFinalDeadline(cycle, today) < 0;
 }
 
+// Still worth working: the cycle has ended, is not approved or closed, and the
+// six-month filing window is still open. Only these are billable money.
+export function isStillBillable(
+  cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline' | 'approval_state'>,
+  today = todayAgency(),
+): boolean {
+  if (isCycleResolved(cycle)) return false;
+  if (!hasCycleEnded(cycle, today)) return false;
+  return !isDeadlinePassed(cycle, today);
+}
+
+// The six-month window closed with nothing submitted: this cycle cannot be
+// claimed any more. It is history, not work, and must not sit in a queue that
+// asks someone to act on it.
+export function isPastFilingWindow(
+  cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline' | 'approval_state' | 'billing_status'>,
+  today = todayAgency(),
+): boolean {
+  if (isCycleResolved(cycle)) return false;
+  if (cycle.billing_status === 'Submitted') return false;
+  return isDeadlinePassed(cycle, today);
+}
+
 export function deadlineLabel(
   cycle: Pick<BillingCycle, 'cycle_end' | 'final_deadline' | 'approval_state'>,
   today = todayAgency(),
 ): string {
   const days = daysToFinalDeadline(cycle, today);
-  if (days < 0) return 'Deadline passed';
+  if (days < 0) return 'Past the six-month window';
   if (days === 0) return 'Deadline today';
   return `${days} day${days === 1 ? '' : 's'} left`;
 }

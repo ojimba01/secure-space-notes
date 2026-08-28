@@ -25,7 +25,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import type { BillingClient } from '@/hooks/useBilling';
-import { MCO_OPTIONS, type BillingCycle } from '@/lib/billing';
+import { MCO_OPTIONS, todayAgency, type BillingCycle } from '@/lib/billing';
 import { fetchClientAuthorizations, type ClientAuthorization } from '@/lib/authorizations';
 import {
   AGENCY_DIAGNOSIS_CODES,
@@ -41,6 +41,7 @@ import {
   eligibilitySections,
   findDiagnosisCode,
   loadAvailitySettings,
+  patientControlNumber,
   saveAvailitySettings,
   usDate,
   type AvailityField,
@@ -53,6 +54,8 @@ import {
 interface Props {
   clients: BillingClient[];
   cycles: BillingCycle[];
+  /** Writes a cycle back — the same writer the billing grid uses. */
+  updateCycle: (id: string, patch: Partial<BillingCycle>) => Promise<void>;
 }
 
 type Page = 'eligibility' | 'claim';
@@ -135,7 +138,7 @@ const ProviderInput: React.FC<{
   </div>
 );
 
-export const AvailityPanel: React.FC<Props> = ({ clients, cycles }) => {
+export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle }) => {
   const { isAdmin } = useIsAdmin();
   const [page, setPage] = useState<Page>('eligibility');
   const [query, setQuery] = useState('');
@@ -153,6 +156,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles }) => {
   const [editingProvider, setEditingProvider] = useState(false);
   const [providerDraft, setProviderDraft] = useState<AvailityProviderSettings>(EMPTY_SETTINGS);
   const [savingProvider, setSavingProvider] = useState(false);
+  const [markingSubmitted, setMarkingSubmitted] = useState(false);
 
   useEffect(() => {
     loadAvailitySettings().then(setSettings);
@@ -213,9 +217,15 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles }) => {
   }, [cycles, clientId, authorizations]);
 
   // Open on the oldest cycle that can still be filed — the one closest to
-  // falling outside the six-month window.
+  // falling outside the six-month window. A choice already made is kept:
+  // marking a cycle submitted refreshes this list, and that must not drag the
+  // selection back to the top of the backlog.
   useEffect(() => {
-    setCycleId(defaultCycle(cycleRows)?.cycle.id ?? null);
+    setCycleId((current) =>
+      current && cycleRows.some((r) => r.cycle.id === current)
+        ? current
+        : (defaultCycle(cycleRows)?.cycle.id ?? null),
+    );
   }, [cycleRows]);
 
   const selected = useMemo(
@@ -276,6 +286,42 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles }) => {
       toast.error('Could not save the diagnosis code', { description: err.message });
     } finally {
       setSavingDiagnosis(false);
+    }
+  };
+
+  /**
+   * Filing the claim on Availity is the real event; this records that it
+   * happened, so the cycle stops appearing as work. The control number goes in
+   * as the claim number when there is not one already, and the picker moves on
+   * to the next cycle so a backlog can be worked straight through.
+   */
+  const markSubmitted = async () => {
+    if (!selected || !availityClient) return;
+    setMarkingSubmitted(true);
+    try {
+      const patch: Partial<BillingCycle> = {
+        billing_status: 'Submitted',
+        submitted_date: todayAgency(),
+      };
+      if (!selected.cycle.claim_number) {
+        patch.claim_number = patientControlNumber(availityClient) || null;
+      }
+      await updateCycle(selected.cycle.id, patch);
+      toast.success(`Cycle ${selected.cycle.cycle_number} marked submitted`, {
+        description: 'It no longer counts as outstanding billing work.',
+      });
+      const next = cycleRows.find(
+        (r) =>
+          r.billable &&
+          r.cycle.id !== selected.cycle.id &&
+          r.cycle.billing_status !== 'Submitted' &&
+          r.cycle.cycle_start > selected.cycle.cycle_start,
+      );
+      if (next) setCycleId(next.cycle.id);
+    } catch (err: any) {
+      toast.error('Could not update the cycle', { description: err.message });
+    } finally {
+      setMarkingSubmitted(false);
     }
   };
 
@@ -645,11 +691,36 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles }) => {
                     Availity page.
                   </p>
                 ) : (
-                  <p className="text-sm">
-                    Then press <span className="font-semibold">Continue</span> at the bottom of the
-                    Availity page — the claim is reviewed on the next screen before it is sent.{' '}
-                    <span className="font-semibold">Save as Draft</span> keeps it if you need to stop.
-                  </p>
+                  <div className="space-y-3">
+                    <p className="text-sm">
+                      Then press <span className="font-semibold">Continue</span> at the bottom of the
+                      Availity page — the claim is reviewed on the next screen before it is sent.{' '}
+                      <span className="font-semibold">Save as Draft</span> keeps it if you need to
+                      stop.
+                    </p>
+                    {selected && (
+                      <div className="flex flex-wrap items-center gap-3 border-t pt-3">
+                        {selected.cycle.billing_status === 'Submitted' ? (
+                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                            Cycle {selected.cycle.cycle_number} is already marked submitted
+                          </Badge>
+                        ) : (
+                          <>
+                            <Button onClick={markSubmitted} disabled={markingSubmitted}>
+                              {markingSubmitted
+                                ? 'Saving…'
+                                : `Once it is filed, mark cycle ${selected.cycle.cycle_number} submitted`}
+                            </Button>
+                            <p className="text-xs text-muted-foreground">
+                              Records today as the submission date and files the control number as the
+                              claim number, so the cycle drops out of the billing queue. Press it after
+                              Availity accepts the claim, not before.
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </Card>
             </>
