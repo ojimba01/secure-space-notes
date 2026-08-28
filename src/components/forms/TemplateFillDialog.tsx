@@ -41,10 +41,18 @@ import {
   writeThroughPlan,
 } from '@/lib/clientIntake';
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
+import { loadBlankTemplate } from '@/lib/formTemplates';
 
 export interface PdfTemplate {
   formType: FormType;
+  /** The copy shipped in the repository. A registry upload replaces it. */
   file: string;
+  /**
+   * Which payer this form belongs to, or null for the state's own forms.
+   * The Aetna and Wellpoint requests are both a Prior Authorization Request,
+   * so the type alone cannot key them apart — the payer does.
+   */
+  mco: string | null;
   description: string;
   /**
    * What the card calls it. Two MCO request forms share one document type, so
@@ -63,30 +71,35 @@ export const PDF_TEMPLATES: PdfTemplate[] = [
     // Its field names are the client_intakes column names, so answers can be read
     // straight back out of a submitted form.
     formType: 'Client Intake',
+    mco: null,
     file: '/form-templates/client-intake.pdf',
     label: 'Client Intake',
     description: 'The intake questionnaire. Answers also save onto the client record.',
   },
   {
     formType: 'Initial Assessment (IAT)',
+    mco: null,
     file: '/form-templates/initial-assessment-tool.pdf',
     label: 'Initial Assessment Tool (IAT)',
     description: 'Request Housing Supports services and document eligibility.',
   },
   {
     formType: 'Level of Need (LON)',
+    mco: null,
     file: '/form-templates/level-of-need-assessment-tool.pdf',
     label: 'Level of Need Assessment Tool (LoN)',
     description: 'Scored assessment for authorization and reauthorization.',
   },
   {
     formType: 'Housing Stabilization Plan (HSP)',
+    mco: null,
     file: '/form-templates/housing-stabilization-plan.pdf',
     label: 'Housing Stabilization Plan (HSP)',
     description: 'Individualized goals and activities plan built with the member.',
   },
   {
     formType: 'Prior Authorization Request',
+    mco: 'Aetna',
     file: '/form-templates/aetna-prior-authorization.pdf',
     label: 'Aetna Prior Authorization',
     description: 'Aetna prior authorization request for Housing Supports.',
@@ -96,6 +109,7 @@ export const PDF_TEMPLATES: PdfTemplate[] = [
     // already on this template, exactly as Wellpoint expects them. Only the
     // previous client's answers were cleared.
     formType: 'Prior Authorization Request',
+    mco: 'Wellpoint',
     file: '/form-templates/wellpoint-support-services-request.pdf',
     label: 'Wellpoint Support Services Request',
     description: 'Wellpoint support services request. Provider details already filled in.',
@@ -234,9 +248,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         if (!client || cancelled) return;
         setClientRecord(client as AutofillClient & { id: string });
 
-        const res = await fetch(template.file);
-        if (!res.ok) throw new Error(`Could not load the blank template (${res.status}).`);
-        const bytes = await prefillTemplate(await res.arrayBuffer(), template.formType, client, {
+        // The registry decides which blank form this is, so a template an
+        // admin has replaced is the one staff fill in.
+        const blank = await loadBlankTemplate(template.formType, template.mco, template.file);
+        const bytes = await prefillTemplate(blank, template.formType, client, {
           name: signerName,
         });
         if (!cancelled) setPrefilledBytes(bytes);
