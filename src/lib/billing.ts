@@ -421,12 +421,39 @@ export function getNextBillDue(
 // Every client relationship opens with a 30-day window in which the HSP must
 // be submitted. Its end date is the HSP due date. Billing only starts after
 // the HSP is approved (the 150-day authorization start).
-export const HSP_WINDOW_DAYS = 30;
+/**
+ * Days a case manager actually has to get the Housing Stabilization Plan in.
+ *
+ * The initial authorization runs 30 days and is billed as 30 days. The plan is
+ * due on the 25th of them. Those are different deadlines and the shorter one is
+ * the only one staff can act on: a plan submitted on day 28 is late even though
+ * the authorization is still running.
+ *
+ * Counted inclusively, so day 1 is the authorization's own start date and the
+ * due date is start + 24.
+ */
+export const HSP_WINDOW_DAYS = 25;
 
+/** The day the Housing Stabilization Plan is due. Always derived, never typed. */
 export function hspDueDateFor(auth30Start: string | null | undefined): string | null {
   if (!auth30Start) return null;
   return addDays(auth30Start, HSP_WINDOW_DAYS - 1);
 }
+
+/**
+ * How many days until the plan is due. Negative once the day has passed.
+ * Null when there is no authorization start to count from.
+ */
+export function daysUntilHspDue(
+  auth30Start: string | null | undefined,
+  today = todayAgency(),
+): number | null {
+  const due = hspDueDateFor(auth30Start);
+  return due ? daysBetween(today, due) : null;
+}
+
+/** Inside this many days of the due date, staff are told about it. */
+export const HSP_WARNING_DAYS = 5;
 
 // ---- level of need labels -------------------------------------------
 // Historic records store "Low"/"Low Level"/"High"/"High Level". The UI works

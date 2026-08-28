@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { fetchActiveCaseManagers, caseManagerName, CaseManagerOption } from '@/lib/billingSync';
 import { syncAuthorizationsFromLegacyColumns, resyncDerivedSchedules } from '@/lib/authorizations';
 import { regenerateTouchpointsForStaff } from '@/lib/touchpoints';
-import { MCO_OPTIONS } from '@/lib/billing';
+import { MCO_OPTIONS, hspDueDateFor, addDays } from '@/lib/billing';
 
 const LON_OPTIONS = ['Low Level', 'High Level'] as const;
 
@@ -47,8 +47,6 @@ const clientSchema = z.object({
   assessment_due_date: z.string().optional(),
   iat_date: z.string().optional(),
   hsp_due_date: z.string().optional(),
-  hsp_start_date: z.string().optional(),
-  hsp_end_date: z.string().optional(),
   auth_30_number: z.string().trim().max(100).optional(),
   auth_30_start: z.string().optional(),
   auth_30_end: z.string().optional(),
@@ -115,8 +113,6 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       assessment_due_date: '',
       iat_date: '',
       hsp_due_date: '',
-      hsp_start_date: '',
-      hsp_end_date: '',
       auth_30_number: '',
       auth_30_start: '',
       auth_30_end: '',
@@ -136,6 +132,8 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
 
   /** Only United assigns a housing specialist, so only United is asked for one. */
   const insuranceValue = form.watch('insurance');
+  const auth30Start = form.watch('auth_30_start');
+  const derivedHspDue = hspDueDateFor(auth30Start || null);
   const isUnited = (insuranceValue ?? '').toLowerCase().includes('united');
 
   const handleSubmit = async (data: ClientFormData, thenTouchpoint = false) => {
@@ -170,12 +168,12 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         intake_date: data.intake_date || undefined,
         assessment_due_date: data.assessment_due_date || null,
         iat_date: data.iat_date || null,
-        hsp_due_date: data.hsp_due_date || null,
-        hsp_start_date: data.hsp_start_date || null,
-        hsp_end_date: data.hsp_end_date || null,
+        hsp_due_date: hspDueDateFor(data.auth_30_start || null),
         auth_30_number: data.auth_30_number || null,
         auth_30_start: data.auth_30_start || null,
-        auth_30_end: data.auth_30_end || null,
+        // The authorization still runs its full 30 days for billing, even
+        // though the plan is due on the 25th. Derived, not asked for.
+        auth_30_end: data.auth_30_start ? addDays(data.auth_30_start, 29) : null,
         auth_150_number: data.auth_150_number || null,
         auth_150_start: data.auth_150_start || null,
         auth_150_end: data.auth_150_end || null,
@@ -372,15 +370,18 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                 <FormField control={form.control} name="iat_date" render={({ field }) => (
                   <FormItem><FormLabel>IAT Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                 )} />
-                <FormField control={form.control} name="hsp_start_date" render={({ field }) => (
-                  <FormItem><FormLabel>HSP Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="hsp_end_date" render={({ field }) => (
-                  <FormItem><FormLabel>HSP End Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="hsp_due_date" render={({ field }) => (
-                  <FormItem><FormLabel>HSP Due Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                )} />
+                {/* Derived, never typed. The plan is due on the 25th day of the initial
+                    authorization, counting its start as day 1. Letting somebody type a
+                    different date would only let the deadline be wrong. */}
+                <FormItem>
+                  <FormLabel>HSP Due Date</FormLabel>
+                  <div className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm">
+                    {derivedHspDue ?? 'Set once a 30-day start date is entered'}
+                  </div>
+                  <FormDescription>
+                    The 25th day of the initial authorization. Worked out from the start date.
+                  </FormDescription>
+                </FormItem>
               </div>
 
               <div className="space-y-2">
@@ -391,9 +392,6 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                   )} />
                   <FormField control={form.control} name="auth_30_start" render={({ field }) => (
                     <FormItem><FormLabel>30-Day Start Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                  )} />
-                  <FormField control={form.control} name="auth_30_end" render={({ field }) => (
-                    <FormItem><FormLabel>30-Day End Date</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                   )} />
                 </div>
               </div>

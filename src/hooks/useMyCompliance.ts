@@ -9,7 +9,8 @@
 //      hand anyone a backlog they never had a chance to make.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { serviceStartDate, isSetupComplete } from '@/lib/workflow';
+import { serviceStartDate, isSetupComplete, hspSubmitted } from '@/lib/workflow';
+import { daysUntilHspDue, hspDueDateFor, HSP_WARNING_DAYS } from '@/lib/billing';
 import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 import { loadTouchpointSettings } from '@/lib/touchpointSettings';
@@ -71,11 +72,28 @@ export interface SupervisorReminder {
   touchpoint: ScheduledTouchpoint | null;
 }
 
+/**
+ * A Housing Stabilization Plan coming due, for a client whose plan is not in.
+ *
+ * The initial authorization runs 30 days, but the plan is due on the 25th of
+ * them, so a case manager working to the authorization's end date is already
+ * five days late. This is the only place that difference is visible.
+ */
+export interface HspDueSoon {
+  clientId: string;
+  clientName: string;
+  dueDate: string;
+  /** Negative once the day has passed. */
+  daysLeft: number;
+}
+
 export interface MyComplianceData {
   loading: boolean;
   caseload: number;
   goLiveDate: string;
   reminders: SupervisorReminder[];
+  /** Plans due within HSP_WARNING_DAYS, or already past, and not submitted. */
+  hspDueSoon: HspDueSoon[];
   /** Reminders satisfied today — shown as done so the queue confirms the save. */
   clearedReminders: SupervisorReminder[];
   upcomingThisWeek: ScheduledTouchpoint[];
@@ -94,6 +112,7 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
     caseload: 0,
     goLiveDate: todayAgency(),
     reminders: [],
+    hspDueSoon: [],
     clearedReminders: [],
     upcomingThisWeek: [],
     cycles: [],
@@ -125,6 +144,24 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
       .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, status')
       .eq('assigned_employee_id', profileId)
       .eq('status', 'active');
+
+    // The plan deadline is worked out before the setup-complete filter, and on
+    // purpose: a client whose plan has not gone in is exactly the one this
+    // warning is for, and they are not setup-complete by definition.
+    const today = todayAgency();
+    const hspDueSoon: HspDueSoon[] = [];
+    for (const c of cls ?? []) {
+      if (hspSubmitted(c)) continue;
+      const daysLeft = daysUntilHspDue(c.auth_30_start, today);
+      if (daysLeft === null || daysLeft > HSP_WARNING_DAYS) continue;
+      hspDueSoon.push({
+        clientId: c.id,
+        clientName: `${c.first_name} ${c.last_name}`.trim(),
+        dueDate: hspDueDateFor(c.auth_30_start)!,
+        daysLeft,
+      });
+    }
+    hspDueSoon.sort((a, b) => a.daysLeft - b.daysLeft);
 
     // Setup-complete only. Missing information belongs to Admin and Superadmin.
     const list = (cls ?? []).filter((c) => isSetupComplete(c));
@@ -266,6 +303,7 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
       caseload: list.length,
       goLiveDate: goLive,
       reminders,
+      hspDueSoon,
       clearedReminders,
       upcomingThisWeek: scheduledThisWeek,
       cycles,

@@ -249,6 +249,48 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         </Button>
       </div>
 
+      {/* The plan deadline. First, because it is the one that runs out
+          soonest and the one people miss: the authorization runs 30 days but
+          the plan is due on the 25th. */}
+      {data.hspDueSoon.length > 0 && (
+        <Card className="border-amber-400">
+          <CardHeader>
+            <CardTitle className="text-lg text-amber-900">
+              Housing Stabilization Plan due
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              The plan is due on the 25th day of the initial authorization, not its last day.
+              These have not been submitted yet.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {data.hspDueSoon.map((h) => (
+              <div
+                key={h.clientId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-3"
+              >
+                <div>
+                  <div className="font-medium">{h.clientName}</div>
+                  <div className="text-xs text-muted-foreground">Due {h.dueDate}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={h.daysLeft < 0 ? 'destructive' : 'secondary'}>
+                    {h.daysLeft < 0
+                      ? `${Math.abs(h.daysLeft)} day${Math.abs(h.daysLeft) === 1 ? '' : 's'} late`
+                      : h.daysLeft === 0
+                        ? 'Due today'
+                        : `Due in ${h.daysLeft} day${h.daysLeft === 1 ? '' : 's'}`}
+                  </Badge>
+                  <Button size="sm" variant="outline" onClick={() => onOpenClient(h.clientId)}>
+                    Open client
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Supervisor reminders */}
       <Card>
         <CardHeader>
@@ -257,7 +299,7 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         </CardHeader>
         <CardContent className="space-y-2">
           {data.reminders.length === 0 && data.clearedReminders.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing needs following up right now.</p>
+            <p className="text-sm text-muted-foreground">No client needs following up before their cycle closes.</p>
           ) : (
             <>
               {data.reminders.map((r) => reminderRow(r))}
