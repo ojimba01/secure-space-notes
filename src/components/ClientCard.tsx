@@ -135,16 +135,6 @@ export const ClientCard: React.FC<ClientCardProps> = ({
                 Next action overdue
               </Badge>
             )}
-            {/* Says what this client still needs. Without it, showing an
-                incomplete client would only move the confusion: they would
-                appear on the list and then be absent from touchpoints and
-                billing with nothing explaining why. */}
-            {!isSetupComplete(client) && (
-              <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-900">
-                <AlertTriangle className="h-3 w-3" />
-                {missingSetupShort(client).join(' · ')}
-              </Badge>
-            )}
             {selectionMode && (
               <Checkbox
                 checked={selected}
@@ -155,6 +145,27 @@ export const ClientCard: React.FC<ClientCardProps> = ({
             )}
           </div>
         </div>
+        {/* What this client still needs, on its own line and one badge each.
+            Beside the name they ran together and pushed it along; a client
+            missing all three had a single badge wider than the card.
+
+            Without them, showing an incomplete client would only move the
+            confusion: they would appear on the list and then be absent from
+            touchpoints and billing with nothing explaining why. */}
+        {!isSetupComplete(client) && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {missingSetupShort(client).map((part) => (
+              <Badge
+                key={part}
+                variant="secondary"
+                className="gap-1 bg-amber-100 text-amber-900 font-normal"
+              >
+                <AlertTriangle className="h-3 w-3" />
+                {part}
+              </Badge>
+            ))}
+          </div>
+        )}
         {client.member_id && (
           <p className="text-sm text-muted-foreground">Member ID: {client.member_id}</p>
         )}
