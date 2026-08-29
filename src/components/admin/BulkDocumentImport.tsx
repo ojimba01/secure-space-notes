@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AlertTriangle, FileUp, FolderUp, Loader2, Upload } from 'lucide-react';
+import { ClientPicker } from '@/components/admin/ClientPicker';
 import { FORM_TYPES } from '@/lib/formSigning';
 import {
   commitImport,
@@ -340,11 +341,6 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
   const setRow = (item: ProposedItem, patch: Partial<RowState>) =>
     setRows((r) => ({ ...r, [key(item)]: { ...r[key(item)], ...patch } }));
 
-  const clientLabel = (id: string) => {
-    const c = clients.find((x) => x.id === id);
-    return c ? `${c.last_name}, ${c.first_name}` : 'Select a client';
-  };
-
   // ---------------------------------------------------------------- render
 
   if (step === 'done' && result) {
@@ -484,29 +480,17 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
                         </div>
                       </td>
                       <td className="px-3 py-2">
-                        <Select
-                          value={row?.clientId || undefined}
-                          onValueChange={(v) =>
+                        <ClientPicker
+                          clients={clients}
+                          value={row?.clientId ?? null}
+                          onChange={(v) =>
                             // Naming the client by hand is what settles a conflict.
                             setRow(item, {
                               clientId: v,
                               conflictResolved: item.confidence === 'conflict',
                             })
                           }
-                        >
-                          <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Select a client">
-                              {row?.clientId ? clientLabel(row.clientId) : undefined}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {clients.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.last_name}, {c.first_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                         {item.detectedMemberId && (
                           <div className="text-xs text-muted-foreground mt-1">
                             Detected member ID: {item.detectedMemberId}
