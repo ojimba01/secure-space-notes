@@ -61,6 +61,14 @@ export const ImportHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey = 
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [items, setItems] = useState<Record<string, Item[]>>({});
+  /**
+   * Per batch, the files that are not on a client. Loaded with the list rather
+   * than on expanding a batch: this is the reason someone opens this screen
+   * after an import of two thousand documents, so it should not be behind a
+   * click. Duplicates are left out — they are already filed, under another row.
+   */
+  const [notImported, setNotImported] = useState<Record<string, string[]>>({});
+  const [copied, setCopied] = useState<string | null>(null);
   /** The import being deleted, with a count of what that would remove. */
   const [pendingDelete, setPendingDelete] = useState<ImportRemoval | null>(null);
   const [confirmText, setConfirmText] = useState('');
@@ -75,7 +83,27 @@ export const ImportHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey = 
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
-      setBatches((data as unknown as Batch[]) ?? []);
+      const list = (data as unknown as Batch[]) ?? [];
+      setBatches(list);
+
+      const shortfall = list.filter((b) => b.imported_count < b.total_files).map((b) => b.id);
+      if (shortfall.length) {
+        const { data: leftovers } = await supabase
+          .from('document_import_items')
+          .select('batch_id, source_path, source_filename')
+          .in('batch_id', shortfall)
+          .not('resolution_status', 'in', '("imported","skipped_duplicate")')
+          .order('source_filename');
+        const grouped: Record<string, string[]> = {};
+        for (const row of leftovers ?? []) {
+          const path = (row.source_path ?? row.source_filename ?? '').trim();
+          if (!path) continue;
+          (grouped[row.batch_id] ??= []).push(path);
+        }
+        setNotImported(grouped);
+      } else {
+        setNotImported({});
+      }
     } catch (err: any) {
       toast({
         title: 'Could not load import history',
@@ -91,6 +119,22 @@ export const ImportHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey = 
   useEffect(() => {
     load();
   }, [load, refreshKey]);
+
+  const copyList = async (batchId: string) => {
+    const paths = notImported[batchId] ?? [];
+    if (!paths.length) return;
+    try {
+      await navigator.clipboard.writeText(paths.join('\n'));
+      setCopied(batchId);
+      window.setTimeout(() => setCopied((c) => (c === batchId ? null : c)), 2000);
+    } catch {
+      toast({
+        title: 'Could not reach the clipboard',
+        description: 'Select the list and copy it by hand.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const toggle = async (batchId: string) => {
     if (expanded === batchId) {
@@ -215,6 +259,27 @@ export const ImportHistory: React.FC<{ refreshKey?: number }> = ({ refreshKey = 
                 <Trash2 className="h-4 w-4" />
               </Button>
               </div>
+
+              {(notImported[batch.id]?.length ?? 0) > 0 && (
+                <div className="border-t bg-amber-50/60 p-3 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-medium">
+                      {notImported[batch.id].length} file
+                      {notImported[batch.id].length === 1 ? '' : 's'} not on a client
+                    </span>
+                    <Button variant="outline" size="sm" onClick={() => copyList(batch.id)}>
+                      {copied === batch.id ? 'Copied' : 'Copy the list'}
+                    </Button>
+                  </div>
+                  <textarea
+                    readOnly
+                    rows={Math.min(8, notImported[batch.id].length)}
+                    value={notImported[batch.id].join('\n')}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="w-full rounded-md border bg-background p-2 font-mono text-xs"
+                  />
+                </div>
+              )}
 
               {expanded === batch.id && (
                 <div className="border-t divide-y">

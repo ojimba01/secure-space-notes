@@ -501,7 +501,12 @@ export async function fetchMatchClients(): Promise<MatchClient[]> {
   const { data, error } = await supabase
     .from('clients')
     .select('id, first_name, last_name, date_of_birth, member_id, insurance')
-    .is('deleted_at', null);
+    .is('deleted_at', null)
+    // Alphabetical. The review screen offers this list 145 rows at a time, and
+    // an unordered one means hunting for a name in whatever order the database
+    // happened to return it.
+    .order('last_name', { ascending: true })
+    .order('first_name', { ascending: true });
   if (error) throw new Error(error.message);
   return (data as MatchClient[]) ?? [];
 }
