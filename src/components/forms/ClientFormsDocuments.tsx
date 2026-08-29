@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ChevronDown, ChevronRight, Download, FileText, X } from 'lucide-react';
-import { EXTERNAL_STATUS_LABEL, FORM_SOURCE_LABEL } from '@/lib/formSigning';
+import { EXTERNAL_STATUS_LABEL, FORM_SOURCE_LABEL, goesToMco } from '@/lib/formSigning';
 import { formDownloadName } from '@/lib/formAutofill';
 import { recordFormVersion } from '@/lib/formVersions';
 import {
@@ -308,7 +308,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       </button>
 
       <div className="flex items-center gap-1.5">
-        <Select
+{goesToMco(form.form_type) && (
+                  <Select
           value={form.external_status ?? 'not_applicable'}
           onValueChange={(v) => setMcoStatus(form, v)}
         >
@@ -323,6 +324,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
             ))}
           </SelectContent>
         </Select>
+        )}
 
         <Button
           variant="ghost"

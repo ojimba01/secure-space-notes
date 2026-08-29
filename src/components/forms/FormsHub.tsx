@@ -46,6 +46,17 @@ import {
   type PdfTemplate,
 } from '@/components/forms/TemplateFillDialog';
 import { formDownloadName } from '@/lib/formAutofill';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { X } from 'lucide-react';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
@@ -121,6 +132,7 @@ export const FormsHub: React.FC = () => {
   const [fillingTemplate, setFillingTemplate] = useState<PdfTemplate | null>(null);
   const [editingForm, setEditingForm] = useState<FormRow | null>(null);
   const [detail, setDetail] = useState<FormRow | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<FormRow | null>(null);
   const [preview, setPreview] = useState<{
     id: string;
     file_name: string;
@@ -135,6 +147,29 @@ export const FormsHub: React.FC = () => {
   // Admins reviewing the queue see everything; employees (and view-as sessions)
   // only ever see their own submissions.
   const reviewMode = isAdmin && !isViewingAs;
+
+  /**
+   * Remove a form and the file behind it.
+   *
+   * A form filled in here can be wrong - the wrong client, the wrong template,
+   * a second copy - and until now the only way out was to leave it there. The
+   * database decides who may: staff can remove their own drafts, an
+   * administrator can remove anything.
+   */
+  const removeForm = async (form: FormRow) => {
+    try {
+      if (form.file_path) {
+        await supabase.storage.from('client-files').remove([form.file_path]);
+      }
+      const { error } = await supabase.from('client_forms').delete().eq('id', form.id);
+      if (error) throw error;
+      toast({ title: 'Form removed' });
+      setConfirmDelete(null);
+      fetchForms();
+    } catch (err: any) {
+      toast({ title: 'Could not remove it', description: err.message, variant: 'destructive' });
+    }
+  };
 
   const fetchForms = async () => {
     setLoading(true);
@@ -466,6 +501,16 @@ export const FormsHub: React.FC = () => {
                       <Button variant="outline" size="sm" onClick={() => handleDownload(form)}>
                         <Download className="h-4 w-4" />
                       </Button>
+                      {(isAdmin || form.status === 'draft' || form.status === 'changes_requested') && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Remove this form"
+                          onClick={() => setConfirmDelete(form)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -554,6 +599,26 @@ export const FormsHub: React.FC = () => {
           />
         </React.Suspense>
       )}
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this form?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDelete?.form_type} for{' '}
+              {`${confirmDelete?.clients?.first_name ?? ''} ${confirmDelete?.clients?.last_name ?? ''}`.trim() ||
+                'this client'}{' '}
+              will be deleted, along with the stored file. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmDelete && removeForm(confirmDelete)}>
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

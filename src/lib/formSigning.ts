@@ -101,3 +101,28 @@ export const FORM_SOURCE_LABEL: Record<string, string> = {
   manual_upload: 'Manual upload',
   bulk_import: 'Bulk import',
 };
+
+/**
+ * The only two forms that are sent to an MCO.
+ *
+ * Misky, 2026-08-29: "The only ones that really matter to be sent to the MCO
+ * is the IAT and the HSP."
+ *
+ * Named the right way round on purpose. A list of what is internal has to be
+ * extended every time a document type is added, and a type nobody remembers to
+ * add silently gains a status it can never truthfully hold. A list of what is
+ * sent stays two long, and everything else is internal by default.
+ *
+ * Everything else in a client file is either the agency's own record (the
+ * intake, a case note), something an MCO sent to the agency (an approval
+ * letter, a denial), or the client's own paperwork (a lease, an ID). None of
+ * them is ever sent anywhere.
+ */
+export const SENT_TO_MCO_TYPES: readonly string[] = [
+  'Initial Assessment (IAT)',
+  'Housing Stabilization Plan (HSP)',
+];
+
+/** Whether this form has an MCO track at all. */
+export const goesToMco = (formType: string): boolean =>
+  SENT_TO_MCO_TYPES.includes(formType);

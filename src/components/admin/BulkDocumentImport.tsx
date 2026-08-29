@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AlertTriangle, FileUp, FolderUp, Loader2, Upload } from 'lucide-react';
-import { ClientPicker } from '@/components/admin/ClientPicker';
+import { ClientPicker } from '@/components/ClientPicker';
 import { FORM_TYPES } from '@/lib/formSigning';
 import {
   commitImport,
@@ -219,7 +219,19 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
       const withIds = proposed.map((p, i) => ({ ...p, itemId: insertedItems?.[i]?.id }));
 
       setBatchId(batch.id);
-      setItems(withIds);
+      // Anything a person has to look at goes to the top: conflicts, then
+      // duplicates, then everything not pre-selected. Ordered once, here, so
+      // rows do not jump about underneath the cursor as boxes are ticked.
+      const needsAttention = (p: ProposedItem) =>
+        p.confidence === 'conflict'
+          ? 0
+          : p.duplicateOfFormId
+            ? 1
+            : p.confidence === 'high' &&
+                (p.typeConfidence === 'high' || p.typeConfidence === 'medium')
+              ? 3
+              : 2;
+      setItems([...withIds].sort((a, b) => needsAttention(a) - needsAttention(b)));
       setRows(
         Object.fromEntries(
           withIds.map((p) => [
@@ -393,6 +405,25 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
           <CardTitle className="text-lg">Review proposed mappings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* Import and Cancel sit above the table. A batch runs to hundreds of
+              rows, and putting the only way to act on it at the bottom means
+              scrolling past all of them to press it. */}
+          <div className="flex flex-wrap items-center gap-2 border-b pb-3">
+            <Button onClick={commit} disabled={busy || !selected.length}>
+              {busy ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {busyLabel}
+                </>
+              ) : (
+                `Import ${selected.length} file${selected.length === 1 ? '' : 's'}`
+              )}
+            </Button>
+            <Button variant="outline" onClick={reset} disabled={busy}>
+              Cancel
+            </Button>
+          </div>
+
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="text-muted-foreground">
               {items.length} file{items.length === 1 ? '' : 's'} · {selected.length} selected
@@ -564,21 +595,6 @@ export const BulkDocumentImport: React.FC<{ onImported?: () => void }> = ({ onIm
             </table>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={commit} disabled={busy || !selected.length}>
-              {busy ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {busyLabel}
-                </>
-              ) : (
-                `Import ${selected.length} file${selected.length === 1 ? '' : 's'}`
-              )}
-            </Button>
-            <Button variant="outline" onClick={reset} disabled={busy}>
-              Cancel
-            </Button>
-          </div>
         </CardContent>
       </Card>
     );

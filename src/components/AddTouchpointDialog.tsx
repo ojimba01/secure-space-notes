@@ -220,7 +220,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
       // authorization number proves the plan was submitted even when the flag
       // was never ticked, and a database filter cannot see that. isSetupComplete
       // below is the single place that decides.
-      .order('last_name');
+      .order('first_name');
     if (!isAdmin) query = query.eq('assigned_employee_id', myProfileId);
 
     query.then(async ({ data }) => {

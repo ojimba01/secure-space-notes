@@ -18,6 +18,7 @@ import {
   FORM_STATUS_CLASS,
   FORM_STATUS_LABEL,
   WORKFLOW_PURPOSE_LABEL,
+  goesToMco,
 } from '@/lib/formSigning';
 import { Check, Download, RotateCcw, Send, ThumbsDown, ThumbsUp } from 'lucide-react';
 import type { FormRow } from '@/components/forms/FormsHub';
@@ -233,76 +234,84 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
             )}
           </div>
 
-          {/* External / MCO status — tracked entirely separately. */}
-          <div className="rounded-md border p-3 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-xs font-semibold uppercase text-muted-foreground">
-                MCO / external status
+          {goesToMco(form.form_type) ? (
+            <>
+            {/* External / MCO status — tracked entirely separately. */}
+            <div className="rounded-md border p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs font-semibold uppercase text-muted-foreground">
+                  MCO / external status
+                </div>
+                <Badge variant="secondary" className={EXTERNAL_STATUS_CLASS[externalStatus] ?? ''}>
+                  {EXTERNAL_STATUS_LABEL[externalStatus] ?? externalStatus}
+                </Badge>
               </div>
-              <Badge variant="secondary" className={EXTERNAL_STATUS_CLASS[externalStatus] ?? ''}>
-                {EXTERNAL_STATUS_LABEL[externalStatus] ?? externalStatus}
-              </Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <div className="text-muted-foreground">Sent to MCO</div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  {form.sent_to_mco_at ? new Date(form.sent_to_mco_at).toLocaleString() : '—'}
+                  <div className="text-muted-foreground">Sent to MCO</div>
+                  <div>
+                    {form.sent_to_mco_at ? new Date(form.sent_to_mco_at).toLocaleString() : '—'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">MCO responded</div>
+                  <div>
+                    {form.mco_response_at ? new Date(form.mco_response_at).toLocaleString() : '—'}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="text-muted-foreground">MCO responded</div>
-                <div>
-                  {form.mco_response_at ? new Date(form.mco_response_at).toLocaleString() : '—'}
-                </div>
-              </div>
-            </div>
 
-            {isAdmin && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy || !internallyApproved}
-                  onClick={() => setExternal('sent_to_mco', 'sent', 'Marked as sent to the MCO')}
-                >
-                  <Send className="h-4 w-4 mr-1" />
-                  Mark sent to MCO
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => setExternal('awaiting_response', null, 'Marked awaiting response')}
-                >
-                  Awaiting response
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => setExternal('accepted', 'response', 'MCO response recorded')}
-                >
-                  <ThumbsUp className="h-4 w-4 mr-1" />
-                  Accepted
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => setExternal('denied', 'response', 'MCO denial recorded')}
-                >
-                  <ThumbsDown className="h-4 w-4 mr-1" />
-                  Denied
-                </Button>
-              </div>
-            )}
-            {isAdmin && !internallyApproved && (
-              <p className="text-xs text-muted-foreground">
-                Approve the form internally before marking it sent.
-              </p>
-            )}
-          </div>
+              {isAdmin && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy || !internallyApproved}
+                    onClick={() => setExternal('sent_to_mco', 'sent', 'Marked as sent to the MCO')}
+                  >
+                    <Send className="h-4 w-4 mr-1" />
+                    Mark sent to MCO
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => setExternal('awaiting_response', null, 'Marked awaiting response')}
+                  >
+                    Awaiting response
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => setExternal('accepted', 'response', 'MCO response recorded')}
+                  >
+                    <ThumbsUp className="h-4 w-4 mr-1" />
+                    Accepted
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => setExternal('denied', 'response', 'MCO denial recorded')}
+                  >
+                    <ThumbsDown className="h-4 w-4 mr-1" />
+                    Denied
+                  </Button>
+                </div>
+              )}
+              {isAdmin && !internallyApproved && (
+                <p className="text-xs text-muted-foreground">
+                  Approve the form internally before marking it sent.
+                </p>
+              )}
+            </div>
+            </>
+          ) : (
+            <div className="rounded-md border p-3 text-xs text-muted-foreground">
+              This form is not sent to an MCO. Only the IAT and the HSP are.
+            </div>
+          )}
 
           {isAdmin && <FormSyncPanel form={form} onApplied={onChanged} />}
 

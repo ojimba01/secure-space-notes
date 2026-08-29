@@ -549,7 +549,7 @@ export async function commitImport(
   const result: CommitResult = { imported: 0, duplicates: 0, failed: [] };
   let done = 0;
 
-  for (const { item, clientId, formType, allowDuplicate } of entries) {
+  const commitOne = async ({ item, clientId, formType, allowDuplicate }: CommitItemInput) => {
     const { file, manifestRow } = item;
     try {
       if (item.duplicateOfFormId && !allowDuplicate) {
@@ -561,7 +561,7 @@ export async function commitImport(
           resolved_by: profileId,
           resolved_at: new Date().toISOString(),
         });
-        continue;
+        return;
       }
 
       const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '';
@@ -638,7 +638,26 @@ export async function commitImport(
       done += 1;
       onProgress?.(done, entries.length);
     }
-  }
+  };
+
+  // Several files at once. Each one is an upload, an insert, a version row and
+  // a status write - four round trips that spend nearly all their time waiting.
+  // Run one at a time, a batch of 700 takes as long as 2,800 sequential waits,
+  // which is what made a single zip feel like it had stalled.
+  //
+  // Six is deliberate. It is enough to keep the connection busy and low enough
+  // that a browser holding several documents in memory at once does not run out
+  // of it on a batch of large scans.
+  const LANES = 6;
+  let next = 0;
+  const lane = async () => {
+    for (;;) {
+      const index = next++;
+      if (index >= entries.length) return;
+      await commitOne(entries[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(LANES, entries.length) }, lane));
 
   // Every imported document enters the queue unread. Start on it now rather
   // than waiting for someone to open the review screen — a batch of two

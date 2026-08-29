@@ -59,7 +59,7 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
         .from('clients')
         .select('id, first_name, last_name')
         .eq('status', 'active')
-        .order('last_name', { ascending: true });
+        .order('first_name', { ascending: true });
 
       setClients(data || []);
     } catch (error) {
