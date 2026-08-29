@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SetupQueues } from '@/components/admin/SetupQueues';
+import { ShadeDashboard } from '@/components/admin/ShadeDashboard';
 import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from '@/components/Sidebar';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
@@ -230,6 +231,10 @@ const Admin = () => {
             <h1 className="text-3xl font-bold">Admin dashboard</h1>
           </div>
         </div>
+
+        <ShadeDashboard
+          onOpenClient={(id) => navigate('/', { state: { view: 'clients', clientId: id } })}
+        />
 
         <SetupQueues onOpenClient={(id) => navigate('/', { state: { view: 'clients', clientId: id } })} />
 
