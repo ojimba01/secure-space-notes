@@ -103,15 +103,26 @@ export const FORM_SOURCE_LABEL: Record<string, string> = {
 };
 
 /**
- * Forms that never go to an MCO.
+ * The only two forms that are sent to an MCO.
  *
- * The Client Intake is the agency's own record of who the client is. Nobody
- * sends it anywhere, so offering "sent to MCO" on it invites a status that
- * cannot be true, and makes the MCO column meaningless on the one document
- * every client has.
+ * Misky, 2026-08-29: "The only ones that really matter to be sent to the MCO
+ * is the IAT and the HSP."
+ *
+ * Named the right way round on purpose. A list of what is internal has to be
+ * extended every time a document type is added, and a type nobody remembers to
+ * add silently gains a status it can never truthfully hold. A list of what is
+ * sent stays two long, and everything else is internal by default.
+ *
+ * Everything else in a client file is either the agency's own record (the
+ * intake, a case note), something an MCO sent to the agency (an approval
+ * letter, a denial), or the client's own paperwork (a lease, an ID). None of
+ * them is ever sent anywhere.
  */
-export const INTERNAL_ONLY_TYPES: readonly string[] = ['Client Intake'];
+export const SENT_TO_MCO_TYPES: readonly string[] = [
+  'Initial Assessment (IAT)',
+  'Housing Stabilization Plan (HSP)',
+];
 
 /** Whether this form has an MCO track at all. */
 export const goesToMco = (formType: string): boolean =>
-  !INTERNAL_ONLY_TYPES.includes(formType);
+  SENT_TO_MCO_TYPES.includes(formType);

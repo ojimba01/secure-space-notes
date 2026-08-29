@@ -309,7 +309,7 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
             </>
           ) : (
             <div className="rounded-md border p-3 text-xs text-muted-foreground">
-              This form is the agency's own record. It is not sent to an MCO.
+              This form is not sent to an MCO. Only the IAT and the HSP are.
             </div>
           )}
 
