@@ -39,7 +39,14 @@ const BUCKET = 'client-files';
 /** How long a claim stands before another tab may take the document back. */
 const STALE_CLAIM_MINUTES = 15;
 
-/** Documents read per run before yielding, so a long queue never locks the UI. */
+/**
+ * Documents read between yields, so a long queue never locks the UI.
+ *
+ * This is a pause, not a stopping point. It used to be both: a run read 25
+ * documents and returned, and nothing started another. After an import of 2,033
+ * documents that meant pressing a button eighty times, and in practice it meant
+ * a backlog of 467 sitting unread while the screen said everything was fine.
+ */
 const BATCH_SIZE = 25;
 
 /** Postgres will not store a NUL byte in a text column, and OCR can emit them. */
@@ -164,6 +171,17 @@ export interface QueueProgress {
 }
 
 let running = false;
+let cancelled = false;
+
+/** Ask a run in progress to stop after the document it is on. */
+export function stopDocumentQueue(): void {
+  cancelled = true;
+}
+
+/** Whether a run is under way in this tab. */
+export function queueIsRunning(): boolean {
+  return running;
+}
 
 /** How many documents are still waiting to be read. */
 export async function pendingCount(): Promise<number> {
@@ -181,7 +199,9 @@ async function reclaimStale(): Promise<void> {
     .from('client_forms')
     .update({ processing_status: 'pending', processing_started_at: null })
     .eq('processing_status', 'processing')
-    .lt('processing_started_at', cutoff);
+    // A claim with no timestamp is stuck for good otherwise: `lt` never
+    // matches null, so the row would sit in 'processing' until someone noticed.
+    .or(`processing_started_at.is.null,processing_started_at.lt.${cutoff}`);
 }
 
 /**
@@ -319,15 +339,21 @@ async function processOne(row: QueueRow): Promise<'done' | 'failed'> {
  */
 export async function runDocumentQueue(
   onProgress?: (p: QueueProgress) => void,
+  options: { limit?: number } = {},
 ): Promise<QueueProgress> {
   if (running) return { done: 0, failed: 0, remaining: await pendingCount() };
   running = true;
+  cancelled = false;
 
+  const limit = options.limit ?? Infinity;
   let done = 0;
   let failed = 0;
   try {
     await reclaimStale();
-    for (let i = 0; i < BATCH_SIZE; i++) {
+    // Keep going until the queue is empty. A document that fails is marked
+    // 'failed' and so leaves 'pending', which is what stops this looping over
+    // the same unreadable file for ever.
+    while (!cancelled && done + failed < limit) {
       const row = await claimNext();
       if (!row) break;
       const outcome = await processOne(row);
@@ -335,11 +361,13 @@ export async function runDocumentQueue(
       else failed++;
       onProgress?.({ done, failed, remaining: await pendingCount() });
       // Give the page back to the browser between documents. Without this a
-      // long batch makes the app feel frozen even though it is working.
-      await new Promise((r) => setTimeout(r, 0));
+      // long run makes the app feel frozen even though it is working, and
+      // every BATCH_SIZE documents it gets a longer breath.
+      await new Promise((r) => setTimeout(r, (done + failed) % BATCH_SIZE === 0 ? 50 : 0));
     }
   } finally {
     running = false;
+    cancelled = false;
   }
 
   return { done, failed, remaining: await pendingCount() };

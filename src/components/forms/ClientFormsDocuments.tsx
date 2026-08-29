@@ -1,25 +1,60 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
-import { useViewAs } from '@/components/ViewAsProvider';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Eye, FileText } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
-  EXTERNAL_STATUS_CLASS,
-  EXTERNAL_STATUS_LABEL,
-  FORM_SOURCE_LABEL,
-  FORM_STATUS_CLASS,
-  FORM_STATUS_SHORT_LABEL,
-} from '@/lib/formSigning';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { ChevronDown, ChevronRight, Download, FileText, X } from 'lucide-react';
+import { EXTERNAL_STATUS_LABEL, FORM_SOURCE_LABEL } from '@/lib/formSigning';
 import { formDownloadName } from '@/lib/formAutofill';
-import { FormDetailDialog } from '@/components/forms/FormDetailDialog';
+import { recordFormVersion } from '@/lib/formVersions';
+import {
+  CHECKLIST_TYPES,
+  loadManualTicks,
+  tickByHand,
+  untickByHand,
+} from '@/lib/formChecklist';
 import { FORM_LIST_COLUMNS, type FormRow } from '@/components/forms/FormsHub';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
+
+/** Read off the documents themselves, shown above the list rather than behind a click. */
+const FIELD_COLUMNS =
+  'field_member_name, field_member_id, field_medicaid_id, field_member_dob, ' +
+  'field_icd10_code, field_authorization_number, field_service_start, field_service_end, ' +
+  'fields_extracted_at';
+
+type DocumentRow = FormRow & Partial<Record<
+  | 'field_member_name'
+  | 'field_member_id'
+  | 'field_medicaid_id'
+  | 'field_member_dob'
+  | 'field_icd10_code'
+  | 'field_authorization_number'
+  | 'field_service_start'
+  | 'field_service_end'
+  | 'fields_extracted_at',
+  string | null
+>>;
 
 interface Props {
   clientId: string;
@@ -27,28 +62,40 @@ interface Props {
   clientLastName: string;
 }
 
-/** Display groups, in lifecycle order. */
-const GROUPS: { title: string; match: (f: FormRow) => boolean }[] = [
-  { title: 'Intake / IAT', match: (f) => f.form_type === 'Initial Assessment (IAT)' },
-  { title: 'Level of Need', match: (f) => f.form_type === 'Level of Need (LON)' },
-  { title: 'Housing Stabilization Plan (HSP)', match: (f) => f.form_type === 'Housing Stabilization Plan (HSP)' },
+/** The MCO's answer. Its own track, never merged with whether we have the form. */
+const MCO_CHOICES = [
+  'not_applicable',
+  'not_sent',
+  'sent_to_mco',
+  'awaiting_response',
+  'accepted',
+  'denied',
+] as const;
+
+/** Collections below the checklist: documents that arrive, rather than forms owed. */
+const EXTRA_GROUPS: { title: string; match: (f: DocumentRow) => boolean }[] = [
   {
-    title: 'MCO referrals / authorizations',
+    title: 'MCO referrals and authorizations',
     // Imported authorization paperwork the classifier could not place arrives
-    // as "Unsorted" with no workflow purpose, so the filename/title is the
-    // only signal available.
+    // as "Unsorted" with no workflow purpose, so the filename is the only signal.
     match: (f) =>
-      f.form_type === 'Unsorted' &&
-      (f.workflow_purpose === 'initial_authorization' ||
+      f.form_type === 'Approval Letter' ||
+      f.form_type === 'Approval Notice (Wellpoint)' ||
+      f.form_type === 'Denial Letter' ||
+      f.form_type === 'Prior Authorization Request' ||
+      (f.form_type === 'Unsorted' &&
         /authorization|referral|auth\b/i.test(`${f.title} ${f.source_filename ?? ''}`)),
   },
   { title: 'Other documents', match: () => true },
 ];
 
 /**
- * The client's complete Forms & Documents history, grouped by category. Every
- * document ever filed for the client lives here — created in-app, uploaded, or
- * bulk-imported — with status, source, download, preview, and history.
+ * A client's forms and documents.
+ *
+ * The four forms every client should have sit at the top as a checklist. A box
+ * is ticked by a document being filed, and can be ticked by hand when the form
+ * was completed somewhere this app cannot see — on paper, or in Availity before
+ * this app existed. Pressing a row opens the documents behind it.
  */
 export const ClientFormsDocuments: React.FC<Props> = ({
   clientId,
@@ -57,36 +104,36 @@ export const ClientFormsDocuments: React.FC<Props> = ({
 }) => {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
-  const { isViewingAs } = useViewAs();
   const profileId = useEffectiveProfileId();
-  const [forms, setForms] = useState<FormRow[]>([]);
+  const [forms, setForms] = useState<DocumentRow[]>([]);
+  const [manualTicks, setManualTicks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [detail, setDetail] = useState<FormRow | null>(null);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState<DocumentRow | null>(null);
   const [preview, setPreview] = useState<{
     id: string;
     file_name: string;
     file_path: string;
     file_type?: string;
   } | null>(null);
-  const [approverName, setApproverName] = useState('');
-
-  const reviewMode = isAdmin && !isViewingAs;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('client_forms')
-        .select(
-          `${FORM_LIST_COLUMNS}, clients:client_id (first_name, last_name), profiles:employee_id (first_name, last_name)`,
-        )
-        .eq('client_id', clientId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setForms((data as unknown as FormRow[]) ?? []);
+      const [formsResult, ticks] = await Promise.all([
+        supabase
+          .from('client_forms')
+          .select(`${FORM_LIST_COLUMNS}, ${FIELD_COLUMNS}`)
+          .eq('client_id', clientId)
+          .order('created_at', { ascending: false }),
+        loadManualTicks(clientId).catch(() => new Set<string>()),
+      ]);
+      if (formsResult.error) throw formsResult.error;
+      setForms((formsResult.data as unknown as DocumentRow[]) ?? []);
+      setManualTicks(ticks);
     } catch (err: any) {
       toast({
-        title: 'Could not load forms & documents',
+        title: 'Could not load forms and documents',
         description: err.message,
         variant: 'destructive',
       });
@@ -100,21 +147,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (!profileId) return;
-    (async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, email')
-        .eq('id', profileId)
-        .maybeSingle();
-      setApproverName(
-        `${data?.first_name ?? ''} ${data?.last_name ?? ''}`.trim() || data?.email || 'Reviewer',
-      );
-    })();
-  }, [profileId]);
-
-  const download = async (form: FormRow) => {
+  const download = async (form: DocumentRow) => {
     if (!form.file_path) return;
     try {
       const { data, error } = await supabase.storage.from('client-files').download(form.file_path);
@@ -130,145 +163,302 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     }
   };
 
-  // Each form lands in its first matching group only.
-  const grouped = GROUPS.map(({ title }) => ({ title, items: [] as FormRow[] }));
-  for (const form of forms) {
-    const idx = GROUPS.findIndex((g) => g.match(form));
-    grouped[idx === -1 ? grouped.length - 1 : idx].items.push(form);
-  }
+  /** Remove the stored file and the record together. */
+  const remove = async (form: DocumentRow) => {
+    try {
+      if (form.file_path) {
+        // A file left behind costs disk. A record pointing at a deleted file
+        // breaks the client's tab, so the record is what must go.
+        await supabase.storage.from('client-files').remove([form.file_path]);
+      }
+      const { error } = await supabase.from('client_forms').delete().eq('id', form.id);
+      if (error) throw error;
+      toast({ title: 'Document removed' });
+      setConfirmDelete(null);
+      load();
+    } catch (err: any) {
+      toast({ title: 'Could not remove it', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const setMcoStatus = async (form: DocumentRow, external_status: string) => {
+    try {
+      const now = new Date().toISOString();
+      const payload: Record<string, unknown> = { external_status };
+      if (external_status === 'sent_to_mco') payload.sent_to_mco_at = now;
+      if (external_status === 'accepted' || external_status === 'denied') {
+        payload.mco_response_at = now;
+      }
+      const { error } = await supabase.from('client_forms').update(payload).eq('id', form.id);
+      if (error) throw error;
+
+      // Snapshot exactly which file went to the MCO so it stays retrievable
+      // even after later corrections repoint the form.
+      if (external_status === 'sent_to_mco' && form.file_path) {
+        await recordFormVersion({
+          clientFormId: form.id,
+          filePath: form.file_path,
+          versionType: 'sent_to_mco',
+        }).catch(() => undefined);
+      }
+      load();
+    } catch (err: any) {
+      toast({ title: 'Could not update the MCO status', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const toggleTick = async (formType: string, hasDocument: boolean, ticked: boolean) => {
+    if (hasDocument) {
+      toast({
+        title: 'A document is holding this box ticked',
+        description: 'Remove the document with its X to untick it.',
+      });
+      return;
+    }
+    if (!profileId) return;
+    try {
+      if (ticked) await untickByHand(clientId, formType);
+      else await tickByHand(clientId, formType, profileId);
+      setManualTicks((current) => {
+        const next = new Set(current);
+        if (ticked) next.delete(formType);
+        else next.add(formType);
+        return next;
+      });
+    } catch (err: any) {
+      toast({ title: 'Could not change that', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const byType = useMemo(() => {
+    const map = new Map<string, DocumentRow[]>();
+    for (const f of forms) {
+      const list = map.get(f.form_type) ?? [];
+      list.push(f);
+      map.set(f.form_type, list);
+    }
+    return map;
+  }, [forms]);
+
+  /** Everything the checklist does not claim, in its own collections. */
+  const extras = useMemo(() => {
+    const claimed = new Set<string>(CHECKLIST_TYPES);
+    const rest = forms.filter((f) => !claimed.has(f.form_type));
+    return EXTRA_GROUPS.map(({ title }) => ({ title, items: [] as DocumentRow[] })).map(
+      (group, i, all) => {
+        for (const f of rest) {
+          const idx = EXTRA_GROUPS.findIndex((g) => g.match(f));
+          if ((idx === -1 ? all.length - 1 : idx) === i) group.items.push(f);
+        }
+        return group;
+      },
+    );
+  }, [forms]);
+
+  /** What the documents said about this client, once anything has been read. */
+  const readFacts = useMemo(() => {
+    const first = (key: keyof DocumentRow) =>
+      forms.find((f) => f[key])?.[key] as string | undefined;
+    return [
+      { label: 'Name on the documents', value: first('field_member_name') },
+      { label: 'Member ID', value: first('field_member_id') },
+      { label: 'Medicaid ID', value: first('field_medicaid_id') },
+      { label: 'Date of birth', value: first('field_member_dob') },
+      { label: 'Diagnosis', value: first('field_icd10_code') },
+      { label: 'Authorization number', value: first('field_authorization_number') },
+    ].filter((f) => f.value);
+  }, [forms]);
+
+  const toggleOpen = (title: string) =>
+    setOpen((current) => {
+      const next = new Set(current);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
+
+  const documentRow = (form: DocumentRow) => (
+    <div key={form.id} className="flex flex-wrap items-center justify-between gap-2 p-2.5">
+      <button
+        type="button"
+        disabled={!form.file_path}
+        onClick={() =>
+          form.file_path &&
+          setPreview({
+            id: form.id,
+            file_name: form.title || `${form.form_type}.pdf`,
+            file_path: form.file_path,
+            file_type: 'application/pdf',
+          })
+        }
+        title={form.file_path ? 'Open this document' : 'No file is stored for this document'}
+        className="flex items-center gap-2 min-w-0 text-left disabled:cursor-default"
+      >
+        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="min-w-0">
+          <div className={`text-sm truncate ${form.file_path ? 'hover:underline' : ''}`}>
+            {form.title || form.form_type}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {new Date(form.created_at).toLocaleDateString()}
+            {' · '}
+            {FORM_SOURCE_LABEL[form.source ?? 'created_in_app'] ?? 'Created in app'}
+          </div>
+        </div>
+      </button>
+
+      <div className="flex items-center gap-1.5">
+        <Select
+          value={form.external_status ?? 'not_applicable'}
+          onValueChange={(v) => setMcoStatus(form, v)}
+        >
+          <SelectTrigger className="h-8 w-[168px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MCO_CHOICES.map((choice) => (
+              <SelectItem key={choice} value={choice} className="text-xs">
+                {choice === 'not_applicable' ? 'No MCO answer needed' : EXTERNAL_STATUS_LABEL[choice]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={!form.file_path}
+          onClick={() => download(form)}
+          title="Download"
+        >
+          <Download className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setConfirmDelete(form)}
+          title="Remove this document"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  const collapsibleGroup = (
+    title: string,
+    items: DocumentRow[],
+    lead: React.ReactNode,
+  ) => {
+    const isOpen = open.has(title);
+    return (
+      <div key={title} className="rounded-md border">
+        <div className="flex items-center gap-2 p-2.5">
+          {lead}
+          <button
+            type="button"
+            onClick={() => items.length && toggleOpen(title)}
+            className="flex flex-1 items-center justify-between gap-2 min-w-0 text-left"
+          >
+            <span className="text-sm font-medium truncate">{title}</span>
+            <span className="flex items-center gap-1.5 shrink-0 text-xs text-muted-foreground">
+              {items.length === 0
+                ? 'None filed'
+                : `${items.length} document${items.length === 1 ? '' : 's'}`}
+              {items.length > 0 &&
+                (isOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                ))}
+            </span>
+          </button>
+        </div>
+        {isOpen && items.length > 0 && <div className="divide-y border-t">{items.map(documentRow)}</div>}
+      </div>
+    );
+  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Forms &amp; Documents</CardTitle>
+        <CardTitle className="text-lg">Forms and Documents</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading documents...</p>
-        ) : forms.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No forms or documents have been filed for this client yet.
-          </p>
         ) : (
-          grouped
-            .filter((g) => g.items.length > 0)
-            .map((group) => (
-              <div key={group.title} className="space-y-1.5">
-                <div className="text-xs font-semibold uppercase text-muted-foreground">
-                  {group.title}
-                </div>
-                <div className="divide-y rounded-md border">
-                  {group.items.map((form) => (
-                    <div
-                      key={form.id}
-                      className="flex flex-wrap items-center justify-between gap-2 p-2.5"
-                    >
-                      {/* The name is the way in. Pressing a document should open
-                          it, rather than making somebody find an icon first. */}
-                      <button
-                        type="button"
-                        disabled={!form.file_path}
-                        onClick={() =>
-                          form.file_path &&
-                          setPreview({
-                            id: form.id,
-                            file_name: form.title || `${form.form_type}.pdf`,
-                            file_path: form.file_path,
-                            file_type: 'application/pdf',
-                          })
-                        }
-                        title={form.file_path ? 'Open this document' : 'No file is stored for this document'}
-                        className="flex items-center gap-2 min-w-0 text-left disabled:cursor-default"
-                      >
-                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div className="min-w-0">
-                          <div className={`text-sm truncate ${form.file_path ? 'hover:underline' : ''}`}>
-                            {form.title || form.form_type}
-                            {form.source === 'bulk_import' && (
-                              <span className="text-xs text-muted-foreground">
-                                {' '}
-                                — Historical import
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(form.created_at).toLocaleDateString()}
-                            {' · '}
-                            {FORM_SOURCE_LABEL[form.source ?? 'created_in_app'] ??
-                              'Created in app'}
-                          </div>
-                        </div>
-                      </button>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {form.source !== 'bulk_import' && (
-                          <Badge
-                            variant="secondary"
-                            className={FORM_STATUS_CLASS[form.status] ?? ''}
-                          >
-                            {FORM_STATUS_SHORT_LABEL[form.status] ?? form.status}
-                          </Badge>
-                        )}
-                        <Badge
-                          variant="secondary"
-                          className={EXTERNAL_STATUS_CLASS[form.external_status ?? 'not_sent'] ?? ''}
-                        >
-                          {EXTERNAL_STATUS_LABEL[form.external_status ?? 'not_sent']}
-                        </Badge>
-                        <Button variant="ghost" size="sm" onClick={() => setDetail(form)}>
-                          Details
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={!form.file_path}
-                          onClick={() =>
-                            form.file_path &&
-                            setPreview({
-                              id: form.id,
-                              file_name: `${form.form_type}.pdf`,
-                              file_path: form.file_path,
-                              file_type: 'application/pdf',
-                            })
-                          }
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={!form.file_path}
-                          onClick={() => download(form)}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
+          <>
+            {readFacts.length > 0 && (
+              <div className="rounded-md border bg-muted/40 p-3">
+                <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
+                  What the documents say
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1.5">
+                  {readFacts.map((f) => (
+                    <div key={f.label} className="text-sm">
+                      <span className="text-muted-foreground">{f.label}: </span>
+                      {f.value}
                     </div>
                   ))}
                 </div>
               </div>
-            ))
+            )}
+
+            <div className="space-y-2">
+              {CHECKLIST_TYPES.map((type) => {
+                const items = byType.get(type) ?? [];
+                const hasDocument = items.length > 0;
+                const ticked = hasDocument || manualTicks.has(type);
+                return collapsibleGroup(
+                  type,
+                  items,
+                  <Checkbox
+                    checked={ticked}
+                    onCheckedChange={() => toggleTick(type, hasDocument, ticked)}
+                    title={
+                      hasDocument
+                        ? 'A document is filed for this form'
+                        : 'Tick to record that this form is done'
+                    }
+                  />,
+                );
+              })}
+            </div>
+
+            <div className="space-y-2">
+              {extras
+                .filter((g) => g.items.length > 0)
+                .map((g) => collapsibleGroup(g.title, g.items, <span className="w-4" />))}
+            </div>
+
+            {forms.length === 0 && manualTicks.size === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nothing has been filed for this client yet. Tick a form above to record one that
+                was completed elsewhere.
+              </p>
+            )}
+          </>
         )}
       </CardContent>
 
-      {detail && (
-        <FormDetailDialog
-          form={detail}
-          isAdmin={reviewMode}
-          approverName={approverName}
-          onClose={() => setDetail(null)}
-          onChanged={load}
-          onDownload={download}
-          onPreview={(f) =>
-            f.file_path &&
-            setPreview({
-              id: f.id,
-              file_name: `${f.form_type}.pdf`,
-              file_path: f.file_path,
-              file_type: 'application/pdf',
-            })
-          }
-        />
-      )}
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDelete?.title || confirmDelete?.form_type} will be deleted from this client,
+              along with the stored file. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmDelete && remove(confirmDelete)}>
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {preview && (
         <React.Suspense fallback={null}>
