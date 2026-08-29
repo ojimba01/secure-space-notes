@@ -17,7 +17,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { FileSearch, RotateCcw, AlertTriangle, ScanLine } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { runDocumentQueue, readWithOcr, type QueueProgress } from '@/lib/documentQueue';
+import {
+  runDocumentQueue,
+  stopDocumentQueue,
+  readWithOcr,
+  type QueueProgress,
+} from '@/lib/documentQueue';
 import { SCAN_THRESHOLD_CHARS } from '@/lib/documentText';
 
 interface Counts {
@@ -133,9 +138,10 @@ export const DocumentReading: React.FC = () => {
       const final = await runDocumentQueue(setProgress);
       toast({
         title: `${final.done} document${final.done === 1 ? '' : 's'} read`,
-        description: final.remaining > 0
-          ? `${final.remaining.toLocaleString()} still to read. Press again to continue.`
-          : 'Nothing is left to read.',
+        description:
+          final.remaining > 0
+            ? `${final.remaining.toLocaleString()} still to read — stopped early.`
+            : 'Nothing is left to read.',
       });
     } finally {
       setReading(false);
@@ -242,6 +248,11 @@ export const DocumentReading: React.FC = () => {
             <Button onClick={read} disabled={reading || counts.pending === 0}>
               {reading ? 'Reading documents' : 'Read the documents waiting'}
             </Button>
+            {reading && (
+              <Button variant="outline" onClick={stopDocumentQueue}>
+                Stop after this one
+              </Button>
+            )}
             {counts.failed > 0 && (
               <Button variant="outline" onClick={retryAllFailed} disabled={reading}>
                 <RotateCcw className="h-4 w-4 mr-2" />
