@@ -167,6 +167,8 @@ async function applyFields(
 export interface QueueProgress {
   done: number;
   failed: number;
+  /** -1 while a run is under way: counting the remainder per document costs a
+   *  round trip that is better spent reading one. */
   remaining: number;
 }
 
@@ -353,18 +355,28 @@ export async function runDocumentQueue(
     // Keep going until the queue is empty. A document that fails is marked
     // 'failed' and so leaves 'pending', which is what stops this looping over
     // the same unreadable file for ever.
-    while (!cancelled && done + failed < limit) {
-      const row = await claimNext();
-      if (!row) break;
-      const outcome = await processOne(row);
-      if (outcome === 'done') done++;
-      else failed++;
-      onProgress?.({ done, failed, remaining: await pendingCount() });
-      // Give the page back to the browser between documents. Without this a
-      // long run makes the app feel frozen even though it is working, and
-      // every BATCH_SIZE documents it gets a longer breath.
-      await new Promise((r) => setTimeout(r, (done + failed) % BATCH_SIZE === 0 ? 50 : 0));
-    }
+    //
+    // Four at a time. Almost all of a document's time is spent downloading it
+    // from storage, not reading it - a text layer parses in about a tenth of a
+    // second - so one at a time left the connection idle between files. On a
+    // backlog of 1,735 that is the difference between an afternoon and a
+    // coffee. Four rather than six because each lane holds a whole PDF in
+    // memory while it works, and some of these are large scans.
+    const LANES = 4;
+    const lane = async () => {
+      while (!cancelled && done + failed < limit) {
+        const row = await claimNext();
+        if (!row) return;
+        const outcome = await processOne(row);
+        if (outcome === 'done') done++;
+        else failed++;
+        onProgress?.({ done, failed, remaining: -1 });
+        // Give the page back to the browser between documents, or a long run
+        // makes the app feel frozen even though it is working.
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    };
+    await Promise.all(Array.from({ length: LANES }, lane));
   } finally {
     running = false;
     cancelled = false;
