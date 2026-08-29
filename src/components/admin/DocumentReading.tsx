@@ -9,7 +9,7 @@
 //     because it takes over a minute a page.
 //   * Documents needing a person — anything that could not be read at all, and
 //     anything filed as Unsorted because no rule could name it.
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import {
   readWithOcr,
   type QueueProgress,
 } from '@/lib/documentQueue';
+import { loadExtractedText, type TextLoadResult } from '@/lib/documentTextImport';
 import { SCAN_THRESHOLD_CHARS } from '@/lib/documentText';
 
 interface Counts {
@@ -131,6 +132,44 @@ export const DocumentReading: React.FC = () => {
     load();
   }, [load]);
 
+  const textInput = useRef<HTMLInputElement>(null);
+  const [loadingText, setLoadingText] = useState(false);
+  const [textLabel, setTextLabel] = useState('');
+  const [textResult, setTextResult] = useState<TextLoadResult | null>(null);
+
+  /**
+   * Take the archive's own extracted text rather than extracting it again.
+   *
+   * Deliberately does not mark anything read. Reading also opens the PDF's own
+   * form fields, and that is where the good answers live - a state IAT gives
+   * up a date of birth to its fields 98% of the time and to its printed text
+   * 1% of the time. This makes every document searchable now; the reader still
+   * has its own work to do.
+   */
+  const loadText = async (file: File) => {
+    setLoadingText(true);
+    setTextResult(null);
+    try {
+      const result = await loadExtractedText(file, (p) =>
+        setTextLabel(`${p.read.toLocaleString()} of ${p.total.toLocaleString()} read, ${p.filled.toLocaleString()} filled`),
+      );
+      setTextResult(result);
+      toast({
+        title: `${result.filled.toLocaleString()} documents given their text`,
+        description:
+          result.unmatched.length > 0
+            ? `${result.unmatched.length.toLocaleString()} text files name a document that is not in the app.`
+            : undefined,
+      });
+      await load();
+    } catch (err: any) {
+      toast({ title: 'Could not read that zip', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoadingText(false);
+      setTextLabel('');
+    }
+  };
+
   const read = async () => {
     setReading(true);
     setProgress({ done: 0, failed: 0, remaining: counts.pending });
@@ -238,9 +277,26 @@ export const DocumentReading: React.FC = () => {
             </div>
           )}
 
+          {textResult && (
+            <div className="rounded-md border p-3 text-xs space-y-1">
+              <p>
+                {textResult.filled.toLocaleString()} documents given their text.{' '}
+                {textResult.alreadyHadText > 0 &&
+                  `${textResult.alreadyHadText.toLocaleString()} already had some and were left alone. `}
+                {textResult.unmatched.length > 0 &&
+                  `${textResult.unmatched.length.toLocaleString()} name a document that is not in the app.`}
+              </p>
+              <p className="text-muted-foreground">
+                Their fields still need the documents themselves, which is what reading does.
+              </p>
+            </div>
+          )}
+
           {reading && progress && (
             <p className="text-sm">
-              Reading. {progress.done} done, {progress.remaining.toLocaleString()} to go.
+              Reading. {progress.done} done
+              {progress.failed > 0 ? `, ${progress.failed} failed` : ''}, of{' '}
+              {counts.pending.toLocaleString()}.
             </p>
           )}
 
@@ -253,6 +309,24 @@ export const DocumentReading: React.FC = () => {
                 Stop after this one
               </Button>
             )}
+            <Button
+              variant="outline"
+              onClick={() => textInput.current?.click()}
+              disabled={loadingText || reading}
+            >
+              {loadingText ? textLabel || 'Loading text' : 'Load text the agency already extracted'}
+            </Button>
+            <input
+              ref={textInput}
+              type="file"
+              accept=".zip"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) loadText(f);
+              }}
+            />
             {counts.failed > 0 && (
               <Button variant="outline" onClick={retryAllFailed} disabled={reading}>
                 <RotateCcw className="h-4 w-4 mr-2" />
