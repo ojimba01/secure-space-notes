@@ -7,6 +7,7 @@ import { Plus, Table, Type, Calendar } from "lucide-react";
 import { DynamicTable } from "./DynamicTable";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { ClientPicker } from "@/components/ClientPicker";
 import { useToast } from "@/hooks/use-toast";
 
 interface NoteBlock {
@@ -98,7 +99,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ initialContent = '', rea
       const { data, error } = await supabase
         .from('clients')
         .select('id, first_name, last_name')
-        .order('last_name', { ascending: true });
+        .order('first_name', { ascending: true });
 
       if (error) throw error;
       setClients(data || []);
@@ -154,18 +155,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ initialContent = '', rea
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground mb-2 block">Client</label>
-            <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Select a client..." />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50">
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.last_name}, {client.first_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ClientPicker
+              clients={clients}
+              value={selectedClientId || null}
+              onChange={setSelectedClientId}
+              className="w-full"
+            />
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground mb-2 block">Visit Type</label>

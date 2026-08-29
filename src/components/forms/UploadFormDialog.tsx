@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { ClientPicker } from '@/components/ClientPicker';
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
@@ -93,7 +94,7 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
         .from('clients')
         .select('id, first_name, last_name')
         .is('deleted_at', null)
-        .order('last_name');
+        .order('first_name');
 
       // Employees can only file forms for clients assigned to them, so keep the
       // dropdown in sync with what the database will actually accept. Admins
@@ -338,18 +339,12 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
 
           <div className="space-y-2">
             <Label>Client</Label>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a client" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.last_name}, {c.first_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ClientPicker
+              clients={clients}
+              value={clientId || null}
+              onChange={setClientId}
+              className="w-full"
+            />
             {clients.length === 0 && (
               <p className="text-xs text-muted-foreground">
                 No clients are assigned to you yet, so there is nothing to file a form

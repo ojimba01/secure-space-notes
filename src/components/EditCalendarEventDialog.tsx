@@ -109,7 +109,7 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
         .from('clients')
         .select('id, first_name, last_name')
         .eq('status', 'active')
-        .order('last_name', { ascending: true });
+        .order('first_name', { ascending: true });
       setClients(data || []);
     } catch (error) {
       console.error('Error fetching clients:', error);

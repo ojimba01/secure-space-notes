@@ -101,3 +101,17 @@ export const FORM_SOURCE_LABEL: Record<string, string> = {
   manual_upload: 'Manual upload',
   bulk_import: 'Bulk import',
 };
+
+/**
+ * Forms that never go to an MCO.
+ *
+ * The Client Intake is the agency's own record of who the client is. Nobody
+ * sends it anywhere, so offering "sent to MCO" on it invites a status that
+ * cannot be true, and makes the MCO column meaningless on the one document
+ * every client has.
+ */
+export const INTERNAL_ONLY_TYPES: readonly string[] = ['Client Intake'];
+
+/** Whether this form has an MCO track at all. */
+export const goesToMco = (formType: string): boolean =>
+  !INTERNAL_ONLY_TYPES.includes(formType);

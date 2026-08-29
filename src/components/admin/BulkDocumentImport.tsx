@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AlertTriangle, FileUp, FolderUp, Loader2, Upload } from 'lucide-react';
-import { ClientPicker } from '@/components/admin/ClientPicker';
+import { ClientPicker } from '@/components/ClientPicker';
 import { FORM_TYPES } from '@/lib/formSigning';
 import {
   commitImport,
