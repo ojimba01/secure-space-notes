@@ -1,6 +1,6 @@
 -- A client's forms are a checklist, not a pile.
 --
--- NOT YET APPLIED. Run this before merging the code change that goes with it.
+-- APPLIED.
 --
 -- The Forms tab listed whatever documents happened to exist. What a person
 -- looking at a client actually wants to know is which of the forms that client
