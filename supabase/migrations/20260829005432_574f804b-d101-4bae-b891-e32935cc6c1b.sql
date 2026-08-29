@@ -1,7 +1,5 @@
 -- A client's forms are a checklist, not a pile.
 --
--- APPLIED.
---
 -- The Forms tab listed whatever documents happened to exist. What a person
 -- looking at a client actually wants to know is which of the forms that client
 -- should have are in hand — and some of them were done on paper, or filed in
@@ -24,6 +22,9 @@ create table if not exists public.client_form_checklist (
 
 create index if not exists client_form_checklist_client_idx
   on public.client_form_checklist (client_id);
+
+grant select, insert, delete on public.client_form_checklist to authenticated;
+grant all on public.client_form_checklist to service_role;
 
 alter table public.client_form_checklist enable row level security;
 

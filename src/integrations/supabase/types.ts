@@ -504,6 +504,45 @@ export type Database = {
           },
         ]
       }
+      client_form_checklist: {
+        Row: {
+          client_id: string
+          form_type: string
+          id: string
+          marked_at: string
+          marked_by: string | null
+        }
+        Insert: {
+          client_id: string
+          form_type: string
+          id?: string
+          marked_at?: string
+          marked_by?: string | null
+        }
+        Update: {
+          client_id?: string
+          form_type?: string
+          id?: string
+          marked_at?: string
+          marked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_form_checklist_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_form_checklist_marked_by_fkey"
+            columns: ["marked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_form_versions: {
         Row: {
           client_form_id: string
