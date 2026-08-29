@@ -35,7 +35,7 @@ interface QueueMeta {
 const QUEUES: QueueMeta[] = [
   {
     key: 'billingDueThisWeek',
-    label: 'Billing to complete this week',
+    label: 'claims to file this week',
     hint: 'The filing window closes within seven days',
     action:
       'These claims must be filed within seven days. After the six-month window closes the money cannot be claimed. Billing, step one, is where they are filed.',
@@ -44,7 +44,7 @@ const QUEUES: QueueMeta[] = [
   },
   {
     key: 'unassigned',
-    label: 'No case manager',
+    label: 'unassigned clients',
     hint: 'Nobody is doing this client’s touchpoints',
     action:
       'A client with no case manager appears in nobody’s work queue and is scheduled no touchpoints. Assign one on the client record.',
@@ -53,7 +53,7 @@ const QUEUES: QueueMeta[] = [
   },
   {
     key: 'noLevelOfNeed',
-    label: 'No level of need',
+    label: 'clients with no level of need',
     hint: 'Sets the rate and the number of touchpoints',
     action:
       'Without a level of need there is no rate, so cycles are created on hold, and no touchpoint requirement can be worked out. Record the score on the client record.',
@@ -62,7 +62,7 @@ const QUEUES: QueueMeta[] = [
   },
   {
     key: 'noStartDate',
-    label: 'No start date',
+    label: 'clients with no start date',
     hint: 'Every cycle is counted from this date',
     action:
       'Billing cycles and touchpoint windows are both counted from the HSP approval or authorization start date. Without one, neither can be created.',
@@ -71,7 +71,7 @@ const QUEUES: QueueMeta[] = [
   },
   {
     key: 'noHsp',
-    label: 'Housing Stabilization Plan not submitted',
+    label: 'plans not submitted',
     hint: 'Held until the plan is filed',
     action:
       'A client is not shown to their case manager until the plan is submitted. Many of these are still inside their first thirty days, which is why they were left alone.',
@@ -93,11 +93,11 @@ const Tile: React.FC<{
       active ? 'ring-2 ring-primary' : ''
     } ${count > 0 && meta.key === 'billingDueThisWeek' ? 'border-amber-300 bg-amber-50' : ''}`}
   >
-    <div className="flex items-center gap-2 text-muted-foreground">
-      {meta.icon}
-      <span className="text-sm">{meta.label}</span>
+    <div className="flex items-center gap-2 text-muted-foreground">{meta.icon}</div>
+    <div className="text-sm mt-1">
+      <span className="text-2xl font-semibold">{count}</span>{' '}
+      <span>{meta.label}</span>
     </div>
-    <div className="text-3xl font-bold mt-1">{count}</div>
     <div className="text-xs text-muted-foreground mt-1">{meta.hint}</div>
   </button>
 );
@@ -165,11 +165,11 @@ export const SetupQueues: React.FC<Props> = ({ onOpenClient }) => {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold">What is holding work up</h2>
+        <h2 className="text-lg font-semibold">Priorities</h2>
         <p className="text-sm text-muted-foreground">
           {loading
             ? 'Loading.'
-            : `${blockedClients} of ${activeClients} active clients are missing something they need before they can be worked. A client missing two things appears in both lists, so the counts below add up to more than ${blockedClients}.`}
+            : `${blockedClients} of ${activeClients} clients are missing something. A client missing two things is counted twice below.`}
         </p>
       </div>
 
@@ -188,10 +188,7 @@ export const SetupQueues: React.FC<Props> = ({ onOpenClient }) => {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">
-            {meta.label}
-            {list.length > 0 && (
-              <span className="text-muted-foreground font-normal"> · {list.length}</span>
-            )}
+            {list.length} {meta.label}
           </CardTitle>
           <p className="text-sm text-muted-foreground">{meta.action}</p>
         </CardHeader>

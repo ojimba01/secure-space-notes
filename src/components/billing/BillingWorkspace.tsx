@@ -272,7 +272,13 @@ export function BillingWorkspace() {
 
   // The clients to bill now: their soonest cycle passes its six-month filing
   // deadline within the month, so leaving it loses the money outright.
-  const urgent=useMemo(()=>queue.filter(r=>r.band!=='later'),[queue]);
+  //
+  // A client whose windows have all closed is not one of them. Nothing can be
+  // filed for them, so putting them in a list of work to do only makes the
+  // list longer and the real work harder to find. They are listed separately,
+  // below, where they can still be seen and dealt with.
+  const urgent=useMemo(()=>queue.filter(r=>r.band==='week'||r.band==='month'),[queue]);
+  const closed=useMemo(()=>queue.filter(r=>r.band==='overdue'),[queue]);
 
   // How much of this month's filing is already done. Counted from the cycles
   // themselves rather than kept in state, so it survives a reload.
@@ -576,8 +582,33 @@ export function BillingWorkspace() {
         updateCycle={cycleWriter}
         initialClientId={billingClientId}
         onBilled={handleBilled}
-        shortlist={urgent.map(r=>({ id:r.client.id, label:`${r.client.first_name} ${r.client.last_name}`, note:r.days<0?'window closed':`${r.days}d`, urgent:r.band!=='month' }))}
+        shortlist={urgent.map(r=>({ id:r.client.id, label:`${r.client.first_name} ${r.client.last_name}`, note:`${r.days}d`, urgent:r.band==='week' }))}
       />
+
+      {closed.length>0 && <Card className="p-4 space-y-2">
+        <div>
+          <h3 className="font-semibold">{closed.length} client{closed.length===1?'':'s'} past the filing deadline</h3>
+          <p className="text-sm text-muted-foreground">
+            The six-month window has closed on every cycle they have open. Nothing can be filed
+            for them, so they are kept out of the list above.
+          </p>
+        </div>
+        <div className="divide-y rounded-md border">
+          {closed.map(r=>(
+            <button
+              key={r.client.id}
+              type="button"
+              onClick={()=>setBillingClientId(r.client.id)}
+              className="flex w-full items-center justify-between gap-2 p-2.5 text-left text-sm hover:bg-muted/50"
+            >
+              <span className="truncate">{r.client.first_name} {r.client.last_name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {Math.abs(r.days)} days past · {r.cycles.length} cycle{r.cycles.length===1?'':'s'}
+              </span>
+            </button>
+          ))}
+        </div>
+      </Card>}
 
 
     </>

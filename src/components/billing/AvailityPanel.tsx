@@ -146,8 +146,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   const [clientId, setClientId] = useState<string | null>(null);
   const [extras, setExtras] = useState<ClientExtras>(NO_EXTRAS);
   const [authorizations, setAuthorizations] = useState<ClientAuthorization[]>([]);
-  const [gender, setGender] = useState<AvailityGender>('Female');
-  const [genderAssumed, setGenderAssumed] = useState(true);
+  const [gender, setGender] = useState<AvailityGender>('');
   const [relationship, setRelationship] = useState<Relationship>('Self');
   const [diagnosisCode, setDiagnosisCode] = useState<string>(DEFAULT_DIAGNOSIS_CODE);
   const [customCode, setCustomCode] = useState('');
@@ -196,7 +195,6 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
     setDiagnosisCode(stored ?? DEFAULT_DIAGNOSIS_CODE);
     setCustomCode(stored && !findDiagnosisCode(stored) ? stored : '');
     setGender(known ?? 'Female');
-    setGenderAssumed(!known);
     setRelationship((storedRelationship as Relationship) ?? 'Self');
     setAuthorizations(auths);
   }, []);
@@ -256,8 +254,8 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   // Both Availity pages are worked in order for one client, so both are built.
   const eligibilityFields = useMemo(() => {
     if (!availityClient || !settings) return [];
-    return eligibilitySections({ client: availityClient, settings, gender, genderAssumed, relationship });
-  }, [availityClient, settings, gender, genderAssumed, relationship]);
+    return eligibilitySections({ client: availityClient, settings, gender, relationship });
+  }, [availityClient, settings, gender, relationship]);
 
   const claimFields = useMemo(() => {
     if (!availityClient || !settings || !selected) return [];
@@ -265,12 +263,11 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
       client: availityClient,
       settings,
       gender,
-      genderAssumed,
       relationship,
       selected,
       diagnosisCode,
     });
-  }, [availityClient, settings, gender, genderAssumed, relationship, selected, diagnosisCode]);
+  }, [availityClient, settings, gender, relationship, selected, diagnosisCode]);
 
 
   /**
@@ -354,7 +351,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   const controlFor = (edit: AvailityField['edit']): React.ReactNode => {
     if (edit === 'gender') {
       return (
-        <Select value={gender} onValueChange={(v) => { setGender(v as AvailityGender); setGenderAssumed(false); }}>
+        <Select value={gender} onValueChange={(v) => { setGender(v as AvailityGender); }}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             {GENDER_OPTIONS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}

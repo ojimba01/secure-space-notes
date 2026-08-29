@@ -17,6 +17,8 @@ export interface AutofillClient {
   phone?: string | null;
   email?: string | null;
   member_id?: string | null;
+  /** The state Medicaid number, which is not the MCO's member ID. */
+  medicaid_id?: string | null;
   insurance?: string | null; // MCO
   county?: string | null;
   njhmis_id?: string | null;
@@ -54,7 +56,10 @@ export function templateFieldValues(
         '2 Date of birth MMDDYYYY': mmddyyyy(client.date_of_birth),
         '3 Phone Number if applicable': client.phone ?? '',
         '4 Email address if applicable': client.email ?? '',
-        '5 Medicaid ID': client.member_id ?? '',
+        // The MCO's member ID is a different number, and putting it here put
+        // the wrong one on every IAT. Left blank rather than wrong when the
+        // Medicaid number is not known; the documents are filling it in.
+        '5 Medicaid ID': client.medicaid_id ?? '',
         '6 Managed Care Organization MCO': client.insurance ?? '',
         '8 Location county': client.county ?? '',
       });

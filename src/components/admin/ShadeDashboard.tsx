@@ -94,28 +94,13 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
       {/* ------------------------------------------------ claims ---------- */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">
-            Claims running out of time to file
-          </CardTitle>
+          <CardTitle className="text-lg">Urgent claims</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            A claim can be filed for six months after its cycle ends. After that the money
-            cannot be recovered.
+          <p className="text-sm">
+            {past.length} past the deadline, {within30.length} within 30 days, {within60.length}{' '}
+            within 60. {money(valueWithin30)} stops being claimable within 30 days.
           </p>
-
-          <div className="grid grid-cols-3 gap-3">
-            <Figure label="Past the deadline" value={past.length} tone={past.length ? 'bad' : 'plain'} />
-            <Figure label="Within 30 days" value={within30.length} tone={within30.length ? 'warn' : 'plain'} />
-            <Figure label="Within 60 days" value={within60.length} tone="plain" />
-          </div>
-
-          {within30.length > 0 && (
-            <p className="text-sm">
-              <span className="font-medium">{money(valueWithin30)}</span> stops being claimable
-              within 30 days.
-            </p>
-          )}
 
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading.</p>
@@ -167,13 +152,12 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
       {/* -------------------------------------------- touchpoints --------- */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Touchpoints, by case manager</CardTitle>
+          <CardTitle className="text-lg">Touchpoints</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            A case manager's clients begin to count from the date you set here. Before it,
-            their touchpoints exist and are visible but are not counted as late. Set the
-            date once they have been shown how touchpoints work.
+            Set a date to start counting a case manager's touchpoints. Before that date
+            their clients are not counted as late.
           </p>
 
           {staff.length === 0 ? (
@@ -248,27 +232,14 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
       {/* ---------------------------------------------------- HSP --------- */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Housing Stabilization Plans against day 25</CardTitle>
+          <CardTitle className="text-lg">Housing plans</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            A plan is due on the 25th day of the initial 30-day authorization. A client with
-            a 150 or 180-day authorization number is treated as submitted.
+          <p className="text-sm">
+            {hsp?.overdue.length ?? 0} overdue, {hsp?.dueSoon.length ?? 0} due within 5 days,{' '}
+            {hsp?.submittedLate.length ?? 0} submitted late. Plans are due on day 25 of the
+            initial authorization.
           </p>
-
-          <div className="grid grid-cols-3 gap-3">
-            <Figure
-              label="Overdue, not submitted"
-              value={hsp?.overdue.length ?? 0}
-              tone={hsp?.overdue.length ? 'bad' : 'plain'}
-            />
-            <Figure
-              label="Due within 5 days"
-              value={hsp?.dueSoon.length ?? 0}
-              tone={hsp?.dueSoon.length ? 'warn' : 'plain'}
-            />
-            <Figure label="Submitted late" value={hsp?.submittedLate.length ?? 0} tone="plain" />
-          </div>
 
           {(hsp?.unknownDate ?? 0) > 0 && (
             <p className="text-xs text-muted-foreground">
@@ -302,20 +273,3 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
     </div>
   );
 };
-
-const Figure: React.FC<{ label: string; value: number; tone: 'plain' | 'warn' | 'bad' }> = ({
-  label,
-  value,
-  tone,
-}) => (
-  <div className="rounded-md border p-3">
-    <div
-      className={`text-2xl font-semibold ${
-        tone === 'bad' ? 'text-destructive' : tone === 'warn' ? 'text-amber-700' : ''
-      }`}
-    >
-      {value}
-    </div>
-    <div className="text-xs text-muted-foreground">{label}</div>
-  </div>
-);

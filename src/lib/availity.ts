@@ -100,7 +100,13 @@ export async function saveAvailitySettings(settings: AvailityProviderSettings): 
 export const RELATIONSHIP_OPTIONS = ['Self', 'Spouse', 'Child', 'Other Adult'] as const;
 export type Relationship = (typeof RELATIONSHIP_OPTIONS)[number];
 
-export const GENDER_OPTIONS = ['Female', 'Male'] as const;
+/**
+ * Empty first, and empty by default.
+ *
+ * The app has no way of knowing a client's gender - a name is not evidence -
+ * and a guess printed into a claim is worse than a blank somebody fills in.
+ */
+export const GENDER_OPTIONS = ['', 'Female', 'Male'] as const;
 export type AvailityGender = (typeof GENDER_OPTIONS)[number];
 
 export interface AvailityField {
@@ -159,8 +165,6 @@ export interface EligibilityInput {
   client: AvailityClient;
   settings: AvailityProviderSettings;
   gender: AvailityGender;
-  /** True when the app is guessing the gender rather than reading it. */
-  genderAssumed: boolean;
   relationship: Relationship;
   /** YYYY-MM-DD. Defaults to today in the agency's timezone. */
   asOfDate?: string;
@@ -170,7 +174,6 @@ export function eligibilitySections({
   client,
   settings,
   gender,
-  genderAssumed,
   relationship,
   asOfDate,
 }: EligibilityInput): AvailitySection[] {
@@ -246,9 +249,7 @@ export function eligibilitySections({
           label: 'Patient Gender',
           value: gender,
           edit: 'gender',
-          note: genderAssumed
-            ? 'Assumed — the client record does not say. Check before submitting.'
-            : 'From the client intake.',
+          note: gender ? 'From the client intake.' : 'Not recorded. Enter it in Availity.',
         },
         {
           label: "Patient's Relationship to Subscriber",
@@ -429,7 +430,6 @@ export interface ClaimInput {
   client: AvailityClient;
   settings: AvailityProviderSettings;
   gender: AvailityGender;
-  genderAssumed: boolean;
   relationship: Relationship;
   selected: BillableCycle;
   diagnosisCode: string;
@@ -439,7 +439,6 @@ export function claimSections({
   client,
   settings,
   gender,
-  genderAssumed,
   relationship,
   selected,
   diagnosisCode,
@@ -500,7 +499,7 @@ export function claimSections({
           required: true,
           value: gender,
           edit: 'gender',
-          note: genderAssumed ? 'Assumed — the client record does not say.' : 'From the client intake.',
+          note: gender ? 'From the client intake.' : 'Not recorded. Enter it in Availity.',
         },
         { label: 'Relationship', required: true, value: relationship, edit: 'relationship' },
         {
@@ -576,8 +575,8 @@ export function claimSections({
         },
         {
           label: 'Pay-to address is the same as the billing address',
-          value: 'Ticked',
-          note: 'A checkbox, not a box to paste into.',
+          value: '',
+          note: 'Tick this box. There is nothing to paste.',
         },
       ],
     },
