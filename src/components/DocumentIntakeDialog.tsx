@@ -76,11 +76,15 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
     setBusy(true);
     setBusyLabel(`Reading 0 of ${files.length}`);
     try {
-      const result = await readDroppedDocuments(files, (done, total) =>
-        setBusyLabel(`Reading ${done} of ${total}`),
+      const result = await readDroppedDocuments(
+        files,
+        (done, total) => setBusyLabel(`Reading ${done} of ${total}`),
+        current as { first_name?: string | null; last_name?: string | null },
       );
-      const { proposals: found, conflicts: clashes } = proposeFromReadings(result, current);
-      setReadings(result);
+      // Added to what is already staged, so documents can go in one at a time.
+      const all = [...readings, ...result];
+      const { proposals: found, conflicts: clashes } = proposeFromReadings(all, current);
+      setReadings(all);
       setProposals(found);
       setConflicts(clashes);
       setChosen(
@@ -188,29 +192,26 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
                 </p>
               </>
             )}
-            <input
-              ref={fileInput}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                const files = [...(e.target.files ?? [])];
-                e.target.value = '';
-                take(files);
-              }}
-            />
           </div>
         ) : (
           <div className="space-y-4 max-h-[55vh] overflow-y-auto">
-            <div className="rounded-md border p-3 text-sm">
-              {readings.length} document{readings.length === 1 ? '' : 's'} will be filed on this
-              client.
-              {readings.some((r) => !r.hasText && !r.error) && (
-                <span className="text-muted-foreground">
-                  {' '}
-                  Some are scans with no readable text; their form fields were read instead.
+            <div className="space-y-2 rounded-md border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm">
+                  {readings.length} document{readings.length === 1 ? '' : 's'} ready to file
                 </span>
-              )}
+                <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
+                  Add another
+                </Button>
+              </div>
+              <div className="space-y-1">
+                {readings.map((r) => (
+                  <p key={r.file.name} className="truncate text-xs text-muted-foreground">
+                    {r.suggestedName}
+                    {!r.hasText && !r.error && ' · scan, no readable text'}
+                  </p>
+                ))}
+              </div>
             </div>
 
             {proposals.length === 0 ? (
@@ -272,6 +273,19 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
           </div>
         )}
 
+        {/* Outside both steps, so Add another works on the review as well. */}
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            e.target.value = '';
+            take(files);
+          }}
+        />
+
         <DialogFooter>
           {step === 'review' && (
             <>
@@ -285,7 +299,7 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
                     {busyLabel}
                   </>
                 ) : (
-                  'File the documents'
+                  'Done'
                 )}
               </Button>
             </>
