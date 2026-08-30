@@ -119,7 +119,7 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
       {/* ------------------------------------------------ claims ---------- */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Urgent claims</CardTitle>
+          <CardTitle data-tutorial="urgent-claims" className="text-lg">Urgent claims</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm">
@@ -196,7 +196,7 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
       {/* -------------------------------------------- touchpoints --------- */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Touchpoints</CardTitle>
+          <CardTitle data-tutorial="staff-touchpoints" className="text-lg">Touchpoints</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
@@ -276,7 +276,7 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
       {/* ---------------------------------------------------- HSP --------- */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">HSPs</CardTitle>
+          <CardTitle data-tutorial="hsp-panel" className="text-lg">HSPs</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm">

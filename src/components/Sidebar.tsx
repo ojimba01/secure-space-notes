@@ -181,6 +181,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           </Button>
           {isAdmin && !isViewingAs && (
             <Button
+              data-tutorial="billing-nav"
               variant={routeVariant('/billing')}
               className="w-full justify-start gap-2"
               onClick={() => handleNavigate('/billing')}
@@ -190,6 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             </Button>
           )}
           <Button
+            data-tutorial="touchpoints-nav"
             variant={viewVariant('compliance')}
             className="w-full justify-start gap-2"
             onClick={() => handleViewChange('compliance')}
