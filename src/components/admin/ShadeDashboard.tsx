@@ -232,19 +232,17 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
       {/* ---------------------------------------------------- HSP --------- */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Housing plans</CardTitle>
+          <CardTitle className="text-lg">HSPs</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm">
-            {hsp?.overdue.length ?? 0} overdue, {hsp?.dueSoon.length ?? 0} due within 5 days,{' '}
-            {hsp?.submittedLate.length ?? 0} submitted late. Plans are due on day 25 of the
-            initial authorization.
+            {hsp?.overdue.length ?? 0} overdue. {hsp?.dueSoon.length ?? 0} due within 5 days.{' '}
+            {hsp?.submittedLate.length ?? 0} submitted late. Due on day 25.
           </p>
 
           {(hsp?.unknownDate ?? 0) > 0 && (
             <p className="text-xs text-muted-foreground">
-              {hsp?.unknownDate} plans were submitted before the date was recorded, so their
-              punctuality is unknown. Plans submitted from now on are timed.
+              {hsp?.unknownDate} submitted before dates were recorded.
             </p>
           )}
 
