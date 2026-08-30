@@ -408,22 +408,6 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
           </div>
         </div>
 
-        <div className="rounded-md border p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Continuation package (LoN + HSP)
-            </p>
-            <Badge variant="secondary" className={PACKAGE_STATE_CLASS[packet.state]}>
-              {PACKAGE_STATE_LABEL[packet.state]}
-            </Badge>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {packet.missing.length
-              ? `Still needs internal approval: ${packet.missing.join(', ')}.`
-              : 'Both documents are internally approved.'}
-          </p>
-        </div>
-
         <div>
           <p className="mb-2 text-sm font-medium text-muted-foreground">Forms</p>
           <div className="divide-y rounded-md border">
@@ -433,17 +417,26 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
                 <div key={type} className="flex flex-wrap items-center justify-between gap-2 p-3">
                   <span className="text-sm">{type}</span>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary">
-                      {f ? FORM_STATUS_SHORT_LABEL[f.status] ?? f.status : 'Not started'}
+                    {/* Done, or not. Whether a form was approved internally and
+                        what an MCO said about it are different questions, asked
+                        on the form itself; here the only one that matters is
+                        whether the client has it. */}
+                    <Badge
+                      variant="secondary"
+                      className={
+                        !f
+                          ? ''
+                          : f.status === 'draft' || f.status === 'changes_requested'
+                            ? 'bg-amber-100 text-amber-900'
+                            : 'bg-green-100 text-green-800'
+                      }
+                    >
+                      {!f
+                        ? 'Not started'
+                        : f.status === 'draft' || f.status === 'changes_requested'
+                          ? 'Started'
+                          : 'Completed'}
                     </Badge>
-                    {f && (
-                      <Badge
-                        variant="secondary"
-                        className={EXTERNAL_STATUS_CLASS[f.external_status ?? 'not_sent'] ?? ''}
-                      >
-                        {EXTERNAL_STATUS_LABEL[f.external_status ?? 'not_sent']}
-                      </Badge>
-                    )}
                     {(!f || f.status === 'changes_requested') && (
                       <>
                         <Button
@@ -451,7 +444,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
                           variant="outline"
                           onClick={() => setFilling(templateFor(type) ?? null)}
                         >
-                          {f ? 'Redo' : 'Fill out'}
+                          {f ? 'Redo' : 'Begin'}
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => markFormComplete(type)}>
                           Mark as complete

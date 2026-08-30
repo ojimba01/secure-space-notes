@@ -8,6 +8,7 @@
 // Nothing is submitted to Availity from this app. It is a copy source.
 
 import { supabase } from '@/integrations/supabase/client';
+import { cleanAuthorizationNumber } from '@/lib/authorizations';
 import {
   daysToFinalDeadline,
   finalDeadlineFor,
@@ -276,14 +277,12 @@ export function eligibilitySections({
           value: gender,
           edit: 'gender',
           source: 'judgement',
-          note: 'The app cannot know this. Enter it here or in Availity.',
         },
         {
           label: "Patient's Relationship to Subscriber",
           value: relationship,
           edit: 'relationship',
           source: 'judgement',
-          note: 'Self unless somebody says otherwise. Kept on the client record.',
         },
       ],
     },
@@ -530,7 +529,6 @@ export function claimSections({
           value: gender,
           edit: 'gender',
           source: 'judgement',
-          note: 'The app cannot know this. Enter it here or in Availity.',
         },
         {
           label: 'Relationship',
@@ -652,9 +650,9 @@ export function claimSections({
         { label: 'Claim Filing Indicator', required: true, value: CLAIM_FILING_INDICATOR },
         {
           label: 'Prior Authorization Number',
-          // Availity takes digits. A number recorded as "#0024713705" is the
-          // same authorization with a character the field will not accept.
-          value: (selected.priorAuthNumber ?? '').replace(/\D/g, ''),
+          // A leading # is decoration somebody typed. The letters in UM85730060
+          // are not - that prefix is part of the number the MCO issued.
+          value: cleanAuthorizationNumber(selected.priorAuthNumber),
           source: 'piped',
           note: selected.priorAuthNumber
             ? 'The authorization covering these service dates.'

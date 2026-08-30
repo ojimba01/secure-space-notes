@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import {
+  cleanAuthorizationNumber,
   resyncDerivedSchedules,
   syncAuthorizationsFromLegacyColumns,
 } from '@/lib/authorizations';
@@ -101,8 +102,7 @@ export async function loadAuthorizationProposals(clientId: string): Promise<Prop
     const currentNumber = record[`${period.prefix}_number`] ?? null;
     const currentStart = record[`${period.prefix}_start`] ?? null;
     const currentEnd = record[`${period.prefix}_end`] ?? null;
-    // Availity takes digits, and so does the record.
-    const number = ((doc.field_authorization_number as string | null) ?? '').replace(/\D/g, '') || null;
+    const number = cleanAuthorizationNumber(doc.field_authorization_number as string | null) || null;
 
     proposals.push({
       documentId: doc.id as string,
@@ -119,7 +119,7 @@ export async function loadAuthorizationProposals(clientId: string): Promise<Prop
       agrees:
         currentStart === start &&
         currentEnd === end &&
-        (number === null || (currentNumber ?? '').replace(/\D/g, '') === number),
+        (number === null || cleanAuthorizationNumber(currentNumber) === number),
     });
   }
 

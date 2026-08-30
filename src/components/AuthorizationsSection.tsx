@@ -37,6 +37,7 @@ import {
   updateAuthorization,
   type AuthorizationType,
   type ClientAuthorization,
+  cleanAuthorizationNumber,
 } from '@/lib/authorizations';
 
 interface Props {
@@ -268,7 +269,9 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
                       {AUTHORIZATION_TYPE_LABEL[r.authorization_type] ?? r.authorization_type}
                     </td>
                     <td className="px-3 py-2">{r.sequence_number}</td>
-                    <td className="px-3 py-2">{r.authorization_number || '—'}</td>
+                    <td className="px-3 py-2">
+                      {cleanAuthorizationNumber(r.authorization_number) || '—'}
+                    </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {formatAuthDate(r.start_date)} – {formatAuthDate(r.end_date)}
                     </td>
@@ -325,7 +328,12 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
                 id="auth-num"
                 value={form.authorization_number}
                 inputMode="numeric"
-                onChange={(e) => setForm((f) => ({ ...f, authorization_number: digitsOnly(e.target.value) }))}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    authorization_number: cleanAuthorizationNumber(e.target.value),
+                  }))
+                }
                 placeholder="Optional"
               />
             </div>
