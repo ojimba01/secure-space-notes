@@ -497,3 +497,14 @@ export async function syncAuthorizationsFromLegacyColumns(
 
   return { created, updated };
 }
+
+/**
+ * Tidy an authorization number without destroying it.
+ *
+ * A leading `#` is decoration somebody typed: 126 numbers carry one. Letters
+ * are not. 92 of them are shaped `UM85730060`, where the prefix is part of the
+ * number the MCO issued, and stripping to digits would quietly turn them into
+ * a different number that no claim will match.
+ */
+export const cleanAuthorizationNumber = (raw: string | null | undefined): string =>
+  (raw ?? '').trim().replace(/^#+\s*/, '').trim();

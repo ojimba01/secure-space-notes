@@ -67,7 +67,7 @@ interface ClientDetailsProps {
 export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, onUpdate, initialTab }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState(initialTab ?? 'overview');
+  const [activeTab, setActiveTab] = useState(initialTab ?? 'forms');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
@@ -190,6 +190,12 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             </div>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {client.notes && (
+              <div className="md:col-span-2 lg:col-span-3">
+                <p className="text-sm font-medium text-muted-foreground">Notes</p>
+                <p className="whitespace-pre-wrap">{client.notes}</p>
+              </div>
+            )}
             {client.email && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Email</p>
@@ -266,27 +272,11 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className={`grid w-full ${isSuperadmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="forms">Forms</TabsTrigger>
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
             {isSuperadmin && <TabsTrigger value="billing">Billing</TabsTrigger>}
           </TabsList>
-
-          <TabsContent value="overview" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {client.notes ? (
-                  <p>{client.notes}</p>
-                ) : (
-                  <p className="text-muted-foreground">No additional notes have been added.</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="forms" className="space-y-4">
             <ClientFormsDocuments

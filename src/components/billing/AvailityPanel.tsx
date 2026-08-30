@@ -94,15 +94,14 @@ const OTHER_CODE = '__other__';
 
 /** One Availity box: its label, its value, and a button that copies it. */
 /**
- * Blue means the app carried this value here: check it, do not retype it.
- * Orange means the app cannot know it and a person has to decide.
- * Everything else is a fixed answer or a box Availity fills in itself, and is
- * left plain on purpose - colouring those would drown the two that matter.
+ * Orange marks a box worth looking at before it is pasted: one the app filled
+ * from the client record, or one only a person can answer. Either way the
+ * instruction is the same, so it is one colour rather than two.
+ *
+ * Everything else is a fixed answer or a box Availity fills in itself. Those
+ * stay plain, or the marking means nothing.
  */
-const SOURCE_STYLE: Record<string, string> = {
-  piped: 'border-blue-400 bg-blue-50 text-blue-900',
-  judgement: 'border-orange-400 bg-orange-50 text-orange-900',
-};
+const CHECK_THIS = 'border-orange-400 bg-orange-50 text-orange-900';
 
 /** The dropdown's stand-in for an empty value, which it cannot carry itself. */
 const NOT_RECORDED = 'not-recorded';
@@ -150,7 +149,7 @@ const CopyField: React.FC<AvailityField & { control?: React.ReactNode }> = ({
             className={`flex min-h-10 flex-1 items-center rounded-md border px-3 py-2 text-sm ${
               missing
                 ? 'border-red-300 bg-red-50 text-red-700'
-                : (source && SOURCE_STYLE[source]) || 'border-slate-300 bg-white'
+                : source ? CHECK_THIS : 'border-slate-300 bg-white'
             }`}
           >
             {missing ? missing : value || <span className="text-muted-foreground">(leave blank)</span>}
@@ -477,24 +476,8 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
     return null;
   };
 
-  /** What the two colours mean, once, above the boxes that use them. */
-  const Legend = () => (
-    <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
-      <span className="flex items-center gap-1.5">
-        <span className="inline-block h-3 w-3 rounded-sm border border-blue-400 bg-blue-50" />
-        Carried from the client record. Check it, do not retype it.
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="inline-block h-3 w-3 rounded-sm border border-orange-400 bg-orange-50" />
-        The app cannot know this. You decide.
-      </span>
-      <span>Everything else is fixed, or Availity fills it in.</span>
-    </div>
-  );
-
   const renderSections = (list: { title: string; fields: AvailityField[] }[]) => (
     <>
-      <Legend />
       {list.map((section) => (
       <Card key={section.title} className="overflow-hidden">
         <div className="border-b bg-slate-50 px-4 py-3">
