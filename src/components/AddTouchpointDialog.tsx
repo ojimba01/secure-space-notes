@@ -21,6 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { ClientPicker } from '@/components/ClientPicker';
 import { useToast } from '@/hooks/use-toast';
 import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -394,20 +395,20 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
               {context?.locked ? (
                 <ReadOnlyValue value={context.clientName} />
               ) : (
-                <Select value={clientId} onValueChange={setClientId}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Select a client" /></SelectTrigger>
-                  <SelectContent>
-                    {caseloadClients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.first_name} {c.last_name}
-                        {/* Whose caseload it is, so an admin picking from the
-                            whole agency can tell the difference. */}
-                        {isAdmin && c.assigned_employee_id !== myProfileId && c.assigned_name
-                          && ` — ${c.assigned_name}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <ClientPicker
+                  clients={caseloadClients}
+                  value={clientId || null}
+                  onChange={setClientId}
+                  className="h-9 w-full"
+                  // Whose caseload it is, so an admin picking from the whole
+                  // agency can tell the difference, and can type it too.
+                  noteFor={(c) =>
+                    isAdmin &&
+                    (c as typeof caseloadClients[number]).assigned_employee_id !== myProfileId
+                      ? (c as typeof caseloadClients[number]).assigned_name ?? null
+                      : null
+                  }
+                />
               )}
             </div>
 

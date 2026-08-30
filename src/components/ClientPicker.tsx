@@ -24,6 +24,8 @@ interface Props {
   value: string | null;
   onChange: (clientId: string) => void;
   className?: string;
+  /** Extra words beside a name, and searchable with it. */
+  noteFor?: (client: PickableClient) => string | null;
 }
 
 /**
@@ -38,7 +40,13 @@ interface Props {
  * name, and a list sorted one way while displayed the other is unsearchable by
  * eye.
  */
-export const ClientPicker: React.FC<Props> = ({ clients, value, onChange, className }) => {
+export const ClientPicker: React.FC<Props> = ({
+  clients,
+  value,
+  onChange,
+  className,
+  noteFor,
+}) => {
   const [open, setOpen] = useState(false);
 
   const ordered = useMemo(
@@ -82,7 +90,7 @@ export const ClientPicker: React.FC<Props> = ({ clients, value, onChange, classN
                 <CommandItem
                   key={c.id}
                   // Searched against, so it carries everything worth typing.
-                  value={`${c.first_name ?? ''} ${c.last_name ?? ''} ${c.member_id ?? ''}`}
+                  value={`${c.first_name ?? ''} ${c.last_name ?? ''} ${c.member_id ?? ''} ${noteFor?.(c) ?? ''}`}
                   onSelect={() => {
                     onChange(c.id);
                     setOpen(false);
@@ -93,7 +101,10 @@ export const ClientPicker: React.FC<Props> = ({ clients, value, onChange, classN
                   />
                   <span className="truncate">
                     {c.first_name} {c.last_name}
-                    {c.member_id && (
+                    {noteFor?.(c) && (
+                      <span className="text-muted-foreground"> · {noteFor(c)}</span>
+                    )}
+                    {!noteFor && c.member_id && (
                       <span className="text-muted-foreground"> · {c.member_id}</span>
                     )}
                   </span>
