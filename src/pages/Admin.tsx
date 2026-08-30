@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SetupQueues } from '@/components/admin/SetupQueues';
+import { FeatureWalkthrough } from '@/components/FeatureWalkthrough';
 import { ShadeDashboard } from '@/components/admin/ShadeDashboard';
 import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from '@/components/Sidebar';
@@ -208,6 +209,7 @@ const Admin = () => {
 
   return (
     <TutorialProvider>
+    <FeatureWalkthrough />
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar onViewChange={(view) => navigate('/', { state: { view } })} />
       <div className="min-w-0 flex-1 space-y-6 p-6 pt-16 md:pt-6">
