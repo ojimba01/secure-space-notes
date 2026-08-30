@@ -20,6 +20,9 @@ interface Props {
   onOpenClient: (clientId: string) => void;
 }
 
+/** Five claims at a time. The whole list is in Billing. */
+const PAGE = 5;
+
 const money = (n: number | null) =>
   n === null || n === undefined ? '—' : `$${Number(n).toLocaleString()}`;
 
@@ -37,6 +40,7 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
   const [hsp, setHsp] = useState<HspPicture | null>(null);
   const [staff, setStaff] = useState<StaffTouchpointRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
 
   const overdueByStaff = useMemo(() => {
     const map = new Map<string, number>();
@@ -98,8 +102,8 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm">
-            {past.length} past the deadline, {within30.length} within 30 days, {within60.length}{' '}
-            within 60. {money(valueWithin30)} stops being claimable within 30 days.
+            {past.length} past the deadline. {within30.length} within 30 days,{' '}
+            {money(valueWithin30)}.
           </p>
 
           {loading ? (
@@ -110,7 +114,7 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
             </p>
           ) : (
             <div className="divide-y rounded-md border">
-              {claims.slice(0, 25).map((c) => (
+              {claims.slice(page * PAGE, page * PAGE + PAGE).map((c) => (
                 <button
                   key={c.id}
                   type="button"
@@ -139,11 +143,30 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
                   </Badge>
                 </button>
               ))}
-              {claims.length > 25 && (
-                <p className="p-2.5 text-xs text-muted-foreground">
-                  {claims.length - 25} more, in Billing.
-                </p>
-              )}
+            </div>
+          )}
+
+          {claims.length > PAGE && (
+            <div className="flex items-center gap-2 text-sm">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                Back
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={(page + 1) * PAGE >= claims.length}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+              <span className="text-muted-foreground">
+                {page * PAGE + 1}–{Math.min((page + 1) * PAGE, claims.length)} of {claims.length}
+              </span>
             </div>
           )}
         </CardContent>
