@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
@@ -185,6 +185,8 @@ export function BillingWorkspace() {
   const [section,setSection]=useState<Section>('bill');
   // The client whose Availity boxes are open. Null means the list is showing.
   const [billingClientId,setBillingClientId]=useState<string|null>(null);
+  const [closedOpen,setClosedOpen]=useState(false);
+  const [closedClient,setClosedClient]=useState<string|null>(null);
   const [showLater,setShowLater]=useState(false);
   // The agency's own boxes are the same every time, so they start folded away.
   const [agencyOpen,setAgencyOpen]=useState(false);
@@ -585,30 +587,43 @@ export function BillingWorkspace() {
         shortlist={urgent.map(r=>({ id:r.client.id, label:`${r.client.first_name} ${r.client.last_name}`, note:`${r.days}d`, urgent:r.band==='week' }))}
       />
 
+      {/* Closed and out of the way. Nothing here can be filed, so it is a
+          reference rather than work, and it opens only when asked for. */}
       {closed.length>0 && <Card className="p-4 space-y-2">
-        <div>
+        <button
+          type="button"
+          onClick={()=>setClosedOpen(v=>!v)}
+          className="flex w-full items-center justify-between gap-2 text-left"
+        >
           <h3 className="font-semibold">Missed deadlines</h3>
-          <p className="text-sm text-muted-foreground">
-            {closed.length} client{closed.length===1?'':'s'} whose every open cycle is past its
-            six-month window. Nothing can be filed for them, so they are kept out of the list
-            above.
-          </p>
-        </div>
-        <div className="divide-y rounded-md border">
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            {closed.length} client{closed.length===1?'':'s'}
+            {closedOpen?<ChevronUp className="h-4 w-4"/>:<ChevronDown className="h-4 w-4"/>}
+          </span>
+        </button>
+
+        {closedOpen && <div className="divide-y rounded-md border">
           {closed.map(r=>(
-            <button
-              key={r.client.id}
-              type="button"
-              onClick={()=>setBillingClientId(r.client.id)}
-              className="flex w-full items-center justify-between gap-2 p-2.5 text-left text-sm hover:bg-muted/50"
-            >
-              <span className="truncate">{r.client.first_name} {r.client.last_name}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {Math.abs(r.days)} days past · {r.cycles.length} cycle{r.cycles.length===1?'':'s'}
-              </span>
-            </button>
+            <div key={r.client.id}>
+              <button
+                type="button"
+                onClick={()=>setClosedClient(c=>c===r.client.id?null:r.client.id)}
+                className="flex w-full items-center justify-between gap-2 p-2.5 text-left text-sm hover:bg-muted/50"
+              >
+                <span className="truncate">{r.client.first_name} {r.client.last_name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {Math.abs(r.days)} days past · {r.cycles.length} cycle{r.cycles.length===1?'':'s'}
+                </span>
+              </button>
+              {closedClient===r.client.id && <div className="space-y-2 border-t p-2.5">
+                <CycleGrid client={r.client} cycles={cycleByClient.get(r.client.id)??[]} updateCycle={cycleWriter} practice={!!practice}/>
+                <Button variant="outline" size="sm" onClick={()=>{setBillingClientId(r.client.id);window.scrollTo({top:0,behavior:'smooth'});}}>
+                  Open in Availity
+                </Button>
+              </div>}
+            </div>
           ))}
-        </div>
+        </div>}
       </Card>}
 
 
