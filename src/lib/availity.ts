@@ -124,6 +124,20 @@ export interface AvailityField {
    * page exactly and nothing has to be answered somewhere above.
    */
   edit?: 'gender' | 'relationship' | 'diagnosis' | 'dob' | 'memberId' | 'address';
+  /**
+   * Where the value comes from, which is the only thing a person pasting into
+   * Availity needs to know at a glance.
+   *
+   *  piped     - carried from the client record. Blue: check it, do not retype.
+   *  judgement - the app cannot know this. Orange: a person decides.
+   *
+   * Left unset for everything else: a fixed answer the app already knows, or a
+   * box Availity fills in itself. Colouring those would drown the two that
+   * matter.
+   */
+  source?: 'piped' | 'judgement';
+  /** A checkbox in Availity, shown ticked rather than described. */
+  tick?: boolean;
 }
 
 export interface AvailitySection {
@@ -238,24 +252,29 @@ export function eligibilitySections({
           required: true,
           value: client.member_id ?? '',
           edit: 'memberId',
+          source: 'piped',
+          note: 'The MCO member ID from the client record.',
         },
         {
           label: 'Date of Birth',
           required: true,
           value: usDate(client.date_of_birth),
           edit: 'dob',
+          source: 'piped',
         },
         {
           label: 'Patient Gender',
           value: gender,
           edit: 'gender',
-          note: gender ? 'From the client intake.' : 'Not recorded. Enter it in Availity.',
+          source: 'judgement',
+          note: 'The app cannot know this. Enter it here or in Availity.',
         },
         {
           label: "Patient's Relationship to Subscriber",
           value: relationship,
           edit: 'relationship',
-          note: 'Kept on the client record, so the next claim opens on it.',
+          source: 'judgement',
+          note: 'Self unless somebody says otherwise. Kept on the client record.',
         },
       ],
     },
@@ -272,6 +291,7 @@ export function eligibilitySections({
           label: 'Benefit / Service Type',
           required: true,
           value: BENEFIT_SERVICE_TYPE,
+          source: 'piped',
           note: 'Housing supports have no entry of their own, so Case Management is used.',
         },
       ],
@@ -493,15 +513,23 @@ export function claimSections({
           required: true,
           value: usDate(client.date_of_birth),
           edit: 'dob',
+          source: 'piped',
         },
         {
           label: 'Gender',
           required: true,
           value: gender,
           edit: 'gender',
-          note: gender ? 'From the client intake.' : 'Not recorded. Enter it in Availity.',
+          source: 'judgement',
+          note: 'The app cannot know this. Enter it here or in Availity.',
         },
-        { label: 'Relationship', required: true, value: relationship, edit: 'relationship' },
+        {
+          label: 'Relationship',
+          required: true,
+          value: relationship,
+          edit: 'relationship',
+          source: 'judgement',
+        },
         {
           label: 'Address',
           required: true,
@@ -509,7 +537,7 @@ export function claimSections({
           edit: 'address',
           note: client.address?.trim()
             ? 'One line on the client record. Availity splits address, city, state and ZIP — separate them as you paste.'
-            : undefined,
+            : 'Availity fills this in when you pick the patient. Leave it.',
         },
         { label: 'Address 2', value: '' },
         { label: 'Country', value: COUNTRY },
@@ -523,6 +551,7 @@ export function claimSections({
           required: true,
           value: client.member_id ?? '',
           edit: 'memberId',
+          source: 'piped',
         },
         { label: 'Group Number', value: '' },
         { label: 'Authorized Plan to Remit Payment to Provider?', required: true, value: REMIT_TO_PROVIDER },
@@ -576,7 +605,7 @@ export function claimSections({
         {
           label: 'Pay-to address is the same as the billing address',
           value: '',
-          note: 'Tick this box. There is nothing to paste.',
+          tick: true,
         },
       ],
     },
@@ -602,6 +631,7 @@ export function claimSections({
           label: 'Patient Control Number / Claim Number',
           required: true,
           value: controlNumber,
+          source: 'piped',
           note: controlNumber ? "The client's initials, then the member ID." : undefined,
           missing: controlNumber ? undefined : 'No member ID on the client record',
         },
@@ -613,7 +643,10 @@ export function claimSections({
         { label: 'Claim Filing Indicator', required: true, value: CLAIM_FILING_INDICATOR },
         {
           label: 'Prior Authorization Number',
-          value: selected.priorAuthNumber ?? '',
+          // Availity takes digits. A number recorded as "#0024713705" is the
+          // same authorization with a character the field will not accept.
+          value: (selected.priorAuthNumber ?? '').replace(/\D/g, ''),
+          source: 'piped',
           note: selected.priorAuthNumber
             ? 'The authorization covering these service dates.'
             : undefined,
@@ -622,6 +655,10 @@ export function claimSections({
             : 'No authorization number recorded for the period these dates fall in',
         },
         { label: 'Medical Record Number', value: '' },
+        { label: 'Care Plan Oversight Number', value: '' },
+        { label: 'Clinical Laboratory Improvement Amendment Number', value: '' },
+        { label: 'Spinal Manipulation Service Patient Condition Code', value: '' },
+        { label: 'Claim Note Reference Code', value: '' },
       ],
     },
     {
@@ -632,6 +669,7 @@ export function claimSections({
           required: true,
           value: diagnosisCode,
           edit: 'diagnosis',
+          source: 'piped',
           note: `${diagnosisLabel(diagnosisCode)}. Availity drops the decimal point, so Z59.00 is typed Z5900.`,
           missing:
             findDiagnosisCode(diagnosisCode)?.billable === false
@@ -641,10 +679,21 @@ export function claimSections({
       ],
     },
     {
-      title: 'Lines — line 1',
+      title: 'Lines',
       fields: [
-        { label: 'Service From Date', required: true, value: usDate(selected.cycle.cycle_start) },
-        { label: 'Service To Date', value: usDate(selected.cycle.cycle_end) },
+        {
+          label: 'Service From Date',
+          required: true,
+          value: usDate(selected.cycle.cycle_start),
+          source: 'piped',
+          note: 'From the cycle selected above.',
+        },
+        {
+          label: 'Service To Date',
+          value: usDate(selected.cycle.cycle_end),
+          source: 'piped',
+          note: 'From the cycle selected above.',
+        },
         { label: 'Place of Service', value: PLACE_OF_SERVICE },
         {
           label: 'Procedure Code',
@@ -660,7 +709,7 @@ export function claimSections({
             : 'The default. An authorization can override it.',
           missing: modifier ? undefined : 'No modifier set in the agency boxes above',
         },
-        { label: 'Diagnosis Code Pointer 1', required: true, value: diagnosisCode },
+        { label: 'Diagnosis Code Pointer 1', required: true, value: diagnosisCode, source: 'piped' },
         {
           label: 'Charge Amount',
           required: true,
