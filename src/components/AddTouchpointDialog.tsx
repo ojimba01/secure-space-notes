@@ -272,13 +272,6 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     setServiceType(defaultNjhmisServiceType(selectedLevelOfNeed));
   }, [selectedLevelOfNeed]);
 
-  const suggestWording = () => {
-    const method = contactMethodLabel(contactMethod).toLowerCase();
-    const verb = isInPersonMethod(contactMethod) ? 'met with the client in person' : `contacted the client by ${method}`;
-    setProgressNote(
-      `CM ${verb} regarding ${touchpointTypeLabel(touchpointType).toLowerCase()}. `,
-    );
-  };
 
   // Default to the client's own case manager, so an admin recording someone
   // else's visit attributes it correctly without having to think about it.
@@ -563,12 +556,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <FieldLabel>Progress note</FieldLabel>
-                <Button type="button" variant="ghost" size="sm" className="h-6 text-[11px]" onClick={suggestWording}>
-                  Start the sentence
-                </Button>
-              </div>
+              <FieldLabel>Progress note</FieldLabel>
               <Textarea
                 value={progressNote}
                 onChange={(e) => setProgressNote(e.target.value)}
