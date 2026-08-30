@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -92,12 +93,25 @@ const NO_EXTRAS: ClientExtras = {
 const OTHER_CODE = '__other__';
 
 /** One Availity box: its label, its value, and a button that copies it. */
+/**
+ * Blue means the app carried this value here: check it, do not retype it.
+ * Orange means the app cannot know it and a person has to decide.
+ * Everything else is a fixed answer or a box Availity fills in itself, and is
+ * left plain on purpose - colouring those would drown the two that matter.
+ */
+const SOURCE_STYLE: Record<string, string> = {
+  piped: 'border-blue-400 bg-blue-50 text-blue-900',
+  judgement: 'border-orange-400 bg-orange-50 text-orange-900',
+};
+
 const CopyField: React.FC<AvailityField & { control?: React.ReactNode }> = ({
   label,
   value,
   required,
   note,
   missing,
+  source,
+  tick,
   control,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -121,12 +135,19 @@ const CopyField: React.FC<AvailityField & { control?: React.ReactNode }> = ({
         {label}
       </Label>
       <div className="flex gap-2">
-        {control ? (
+        {tick ? (
+          <div className="flex min-h-10 flex-1 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+            <Checkbox checked disabled aria-label={label} />
+            <span>Ticked</span>
+          </div>
+        ) : control ? (
           <div className="flex-1">{control}</div>
         ) : (
           <div
             className={`flex min-h-10 flex-1 items-center rounded-md border px-3 py-2 text-sm ${
-              missing ? 'border-red-300 bg-red-50 text-red-700' : 'border-slate-300 bg-white'
+              missing
+                ? 'border-red-300 bg-red-50 text-red-700'
+                : (source && SOURCE_STYLE[source]) || 'border-slate-300 bg-white'
             }`}
           >
             {missing ? missing : value || <span className="text-muted-foreground">(leave blank)</span>}
@@ -146,8 +167,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   const [clientId, setClientId] = useState<string | null>(null);
   const [extras, setExtras] = useState<ClientExtras>(NO_EXTRAS);
   const [authorizations, setAuthorizations] = useState<ClientAuthorization[]>([]);
-  const [gender, setGender] = useState<AvailityGender>('Female');
-  const [genderAssumed, setGenderAssumed] = useState(true);
+  const [gender, setGender] = useState<AvailityGender>('');
   const [relationship, setRelationship] = useState<Relationship>('Self');
   const [diagnosisCode, setDiagnosisCode] = useState<string>(DEFAULT_DIAGNOSIS_CODE);
   const [customCode, setCustomCode] = useState('');
@@ -196,7 +216,6 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
     setDiagnosisCode(stored ?? DEFAULT_DIAGNOSIS_CODE);
     setCustomCode(stored && !findDiagnosisCode(stored) ? stored : '');
     setGender(known ?? 'Female');
-    setGenderAssumed(!known);
     setRelationship((storedRelationship as Relationship) ?? 'Self');
     setAuthorizations(auths);
   }, []);
@@ -256,8 +275,8 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   // Both Availity pages are worked in order for one client, so both are built.
   const eligibilityFields = useMemo(() => {
     if (!availityClient || !settings) return [];
-    return eligibilitySections({ client: availityClient, settings, gender, genderAssumed, relationship });
-  }, [availityClient, settings, gender, genderAssumed, relationship]);
+    return eligibilitySections({ client: availityClient, settings, gender, relationship });
+  }, [availityClient, settings, gender, relationship]);
 
   const claimFields = useMemo(() => {
     if (!availityClient || !settings || !selected) return [];
@@ -265,12 +284,11 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
       client: availityClient,
       settings,
       gender,
-      genderAssumed,
       relationship,
       selected,
       diagnosisCode,
     });
-  }, [availityClient, settings, gender, genderAssumed, relationship, selected, diagnosisCode]);
+  }, [availityClient, settings, gender, relationship, selected, diagnosisCode]);
 
 
   /**
@@ -354,7 +372,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   const controlFor = (edit: AvailityField['edit']): React.ReactNode => {
     if (edit === 'gender') {
       return (
-        <Select value={gender} onValueChange={(v) => { setGender(v as AvailityGender); setGenderAssumed(false); }}>
+        <Select value={gender} onValueChange={(v) => { setGender(v as AvailityGender); }}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             {GENDER_OPTIONS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
@@ -452,8 +470,25 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
     return null;
   };
 
-  const renderSections = (list: { title: string; fields: AvailityField[] }[]) =>
-    list.map((section) => (
+  /** What the two colours mean, once, above the boxes that use them. */
+  const Legend = () => (
+    <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
+      <span className="flex items-center gap-1.5">
+        <span className="inline-block h-3 w-3 rounded-sm border border-blue-400 bg-blue-50" />
+        Carried from the client record. Check it, do not retype it.
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="inline-block h-3 w-3 rounded-sm border border-orange-400 bg-orange-50" />
+        The app cannot know this. You decide.
+      </span>
+      <span>Everything else is fixed, or Availity fills it in.</span>
+    </div>
+  );
+
+  const renderSections = (list: { title: string; fields: AvailityField[] }[]) => (
+    <>
+      <Legend />
+      {list.map((section) => (
       <Card key={section.title} className="overflow-hidden">
         <div className="border-b bg-slate-50 px-4 py-3">
           <h3 className="text-base font-semibold text-slate-900">{section.title}</h3>
@@ -464,7 +499,9 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
           ))}
         </div>
       </Card>
-    ));
+      ))}
+    </>
+  );
 
   const markSubmitted = async () => {
     if (!selected || !availityClient) return;
