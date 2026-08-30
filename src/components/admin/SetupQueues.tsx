@@ -43,7 +43,7 @@ const QUEUES: QueueMeta[] = [
   },
   {
     key: 'unassigned',
-    label: 'unassigned clients',
+    label: 'clients missing a case manager',
     action:
       'A client with no case manager appears in nobody’s work queue and is scheduled no touchpoints. Assign one on the client record.',
     icon: <UserX className="h-5 w-5" />,
@@ -51,7 +51,7 @@ const QUEUES: QueueMeta[] = [
   },
   {
     key: 'noLevelOfNeed',
-    label: 'clients with no LoN',
+    label: 'clients missing a LoN',
     action:
       'Without a level of need there is no rate, so cycles are created on hold, and no touchpoint requirement can be worked out. Record the score on the client record.',
     icon: <Gauge className="h-5 w-5" />,
@@ -59,7 +59,7 @@ const QUEUES: QueueMeta[] = [
   },
   {
     key: 'noStartDate',
-    label: 'clients with no 30-day start date',
+    label: 'clients missing a 30-day start date',
     action:
       'Billing cycles and touchpoint windows are both counted from the HSP approval or authorization start date. Without one, neither can be created.',
     icon: <CalendarX className="h-5 w-5" />,
