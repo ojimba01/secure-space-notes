@@ -108,6 +108,17 @@ export const FeatureWalkthrough: React.FC = () => {
     };
   }, [user]);
 
+  // Somebody who has already been through it can ask for it again, from the
+  // sidebar. Without this the only way back in was to clear their record.
+  useEffect(() => {
+    const replay = () => {
+      setStep(0);
+      setOpen(true);
+    };
+    window.addEventListener('show-new-features', replay);
+    return () => window.removeEventListener('show-new-features', replay);
+  }, []);
+
   const steps = isAdmin ? ADMIN_STEPS : STAFF_STEPS;
   const last = step === steps.length - 1;
 

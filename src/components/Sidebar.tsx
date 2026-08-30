@@ -218,10 +218,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             <BookOpen className="h-4 w-4" />
             Help guide
           </Button>
+          {/* One walkthrough, not two. The spotlight tour and the new-features
+              steps were separate buttons that a person had to choose between
+              without knowing the difference. */}
           <Button
             variant="ghost"
             className="w-full justify-start gap-2 text-primary"
-            onClick={() => startTutorial()}
+            onClick={() => window.dispatchEvent(new Event('show-new-features'))}
           >
             <Play className="h-4 w-4" />
             Start walkthrough
