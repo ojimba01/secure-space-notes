@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { FeatureWalkthrough } from '@/components/FeatureWalkthrough';
 import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from "@/components/Sidebar";
 import { ClientManagement } from "@/components/ClientManagement";
@@ -154,6 +155,7 @@ const Index = () => {
 
   return (
     <TutorialProvider>
+      <FeatureWalkthrough />
       <div className={`flex h-screen bg-background w-full overflow-hidden ${isViewingAs ? 'pt-9' : ''}`}>
         <Sidebar activeView={activeView} onViewChange={handleViewChange} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">

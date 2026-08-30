@@ -41,6 +41,7 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
   const [staff, setStaff] = useState<StaffTouchpointRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
+  const [dismissed, setDismissed] = useState(false);
 
   const overdueByStaff = useMemo(() => {
     const map = new Map<string, number>();
@@ -93,8 +94,28 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
   const within60 = claims.filter((c) => c.daysLeft > 30);
   const valueWithin30 = within30.reduce((sum, c) => sum + Number(c.amount ?? 0), 0);
 
+  // Who has been through the walkthrough since Shade last looked. A banner
+  // rather than a dialog: it is news, not a decision, and a dialog on every
+  // load for something already recorded in the table below is a nuisance.
+  const justShown = staff.filter(
+    (r) =>
+      r.acknowledgedAt &&
+      Date.now() - new Date(r.acknowledgedAt).getTime() < 7 * 24 * 60 * 60 * 1000,
+  );
+
   return (
     <div className="space-y-4">
+      {justShown.length > 0 && !dismissed && (
+        <div className="flex items-start justify-between gap-3 rounded-md border border-green-300 bg-green-50 p-3 text-sm text-green-900">
+          <p>
+            {justShown.map((r) => r.name).join(', ')} went through the walkthrough this week.
+            Set a start date below to begin counting their touchpoints.
+          </p>
+          <Button variant="ghost" size="sm" onClick={() => setDismissed(true)}>
+            Dismiss
+          </Button>
+        </div>
+      )}
       {/* ------------------------------------------------ claims ---------- */}
       <Card>
         <CardHeader>
