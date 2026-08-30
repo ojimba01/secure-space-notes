@@ -60,6 +60,45 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
   const [conflicts, setConflicts] = useState<{ label: string; values: string[] }[]>([]);
   const [chosen, setChosen] = useState<Record<string, { include: boolean; value: string }>>({});
   const [dragging, setDragging] = useState(false);
+  /** The scan currently being read with optical recognition, if any. */
+  const [ocrFor, setOcrFor] = useState<string | null>(null);
+
+  /**
+   * Read one scan the slow way.
+   *
+   * A page measured at over 100 seconds, so this is never done to a batch. It
+   * is one document, chosen by somebody who has decided it is worth the wait.
+   */
+  const readWithOcr = async (target: DocumentReading) => {
+    setOcrFor(target.file.name);
+    try {
+      const [reread] = await readDroppedDocuments(
+        [target.file],
+        undefined,
+        current as { first_name?: string | null; last_name?: string | null },
+        { ocr: true },
+      );
+      if (!reread) return;
+      const next = readings.map((r) => (r.file.name === target.file.name ? reread : r));
+      const { proposals: found, conflicts: clashes } = proposeFromReadings(next, current);
+      setReadings(next);
+      setProposals(found);
+      setConflicts(clashes);
+      setChosen((c) =>
+        Object.fromEntries(
+          found.map((p) => [p.column, c[p.column] ?? { include: p.current === null, value: p.value }]),
+        ),
+      );
+      toast({
+        title: reread.hasText ? 'Read' : 'Nothing readable in that scan',
+        description: reread.hasText ? 'Check anything it filled in below.' : undefined,
+      });
+    } catch (err: any) {
+      toast({ title: 'Could not read it', description: err.message, variant: 'destructive' });
+    } finally {
+      setOcrFor(null);
+    }
+  };
 
   const reset = () => {
     setStep('choose');
@@ -206,10 +245,23 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
               </div>
               <div className="space-y-1">
                 {readings.map((r) => (
-                  <p key={r.file.name} className="truncate text-xs text-muted-foreground">
-                    {r.suggestedName}
-                    {!r.hasText && !r.error && ' · scan, no readable text'}
-                  </p>
+                  <div key={r.file.name} className="flex items-center justify-between gap-2">
+                    <p className="truncate text-xs text-muted-foreground">
+                      {r.suggestedName}
+                      {!r.hasText && !r.error && ' · scan, no readable text'}
+                    </p>
+                    {!r.hasText && !r.error && !r.ocrApplied && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 shrink-0 text-[11px]"
+                        disabled={!!ocrFor}
+                        onClick={() => readWithOcr(r)}
+                      >
+                        {ocrFor === r.file.name ? 'Reading, this takes a while' : 'Read with OCR'}
+                      </Button>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
