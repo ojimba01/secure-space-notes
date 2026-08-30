@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CalendarView } from '@/components/CalendarView';
 import { ClientWorkflowCard } from '@/components/ClientWorkflowCard';
 import { AuthorizationsSection } from '@/components/AuthorizationsSection';
+import { AuthorizationsFromDocuments } from '@/components/AuthorizationsFromDocuments';
 
 import { serviceStartDate } from '@/lib/workflow';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
@@ -245,6 +246,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </Card>
 
         <ClientWorkflowCard client={client} onUpdate={onUpdate} />
+
+        <AuthorizationsFromDocuments clientId={client.id} onApplied={onUpdate} />
 
         <AuthorizationsSection clientId={client.id} onUpdate={onUpdate} />
 
