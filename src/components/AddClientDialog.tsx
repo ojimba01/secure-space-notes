@@ -366,8 +366,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                       />
                     </FormControl>
                     <FormDescription>
-                      A score under 18 sets the level to Low, whatever is chosen beside it.
-                      Under-billing is recoverable; over-billing an MCO is not.
+                      A score under 18 sets the level to Low.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

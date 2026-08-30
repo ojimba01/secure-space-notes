@@ -115,7 +115,19 @@ const PAGE_SIZE = 10;
 const statusVariant = (status: string) => FORM_STATUS_CLASS[status] ?? 'bg-muted text-muted-foreground';
 
 
-export const FormsHub: React.FC = () => {
+interface FormsHubProps {
+  /**
+   * Which half of this screen to show.
+   *
+   * 'forms' is the blank templates and filling one in, which is what staff
+   * come here for. 'archive' is the table of every form ever filed, which
+   * answers an administrator's question, not a case manager's - the forms on a
+   * client are on that client, where somebody looking for them would look.
+   */
+  view?: 'forms' | 'archive';
+}
+
+export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
   const [intakeQuery, setIntakeQuery] = useState('');
@@ -382,6 +394,8 @@ export const FormsHub: React.FC = () => {
         </div>
       </div>
 
+      {view === 'archive' && (
+        <>
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -542,6 +556,8 @@ export const FormsHub: React.FC = () => {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+      )}
+        </>
       )}
 
       {fillingTemplate && profileId && (

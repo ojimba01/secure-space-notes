@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Calendar, FileText, Upload, Plus, Edit, Trash2, UserCog, Archive } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, FileUp, Upload, Plus, Edit, Trash2, UserCog, Archive } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileManager } from '@/components/FileManager';
 import { EditClientDialog } from '@/components/EditClientDialog';
@@ -23,6 +23,7 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
 import { ClientFormsDocuments } from '@/components/forms/ClientFormsDocuments';
+import { DocumentIntakeDialog } from '@/components/DocumentIntakeDialog';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 interface Client {
@@ -67,6 +68,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState(initialTab ?? 'overview');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [intakeOpen, setIntakeOpen] = useState(false);
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -175,9 +177,15 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                   <p className="text-muted-foreground">Member ID: {client.member_id}</p>
                 )}
               </div>
-              <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
-                {client.status}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setIntakeOpen(true)}>
+                  <FileUp className="h-4 w-4 mr-2" />
+                  Upload forms
+                </Button>
+                <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
+                  {client.status}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -327,6 +335,15 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         clientId={client.id}
         clientName={`${client.first_name} ${client.last_name}`}
         onClosed={onUpdate}
+      />
+
+      <DocumentIntakeDialog
+        open={intakeOpen}
+        onOpenChange={setIntakeOpen}
+        clientId={client.id}
+        clientName={`${client.first_name} ${client.last_name}`}
+        current={client as unknown as Record<string, unknown>}
+        onApplied={onUpdate}
       />
 
       <EditClientDialog
