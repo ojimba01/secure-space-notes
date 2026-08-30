@@ -587,10 +587,11 @@ export function BillingWorkspace() {
 
       {closed.length>0 && <Card className="p-4 space-y-2">
         <div>
-          <h3 className="font-semibold">{closed.length} client{closed.length===1?'':'s'} past the filing deadline</h3>
+          <h3 className="font-semibold">Missed deadlines</h3>
           <p className="text-sm text-muted-foreground">
-            The six-month window has closed on every cycle they have open. Nothing can be filed
-            for them, so they are kept out of the list above.
+            {closed.length} client{closed.length===1?'':'s'} whose every open cycle is past its
+            six-month window. Nothing can be filed for them, so they are kept out of the list
+            above.
           </p>
         </div>
         <div className="divide-y rounded-md border">

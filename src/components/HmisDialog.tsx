@@ -60,16 +60,9 @@ export const HmisDialog: React.FC<Props> = ({ open, onOpenChange, client, caseMa
         <DialogHeader>
           <DialogTitle>HMIS intake</DialogTitle>
           <DialogDescription>
-            The boxes in the order HMIS asks for them. {filled} of {HMIS_FIELDS.length} are
-            answered from the client record; the rest are answered in HMIS, from the client
-            intake form.
+            The boxes in the order HMIS asks for them. {filled} of {HMIS_FIELDS.length} are answered from the client record. The rest are typed in HMIS.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="inline-block h-3 w-3 rounded-sm border border-blue-400 bg-blue-50" />
-          Carried from the client record. Check it, do not retype it.
-        </div>
 
         <div className="space-y-6">
           {pages.map(([page, fields]) => (
@@ -82,26 +75,30 @@ export const HmisDialog: React.FC<Props> = ({ open, onOpenChange, client, caseMa
                     <div key={f.name} className="space-y-1">
                       <Label className="text-sm font-normal text-muted-foreground">{f.label}</Label>
                       <div className="flex gap-2">
+                        {/* Blank when the app has no answer, rather than a
+                            sentence in the box. Somebody reading down the
+                            column wants to see what is here, not be told
+                            repeatedly that nothing is. */}
                         <div
                           className={`flex min-h-9 flex-1 items-center rounded-md border px-3 py-2 text-sm ${
-                            value ? 'border-blue-400 bg-blue-50 text-blue-900' : 'bg-background'
+                            value ? 'border-orange-400 bg-orange-50 text-orange-900' : 'bg-background'
                           }`}
                         >
-                          {value || (
-                            <span className="text-muted-foreground">Answer this in HMIS</span>
-                          )}
+                          {value}
                         </div>
-                        {value && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            aria-label={`Copy ${f.label}`}
-                            onClick={() => copy(f, value)}
-                          >
-                            <Copy className={`h-4 w-4 ${copied === f.name ? 'text-green-600' : ''}`} />
-                          </Button>
-                        )}
+                        {/* Every box, whether or not the app filled it. A
+                            missing copy button on half the rows is harder to
+                            use than one that copies nothing. */}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          aria-label={`Copy ${f.label}`}
+                          disabled={!value}
+                          onClick={() => copy(f, value)}
+                        >
+                          <Copy className={`h-4 w-4 ${copied === f.name ? 'text-green-600' : ''}`} />
+                        </Button>
                       </div>
                     </div>
                   );
