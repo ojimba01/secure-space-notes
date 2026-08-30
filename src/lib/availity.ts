@@ -500,6 +500,7 @@ export function claimSections({
               ? `The exact Availity wording for ${mco} has not been recorded, so the plan name is shown. Check it against the Payer list.`
               : undefined,
           missing: mco ? undefined : 'No MCO on the client record',
+          source: 'judgement',
         },
         { label: 'Responsibility Sequence', value: RESPONSIBILITY_SEQUENCE },
       ],
@@ -521,7 +522,6 @@ export function claimSections({
           required: true,
           value: usDate(client.date_of_birth),
           edit: 'dob',
-          source: 'piped',
         },
         {
           label: 'Gender',
@@ -558,7 +558,6 @@ export function claimSections({
           required: true,
           value: client.member_id ?? '',
           edit: 'memberId',
-          source: 'piped',
         },
         { label: 'Group Number', value: '' },
         { label: 'Authorized Plan to Remit Payment to Provider?', required: true, value: REMIT_TO_PROVIDER },
@@ -613,6 +612,7 @@ export function claimSections({
           label: 'Pay-to address is the same as the billing address',
           value: '',
           tick: true,
+          note: undefined,
         },
       ],
     },
@@ -638,7 +638,6 @@ export function claimSections({
           label: 'Patient Control Number / Claim Number',
           required: true,
           value: controlNumber,
-          source: 'piped',
           note: controlNumber ? "The client's initials, then the member ID." : undefined,
           missing: controlNumber ? undefined : 'No member ID on the client record',
         },
@@ -653,7 +652,6 @@ export function claimSections({
           // A leading # is decoration somebody typed. The letters in UM85730060
           // are not - that prefix is part of the number the MCO issued.
           value: cleanAuthorizationNumber(selected.priorAuthNumber),
-          source: 'piped',
           note: selected.priorAuthNumber
             ? 'The authorization covering these service dates.'
             : undefined,
@@ -692,13 +690,11 @@ export function claimSections({
           label: 'Service From Date',
           required: true,
           value: usDate(selected.cycle.cycle_start),
-          source: 'piped',
           note: 'From the cycle selected above.',
         },
         {
           label: 'Service To Date',
           value: usDate(selected.cycle.cycle_end),
-          source: 'piped',
           note: 'From the cycle selected above.',
         },
         { label: 'Place of Service', value: PLACE_OF_SERVICE },
@@ -716,7 +712,7 @@ export function claimSections({
             : 'The default. An authorization can override it.',
           missing: modifier ? undefined : 'No modifier set in the agency boxes above',
         },
-        { label: 'Diagnosis Code Pointer 1', required: true, value: diagnosisCode, source: 'piped' },
+        { label: 'Diagnosis Code Pointer 1', required: true, value: diagnosisCode },
         {
           label: 'Charge Amount',
           required: true,

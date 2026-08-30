@@ -232,7 +232,7 @@ const Admin = () => {
           </div>
         </div>
 
-        <SetupQueues onOpenClient={(id) => navigate('/', { state: { view: 'clients', clientId: id } })} />
+        <SetupQueues />
 
         <ShadeDashboard
           onOpenClient={(id) => navigate('/', { state: { view: 'clients', clientId: id } })}
