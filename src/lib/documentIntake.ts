@@ -3,6 +3,7 @@ import { extractDocumentText } from '@/lib/documentText';
 import { readFormValues } from '@/lib/documentRecognition';
 import { recognizeFormType } from '@/lib/formAutofill';
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
+import { extensionOf, suggestDocumentName, tagsFromFilename } from '@/lib/documentNaming';
 
 import {
   NO_FIELDS,
@@ -31,7 +32,37 @@ export interface DocumentReading {
   fields: DocumentFields;
   /** False for a scan: no text layer, so only its form fields were read. */
   hasText: boolean;
+  /** The agency's name for it, offered in place of whatever the file was called. */
+  suggestedName: string;
+  /** True once optical recognition has been run on this one. */
+  ocrApplied?: boolean;
+  /**
+   * Only what the PDF's own form fields gave up.
+   *
+   * Printed text is a much weaker source for identity: on the state's forms a
+   * date of birth comes off the form fields 98% of the time and off the
+   * printed text 1% of the time, and a "Date of Birth" heading followed by
+   * somebody's signature date reads exactly the same to a regex. So a value
+   * that only the text gave is offered for a person to accept, never typed
+   * into a form they are about to save.
+   */
+  fromFormFields: Partial<DocumentFields>;
   error?: string;
+}
+
+/** The agency's naming convention, applied to what was read off a document. */
+export function nameFor(
+  reading: Pick<DocumentReading, 'file' | 'formType' | 'fields'>,
+  client: { first_name?: string | null; last_name?: string | null },
+): string {
+  return suggestDocumentName({
+    firstName: client.first_name ?? null,
+    lastName: client.last_name ?? null,
+    documentType: reading.formType,
+    date: reading.fields.serviceStart ?? reading.fields.noticeDate ?? null,
+    tags: tagsFromFilename(reading.file.name),
+    extension: extensionOf(reading.file.name),
+  });
 }
 
 /** One proposed value, and which document said it. */
@@ -56,6 +87,8 @@ const FIELD_TO_COLUMN: { key: keyof DocumentFields; column: string; label: strin
 export async function readDroppedDocuments(
   files: File[],
   onProgress?: (done: number, total: number) => void,
+  client: { first_name?: string | null; last_name?: string | null } = {},
+  options: { ocr?: boolean } = {},
 ): Promise<DocumentReading[]> {
   const readings: DocumentReading[] = [];
 
@@ -70,32 +103,38 @@ export async function readDroppedDocuments(
           formType: null,
           fields: { ...NO_FIELDS },
           hasText: false,
+          suggestedName: file.name,
+          fromFormFields: {},
           error: 'Only PDFs can be read. It will still be filed.',
         });
         continue;
       }
 
-      // Text layer only. OCR measured at over 100 seconds for a single page,
-      // which is not something to do to somebody waiting at a dialog.
-      const text = await extractDocumentText(bytes, { ocr: false });
+      // Text layer first. Optical recognition is asked for one document at a
+      // time, because a single full page measured at over 100 seconds and
+      // nobody should wait that long without having chosen to.
+      const text = await extractDocumentText(bytes, { ocr: options.ocr === true });
       const formValues = await readFormValues(bytes);
       const recognised = await recognizeFormType(bytes);
 
-      readings.push({
+      const fromFormFields = fieldsFromFormValues(formValues);
+      const reading = {
         file,
         formType: recognised.formType,
-        fields: mergeDocumentFields(
-          extractDocumentFields(text.text),
-          fieldsFromFormValues(formValues),
-        ),
+        fields: mergeDocumentFields(extractDocumentFields(text.text), fromFormFields),
         hasText: text.text.trim().length > 0,
-      });
+        ocrApplied: options.ocr === true,
+        fromFormFields,
+      };
+      readings.push({ ...reading, suggestedName: nameFor(reading, client) });
     } catch (err: any) {
       readings.push({
         file,
         formType: null,
         fields: { ...NO_FIELDS },
         hasText: false,
+        suggestedName: file.name,
+        fromFormFields: {},
         error: err.message ?? 'The document could not be read.',
       });
     } finally {
@@ -117,6 +156,7 @@ export async function readDroppedDocuments(
 export function proposeFromReadings(
   readings: DocumentReading[],
   current: Record<string, unknown> = {},
+  options: { onlyFormFields?: boolean } = {},
 ): { proposals: ProposedValue[]; conflicts: { label: string; values: string[] }[] } {
   const proposals: ProposedValue[] = [];
   const conflicts: { label: string; values: string[] }[] = [];
@@ -124,7 +164,7 @@ export function proposeFromReadings(
   for (const { key, column, label } of FIELD_TO_COLUMN) {
     const seen = new Map<string, string>();
     for (const reading of readings) {
-      const raw = reading.fields[key];
+      const raw = options.onlyFormFields ? reading.fromFormFields[key] : reading.fields[key];
       if (raw === null || raw === undefined || raw === '') continue;
       const value = String(raw);
       if (!seen.has(value)) seen.set(value, reading.file.name);
@@ -189,7 +229,7 @@ export async function applyIntake(
           client_id: clientId,
           employee_id: profileId,
           form_type: reading.formType ?? 'Unsorted',
-          title: file.name,
+          title: reading.suggestedName || file.name,
           file_path: storagePath,
           original_file_path: storagePath,
           file_size: file.size,

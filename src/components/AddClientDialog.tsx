@@ -135,7 +135,11 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       );
       setReadings(result);
 
-      const { proposals } = proposeFromReadings(result);
+      // Only what the PDFs' own form fields gave up. A date read off printed
+      // text is right about 1% of the time on these forms, and typing a wrong
+      // date of birth into a form somebody is about to save is worse than
+      // leaving the box empty.
+      const { proposals } = proposeFromReadings(result, {}, { onlyFormFields: true });
       const byColumn: Record<string, string> = {};
       for (const p of proposals) byColumn[p.column] = p.value;
       if (byColumn.member_id) form.setValue('member_id', byColumn.member_id);
