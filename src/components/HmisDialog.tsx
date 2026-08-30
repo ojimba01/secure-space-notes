@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -10,11 +11,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Copy } from 'lucide-react';
-import { HMIS_FIELDS, hmisValue, type HmisClient, type HmisField } from '@/lib/hmis';
+import {
+  HMIS_FIELDS,
+  hmisValue,
+  type HmisClient,
+  type HmisField,
+  type HmisIntake,
+} from '@/lib/hmis';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  clientId: string;
   client: HmisClient;
   caseManager: string | null;
 }
@@ -27,8 +35,35 @@ interface Props {
  * they are on. Blue is carried from the client record. Everything else is
  * answered in HMIS, most of it from the client intake form on paper.
  */
-export const HmisDialog: React.FC<Props> = ({ open, onOpenChange, client, caseManager }) => {
+export const HmisDialog: React.FC<Props> = ({
+  open,
+  onOpenChange,
+  clientId,
+  client,
+  caseManager,
+}) => {
   const [copied, setCopied] = useState<string | null>(null);
+  const [intake, setIntake] = useState<HmisIntake | null>(null);
+
+  // The intake answers HMIS asks for again. Loaded when the dialog opens, so a
+  // client without one costs nothing.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('client_intakes')
+        .select(
+          'ssn, gender, birth_city, birth_state, us_citizen, veteran, pregnant, domestic_violence_victim, hiv_aids, substance_use, developmental_disability, mental_health_condition, income_type, in_school, homelessness_cause',
+        )
+        .eq('client_id', clientId)
+        .maybeSingle();
+      if (!cancelled) setIntake((data as HmisIntake) ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, clientId]);
 
   const pages = useMemo(() => {
     const byPage = new Map<number, HmisField[]>();
@@ -52,7 +87,7 @@ export const HmisDialog: React.FC<Props> = ({ open, onOpenChange, client, caseMa
     }
   };
 
-  const filled = HMIS_FIELDS.filter((f) => hmisValue(f, client, caseManager)).length;
+  const filled = HMIS_FIELDS.filter((f) => hmisValue(f, client, caseManager, intake)).length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -70,7 +105,7 @@ export const HmisDialog: React.FC<Props> = ({ open, onOpenChange, client, caseMa
               <h3 className="text-sm font-semibold">Page {page}</h3>
               <div className="grid gap-3 sm:grid-cols-2">
                 {fields.map((f) => {
-                  const value = hmisValue(f, client, caseManager);
+                  const value = hmisValue(f, client, caseManager, intake);
                   return (
                     <div key={f.name} className="space-y-1">
                       <Label className="text-sm font-normal text-muted-foreground">{f.label}</Label>

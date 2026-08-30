@@ -338,7 +338,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
       <HmisDialog
         open={hmisOpen}
         onOpenChange={setHmisOpen}
-        client={client as unknown as import('@/lib/hmis').HmisClient}
+        clientId={client.id}
+        client={client as unknown as import("@/lib/hmis").HmisClient}
         caseManager={caseManagerName}
       />
 

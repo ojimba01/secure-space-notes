@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, UserX, Gauge, CalendarX, FileX, CircleDollarSign } from 'lucide-react';
 import { useAdminSetupQueues, type QueueKey, type QueueClient } from '@/hooks/useAdminSetupQueues';
+import { ClientRecordDialog } from '@/components/ClientRecordDialog';
 
 interface Props {
   /** Open a client's record. The only thing any of these rows can usefully do. */
@@ -24,7 +25,6 @@ interface QueueMeta {
   key: QueueKey;
   label: string;
   /** What the number means, said once here rather than on every row. */
-  hint: string;
   /** What to do about it, shown above the list. */
   action: string;
   icon: React.ReactNode;
@@ -36,7 +36,6 @@ const QUEUES: QueueMeta[] = [
   {
     key: 'billingDueThisWeek',
     label: 'claims to file this week',
-    hint: 'The filing window closes within seven days',
     action:
       'These claims must be filed within seven days. After the six-month window closes the money cannot be claimed. Billing, step one, is where they are filed.',
     icon: <CircleDollarSign className="h-5 w-5" />,
@@ -45,7 +44,6 @@ const QUEUES: QueueMeta[] = [
   {
     key: 'unassigned',
     label: 'unassigned clients',
-    hint: 'Nobody is doing this client’s touchpoints',
     action:
       'A client with no case manager appears in nobody’s work queue and is scheduled no touchpoints. Assign one on the client record.',
     icon: <UserX className="h-5 w-5" />,
@@ -53,8 +51,7 @@ const QUEUES: QueueMeta[] = [
   },
   {
     key: 'noLevelOfNeed',
-    label: 'clients with no level of need',
-    hint: 'Sets the rate and the number of touchpoints',
+    label: 'clients with no LoN',
     action:
       'Without a level of need there is no rate, so cycles are created on hold, and no touchpoint requirement can be worked out. Record the score on the client record.',
     icon: <Gauge className="h-5 w-5" />,
@@ -62,8 +59,7 @@ const QUEUES: QueueMeta[] = [
   },
   {
     key: 'noStartDate',
-    label: 'clients with no start date',
-    hint: 'Every cycle is counted from this date',
+    label: 'clients with no 30-day start date',
     action:
       'Billing cycles and touchpoint windows are both counted from the HSP approval or authorization start date. Without one, neither can be created.',
     icon: <CalendarX className="h-5 w-5" />,
@@ -71,8 +67,7 @@ const QUEUES: QueueMeta[] = [
   },
   {
     key: 'noHsp',
-    label: 'plans not submitted',
-    hint: 'Held until the plan is filed',
+    label: 'HSPs not submitted',
     action:
       'A client is not shown to their case manager until the plan is submitted. Many of these are still inside their first thirty days, which is why they were left alone.',
     icon: <FileX className="h-5 w-5" />,
@@ -98,7 +93,6 @@ const Tile: React.FC<{
       <span className="text-2xl font-semibold">{count}</span>{' '}
       <span>{meta.label}</span>
     </div>
-    <div className="text-xs text-muted-foreground mt-1">{meta.hint}</div>
   </button>
 );
 
@@ -135,7 +129,15 @@ const Row: React.FC<{ c: QueueClient; showDeadline: boolean; onOpen: () => void 
 /** How many rows to show before asking whether the rest are wanted. */
 const PREVIEW = 12;
 
-export const SetupQueues: React.FC<Props> = ({ onOpenClient }) => {
+export const SetupQueues: React.FC = () => {
+  /**
+   * The client opens here rather than on the clients page.
+   *
+   * A queue is worked through one client after another. Leaving the page for
+   * each one and finding your way back is most of the work, and the reason
+   * these queues go unworked.
+   */
+  const [openClientId, setOpenClientId] = useState<string | null>(null);
   const { loading, error, activeClients, blockedClients, queues, reload } = useAdminSetupQueues();
   const [open, setOpen] = useState<QueueKey>('billingDueThisWeek');
   const [showAll, setShowAll] = useState(false);
@@ -204,7 +206,7 @@ export const SetupQueues: React.FC<Props> = ({ onOpenClient }) => {
                   key={c.id}
                   c={c}
                   showDeadline={open === 'billingDueThisWeek'}
-                  onOpen={() => onOpenClient(c.id)}
+                  onOpen={() => setOpenClientId(c.id)}
                 />
               ))}
               {list.length > PREVIEW && (
@@ -216,6 +218,11 @@ export const SetupQueues: React.FC<Props> = ({ onOpenClient }) => {
           )}
         </CardContent>
       </Card>
+      <ClientRecordDialog
+        clientId={openClientId}
+        onClose={() => setOpenClientId(null)}
+        onChanged={reload}
+      />
     </div>
   );
 };

@@ -24,7 +24,22 @@ export type HmisSource =
   | 'county'
   | 'email'
   | 'phone'
-  | 'medicaid';
+  | 'medicaid'
+  // From the client intake form, which is why Shade fills it in first.
+  | 'ssn'
+  | 'sexAtIntake'
+  | 'birthPlace'
+  | 'citizen'
+  | 'veteran'
+  | 'pregnant'
+  | 'domesticViolence'
+  | 'hiv'
+  | 'substanceUse'
+  | 'developmentalDisability'
+  | 'mentalHealth'
+  | 'income'
+  | 'student'
+  | 'homelessCause';
 
 export interface HmisField {
   /** Page of the HMIS form, so the screen can be walked alongside it. */
@@ -46,9 +61,9 @@ export const HMIS_FIELDS: HmisField[] = [
   { page: 1, name: "Suffix", label: "Suffix" },
   { page: 1, name: "Name_Data_Quality", label: "Name Data Quality" },
   { page: 1, name: "Alias", label: "Alias" },
-  { page: 1, name: "Social_Security__", label: "Social Security" },
+  { page: 1, name: "Social_Security__", label: "Social Security", from: "ssn" },
   { page: 1, name: "SSN_Data_Quality", label: "SSN Data Quality" },
-  { page: 1, name: "Sex__HMIS__", label: "Sex HMIS" },
+  { page: 1, name: "Sex__HMIS__", label: "Sex HMIS", from: "sexAtIntake" },
   { page: 1, name: "Birthdate", label: "Birthdate", from: "dob" },
   { page: 1, name: "Birthdate_Data_Quality_", label: "Birthdate Data Quality" },
   { page: 1, name: "Additional_Race_and_Ethnicity_Detail_", label: "Additional Race and Ethnicity Detail" },
@@ -59,13 +74,13 @@ export const HMIS_FIELDS: HmisField[] = [
   { page: 1, name: "Phone", label: "Phone" },
   { page: 1, name: "Home_Phone", label: "Home Phone" },
   { page: 1, name: "Cell_Phone", label: "Cell Phone", from: "phone" },
-  { page: 1, name: "Veteran_Status", label: "Veteran Status" },
+  { page: 1, name: "Veteran_Status", label: "Veteran Status", from: "veteran" },
   { page: 2, name: "Type_of_Residence_", label: "Type of Residence" },
   { page: 2, name: "Rental_Subsidy_Type_", label: "Rental Subsidy Type" },
   { page: 2, name: "Length_of_Stay_in_Prior_Living_Situation_", label: "Length of Stay in Prior Living Situation" },
   { page: 2, name: "Did_you_stay_less_than_7_nights__", label: "Did you stay less than 7 nights" },
   { page: 2, name: "Has_the_client_been_placed_into_Permanent_Housing__", label: "Has the client been placed into Permanent Housing" },
-  { page: 2, name: "Income_from_Any_Source_", label: "Income from Any Source" },
+  { page: 2, name: "Income_from_Any_Source_", label: "Income from Any Source", from: "income" },
   { page: 2, name: "Monthly_Income_Sources__amt_Earned_Income__i_e__employment_i", label: "Monthly Income Sources amt Earned Income i e employment i" },
   { page: 2, name: "Monthly_Income_Sources__amt_Unemployment_Insurance_", label: "Monthly Income Sources amt Unemployment Insurance" },
   { page: 2, name: "Monthly_Income_Sources__amt_Supplemental_Security_Income__SS", label: "Monthly Income Sources amt Supplemental Security Income SS" },
@@ -95,29 +110,29 @@ export const HMIS_FIELDS: HmisField[] = [
   { page: 3, name: "Other_", label: "Other" },
   { page: 3, name: "Physical_Disability_", label: "Physical Disability" },
   { page: 3, name: "Expected_to_be_of_long_continued_and_indefinite_duration_and", label: "Expected to be of long continued and indefinite duration and" },
-  { page: 3, name: "Developmental_Disability_", label: "Developmental Disability" },
+  { page: 3, name: "Developmental_Disability_", label: "Developmental Disability", from: "developmentalDisability" },
   { page: 3, name: "Chronic_Health_Condition_", label: "Chronic Health Condition" },
   { page: 3, name: "Expected_to_be_of_long_continued_and_indefinite_duration_and_2", label: "Expected to be of long continued and indefinite duration and 2" },
-  { page: 3, name: "HIV_AIDS_", label: "HIV AIDS" },
-  { page: 3, name: "Mental_Health_Disorder_", label: "Mental Health Disorder" },
+  { page: 3, name: "HIV_AIDS_", label: "HIV AIDS", from: "hiv" },
+  { page: 3, name: "Mental_Health_Disorder_", label: "Mental Health Disorder", from: "mentalHealth" },
   { page: 3, name: "_If_client_has_a_mental_health_disorder__Expected_to_be_of_l", label: "If client has a mental health disorder Expected to be of l" },
-  { page: 3, name: "Substance_Use_Disorder_", label: "Substance Use Disorder" },
+  { page: 3, name: "Substance_Use_Disorder_", label: "Substance Use Disorder", from: "substanceUse" },
   { page: 3, name: "_If_client_has_a_substance_use_disorder__Expected_to_be_of_l", label: "If client has a substance use disorder Expected to be of l" },
   { page: 3, name: "Information_Date_", label: "Information Date" },
-  { page: 3, name: "Survivor_of_Domestic_Violence_", label: "Survivor of Domestic Violence" },
+  { page: 3, name: "Survivor_of_Domestic_Violence_", label: "Survivor of Domestic Violence", from: "domesticViolence" },
   { page: 3, name: "Last_Grade_Completed", label: "Last Grade Completed" },
-  { page: 3, name: "Currently_Pregnant", label: "Currently Pregnant" },
+  { page: 3, name: "Currently_Pregnant", label: "Currently Pregnant", from: "pregnant" },
   { page: 3, name: "Due_Date", label: "Due Date" },
   { page: 3, name: "Individual_Family_Type", label: "Individual Family Type" },
   { page: 3, name: "Household_Size", label: "Household Size" },
-  { page: 4, name: "Homeless_Cause", label: "Homeless Cause" },
+  { page: 4, name: "Homeless_Cause", label: "Homeless Cause", from: "homelessCause" },
   { page: 4, name: "Zip_Code_of_Last_Permanent_Address", label: "Zip Code of Last Permanent Address" },
   { page: 4, name: "Zip_Code_Data_Quality", label: "Zip Code Data Quality" },
   { page: 4, name: "Date_Left_Last_Permanent_Address", label: "Date Left Last Permanent Address" },
   { page: 4, name: "City_Town_of_Last_Permanent_Address", label: "City Town of Last Permanent Address" },
   { page: 4, name: "County_of_Last_Permanent_Address", label: "County of Last Permanent Address" },
-  { page: 4, name: "Birth_Place", label: "Birth Place" },
-  { page: 4, name: "Citizen", label: "Citizen" },
+  { page: 4, name: "Birth_Place", label: "Birth Place", from: "birthPlace" },
+  { page: 4, name: "Citizen", label: "Citizen", from: "citizen" },
   { page: 4, name: "Alien_Registration", label: "Alien Registration" },
   { page: 4, name: "Primary_Language", label: "Primary Language" },
   { page: 4, name: "Duration_of_Active_Duty__months_", label: "Duration of Active Duty months" },
@@ -125,13 +140,32 @@ export const HMIS_FIELDS: HmisField[] = [
   { page: 4, name: "Name_of_war_zone", label: "Name of war zone" },
   { page: 4, name: "Number_of_months_in_war_zone", label: "Number of months in war zone" },
   { page: 4, name: "Received_hostile_or_friendly_fire", label: "Received hostile or friendly fire" },
-  { page: 4, name: "Current_Student", label: "Current Student" },
+  { page: 4, name: "Current_Student", label: "Current Student", from: "student" },
   { page: 4, name: "Received_vocational_training_or_apprenticeship_certificate", label: "Received vocational training or apprenticeship certificate" },
   { page: 4, name: "Marital_Status", label: "Marital Status" },
   { page: 4, name: "HA__", label: "HA" },
   { page: 4, name: "Managed_Care_Organization__MCO_", label: "Managed Care Organization MCO" },
   { page: 4, name: "Medicaid_ID", label: "Medicaid ID" },
   { page: 4, name: "MCO_Enrollment_ID", label: "MCO Enrollment ID" },];
+
+/** The intake answers HMIS asks for again. Null when no intake exists yet. */
+export interface HmisIntake {
+  ssn?: string | null;
+  gender?: string | null;
+  birth_city?: string | null;
+  birth_state?: string | null;
+  us_citizen?: boolean | string | null;
+  veteran?: boolean | string | null;
+  pregnant?: boolean | string | null;
+  domestic_violence_victim?: boolean | string | null;
+  hiv_aids?: boolean | string | null;
+  substance_use?: boolean | string | null;
+  developmental_disability?: boolean | string | null;
+  mental_health_condition?: boolean | string | null;
+  income_type?: string | null;
+  in_school?: boolean | string | null;
+  homelessness_cause?: string | null;
+}
 
 export interface HmisClient {
   first_name: string | null;
@@ -151,11 +185,25 @@ const usDate = (iso: string | null) => {
   return y && m && d ? `${m}/${d}/${y}` : '';
 };
 
+/**
+ * Yes, No, or nothing.
+ *
+ * Nothing is the honest answer for a question nobody has been asked. Printing
+ * "No" for an unanswered box would put an answer into HMIS that the client
+ * never gave.
+ */
+const yesNo = (v: boolean | string | null | undefined): string => {
+  if (v === null || v === undefined || v === '') return '';
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  return String(v);
+};
+
 /** What the app can put in each box. Empty means a person answers it. */
 export function hmisValue(
   field: HmisField,
   client: HmisClient,
   caseManager: string | null,
+  intake?: HmisIntake | null,
 ): string {
   switch (field.from) {
     case 'intakeDate':
@@ -182,6 +230,36 @@ export function hmisValue(
     // Medicaid ID is the answer to that question.
     case 'medicaid':
       return client.medicaid_id ? 'Yes' : '';
+
+    case 'ssn':
+      return intake?.ssn ?? '';
+    case 'sexAtIntake':
+      return intake?.gender ?? '';
+    case 'birthPlace':
+      return [intake?.birth_city, intake?.birth_state].filter(Boolean).join(', ');
+    case 'citizen':
+      return yesNo(intake?.us_citizen);
+    case 'veteran':
+      return yesNo(intake?.veteran);
+    case 'pregnant':
+      return yesNo(intake?.pregnant);
+    case 'domesticViolence':
+      return yesNo(intake?.domestic_violence_victim);
+    case 'hiv':
+      return yesNo(intake?.hiv_aids);
+    case 'substanceUse':
+      return yesNo(intake?.substance_use);
+    case 'developmentalDisability':
+      return yesNo(intake?.developmental_disability);
+    case 'mentalHealth':
+      return yesNo(intake?.mental_health_condition);
+    case 'income':
+      return intake?.income_type ? 'Yes' : '';
+    case 'student':
+      return yesNo(intake?.in_school);
+    case 'homelessCause':
+      return intake?.homelessness_cause ?? '';
+
     default:
       return '';
   }
