@@ -1400,6 +1400,7 @@ export type Database = {
           hsp_180_date: string | null
           hsp_due_date: string | null
           hsp_submitted: boolean | null
+          hsp_submitted_at: string | null
           iat_date: string | null
           id: string
           initial_authorization_status: string | null
@@ -1460,6 +1461,7 @@ export type Database = {
           hsp_180_date?: string | null
           hsp_due_date?: string | null
           hsp_submitted?: boolean | null
+          hsp_submitted_at?: string | null
           iat_date?: string | null
           id?: string
           initial_authorization_status?: string | null
@@ -1520,6 +1522,7 @@ export type Database = {
           hsp_180_date?: string | null
           hsp_due_date?: string | null
           hsp_submitted?: boolean | null
+          hsp_submitted_at?: string | null
           iat_date?: string | null
           id?: string
           initial_authorization_status?: string | null
@@ -1987,6 +1990,8 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          touchpoint_go_live_date: string | null
+          touchpoint_tutorial_acknowledged_at: string | null
           updated_at: string | null
           user_id: string
         }
@@ -1997,6 +2002,8 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          touchpoint_go_live_date?: string | null
+          touchpoint_tutorial_acknowledged_at?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -2007,6 +2014,8 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          touchpoint_go_live_date?: string | null
+          touchpoint_tutorial_acknowledged_at?: string | null
           updated_at?: string | null
           user_id?: string
         }
