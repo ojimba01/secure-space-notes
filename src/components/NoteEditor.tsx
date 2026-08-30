@@ -99,6 +99,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ initialContent = '', rea
       const { data, error } = await supabase
         .from('clients')
         .select('id, first_name, last_name')
+        .is('deleted_at', null)
+        .neq('status', 'closed')
         .order('first_name', { ascending: true });
 
       if (error) throw error;

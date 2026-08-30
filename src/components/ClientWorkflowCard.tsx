@@ -345,7 +345,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
       case 'record_authorization':
         return (
           <Button onClick={() => openAuth(stage === 'initial_30_active' ? 'continuation' : 'initial')}>
-            Record authorization
+            Add authorization info
           </Button>
         );
       default:
