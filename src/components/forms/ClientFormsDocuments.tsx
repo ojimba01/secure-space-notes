@@ -5,14 +5,6 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,17 +15,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ChevronDown, ChevronRight, Download, FileText, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Download, FileText, Upload, X } from 'lucide-react';
 import { EXTERNAL_STATUS_LABEL, FORM_SOURCE_LABEL, goesToMco } from '@/lib/formSigning';
 import { formDownloadName } from '@/lib/formAutofill';
 import { recordFormVersion } from '@/lib/formVersions';
-import {
-  CHECKLIST_TYPES,
-  loadManualTicks,
-  tickByHand,
-  untickByHand,
-} from '@/lib/formChecklist';
+import { CHECKLIST_TYPES, loadManualTicks } from '@/lib/formChecklist';
 import { FORM_LIST_COLUMNS, type FormRow } from '@/components/forms/FormsHub';
+import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
@@ -62,16 +50,6 @@ interface Props {
   clientLastName: string;
 }
 
-/** The MCO's answer. Its own track, never merged with whether we have the form. */
-const MCO_CHOICES = [
-  'not_applicable',
-  'not_sent',
-  'sent_to_mco',
-  'awaiting_response',
-  'accepted',
-  'denied',
-] as const;
-
 /** Collections below the checklist: documents that arrive, rather than forms owed. */
 const EXTRA_GROUPS: { title: string; match: (f: DocumentRow) => boolean }[] = [
   {
@@ -88,6 +66,51 @@ const EXTRA_GROUPS: { title: string; match: (f: DocumentRow) => boolean }[] = [
   },
   { title: 'Other documents', match: () => true },
 ];
+
+/**
+ * The MCO's answer, one step at a time.
+ *
+ * Six words in a dropdown asked somebody to pick a status. There is only one
+ * thing to do next: it has gone, or it has not. Once it has gone, the only
+ * thing left is what came back.
+ */
+const McoStep: React.FC<{
+  form: DocumentRow;
+  onSet: (form: DocumentRow, status: string) => void;
+}> = ({ form, onSet }) => {
+  const status = form.external_status ?? 'not_sent';
+
+  if (status === 'accepted' || status === 'denied') {
+    return (
+      <span
+        className={`rounded-md px-2 py-1 text-xs ${
+          status === 'accepted' ? 'bg-green-100 text-green-800' : 'bg-destructive/15 text-destructive'
+        }`}
+      >
+        {EXTERNAL_STATUS_LABEL[status]}
+      </span>
+    );
+  }
+
+  if (status === 'sent_to_mco' || status === 'awaiting_response') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <Button variant="outline" size="sm" onClick={() => onSet(form, 'accepted')}>
+          Accepted by MCO
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => onSet(form, 'denied')}>
+          Denied by MCO
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button variant="outline" size="sm" onClick={() => onSet(form, 'sent_to_mco')}>
+      Sent to MCO
+    </Button>
+  );
+};
 
 /**
  * A client's forms and documents.
@@ -110,6 +133,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState<DocumentRow | null>(null);
+  /** The form type a document is being uploaded for, from a checklist row. */
+  const [uploadFor, setUploadFor] = useState<string | null>(null);
   const [preview, setPreview] = useState<{
     id: string;
     file_name: string;
@@ -207,29 +232,6 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     }
   };
 
-  const toggleTick = async (formType: string, hasDocument: boolean, ticked: boolean) => {
-    if (hasDocument) {
-      toast({
-        title: 'A document is holding this box ticked',
-        description: 'Remove the document with its X to untick it.',
-      });
-      return;
-    }
-    if (!profileId) return;
-    try {
-      if (ticked) await untickByHand(clientId, formType);
-      else await tickByHand(clientId, formType, profileId);
-      setManualTicks((current) => {
-        const next = new Set(current);
-        if (ticked) next.delete(formType);
-        else next.add(formType);
-        return next;
-      });
-    } catch (err: any) {
-      toast({ title: 'Could not change that', description: err.message, variant: 'destructive' });
-    }
-  };
-
   const byType = useMemo(() => {
     const map = new Map<string, DocumentRow[]>();
     for (const f of forms) {
@@ -308,23 +310,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       </button>
 
       <div className="flex items-center gap-1.5">
-{goesToMco(form.form_type) && (
-                  <Select
-          value={form.external_status ?? 'not_applicable'}
-          onValueChange={(v) => setMcoStatus(form, v)}
-        >
-          <SelectTrigger className="h-8 w-[168px] text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MCO_CHOICES.map((choice) => (
-              <SelectItem key={choice} value={choice} className="text-xs">
-                {choice === 'not_applicable' ? 'No MCO answer needed' : EXTERNAL_STATUS_LABEL[choice]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        )}
+        {goesToMco(form.form_type) && <McoStep form={form} onSet={setMcoStatus} />}
 
         <Button
           variant="ghost"
@@ -351,6 +337,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     title: string,
     items: DocumentRow[],
     lead: React.ReactNode,
+    /** Set on a checklist row with nothing filed: offer a way to fix that. */
+    uploadFor?: string,
   ) => {
     const isOpen = open.has(title);
     return (
@@ -375,6 +363,16 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                 ))}
             </span>
           </button>
+          {uploadFor && (
+            <Button
+              variant="ghost"
+              size="sm"
+              title={`Upload a ${uploadFor}`}
+              onClick={() => setUploadFor(uploadFor)}
+            >
+              <Upload className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         {isOpen && items.length > 0 && <div className="divide-y border-t">{items.map(documentRow)}</div>}
       </div>
@@ -415,15 +413,14 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                 return collapsibleGroup(
                   type,
                   items,
-                  <Checkbox
-                    checked={ticked}
-                    onCheckedChange={() => toggleTick(type, hasDocument, ticked)}
-                    title={
-                      hasDocument
-                        ? 'A document is filed for this form'
-                        : 'Tick to record that this form is done'
-                    }
-                  />,
+                  // Not a control. It says whether the client has this form,
+                  // and the way to change it is to add or remove a document.
+                  ticked ? (
+                    <Check className="h-5 w-5 text-green-600" aria-label="Filed" />
+                  ) : (
+                    <X className="h-5 w-5 text-destructive" aria-label="Not filed" />
+                  ),
+                  hasDocument ? undefined : type,
                 );
               })}
             </div>
@@ -443,6 +440,21 @@ export const ClientFormsDocuments: React.FC<Props> = ({
           </>
         )}
       </CardContent>
+
+      {uploadFor && profileId && (
+        <UploadFormDialog
+          open
+          onClose={() => setUploadFor(null)}
+          profileId={profileId}
+          signerName={`${clientFirstName} ${clientLastName}`.trim()}
+          initialFormType={uploadFor}
+          initialClientId={clientId}
+          onSubmitted={() => {
+            setUploadFor(null);
+            load();
+          }}
+        />
+      )}
 
       <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
         <AlertDialogContent>
