@@ -35,7 +35,7 @@ interface QueueMeta {
 const QUEUES: QueueMeta[] = [
   {
     key: 'billingDueThisWeek',
-    label: 'claims to file this week',
+    label: 'urgent claims this week',
     action:
       'These claims must be filed within seven days. After the six-month window closes the money cannot be claimed. Billing, step one, is where they are filed.',
     icon: <CircleDollarSign className="h-5 w-5" />,
@@ -51,7 +51,7 @@ const QUEUES: QueueMeta[] = [
   },
   {
     key: 'noLevelOfNeed',
-    label: 'clients missing a LoN',
+    label: 'clients missing LON',
     action:
       'Without a level of need there is no rate, so cycles are created on hold, and no touchpoint requirement can be worked out. Record the score on the client record.',
     icon: <Gauge className="h-5 w-5" />,
