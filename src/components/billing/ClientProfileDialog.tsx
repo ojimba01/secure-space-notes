@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { hspDueDateFor } from '@/lib/billing';
+import { addDays, hspDueDateFor } from '@/lib/billing';
 import {
   resyncDerivedSchedules,
   syncAuthorizationsFromLegacyColumns,
@@ -97,8 +97,14 @@ export function ClientProfileDialog({ clientId, onClose }: { clientId: string | 
     return () => { cancelled = true; };
   }, [clientId]);
 
-  // The 30-day HSP window end date is the HSP due date — always derived.
+  // Two different dates, both derived from the start.
+  //
+  // The plan is due on day 25. The authorization runs its full 30 days and is
+  // billed for all of them. This used to write the plan's due date into
+  // auth_30_end, which shortened the authorization by five days and shifted
+  // every cycle counted from it.
   const derivedHspDue = hspDueDateFor(form.auth_30_start || null);
+  const derivedAuthEnd = form.auth_30_start ? addDays(form.auth_30_start, 29) : null;
 
   const save = async () => {
     if (!clientId) return;
@@ -107,7 +113,7 @@ export function ClientProfileDialog({ clientId, onClose }: { clientId: string | 
       .from('clients')
       .update({
         auth_30_start: form.auth_30_start || null,
-        auth_30_end: derivedHspDue,
+        auth_30_end: derivedAuthEnd,
         hsp_due_date: derivedHspDue,
         auth_30_number: form.auth_30_number || null,
         auth_150_number: form.auth_150_number || null,

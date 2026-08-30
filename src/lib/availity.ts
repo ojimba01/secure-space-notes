@@ -106,8 +106,17 @@ export type Relationship = (typeof RELATIONSHIP_OPTIONS)[number];
  * The app has no way of knowing a client's gender - a name is not evidence -
  * and a guess printed into a claim is worse than a blank somebody fills in.
  */
-export const GENDER_OPTIONS = ['', 'Female', 'Male'] as const;
-export type AvailityGender = (typeof GENDER_OPTIONS)[number];
+export const GENDER_OPTIONS = ['Female', 'Male'] as const;
+
+/**
+ * Empty means not recorded, which is the state every client starts in.
+ *
+ * It is deliberately not one of GENDER_OPTIONS. A dropdown cannot carry an
+ * option whose value is an empty string - the control throws on it - so the
+ * screen offers "Not recorded" under its own name and stores this.
+ */
+export const GENDER_UNSET = '' as const;
+export type AvailityGender = (typeof GENDER_OPTIONS)[number] | typeof GENDER_UNSET;
 
 export interface AvailityField {
   label: string;
