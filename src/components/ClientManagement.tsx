@@ -109,6 +109,9 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   /** client id -> documents on that client this viewer can open. */
   const [documentCounts, setDocumentCounts] = useState<Map<string, number>>(new Map());
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  /** A client just created, waiting for the list to reload before opening. */
+  const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
+  const [selectedClientTab, setSelectedClientTab] = useState<string | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -142,6 +145,15 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       fetchDocumentCounts();
     }
   }, [user, adminLoading, isAdmin, showClosed]);
+
+  useEffect(() => {
+    if (!pendingOpenId) return;
+    const match = clients.find((c) => c.id === pendingOpenId);
+    if (match) {
+      setSelectedClient(match);
+      setPendingOpenId(null);
+    }
+  }, [pendingOpenId, clients]);
 
   useEffect(() => {
     if (initialClientId && clients.length) {
@@ -390,7 +402,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         client={selectedClient} 
         onBack={() => setSelectedClient(null)}
         onUpdate={fetchClients}
-        initialTab={initialTab}
+        initialTab={selectedClientTab ?? initialTab}
       />
     );
   }
@@ -615,7 +627,17 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       <AddClientDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
-        onClientAdded={() => fetchClients()}
+        onClientAdded={async (created, next) => {
+          await fetchClients();
+          // Both jobs start on the client's Forms tab: the intake is the first
+          // row of its checklist, and Upload forms sits at the top of the
+          // record. Dropping somebody back on the client list to find their
+          // way there is the step worth removing.
+          if (created && next) {
+            setSelectedClientTab('forms');
+            setPendingOpenId(created.id);
+          }
+        }}
         onAddTouchpoint={async (created) => {
           await fetchClients();
           setTouchpointFor(created);

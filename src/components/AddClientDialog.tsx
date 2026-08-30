@@ -81,7 +81,11 @@ interface AddClientDialogProps {
    * with them — recording a touchpoint, for instance, which needs a client
    * that exists.
    */
-  onClientAdded: (created?: { id: string; name: string; levelOfNeed: string | null }) => void;
+  onClientAdded: (
+    created?: { id: string; name: string; levelOfNeed: string | null },
+    /** Where to take the person next, when they asked to go somewhere. */
+    next?: 'intake' | 'forms',
+  ) => void;
   /** Called instead of onClientAdded when the touchpoint button was used. */
   onAddTouchpoint?: (created: { id: string; name: string; levelOfNeed: string | null }) => void;
 }
@@ -202,7 +206,10 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
   const derivedHspDue = hspDueDateFor(auth30Start || null);
   const isUnited = (insuranceValue ?? '').toLowerCase().includes('united');
 
-  const handleSubmit = async (data: ClientFormData, thenTouchpoint = false) => {
+  const handleSubmit = async (
+    data: ClientFormData,
+    then: 'touchpoint' | 'intake' | 'forms' | null = null,
+  ) => {
     setIsSubmitting(true);
     
     try {
@@ -245,10 +252,10 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         auth_30_end: data.auth_30_start ? addDays(data.auth_30_start, 29) : null,
         auth_150_number: data.auth_150_number || null,
         auth_150_start: data.auth_150_start || null,
-        auth_150_end: data.auth_150_end || null,
+        auth_150_end: data.auth_150_start ? addDays(data.auth_150_start, 149) : null,
         auth_180_number: data.auth_180_number || null,
         auth_180_start: data.auth_180_start || null,
-        auth_180_end: data.auth_180_end || null,
+        auth_180_end: data.auth_180_start ? addDays(data.auth_180_start, 179) : null,
         closed_date: data.closed_date || null,
         reason_closed: data.reason_closed || null,
         notes: data.notes || null,
@@ -328,8 +335,8 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
 
       onOpenChange(false);
       form.reset();
-      if (thenTouchpoint && onAddTouchpoint) onAddTouchpoint(created);
-      else onClientAdded(created);
+      if (then === 'touchpoint' && onAddTouchpoint) onAddTouchpoint(created);
+      else onClientAdded(created, then === 'intake' || then === 'forms' ? then : undefined);
     } catch (error: any) {
       toast({
         title: "Error adding client",
@@ -403,7 +410,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
           </div>
         ) : (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((d) => handleSubmit(d, false))} className="space-y-4">
+          <form onSubmit={form.handleSubmit((d) => handleSubmit(d, null))} className="space-y-4">
             {/* Section: Client info */}
             <div className="rounded-md border p-4 space-y-4">
               <h4 className="text-sm font-semibold">Client Info</h4>
@@ -445,10 +452,16 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                 <FormField control={form.control} name="county" render={({ field }) => (
                   <FormItem>
                     <FormLabel>County</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ''}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Select county" /></SelectTrigger></FormControl>
-                      <SelectContent>{NJ_COUNTIES.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}</SelectContent>
-                    </Select>
+                    {/* Typed, with the counties offered. Twenty-one in a
+                        dropdown is a scroll; four letters is not. */}
+                    <FormControl>
+                      <Input {...field} list="nj-counties" placeholder="Start typing" />
+                    </FormControl>
+                    <datalist id="nj-counties">
+                      {NJ_COUNTIES.map((opt) => (
+                        <option key={opt} value={opt} />
+                      ))}
+                    </datalist>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -550,9 +563,21 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                   <FormField control={form.control} name="auth_150_start" render={({ field }) => (
                     <FormItem><FormLabel>150-Day Start</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                   )} />
-                  <FormField control={form.control} name="auth_150_end" render={({ field }) => (
-                    <FormItem><FormLabel>150-Day End</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                  )} />
+                  <FormItem>
+                    <FormLabel>150-Day End</FormLabel>
+                    <FormControl>
+                      <Input
+                        readOnly
+                        className="bg-muted"
+                        value={
+                          form.watch('auth_150_start')
+                            ? addDays(form.watch('auth_150_start') as string, 149)
+                            : ''
+                        }
+                        placeholder="Calculated from the start date"
+                      />
+                    </FormControl>
+                  </FormItem>
                 </div>
               </div>
 
@@ -565,9 +590,21 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                   <FormField control={form.control} name="auth_180_start" render={({ field }) => (
                     <FormItem><FormLabel>180-Day Start</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
                   )} />
-                  <FormField control={form.control} name="auth_180_end" render={({ field }) => (
-                    <FormItem><FormLabel>180-Day End</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>
-                  )} />
+                  <FormItem>
+                    <FormLabel>180-Day End</FormLabel>
+                    <FormControl>
+                      <Input
+                        readOnly
+                        className="bg-muted"
+                        value={
+                          form.watch('auth_180_start')
+                            ? addDays(form.watch('auth_180_start') as string, 179)
+                            : ''
+                        }
+                        placeholder="Calculated from the start date"
+                      />
+                    </FormControl>
+                  </FormItem>
                 </div>
               </div>
             </div>
@@ -577,19 +614,36 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
               <FormItem><FormLabel>Initial Notes</FormLabel><FormControl><Textarea {...field} rows={3} /></FormControl><FormMessage /></FormItem>
             )} />
 
-            {/* Saves the client, then opens their touchpoint straight away —
-                the usual next step, and the client has to exist first. */}
-            <div className="flex items-center gap-3 rounded-md border border-dashed p-3">
+            {/* Each saves the client first, because none of these can happen
+                to a client who does not exist yet. In the order the work
+                actually happens. */}
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-3">
               <Button
                 type="button"
                 variant="outline"
                 disabled={isSubmitting}
-                onClick={() => form.handleSubmit((d) => handleSubmit(d, true))()}
+                onClick={() => form.handleSubmit((d) => handleSubmit(d, 'intake'))()}
+              >
+                Add client intake
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSubmitting}
+                onClick={() => form.handleSubmit((d) => handleSubmit(d, 'forms'))()}
+              >
+                Add forms
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSubmitting}
+                onClick={() => form.handleSubmit((d) => handleSubmit(d, 'touchpoint'))()}
               >
                 Add touchpoint
               </Button>
               <span className="text-sm text-muted-foreground">
-                Saves this client, then opens their first touchpoint.
+                Each saves this client first.
               </span>
             </div>
 
