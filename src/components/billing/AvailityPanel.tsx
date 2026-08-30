@@ -104,6 +104,9 @@ const SOURCE_STYLE: Record<string, string> = {
   judgement: 'border-orange-400 bg-orange-50 text-orange-900',
 };
 
+/** The dropdown's stand-in for an empty value, which it cannot carry itself. */
+const NOT_RECORDED = 'not-recorded';
+
 const CopyField: React.FC<AvailityField & { control?: React.ReactNode }> = ({
   label,
   value,
@@ -372,9 +375,13 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   const controlFor = (edit: AvailityField['edit']): React.ReactNode => {
     if (edit === 'gender') {
       return (
-        <Select value={gender} onValueChange={(v) => { setGender(v as AvailityGender); }}>
+        <Select
+          value={gender || NOT_RECORDED}
+          onValueChange={(v) => setGender((v === NOT_RECORDED ? '' : v) as AvailityGender)}
+        >
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
+            <SelectItem value={NOT_RECORDED}>Not recorded</SelectItem>
             {GENDER_OPTIONS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
           </SelectContent>
         </Select>
