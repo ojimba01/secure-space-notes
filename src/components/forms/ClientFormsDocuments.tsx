@@ -232,6 +232,35 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     }
   };
 
+  /**
+   * Record a form that was completed somewhere this app cannot see.
+   *
+   * A client_forms row with no file, which is what the case lifecycle card
+   * writes too, so both screens agree and there is one way a form becomes
+   * done. It does not need a document, and adding one later just adds one.
+   */
+  const markComplete = async (formType: string) => {
+    if (!profileId) return;
+    const { error } = await supabase.from('client_forms').insert({
+      client_id: clientId,
+      employee_id: profileId,
+      form_type: formType,
+      title: formType,
+      status: 'approved',
+      source: 'created_in_app',
+      external_status: 'not_applicable',
+    });
+    if (error) {
+      toast({ title: 'Could not record it', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({
+      title: `${formType} marked complete`,
+      description: 'Recorded without a file. Upload the document later if you have one.',
+    });
+    load();
+  };
+
   const byType = useMemo(() => {
     const map = new Map<string, DocumentRow[]>();
     for (const f of forms) {
@@ -364,14 +393,23 @@ export const ClientFormsDocuments: React.FC<Props> = ({
             </span>
           </button>
           {uploadFor && (
-            <Button
-              variant="ghost"
-              size="sm"
-              title={`Upload a ${uploadFor}`}
-              onClick={() => setUploadFor(uploadFor)}
-            >
-              <Upload className="h-4 w-4" />
-            </Button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                title={`Upload a ${uploadFor}`}
+                aria-label={`Upload a ${uploadFor}`}
+                onClick={() => setUploadFor(uploadFor)}
+              >
+                <Upload className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setUploadFor(uploadFor)}>
+                Begin
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => markComplete(uploadFor)}>
+                Mark as complete
+              </Button>
+            </div>
           )}
         </div>
         {isOpen && items.length > 0 && <div className="divide-y border-t">{items.map(documentRow)}</div>}
@@ -414,13 +452,14 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                   type,
                   items,
                   // Not a control. It says whether the client has this form,
-                  // and the way to change it is to add or remove a document.
+                  // and the way to change it is to add a document, begin one,
+                  // or record that it was done elsewhere.
                   ticked ? (
                     <Check className="h-5 w-5 text-green-600" aria-label="Filed" />
                   ) : (
                     <X className="h-5 w-5 text-destructive" aria-label="Not filed" />
                   ),
-                  hasDocument ? undefined : type,
+                  ticked ? undefined : type,
                 );
               })}
             </div>
@@ -433,8 +472,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
 
             {forms.length === 0 && manualTicks.size === 0 && (
               <p className="text-sm text-muted-foreground">
-                Nothing has been filed for this client yet. Tick a form above to record one that
-                was completed elsewhere.
+                Nothing has been filed for this client yet.
               </p>
             )}
           </>
