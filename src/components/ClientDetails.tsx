@@ -25,6 +25,7 @@ import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimeline';
 import { ClientFormsDocuments } from '@/components/forms/ClientFormsDocuments';
 import { DocumentIntakeDialog } from '@/components/DocumentIntakeDialog';
+import { HmisDialog } from '@/components/HmisDialog';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 interface Client {
@@ -70,6 +71,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const [activeTab, setActiveTab] = useState(initialTab ?? 'forms');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [intakeOpen, setIntakeOpen] = useState(false);
+  const [hmisOpen, setHmisOpen] = useState(false);
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -179,6 +181,9 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                 )}
               </div>
               <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setHmisOpen(true)}>
+                  HMIS
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setIntakeOpen(true)}>
                   <FileUp className="h-4 w-4 mr-2" />
                   Upload forms
@@ -328,6 +333,13 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         clientId={client.id}
         clientName={`${client.first_name} ${client.last_name}`}
         onClosed={onUpdate}
+      />
+
+      <HmisDialog
+        open={hmisOpen}
+        onOpenChange={setHmisOpen}
+        client={client as unknown as import('@/lib/hmis').HmisClient}
+        caseManager={caseManagerName}
       />
 
       <DocumentIntakeDialog
