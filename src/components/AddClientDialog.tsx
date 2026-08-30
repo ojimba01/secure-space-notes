@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,6 +15,15 @@ import { fetchActiveCaseManagers, caseManagerName, CaseManagerOption } from '@/l
 import { syncAuthorizationsFromLegacyColumns, resyncDerivedSchedules } from '@/lib/authorizations';
 import { regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 import { MCO_OPTIONS, hspDueDateFor, addDays } from '@/lib/billing';
+import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
+import { FileUp, Loader2 } from 'lucide-react';
+import {
+  applyIntake,
+  nameFromReadings,
+  proposeFromReadings,
+  readDroppedDocuments,
+  type DocumentReading,
+} from '@/lib/documentIntake';
 
 const LON_OPTIONS = ['Low Level', 'High Level'] as const;
 
@@ -85,14 +94,73 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
 }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const profileId = useEffectiveProfileId();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [caseManagers, setCaseManagers] = useState<CaseManagerOption[]>([]);
+  /**
+   * Documents first, because the answers are usually already in a folder.
+   * Typing a member ID that a PDF is holding is work nobody needs to do.
+   */
+  const [step, setStep] = useState<'documents' | 'form'>('documents');
+  const [readings, setReadings] = useState<DocumentReading[]>([]);
+  const [reading, setReading] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       fetchActiveCaseManagers().then(setCaseManagers).catch(() => setCaseManagers([]));
+      setStep('documents');
+      setReadings([]);
     }
   }, [open]);
+
+  /**
+   * Read what was dropped in and put it into the form.
+   *
+   * Straight into the fields rather than a separate confirmation list: the
+   * form is already the place where every one of these values is checked and
+   * corrected, so a review step before it would ask the same question twice.
+   */
+  const takeDocuments = async (files: File[]) => {
+    if (!files.length) return;
+    setReading(`Reading 0 of ${files.length}`);
+    try {
+      const result = await readDroppedDocuments(files, (done, total) =>
+        setReading(`Reading ${done} of ${total}`),
+      );
+      setReadings(result);
+
+      const { proposals } = proposeFromReadings(result);
+      const byColumn: Record<string, string> = {};
+      for (const p of proposals) byColumn[p.column] = p.value;
+      if (byColumn.member_id) form.setValue('member_id', byColumn.member_id);
+      if (byColumn.date_of_birth) form.setValue('date_of_birth', byColumn.date_of_birth);
+
+      const name = nameFromReadings(result);
+      if (name) {
+        // Documents write a name either way round. A comma is the tell.
+        const [first, last] = name.includes(',')
+          ? [name.split(',')[1]?.trim() ?? '', name.split(',')[0]?.trim() ?? '']
+          : [name.split(/\s+/)[0] ?? '', name.split(/\s+/).slice(1).join(' ')];
+        if (first) form.setValue('first_name', first);
+        if (last) form.setValue('last_name', last);
+      }
+
+      const found = Object.keys(byColumn).length + (name ? 1 : 0);
+      toast({
+        title: found
+          ? `${found} detail${found === 1 ? '' : 's'} read from ${files.length} document${files.length === 1 ? '' : 's'}`
+          : 'Nothing could be read from those',
+        description: found ? 'Check every box before saving.' : undefined,
+      });
+      setStep('form');
+    } catch (err: any) {
+      toast({ title: 'Could not read those', description: err.message, variant: 'destructive' });
+    } finally {
+      setReading('');
+    }
+  };
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -237,6 +305,21 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         description: `${data.first_name} ${data.last_name} is now on the client list.`,
       });
 
+      // The documents that filled this form belong on the client they made.
+      // A failure here must not lose the client that was just created, so it
+      // is reported and the rest carries on.
+      if (readings.length && profileId) {
+        try {
+          await applyIntake(inserted.id, profileId, readings, {});
+        } catch (err: any) {
+          toast({
+            title: 'Client saved, but the documents were not filed',
+            description: err.message,
+            variant: 'destructive',
+          });
+        }
+      }
+
       const created = {
         id: inserted.id,
         name: `${data.first_name} ${data.last_name}`.trim(),
@@ -264,7 +347,61 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Add New Client</DialogTitle>
         </DialogHeader>
-        
+
+        {step === 'documents' ? (
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              takeDocuments([...e.dataTransfer.files]);
+            }}
+            className={`flex flex-col items-center gap-3 rounded-md border-2 border-dashed p-10 text-center ${
+              dragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/30'
+            }`}
+          >
+            {reading ? (
+              <>
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <p className="text-sm">{reading}</p>
+              </>
+            ) : (
+              <>
+                <FileUp className="h-6 w-6 text-muted-foreground" />
+                <p className="text-sm font-medium">
+                  Drop this client's documents here and the form fills itself.
+                </p>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  The name, member ID and date of birth are read out of them, in your browser.
+                  Nothing is sent anywhere to be read, and you check every box before saving.
+                </p>
+                <div className="flex gap-2">
+                  <Button type="button" onClick={() => fileInput.current?.click()}>
+                    Choose files
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setStep('form')}>
+                    Enter it myself
+                  </Button>
+                </div>
+              </>
+            )}
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = [...(e.target.files ?? [])];
+                e.target.value = '';
+                takeDocuments(files);
+              }}
+            />
+          </div>
+        ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit((d) => handleSubmit(d, false))} className="space-y-4">
             {/* Section: Client info */}
@@ -466,6 +603,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
             </div>
           </form>
         </Form>
+        )}
       </DialogContent>
     </Dialog>
   );
