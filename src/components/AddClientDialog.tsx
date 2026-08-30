@@ -395,7 +395,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                     Choose files
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setStep('form')}>
-                    Enter it myself
+                    Enter manually
                   </Button>
                 </div>
               </>

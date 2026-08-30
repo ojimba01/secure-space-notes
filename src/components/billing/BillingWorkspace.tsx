@@ -16,6 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientProfileDialog } from '@/components/billing/ClientProfileDialog';
+import { CloseCaseDialog } from '@/components/CloseCaseDialog';
 import { RevenueTab } from '@/components/billing/RevenueTab';
 import { BillingTutorial, BillingTutorialStep } from '@/components/billing/BillingTutorial';
 import { ProviderSetup } from '@/components/billing/ProviderSetup';
@@ -181,11 +182,12 @@ export function BillingWorkspace() {
   const { user } = useAuth();
   const { isSuperadmin } = useIsSuperadmin();
 
-  const { loading, clients: realClients, deletedClients: realDeleted, cycles: realCycles, updateClient, addClient: addRealClient, deleteClient, restoreClient, updateCycle: updateRealCycle } = useBilling();
+  const { loading, refresh: refreshBilling, clients: realClients, deletedClients: realDeleted, cycles: realCycles, updateClient, addClient: addRealClient, deleteClient, restoreClient, updateCycle: updateRealCycle } = useBilling();
   const [section,setSection]=useState<Section>('bill');
   // The client whose Availity boxes are open. Null means the list is showing.
   const [billingClientId,setBillingClientId]=useState<string|null>(null);
   const [closedOpen,setClosedOpen]=useState(false);
+  const [closing,setClosing]=useState<{id:string;name:string}|null>(null);
   const [closedClient,setClosedClient]=useState<string|null>(null);
   const [showLater,setShowLater]=useState(false);
   // The agency's own boxes are the same every time, so they start folded away.
@@ -352,6 +354,9 @@ export function BillingWorkspace() {
           </div>
         </button>
         <Button onClick={()=>{setBillingClientId(c.id);window.scrollTo({top:0,behavior:'smooth'});}}>Add billing</Button>
+        {/* A client who has gone quiet is noticed here, working through the
+            billing, not on their own record later. */}
+        <Button variant="outline" onClick={()=>setClosing({id:c.id,name:`${c.first_name} ${c.last_name}`.trim()})}>Close case</Button>
         <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={tour}/>
       </div>
       {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={cycleWriter} tour={tour} practice={!!practice}/>}
@@ -480,6 +485,14 @@ export function BillingWorkspace() {
     {tutorial && <BillingTutorial steps={tutorialSteps} completionBody={completionBody} onClose={stopTutorial} onFinish={finishTutorial} />}
 
     <ClientProfileDialog clientId={practice?null:profileId} onClose={()=>setProfileId(null)} />
+
+    {closing && <CloseCaseDialog
+      open
+      onOpenChange={(o)=>{ if(!o) setClosing(null); }}
+      clientId={closing.id}
+      clientName={closing.name}
+      onClosed={()=>{ setClosing(null); refreshBilling(); }}
+    />}
 
     <Dialog open={!!deleteTarget} onOpenChange={(o)=>!o&&setDeleteTarget(null)}>
       <DialogContent>

@@ -120,13 +120,6 @@ export function useAdminSetupQueues(): AdminSetupQueues {
         billingDueThisWeek: [],
       };
 
-      // Clients with a Housing Stabilization Plan filed against them.
-      const { data: hspRows } = await supabase
-        .from('client_forms')
-        .select('client_id')
-        .eq('form_type', 'Housing Stabilization Plan (HSP)')
-        .not('client_id', 'is', null);
-      const hspOnFile = new Set((hspRows ?? []).map((r) => r.client_id as string));
 
       const blocked = new Set<string>();
       for (const c of rows) {
@@ -145,13 +138,10 @@ export function useAdminSetupQueues(): AdminSetupQueues {
           next.noStartDate.push(base(c));
           held = true;
         }
-        // Three things say the plan went in, and any one of them is enough.
-        // The flag; a 150-day or 180-day authorization number, which the
-        // agency only receives after the plan is submitted; or the plan itself
-        // filed on the client, which is what staff see on the Forms tab. The
-        // third was missing, so 15 clients showed a completed HSP on their own
-        // record and appeared here as though they had none.
-        if (!hspSubmitted(c) && !hspOnFile.has(c.id)) {
+        // A filed plan sets the flag, by trigger, so hspSubmitted knows about
+        // it here and on every other screen without this hook keeping its own
+        // copy of the rule.
+        if (!hspSubmitted(c)) {
           next.noHsp.push(base(c));
           held = true;
         }
