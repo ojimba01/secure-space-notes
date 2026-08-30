@@ -136,13 +136,13 @@ const CopyField: React.FC<AvailityField & { control?: React.ReactNode }> = ({
         {required && <span className="mr-1 text-red-600">*</span>}
         {label}
       </Label>
+      {tick ? (
+        <div className="flex min-h-10 items-center">
+          <Checkbox checked disabled aria-label={label} />
+        </div>
+      ) : (
       <div className="flex gap-2">
-        {tick ? (
-          <div className="flex min-h-10 flex-1 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
-            <Checkbox checked disabled aria-label={label} />
-            <span>Ticked</span>
-          </div>
-        ) : control ? (
+        {control ? (
           <div className="flex-1">{control}</div>
         ) : (
           <div
@@ -159,6 +159,7 @@ const CopyField: React.FC<AvailityField & { control?: React.ReactNode }> = ({
           {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
         </Button>
       </div>
+      )}
       {note && <p className="text-xs text-muted-foreground">{note}</p>}
     </div>
   );
@@ -662,13 +663,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
             <>
             <Card className="p-4">
               <div className="mb-2">
-                <p className="text-sm font-medium">Which cycle are you billing?</p>
-                <p className="text-xs text-muted-foreground">
-                  A cycle is filed after its service period ends, and Availity will not take it more
-                  than six months after that. This opens on the oldest one still inside the window —
-                  the one closest to being lost — so you can work forward through the rest in one
-                  sitting.
-                </p>
+                <p className="text-sm font-medium">Eligible billing cycles</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 {cycleRows.map((row) => {
@@ -711,17 +706,6 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
                 </div>
               )}
             </Card>
-
-          {selected && (
-            <Card className="border-slate-300 bg-slate-50 p-4">
-              <p className="text-sm font-medium">What changes from one claim to the next</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Only the patient information, the patient control number, the prior authorization
-                number, the diagnosis code, the service dates, and — for a High level client — the
-                charge amount. Everything else is the same every time, and is filled in below.
-              </p>
-            </Card>
-          )}
 
           {selected && (
             <>
