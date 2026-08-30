@@ -194,6 +194,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         .from('clients')
         .select('id, first_name, last_name')
         .is('deleted_at', null)
+        .neq('status', 'closed')
         .order('first_name');
 
       // Employees can only file forms for clients assigned to them, so keep the

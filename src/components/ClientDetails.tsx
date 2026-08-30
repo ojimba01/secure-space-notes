@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { formatDay } from '@/lib/dates';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -222,12 +223,12 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             {client.date_of_birth && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Date of Birth</p>
-                <p>{new Date(client.date_of_birth).toLocaleDateString()}</p>
+                <p>{formatDay(client.date_of_birth)}</p>
               </div>
             )}
             <div>
               <p className="text-sm font-medium text-muted-foreground">Intake Date</p>
-              <p>{new Date(client.intake_date).toLocaleDateString()}</p>
+              <p>{formatDay(client.intake_date)}</p>
             </div>
             {client.insurance && (
               <div>

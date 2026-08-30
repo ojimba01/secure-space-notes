@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { formatDay } from '@/lib/dates';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle, Paperclip } from 'lucide-react';
@@ -213,7 +214,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
         )}
         <div className="flex items-center gap-2 text-sm">
           <Calendar className="h-4 w-4 text-muted-foreground" />
-          <span>Intake: {new Date(client.intake_date).toLocaleDateString()}</span>
+          <span>Intake: {formatDay(client.intake_date)}</span>
         </div>
         {documentCount > 0 && (
           <div className="flex items-center gap-2 text-sm">
