@@ -241,7 +241,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         const { data: client, error } = await supabase
           .from('clients')
           .select(
-            'id, first_name, last_name, date_of_birth, phone, email, member_id, medicaid_id, insurance, county, njhmis_id',
+            'id, first_name, last_name, date_of_birth, phone, email, member_id, medicaid_id, address, insurance, county, njhmis_id',
           )
           .eq('id', clientId)
           .maybeSingle();

@@ -13,6 +13,7 @@ import { PDFDocument, PDFTextField, PDFCheckBox, PDFDropdown, PDFRadioGroup } fr
 export interface AutofillClient {
   first_name: string;
   last_name: string;
+  address?: string | null;
   date_of_birth?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -62,6 +63,18 @@ export function templateFieldValues(
         '5 Medicaid ID': client.medicaid_id ?? '',
         '6 Managed Care Organization MCO': client.insurance ?? '',
         '8 Location county': client.county ?? '',
+      });
+    // The intake template's field names are the client_intakes column names,
+    // so what the app already knows about a client goes in before anybody
+    // starts typing. Everything else on it is the conversation.
+    case 'Client Intake':
+      return prune({
+        full_name: fullName(client),
+        birth_date: mmddyyyy(client.date_of_birth),
+        medicaid_number: client.medicaid_id ?? '',
+        mco_number: client.member_id ?? '',
+        present_address: client.address ?? '',
+        voucher_county: client.county ?? '',
       });
     case 'Level of Need (LON)':
       return prune({
