@@ -108,6 +108,11 @@ export const CloseCaseDialog: React.FC<Props> = ({
       const { error } = await supabase
         .from('clients')
         .update({
+          // Everything that hides a closed client reads status, not
+          // workflow_stage. Setting only the stage closed the case on paper
+          // and left them in every list, which is what happened to the two
+          // closed on 2026-08-30.
+          status: 'closed',
           workflow_stage: 'closed',
           workflow_stage_updated_at: new Date().toISOString(),
           closed_date: closedDate,

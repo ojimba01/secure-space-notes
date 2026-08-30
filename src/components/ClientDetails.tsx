@@ -27,6 +27,7 @@ import { ClientBillingTimeline } from '@/components/billing/ClientBillingTimelin
 import { ClientFormsDocuments } from '@/components/forms/ClientFormsDocuments';
 import { DocumentIntakeDialog } from '@/components/DocumentIntakeDialog';
 import { HmisDialog } from '@/components/HmisDialog';
+import { ReopenCaseDialog } from '@/components/ReopenCaseDialog';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 interface Client {
@@ -73,6 +74,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [hmisOpen, setHmisOpen] = useState(false);
+  const [reopenOpen, setReopenOpen] = useState(false);
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -182,6 +184,11 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                 )}
               </div>
               <div className="flex items-center gap-2">
+                {client.status === 'closed' && (
+                  <Button size="sm" onClick={() => setReopenOpen(true)}>
+                    Reopen case
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => setHmisOpen(true)}>
                   HMIS
                 </Button>
@@ -334,6 +341,14 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         clientId={client.id}
         clientName={`${client.first_name} ${client.last_name}`}
         onClosed={onUpdate}
+      />
+
+      <ReopenCaseDialog
+        open={reopenOpen}
+        onOpenChange={setReopenOpen}
+        clientId={client.id}
+        clientName={`${client.first_name} ${client.last_name}`.trim()}
+        onReopened={onUpdate}
       />
 
       <HmisDialog
