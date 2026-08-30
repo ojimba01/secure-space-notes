@@ -92,14 +92,37 @@ const Onboarding = () => {
 
   const completeOnboarding = async () => {
     if (!user) return;
-    
-    try {
-      const { error } = await supabase
-        .from('user_onboarding')
-        .insert({ user_id: user.id });
 
-      if (error && error.code !== '23505') throw error;
-      
+    try {
+      // The id is taken from the live session rather than React state. The row
+      // is only allowed in when it matches the token being sent, and a state
+      // value left over from an earlier sign-in does not.
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id;
+      if (!userId) {
+        toast.error('Your session has expired. Sign out and in again.');
+        return;
+      }
+
+      // Already through it, which is not a failure.
+      const { data: existing } = await supabase
+        .from('user_onboarding')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!existing) {
+        const { error } = await supabase.from('user_onboarding').insert({ user_id: userId });
+        // 23505 is somebody pressing twice, or another tab getting there first.
+        if (error && error.code !== '23505') {
+          if (error.code === '42501') {
+            toast.error('Your session has expired. Sign out and in again.');
+            return;
+          }
+          throw error;
+        }
+      }
+
       toast.success("Welcome! Let's get started.");
       navigate('/');
     } catch (error: any) {
