@@ -139,6 +139,12 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
     }
   };
 
+  /**
+   * Pictures nobody has tried to read yet. Trying is what clears it, not
+   * succeeding, or an unreadable scan would block filing for good.
+   */
+  const unreadPictures = readings.filter((r) => !r.hasText && !r.error && !r.ocrApplied).length;
+
   const apply = async () => {
     if (!profileId) return;
     setBusy(true);
@@ -245,13 +251,12 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
                     </p>
                     {!r.hasText && !r.error && !r.ocrApplied && (
                       <Button
-                        variant="ghost"
                         size="sm"
                         className="h-6 shrink-0 text-[11px]"
                         disabled={!!ocrFor}
                         onClick={() => readWithOcr(r)}
                       >
-                        {ocrFor === r.file.name ? 'Reading, this takes a while' : 'Read with OCR'}
+                        {ocrFor === r.file.name ? 'Reading, this takes a while' : 'Read the document'}
                       </Button>
                     )}
                   </div>
@@ -336,7 +341,13 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
               <Button variant="outline" onClick={reset} disabled={busy}>
                 Start again
               </Button>
-              <Button onClick={apply} disabled={busy}>
+              {unreadPictures > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  Read {unreadPictures === 1 ? 'the picture' : `all ${unreadPictures} pictures`}{' '}
+                  first.
+                </span>
+              )}
+              <Button onClick={apply} disabled={busy || unreadPictures > 0}>
                 {busy ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

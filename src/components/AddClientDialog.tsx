@@ -166,6 +166,14 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
    * right about 1% of the time on these forms, and a wrong date of birth typed
    * into a form somebody is about to save is worse than an empty box.
    */
+  /**
+   * Pictures nobody has tried to read yet.
+   *
+   * Trying is what clears it, not succeeding: a scan that holds nothing
+   * readable would otherwise block the form for good.
+   */
+  const unreadPictures = readings.filter((r) => !r.hasText && !r.error && !r.ocrApplied).length;
+
   const enterTheRest = () => {
     const { proposals } = proposeFromReadings(readings, {}, { onlyFormFields: true });
     const byColumn: Record<string, string> = {};
@@ -450,10 +458,9 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                             : 'A picture. Nothing read yet.'}
                       </p>
                     </div>
-                    {!r.hasText && !r.error && (
+                    {!r.hasText && !r.error && !r.ocrApplied && (
                       <Button
                         type="button"
-                        variant="outline"
                         size="sm"
                         disabled={!!ocrFor}
                         onClick={() => readOne(r)}
@@ -466,10 +473,20 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={enterTheRest} disabled={!!ocrFor || !!reading}>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                onClick={enterTheRest}
+                disabled={!!ocrFor || !!reading || unreadPictures > 0}
+              >
                 {readings.length ? 'Enter remaining info manually' : 'Enter manually'}
               </Button>
+              {unreadPictures > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  Read {unreadPictures === 1 ? 'the picture' : `all ${unreadPictures} pictures`}{' '}
+                  first.
+                </span>
+              )}
             </div>
           </div>
         ) : (
