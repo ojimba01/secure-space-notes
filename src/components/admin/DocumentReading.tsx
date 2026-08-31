@@ -394,13 +394,6 @@ export const DocumentReading: React.FC = () => {
                 </>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">
-              These were read and held no text, so they are photographs or scans rather than
-              documents the computer can read. Optical recognition can read the picture, taking
-              over a minute a page and holding this page while it works. Most of these came from
-              the agency's archive, where the same recognition has already been tried and could
-              not read them, so expect a poor result on those.
-            </p>
           </CardHeader>
           <CardContent className="space-y-2">
             {scanRows.map((r) => (
