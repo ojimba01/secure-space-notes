@@ -15,7 +15,6 @@ import {
   saveSignature,
   signatureUrl,
   type SavedSignature,
-  type SignatureKind,
 } from '@/lib/signatures';
 
 /**
@@ -35,8 +34,6 @@ export const SignatureManager: React.FC = () => {
 
   const [saved, setSaved] = useState<SavedSignature[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
-  const [label, setLabel] = useState('');
-  const [kind, setKind] = useState<SignatureKind>('signature');
   const [busy, setBusy] = useState(false);
   const [typed, setTyped] = useState('');
 
@@ -133,8 +130,8 @@ export const SignatureManager: React.FC = () => {
     if (!profileId || !user) return;
     setBusy(true);
     try {
-      await saveSignature(profileId, user.id, label, kind, blob);
-      setLabel('');
+      await saveSignature(profileId, user.id, typed, 'signature', blob);
+      setTyped('');
       clear();
       await load();
       toast({ title: 'Saved' });
@@ -178,49 +175,20 @@ export const SignatureManager: React.FC = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Draw it, type it, or upload a photograph of the one you sign on paper. Only you can see
-          these.
+          Type your name, draw it, or upload a photograph of the one you sign on paper. Only you
+          can see these.
         </p>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="sig-label">Name</Label>
-            <Input
-              id="sig-label"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder={kind === 'initial' ? 'Initials' : 'Full signature'}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Kind</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={kind === 'signature' ? 'default' : 'outline'}
-                onClick={() => setKind('signature')}
-              >
-                Signature
-              </Button>
-              <Button
-                type="button"
-                variant={kind === 'initial' ? 'default' : 'outline'}
-                onClick={() => setKind('initial')}
-              >
-                Initial
-              </Button>
-            </div>
-          </div>
-        </div>
-
+        {/* One box. What is typed is the mark and its name both: type SD and
+            you get initials, type a full name and you get a signature. */}
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex-1 min-w-[200px] space-y-1.5">
-            <Label htmlFor="sig-typed">Or type your name</Label>
+            <Label htmlFor="sig-typed">Name</Label>
             <Input
               id="sig-typed"
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
-              placeholder="Khyla Williams"
+              placeholder="Khyla Williams, or KW"
             />
           </div>
           <Button type="button" variant="outline" onClick={writeTyped} disabled={!typed.trim()}>
@@ -241,7 +209,7 @@ export const SignatureManager: React.FC = () => {
           />
           <div className="flex flex-wrap gap-2">
             <Button type="button" onClick={saveDrawing} disabled={busy}>
-              Save this signature
+              Save
             </Button>
             <Button type="button" variant="outline" onClick={clear} disabled={busy}>
               Clear
@@ -285,10 +253,9 @@ export const SignatureManager: React.FC = () => {
                     )}
                     <div className="min-w-0">
                       <p className="truncate text-sm">{s.label}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {s.kind === 'initial' ? 'Initial' : 'Signature'}
-                        {s.isDefault && ' · default'}
-                      </p>
+                      {s.isDefault && (
+                        <p className="text-xs text-muted-foreground">Default</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
