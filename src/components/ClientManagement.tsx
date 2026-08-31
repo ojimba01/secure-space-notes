@@ -115,8 +115,6 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  /** Closed cases are out of the way until somebody asks for them. */
-  const [showClosed, setShowClosed] = useState(false);
   /** The client just created, waiting for their first touchpoint. */
   const [touchpointFor, setTouchpointFor] = useState<
     { id: string; name: string; levelOfNeed: string | null } | null
@@ -144,7 +142,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       fetchClients();
       fetchDocumentCounts();
     }
-  }, [user, adminLoading, isAdmin, showClosed, stageFilter]);
+  }, [user, adminLoading, isAdmin, stageFilter]);
 
   useEffect(() => {
     if (!pendingOpenId) return;
@@ -243,11 +241,12 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       // Hiding a client does not get their paperwork finished; it only stops
       // the person who would chase it from knowing they exist.
       const all = data || [];
-      // Asking for the closed stage is asking for closed clients. Without
-      // this, choosing Closed filtered the list down to nothing, because the
-      // clients it wanted had already been removed as closed.
-      const wantsClosed = showClosed || stageFilter === 'closed';
-      const visible = wantsClosed ? all : all.filter((c) => c.status !== 'closed');
+      // A closed case is not work, so it is out of the list entirely - out of
+      // the default view and out of All case stages - and comes back only when
+      // somebody asks for the closed stage by name. One control instead of a
+      // filter and a toggle that had to agree with each other.
+      const visible =
+        stageFilter === 'closed' ? all : all.filter((c) => c.status !== 'closed');
       const list = visible;
       setClients(list);
       // Keep the currently open client detail in sync with the latest data
@@ -527,14 +526,6 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
             ))}
           </SelectContent>
         </Select>
-        {/* A closed case is not work. It stays out of the list until asked for. */}
-        <Button
-          variant={showClosed ? 'default' : 'outline'}
-          className="shrink-0"
-          onClick={() => setShowClosed((v) => !v)}
-        >
-          {showClosed ? 'Hide closed cases' : 'View closed cases'}
-        </Button>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="shrink-0">
