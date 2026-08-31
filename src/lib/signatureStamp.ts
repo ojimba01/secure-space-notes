@@ -43,9 +43,34 @@ export async function defaultPlacement(
       // Which page the field is actually on. The LON's signature line is on
       // page 6 of 10, and assuming the last page put the mark six pages past
       // where the form asks for it.
-      const pageRef = widget.P();
-      const index = pages.findIndex((page) => page.ref === pageRef);
-      const pageIndex = index >= 0 ? index : pages.length - 1;
+      //
+      // Two ways of asking, because neither is reliable alone: the widget's
+      // own page reference is often absent, and comparing references by
+      // identity fails when they are rebuilt. Both are compared as strings,
+      // and the page's own annotation list is the fallback.
+      // pdf-lib keeps the widget's own reference on the field, not the widget.
+      const widgetRefs = field.acroField
+        .getWidgets()
+        .map((w) => (w.dict?.context?.getObjectRef?.(w.dict) ?? undefined)?.toString())
+        .filter(Boolean) as string[];
+      const pageRef = widget.P()?.toString();
+      let pageIndex = -1;
+      for (let i = 0; i < pages.length; i += 1) {
+        if (pageRef && pages[i].ref.toString() === pageRef) {
+          pageIndex = i;
+          break;
+        }
+        const annots = pages[i].node.Annots();
+        if (!annots || widgetRefs.length === 0) continue;
+        for (let a = 0; a < annots.size(); a += 1) {
+          if (widgetRefs.includes(annots.get(a)?.toString() ?? '')) {
+            pageIndex = i;
+            break;
+          }
+        }
+        if (pageIndex >= 0) break;
+      }
+      if (pageIndex < 0) pageIndex = pages.length - 1;
       const { width: pw, height: ph } = pages[pageIndex].getSize();
 
       // The signature line runs the width of the page; a signature does not.
