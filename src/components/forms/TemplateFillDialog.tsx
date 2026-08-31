@@ -118,8 +118,8 @@ export const PDF_TEMPLATES: PdfTemplate[] = [
     formType: 'Prior Authorization Request',
     mco: 'Wellpoint',
     file: '/form-templates/wellpoint-support-services-request.pdf',
-    label: 'Wellpoint Support Services Request',
-    description: 'Wellpoint support services request. Provider details already filled in.',
+    label: 'Wellpoint Authorization Request',
+    description: 'Wellpoint authorization request. Provider details already filled in.',
   },
 ];
 

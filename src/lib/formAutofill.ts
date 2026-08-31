@@ -110,6 +110,7 @@ export function templateFieldValues(
         'Name': fullName(client),
         'Member ID': client.member_id ?? '',
         'DOB': mmddyyyy(client.date_of_birth),
+        'Current address': client.address ?? '',
         'Phone': client.phone ?? '',
         'Email if applicable': client.email ?? '',
         'NJ HMIS ID': client.njhmis_id ?? '',
