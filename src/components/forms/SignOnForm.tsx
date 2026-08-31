@@ -146,7 +146,15 @@ export const SignOnForm: React.FC<Props> = ({ onSign, signed }) => {
       >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
           <DialogTitle className="sr-only">Your signature</DialogTitle>
-          <SignatureManager />
+          {/* Saving one here is the answer to "sign this form", so it closes
+              and signs rather than leaving the form unsigned behind it. */}
+          <SignatureManager
+            onSaved={(sig) => {
+              setMaking(false);
+              load();
+              apply(sig);
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>

@@ -56,7 +56,7 @@ export async function saveSignature(
   label: string,
   kind: SignatureKind,
   blob: Blob,
-): Promise<void> {
+): Promise<SavedSignature> {
   const ext = blob.type === 'image/png' ? 'png' : blob.type.split('/')[1] || 'png';
   const path = `${userId}/${crypto.randomUUID()}.${ext}`;
 
@@ -65,13 +65,30 @@ export async function saveSignature(
     .upload(path, blob, { contentType: blob.type || 'image/png' });
   if (uploadError) throw new Error(uploadError.message);
 
-  const { error } = await table().insert({
-    profile_id: profileId,
-    label: label.trim() || (kind === 'initial' ? 'Initials' : 'Signature'),
-    kind,
-    image_path: path,
-  } as never);
+  // The first one somebody saves is the one they will use, so it is the
+  // default without being asked.
+  const existing = await loadSignatures(profileId);
+
+  const { data, error } = await table()
+    .insert({
+      profile_id: profileId,
+      label: label.trim() || (kind === 'initial' ? 'Initials' : 'Signature'),
+      kind,
+      image_path: path,
+      is_default: existing.length === 0,
+    } as never)
+    .select('id, label, kind, image_path, is_default')
+    .single();
   if (error) throw new Error(error.message);
+
+  const row = data as unknown as Record<string, unknown>;
+  return {
+    id: row.id as string,
+    label: row.label as string,
+    kind: row.kind as SignatureKind,
+    imagePath: row.image_path as string,
+    isDefault: row.is_default === true,
+  };
 }
 
 /** Make this the one offered first. The trigger unsets the previous one. */
