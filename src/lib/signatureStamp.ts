@@ -31,38 +31,51 @@ export async function defaultPlacement(
 ): Promise<SignaturePlacement> {
   const doc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
   const pages = doc.getPages();
-  const lastIndex = pages.length - 1;
-  const { width: pw, height: ph } = pages[lastIndex].getSize();
 
   try {
     for (const field of doc.getForm().getFields()) {
       if (field.constructor.name !== 'PDFSignature') continue;
       const widget = field.acroField.getWidgets()[0];
       if (!widget) continue;
-      const r = widget.getRectangle();
-      if (r.width < 20 || r.height < 8) continue;
-      for (let i = 0; i < pages.length; i += 1) {
-        const size = pages[i].getSize();
-        return {
-          pageIndex: i === lastIndex ? lastIndex : lastIndex,
-          x: r.x / size.width,
-          y: 1 - (r.y + r.height) / size.height,
-          width: r.width / size.width,
-          height: r.height / size.height,
-        };
-      }
+      const rect = widget.getRectangle();
+      if (rect.width < 20 || rect.height < 8) continue;
+
+      // Which page the field is actually on. The LON's signature line is on
+      // page 6 of 10, and assuming the last page put the mark six pages past
+      // where the form asks for it.
+      const pageRef = widget.P();
+      const index = pages.findIndex((page) => page.ref === pageRef);
+      const pageIndex = index >= 0 ? index : pages.length - 1;
+      const { width: pw, height: ph } = pages[pageIndex].getSize();
+
+      // The signature line runs the width of the page; a signature does not.
+      // Fit the height and keep the shape, sitting at the left of the line
+      // where somebody signing by hand would start.
+      let width = rect.height * aspect;
+      if (width > rect.width) width = rect.width;
+      const height = width / aspect;
+
+      return {
+        pageIndex,
+        x: rect.x / pw,
+        y: (ph - rect.y - rect.height + (rect.height - height) / 2) / ph,
+        width: width / pw,
+        height: height / ph,
+      };
     }
   } catch {
     // No form at all. The fallback below is the answer for those.
   }
 
-  const width = Math.min(0.32, 240 / pw);
+  const lastIndex = pages.length - 1;
+  const { width: pw, height: ph } = pages[lastIndex].getSize();
+  const width = Math.min(220, pw * 0.32);
   return {
     pageIndex: lastIndex,
-    x: 0.1,
-    y: 1 - 140 / ph,
-    width,
-    height: width * (pw / ph) / aspect,
+    x: 60 / pw,
+    y: (ph - 140) / ph,
+    width: width / pw,
+    height: width / aspect / ph,
   };
 }
 

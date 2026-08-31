@@ -571,12 +571,17 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const dragging = useRef<{ dx: number; dy: number } | null>(null);
 
   const sign = async (png: ArrayBuffer, label: string) => {
-    const current = existing ? existingBytes : prefilledBytes;
-    if (!current) {
-      toast({ title: 'Wait for the form to load', variant: 'destructive' });
-      return;
-    }
     try {
+      // The blank template until a client is chosen. Pre-filling only happens
+      // once there is a client, and signing does not have to wait for one.
+      let current: ArrayBuffer | Uint8Array | null = existing ? existingBytes : prefilledBytes;
+      if (!current && template) {
+        current = await loadBlankTemplate(template.formType, template.mco, template.file);
+      }
+      if (!current) {
+        toast({ title: 'The form has not loaded yet', variant: 'destructive' });
+        return;
+      }
       const bitmap = await createImageBitmap(new Blob([png], { type: 'image/png' }));
       const placement = await defaultPlacement(current, bitmap.width / bitmap.height);
       setSignature({
