@@ -75,6 +75,15 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [hmisOpen, setHmisOpen] = useState(false);
   const [reopenOpen, setReopenOpen] = useState(false);
+  /**
+   * Bumped whenever a form is filed or removed anywhere on this record.
+   *
+   * The case lifecycle card and the Forms tab both read client_forms and both
+   * keep their own copy, so marking a form complete in one left the other
+   * saying it had not been.
+   */
+  const [formsVersion, setFormsVersion] = useState(0);
+  const formsChanged = () => setFormsVersion((v) => v + 1);
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -264,7 +273,14 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           </CardContent>
         </Card>
 
-        <ClientWorkflowCard client={client} onUpdate={onUpdate} />
+        <ClientWorkflowCard
+          key={`workflow-${formsVersion}`}
+          client={client}
+          onUpdate={() => {
+            formsChanged();
+            onUpdate();
+          }}
+        />
 
         <AuthorizationsFromDocuments clientId={client.id} onApplied={onUpdate} />
 
@@ -296,6 +312,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
               clientId={client.id}
               clientFirstName={client.first_name}
               clientLastName={client.last_name}
+              refreshKey={formsVersion}
+              onChanged={formsChanged}
             />
             <FileManager clientId={client.id} />
           </TabsContent>

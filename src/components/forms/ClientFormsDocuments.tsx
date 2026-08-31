@@ -48,6 +48,10 @@ interface Props {
   clientId: string;
   clientFirstName: string;
   clientLastName: string;
+  /** Bumped when something else on the record files or removes a form. */
+  refreshKey?: number;
+  /** Called after this screen files or removes one, so the rest can catch up. */
+  onChanged?: () => void;
 }
 
 /** Collections below the checklist: documents that arrive, rather than forms owed. */
@@ -124,6 +128,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   clientId,
   clientFirstName,
   clientLastName,
+  refreshKey = 0,
+  onChanged,
 }) => {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
@@ -170,7 +176,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   const download = async (form: DocumentRow) => {
     if (!form.file_path) return;
@@ -201,6 +207,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       toast({ title: 'Document removed' });
       setConfirmDelete(null);
       load();
+      onChanged?.();
     } catch (err: any) {
       toast({ title: 'Could not remove it', description: err.message, variant: 'destructive' });
     }
@@ -259,6 +266,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       description: 'Recorded without a file. Upload the document later if you have one.',
     });
     load();
+    onChanged?.();
   };
 
   const byType = useMemo(() => {

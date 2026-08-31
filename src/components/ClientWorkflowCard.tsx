@@ -221,7 +221,13 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
       form_type: formType,
       title: formType,
       status: 'approved',
-      notes: `Recorded as complete by ${signerName} without a file — completed outside the app.`,
+      // client_forms has review_note, not notes. Writing to a column that is
+      // not there is what made Mark as complete fail here and work on the
+      // Forms tab, which never wrote it.
+      review_note: `Recorded as complete by ${signerName} without a file — completed outside the app.`,
+      // Named rather than left to the default, because the insert policy for a
+      // form with no file checks it.
+      source: 'created_in_app',
       signature_name: signerName,
       signed_by: profileId,
       signed_at: new Date().toISOString(),
