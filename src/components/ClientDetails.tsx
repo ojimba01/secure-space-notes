@@ -358,7 +358,13 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         onOpenChange={setCloseDialogOpen}
         clientId={client.id}
         clientName={`${client.first_name} ${client.last_name}`}
-        onClosed={onUpdate}
+        // A closed case is not on the client list any more, so staying on
+        // its record leaves somebody looking at a page they cannot get back
+        // to. Refresh the list and go to it.
+        onClosed={() => {
+          onUpdate();
+          onBack();
+        }}
       />
 
       <ReopenCaseDialog
