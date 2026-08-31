@@ -107,7 +107,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
    * Documents first, because the answers are usually already in a folder.
    * Typing a member ID that a PDF is holding is work nobody needs to do.
    */
-  const [step, setStep] = useState<'documents' | 'read' | 'form'>('documents');
+  const [step, setStep] = useState<'documents' | 'form'>('documents');
   const [ocrFor, setOcrFor] = useState<string | null>(null);
   const [readings, setReadings] = useState<DocumentReading[]>([]);
   const [reading, setReading] = useState('');
@@ -137,7 +137,6 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         setReading(`Reading ${done} of ${total}`),
       );
       setReadings((r) => [...r, ...result]);
-      setStep('read');
     } catch (err: any) {
       toast({ title: 'Could not read those', description: err.message, variant: 'destructive' });
     } finally {
@@ -399,89 +398,77 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         />
 
         {step === 'documents' ? (
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              takeDocuments([...e.dataTransfer.files]);
-            }}
-            className={`flex flex-col items-center gap-3 rounded-md border-2 border-dashed p-10 text-center ${
-              dragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/30'
-            }`}
-          >
-            {reading ? (
-              <>
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <p className="text-sm">{reading}</p>
-              </>
-            ) : (
-              <>
-                <FileUp className="h-6 w-6 text-muted-foreground" />
-                <p className="text-sm font-medium">
-                  Drop this client's documents here and the form fills itself.
-                </p>
-                <p className="text-xs text-muted-foreground max-w-sm">
-                  The name, member ID and date of birth are read out of them, in your browser.
-                  Nothing is sent anywhere to be read, and you check every box before saving.
-                </p>
-                <div className="flex gap-2">
-                  <Button type="button" onClick={() => fileInput.current?.click()}>
+          <div className="space-y-4">
+            {/* The drop zone stays. Documents pile up under it, so a folder
+                goes in one at a time without the screen changing underneath. */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                takeDocuments([...e.dataTransfer.files]);
+              }}
+              className={`flex flex-col items-center gap-3 rounded-md border-2 border-dashed p-8 text-center ${
+                dragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/30'
+              }`}
+            >
+              {reading ? (
+                <>
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <p className="text-sm">{reading}</p>
+                </>
+              ) : (
+                <>
+                  <FileUp className="h-6 w-6 text-muted-foreground" />
+                  <p className="text-sm font-medium">
+                    {readings.length
+                      ? 'Drop another document here.'
+                      : "Drop this client's documents here and the form fills itself."}
+                  </p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
                     Choose files
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => setStep('form')}>
-                    Enter manually
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        ) : step === 'read' ? (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {readings.filter((r) => r.hasText).length} of {readings.length} were read. A
-              document that is only a picture holds no text until it is read with optical
-              recognition, which takes over a minute a page.
-            </p>
-
-            <div className="divide-y rounded-md border">
-              {readings.map((r) => (
-                <div key={r.file.name} className="flex items-center justify-between gap-3 p-2.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm">{r.suggestedName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {r.error
-                        ? r.error
-                        : r.hasText
-                          ? `Read${r.ocrApplied ? ' as a picture' : ''}`
-                          : 'A picture. Nothing read yet.'}
-                    </p>
-                  </div>
-                  {!r.hasText && !r.error && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!!ocrFor}
-                      onClick={() => readOne(r)}
-                    >
-                      {ocrFor === r.file.name ? 'Reading, this takes a while' : 'Read the document'}
-                    </Button>
-                  )}
-                </div>
-              ))}
+                </>
+              )}
             </div>
 
+            {readings.length > 0 && (
+              <div className="divide-y rounded-md border">
+                {readings.map((r) => (
+                  <div key={r.file.name} className="flex items-center justify-between gap-3 p-2.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">{r.suggestedName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.error
+                          ? r.error
+                          : r.hasText
+                            ? `Read${r.ocrApplied ? ' as a picture' : ''}`
+                            : 'A picture. Nothing read yet.'}
+                      </p>
+                    </div>
+                    {!r.hasText && !r.error && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!!ocrFor}
+                        onClick={() => readOne(r)}
+                      >
+                        {ocrFor === r.file.name ? 'Reading, this takes a while' : 'Read the document'}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => fileInput.current?.click()}>
-                Add another
-              </Button>
-              <Button type="button" onClick={enterTheRest} disabled={!!ocrFor}>
-                Enter remaining information manually
+              <Button type="button" onClick={enterTheRest} disabled={!!ocrFor || !!reading}>
+                {readings.length ? 'Enter remaining information manually' : 'Enter manually'}
               </Button>
             </div>
           </div>
