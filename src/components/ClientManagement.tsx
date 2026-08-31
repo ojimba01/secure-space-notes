@@ -13,7 +13,7 @@ import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
 import { AddTouchpointDialog } from '@/components/AddTouchpointDialog';
-import { STAGE_LABEL, WORKFLOW_STAGES, isSetupComplete } from '@/lib/workflow';
+import { STAGE_LABEL, WORKFLOW_STAGES, displayStage, isSetupComplete } from '@/lib/workflow';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useMyCompliance } from '@/hooks/useMyCompliance';
@@ -277,7 +277,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
 
     const matchesStatus = selectedStatuses.has(getMilestoneStatus(client));
 
-    const matchesStage = stageFilter === 'all' || (client.workflow_stage ?? 'referred') === stageFilter;
+    const matchesStage = stageFilter === 'all' || displayStage(client) === stageFilter;
 
     const lon = client.level_of_need;
     const matchesLevel =

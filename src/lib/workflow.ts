@@ -16,11 +16,33 @@ export type WorkflowStage = (typeof WORKFLOW_STAGES)[number];
 
 export const STAGE_LABEL: Record<string, string> = {
   referred: 'Referral received',
-  initial_auth_pending: 'Authorization pending',
+  initial_auth_pending: 'Pending approval',
   initial_30_active: 'Initial 30-day authorization',
   active_authorization: 'Active authorization',
   closed: 'Closed',
 };
+
+/**
+ * The stage a client is actually at, whatever the column says.
+ *
+ * A client with no 30-day authorization date and no 30-day number has not been
+ * approved yet, however they were filed. The stored stage is set by hand and
+ * drifts: 17 clients sat at "Referral received" and one at "Active
+ * authorization" with no authorization of any kind recorded.
+ *
+ * Closed wins over everything. A closed case is closed whatever it was doing.
+ */
+export function displayStage(c: {
+  status?: string | null;
+  workflow_stage?: string | null;
+  auth_30_start?: string | null;
+  auth_30_number?: string | null;
+}): string {
+  if (c.status === 'closed' || c.workflow_stage === 'closed') return 'closed';
+  const hasInitial = !!c.auth_30_start || !!(c.auth_30_number ?? '').trim();
+  if (!hasInitial) return 'initial_auth_pending';
+  return c.workflow_stage ?? 'referred';
+}
 
 export const STAGE_CLASS: Record<string, string> = {
   referred: 'bg-slate-100 text-slate-800',
