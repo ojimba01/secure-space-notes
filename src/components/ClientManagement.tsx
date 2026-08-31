@@ -144,7 +144,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       fetchClients();
       fetchDocumentCounts();
     }
-  }, [user, adminLoading, isAdmin, showClosed]);
+  }, [user, adminLoading, isAdmin, showClosed, stageFilter]);
 
   useEffect(() => {
     if (!pendingOpenId) return;
@@ -243,7 +243,11 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       // Hiding a client does not get their paperwork finished; it only stops
       // the person who would chase it from knowing they exist.
       const all = data || [];
-      const visible = showClosed ? all : all.filter((c) => c.status !== 'closed');
+      // Asking for the closed stage is asking for closed clients. Without
+      // this, choosing Closed filtered the list down to nothing, because the
+      // clients it wanted had already been removed as closed.
+      const wantsClosed = showClosed || stageFilter === 'closed';
+      const visible = wantsClosed ? all : all.filter((c) => c.status !== 'closed');
       const list = visible;
       setClients(list);
       // Keep the currently open client detail in sync with the latest data
