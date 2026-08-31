@@ -13,7 +13,7 @@ import {
   Menu,
   X,
   DollarSign,
-  FilePlus2
+  FilePlus2,
 } from "lucide-react";
 import { useTutorial } from '@/components/TutorialProvider';
 import { useAuth } from '@/components/AuthProvider';

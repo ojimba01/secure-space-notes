@@ -22,6 +22,12 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientPicker } from '@/components/ClientPicker';
+import { SignOnForm } from '@/components/forms/SignOnForm';
+import {
+  defaultPlacement,
+  stampSignature,
+  type SignaturePlacement,
+} from '@/lib/signatureStamp';
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
@@ -397,6 +403,16 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         blob = replacementFile;
       } else {
         blob = await collectFilledPdf();
+        // The mark goes on last, where it was left, so it lands on the answers
+        // rather than under them.
+        if (signature) {
+          const stamped = await stampSignature(
+            await blob.arrayBuffer(),
+            signature.png,
+            signature.placement,
+          );
+          blob = new Blob([stamped], { type: 'application/pdf' });
+        }
       }
       if (blob.size > MAX_BYTES) {
         throw new Error('The completed form is larger than 20 MB.');
@@ -539,6 +555,63 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     }
   };
 
+  /**
+   * The signature sitting on the form, before it is drawn into it.
+   *
+   * Kept as a placement rather than stamped straight away, so it can be
+   * dragged to where it belongs. It is drawn into the PDF on submit, at
+   * wherever it was left.
+   */
+  const [signature, setSignature] = useState<{
+    png: ArrayBuffer;
+    url: string;
+    label: string;
+    placement: SignaturePlacement;
+  } | null>(null);
+  const dragging = useRef<{ dx: number; dy: number } | null>(null);
+
+  const sign = async (png: ArrayBuffer, label: string) => {
+    const current = existing ? existingBytes : prefilledBytes;
+    if (!current) {
+      toast({ title: 'Wait for the form to load', variant: 'destructive' });
+      return;
+    }
+    try {
+      const bitmap = await createImageBitmap(new Blob([png], { type: 'image/png' }));
+      const placement = await defaultPlacement(current, bitmap.width / bitmap.height);
+      setSignature({
+        png,
+        url: URL.createObjectURL(new Blob([png], { type: 'image/png' })),
+        label,
+        placement,
+      });
+      toast({ title: `Signed with ${label}`, description: 'Drag it to where it belongs.' });
+    } catch (err: any) {
+      toast({ title: 'Could not sign it', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  /** Move the signature with the pointer, in fractions of the page. */
+  const dragSignature = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current) return;
+    const box = e.currentTarget.parentElement?.getBoundingClientRect();
+    if (!box) return;
+    const nextX = (e.clientX - box.left) / box.width - dragging.current.dx;
+    const nextY = (e.clientY - box.top) / box.height - dragging.current.dy;
+    setSignature((sig) =>
+      sig
+        ? {
+            ...sig,
+            placement: {
+              ...sig.placement,
+              x: Math.max(0, Math.min(1 - sig.placement.width, nextX)),
+              y: Math.max(0, Math.min(1 - sig.placement.height, nextY)),
+            },
+          }
+        : sig,
+    );
+  };
+
   const showReplacementPicker = existing && hasFields === false;
 
   return (
@@ -549,6 +622,9 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             {existing ? `Edit & resubmit — ${formType}` : formType}
           </DialogTitle>
         </DialogHeader>
+
+        {/* Signing is part of filling the form in, so it sits with it. */}
+        {!showReplacementPicker && <SignOnForm signed={signature !== null} onSign={sign} />}
 
         {existing?.status === 'changes_requested' && existing.review_note && (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
@@ -646,7 +722,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             >
               <div className="flex flex-col items-center gap-4">
                 {Array.from({ length: numPages }, (_, i) => (
-                  <div key={i} className="shadow-sm">
+                  <div key={i} className="relative shadow-sm">
                     <Page
                       pageNumber={i + 1}
                       width={BASE_PAGE_WIDTH * scale}
@@ -654,6 +730,37 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                       renderAnnotationLayer
                       renderForms
                     />
+                    {signature && signature.placement.pageIndex === i && (
+                      <div
+                        onPointerDown={(e) => {
+                          const box = e.currentTarget.parentElement?.getBoundingClientRect();
+                          if (!box) return;
+                          e.currentTarget.setPointerCapture(e.pointerId);
+                          dragging.current = {
+                            dx: (e.clientX - box.left) / box.width - signature.placement.x,
+                            dy: (e.clientY - box.top) / box.height - signature.placement.y,
+                          };
+                        }}
+                        onPointerMove={dragSignature}
+                        onPointerUp={() => {
+                          dragging.current = null;
+                        }}
+                        style={{
+                          left: `${signature.placement.x * 100}%`,
+                          top: `${signature.placement.y * 100}%`,
+                          width: `${signature.placement.width * 100}%`,
+                          height: `${signature.placement.height * 100}%`,
+                        }}
+                        className="absolute cursor-move touch-none rounded border border-dashed border-primary/60 bg-primary/5"
+                        title="Drag the signature where it belongs"
+                      >
+                        <img
+                          src={signature.url}
+                          alt={signature.label}
+                          className="pointer-events-none h-full w-full object-contain"
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
