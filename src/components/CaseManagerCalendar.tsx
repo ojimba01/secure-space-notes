@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+
+/** How many of today's events are shown before Next. */
+const TODAY_PAGE = 5;
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +36,8 @@ interface CalendarEvent {
 export const CaseManagerCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  /** Five of today's at a time. A day with thirty is a wall, not a schedule. */
+  const [todayPage, setTodayPage] = useState(0);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -329,7 +334,7 @@ export const CaseManagerCalendar = () => {
             </div>
             <div className="space-y-2">
               {todayEvents.length > 0 ? (
-                todayEvents.map(event => (
+                todayEvents.slice(todayPage * TODAY_PAGE, todayPage * TODAY_PAGE + TODAY_PAGE).map(event => (
                   <button
                     key={event.id}
                     onClick={() => openEditDialog(event)}
@@ -344,6 +349,32 @@ export const CaseManagerCalendar = () => {
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground">No events today.</p>
+              )}
+
+              {todayEvents.length > TODAY_PAGE && (
+                <div className="flex items-center gap-2 pt-1 text-xs">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={todayPage === 0}
+                    onClick={() => setTodayPage(p => Math.max(0, p - 1))}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={(todayPage + 1) * TODAY_PAGE >= todayEvents.length}
+                    onClick={() => setTodayPage(p => p + 1)}
+                  >
+                    Next
+                  </Button>
+                  <span className="text-muted-foreground">
+                    {todayPage * TODAY_PAGE + 1}–
+                    {Math.min((todayPage + 1) * TODAY_PAGE, todayEvents.length)} of{' '}
+                    {todayEvents.length}
+                  </span>
+                </div>
               )}
             </div>
           </Card>
