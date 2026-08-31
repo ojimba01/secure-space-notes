@@ -188,7 +188,7 @@ export const SignatureManager: React.FC = () => {
               id="sig-typed"
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
-              placeholder="Khyla Williams, or KW"
+              placeholder="Shade Dickson, or SD"
             />
           </div>
           <Button type="button" variant="outline" onClick={writeTyped} disabled={!typed.trim()}>
