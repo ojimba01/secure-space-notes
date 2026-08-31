@@ -51,8 +51,8 @@ const MILESTONE_STATUS_OPTIONS: { key: MilestoneStatusKey; label: string }[] = [
   { key: 'overdue', label: 'Overdue' },
   { key: 'due_soon', label: 'Due soon' },
   { key: 'on_track', label: 'On track' },
-  { key: 'finished', label: 'Complete' },
-  { key: 'none', label: 'No milestone' },
+  { key: 'finished', label: 'Finished' },
+  { key: 'none', label: 'No authorization dates' },
 ];
 
 const addDaysTo = (dateStr: string, days: number) => {
@@ -325,13 +325,13 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   };
 
   const statusButtonLabel = (() => {
-    if (allStatusesSelected) return 'All statuses';
-    if (noStatusSelected) return 'No status';
+    if (allStatusesSelected) return 'All authorizations';
+    if (noStatusSelected) return 'None chosen';
     if (selectedStatuses.size === 1) {
       const key = Array.from(selectedStatuses)[0];
-      return MILESTONE_STATUS_OPTIONS.find((o) => o.key === key)?.label ?? '1 status';
+      return MILESTONE_STATUS_OPTIONS.find((o) => o.key === key)?.label ?? '1 chosen';
     }
-    return `${selectedStatuses.size} statuses`;
+    return `${selectedStatuses.size} chosen`;
   })();
 
 
@@ -610,7 +610,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               {isAdmin && noneFilterSelected
                 ? 'Select at least one case manager to view results.'
                 : noStatusSelected
-                ? 'No milestone statuses selected — pick at least one to see clients.'
+                ? 'Nothing chosen. Pick at least one to see clients.'
                 : searchTerm
                 ? 'No results match your search.'
                 : 'No clients found matching the selected filters.'}

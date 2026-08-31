@@ -109,9 +109,9 @@ export const ClientCard: React.FC<ClientCardProps> = ({
   })();
 
   const milestones = [
-    { label: 'IAT (30-day)', start: client.iat_date, offset: 30, finished: !!client.hsp_150_date },
-    { label: 'HSP 150-day', start: client.hsp_150_date, offset: 150, finished: !!client.hsp_180_date },
-    { label: 'HSP 180-day', start: client.hsp_180_date, offset: 180, finished: false },
+    { label: '30-day', start: client.iat_date, offset: 30, finished: !!client.hsp_150_date },
+    { label: '150-day', start: client.hsp_150_date, offset: 150, finished: !!client.hsp_180_date },
+    { label: '180-day', start: client.hsp_180_date, offset: 180, finished: false },
   ]
     .filter((m) => !!m.start)
     .map((m) => {
@@ -225,9 +225,9 @@ export const ClientCard: React.FC<ClientCardProps> = ({
           </div>
         )}
         <div className="pt-1 border-t mt-2">
-          <p className="text-xs font-semibold text-muted-foreground mb-1.5">Intake Milestones</p>
+          <p className="text-xs font-semibold text-muted-foreground mb-1.5">Authorizations</p>
           {milestones.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No milestones set</p>
+            <p className="text-xs text-muted-foreground">No authorization dates yet</p>
           ) : (
             <div className="space-y-1.5">
               {milestones.map((m) => (
