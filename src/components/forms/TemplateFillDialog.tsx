@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientPicker } from '@/components/ClientPicker';
+import { SignOnForm } from '@/components/forms/SignOnForm';
+import { stampSignature } from '@/lib/signatureStamp';
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';

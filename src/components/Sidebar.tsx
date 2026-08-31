@@ -14,7 +14,6 @@ import {
   X,
   DollarSign,
   FilePlus2,
-  PenLine,
 } from "lucide-react";
 import { useTutorial } from '@/components/TutorialProvider';
 import { useAuth } from '@/components/AuthProvider';
@@ -25,7 +24,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { AdvancedTools } from '@/components/AdvancedTools';
-import { SignatureDialog } from '@/components/SignatureDialog';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
@@ -47,7 +45,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   const routeVariant = (path: string) => (location.pathname === path ? 'default' : 'ghost');
   const { user, signOut } = useAuth();
   const { startTutorial } = useTutorial();
-  const [signatureOpen, setSignatureOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -120,7 +117,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
 
   return (
     <>
-      <SignatureDialog open={signatureOpen} onOpenChange={setSignatureOpen} />
       <MobileToolbar />
       <Overlay />
       <div className={cn(
@@ -232,14 +228,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           >
             <Play className="h-4 w-4" />
             Start walkthrough
-          </Button>
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={() => setSignatureOpen(true)}
-          >
-            <PenLine className="h-4 w-4" />
-            Your signature
           </Button>
         </div>
 

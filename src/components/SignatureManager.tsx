@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Trash2, Upload } from 'lucide-react';
 import {
+  cleanPhotograph,
   deleteSignature,
   loadSignatures,
+  makeDefault,
   saveSignature,
   signatureUrl,
   type SavedSignature,
@@ -151,6 +153,15 @@ export const SignatureManager: React.FC = () => {
     canvas.current?.toBlob((blob) => blob && store(blob), 'image/png');
   };
 
+  const setDefault = async (sig: SavedSignature) => {
+    try {
+      await makeDefault(sig.id);
+      await load();
+    } catch (err: any) {
+      toast({ title: 'Could not set that', description: err.message, variant: 'destructive' });
+    }
+  };
+
   const remove = async (sig: SavedSignature) => {
     try {
       await deleteSignature(sig);
@@ -213,7 +224,7 @@ export const SignatureManager: React.FC = () => {
             />
           </div>
           <Button type="button" variant="outline" onClick={writeTyped} disabled={!typed.trim()}>
-            Write it for me
+            Add
           </Button>
         </div>
 
@@ -252,7 +263,7 @@ export const SignatureManager: React.FC = () => {
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 e.target.value = '';
-                if (f) store(f);
+                if (f) cleanPhotograph(f).then(store);
               }}
             />
           </div>
@@ -276,12 +287,20 @@ export const SignatureManager: React.FC = () => {
                       <p className="truncate text-sm">{s.label}</p>
                       <p className="text-xs text-muted-foreground">
                         {s.kind === 'initial' ? 'Initial' : 'Signature'}
+                        {s.isDefault && ' · default'}
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => remove(s)} aria-label="Remove">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {!s.isDefault && (
+                      <Button variant="outline" size="sm" onClick={() => setDefault(s)}>
+                        Make default
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => remove(s)} aria-label="Remove">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
