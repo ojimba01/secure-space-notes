@@ -2021,6 +2021,44 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_signatures: {
+        Row: {
+          created_at: string
+          id: string
+          image_path: string
+          is_default: boolean
+          kind: string
+          label: string
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_path: string
+          is_default?: boolean
+          kind?: string
+          label: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_path?: string
+          is_default?: boolean
+          kind?: string
+          label?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_signatures_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tutorial_steps: {
         Row: {
           action_type: string | null
