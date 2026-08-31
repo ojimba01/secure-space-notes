@@ -33,6 +33,9 @@ export interface DocumentFields {
   email: string | null;
   mco: string | null;
   county: string | null;
+  /** The LON's own total, and the level that total decides. */
+  lonScore: string | null;
+  levelOfNeed: string | null;
 }
 
 export const NO_FIELDS: DocumentFields = {
@@ -51,6 +54,8 @@ export const NO_FIELDS: DocumentFields = {
   email: null,
   mco: null,
   county: null,
+  lonScore: null,
+  levelOfNeed: null,
 };
 
 /** The earliest and latest a date on one of these documents could sensibly be. */
@@ -234,6 +239,8 @@ export function extractDocumentFields(rawText: string): DocumentFields {
     email: null,
     mco: null,
     county: null,
+    lonScore: null,
+    levelOfNeed: null,
   };
 }
 
@@ -313,6 +320,8 @@ type FieldKey = keyof Pick<
   | 'email'
   | 'mco'
   | 'county'
+  | 'lonScore'
+  | 'levelOfNeed'
 >;
 
 /**
@@ -371,6 +380,11 @@ const FORM_FIELD_RULES: { key: FieldKey; match: RegExp }[] = [
   { key: 'mco', match: /^managed care organization/ },
   { key: 'county', match: /^8 location county/ },
   { key: 'county', match: /^county$/ },
+
+  // The LON carries its own total and the level that total decides. No need to
+  // add up the grid: the form asks the assessor to write the total in.
+  { key: 'lonScore', match: /total score/ },
+  { key: 'levelOfNeed', match: /^level of need category$/ },
 ];
 
 // The Wellpoint request labels its people `Name` and `Name_2`, with a separate
@@ -410,6 +424,15 @@ export function fieldsFromFormValues(values: Record<string, string>): Partial<Do
       } else if (rule.key === 'medicaidId' || rule.key === 'memberId' || rule.key === 'authorizationNumber') {
         const digits = digitsOnly(value);
         if (digits) out[rule.key] = digits;
+      } else if (rule.key === 'lonScore') {
+        // A number, and only a plausible one. The grid runs to the low 30s.
+        const n = Number(digitsOnly(value));
+        if (Number.isFinite(n) && n > 0 && n <= 60) out.lonScore = String(n);
+      } else if (rule.key === 'levelOfNeed') {
+        // The form says "Low level of need"; the app says "Low Level".
+        const low = /low/i.test(value);
+        const high = /high/i.test(value);
+        if (low || high) out.levelOfNeed = high ? 'High Level' : 'Low Level';
       } else if (rule.key === 'icd10Code') {
         // Only the housing Z-codes; a form may hold any diagnosis, and the
         // rest are not this app's business.

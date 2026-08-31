@@ -21,6 +21,7 @@ import {
   applyIntake,
   authorizationFromReadings,
   nameFromReadings,
+  toNameCase,
   proposeFromReadings,
   readDroppedDocuments,
   type DocumentReading,
@@ -190,8 +191,8 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       const [first, last] = name.includes(',')
         ? [name.split(',')[1]?.trim() ?? '', name.split(',')[0]?.trim() ?? '']
         : [name.split(/\s+/)[0] ?? '', name.split(/\s+/).slice(1).join(' ')];
-      if (first) form.setValue('first_name', first);
-      if (last) form.setValue('last_name', last);
+      if (first) form.setValue('first_name', toNameCase(first));
+      if (last) form.setValue('last_name', toNameCase(last));
     }
     setStep('form');
   };
