@@ -87,7 +87,23 @@ const FIELD_TO_COLUMN: { key: keyof DocumentFields; column: string; label: strin
   { key: 'email', column: 'email', label: 'Email' },
   { key: 'mco', column: 'insurance', label: 'MCO' },
   { key: 'county', column: 'county', label: 'County' },
+  { key: 'lonScore', column: 'lon_score', label: 'LON score' },
+  { key: 'levelOfNeed', column: 'level_of_need', label: 'Level of need' },
 ];
+
+/**
+ * A name in capitals, written as a name.
+ *
+ * The state's forms are filled in as GRACELYN POWELL, and a record that shouts
+ * is a record somebody has to retype. Anything already mixed case is left
+ * alone: McDonald and O'Brien are spelled that way on purpose.
+ */
+export function toNameCase(raw: string): string {
+  if (raw !== raw.toUpperCase()) return raw;
+  return raw
+    .toLowerCase()
+    .replace(/(^|[\s'\-])([a-z])/g, (_, before, letter) => before + letter.toUpperCase());
+}
 
 /**
  * The authorization a letter describes, decided by how long it ran.
