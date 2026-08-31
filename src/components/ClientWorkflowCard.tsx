@@ -22,6 +22,7 @@ import {
   PACKAGE_STATE_LABEL,
   STAGE_CLASS,
   STAGE_LABEL,
+  displayStage,
   continuationPackageState,
   nextAction,
   serviceStartDate,
@@ -178,7 +179,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
     })();
   }, [profileId]);
 
-  const stage = client.workflow_stage ?? 'referred';
+  const stage = displayStage(client);
   const action = nextAction(client, forms);
   const latest = (type: string) => forms.find((f) => f.form_type === type);
   const packet = continuationPackageState(forms);
