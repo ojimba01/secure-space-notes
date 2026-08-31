@@ -432,6 +432,55 @@ export async function readWithOcr(formId: string): Promise<{ ok: boolean; chars:
   }
 }
 
+/** Documents read successfully that gave up no text: photographs and scans. */
+const SCAN_THRESHOLD_CHARS = 40;
+
+let ocrCancelled = false;
+
+/** Ask a picture run to stop after the document it is on. */
+export function stopOcrQueue(): void {
+  ocrCancelled = true;
+}
+
+/**
+ * Read every picture-only document, one after another.
+ *
+ * Optical recognition takes over a minute a page, so this is hours rather than
+ * minutes and holds the tab while it runs. It exists because pressing a button
+ * 141 times is not a plan, and because it can be stopped and restarted: each
+ * document is written as it finishes, so nothing already read is read again.
+ */
+export async function runOcrQueue(
+  onProgress?: (done: number, total: number, current: string) => void,
+): Promise<{ read: number; empty: number; failed: number }> {
+  ocrCancelled = false;
+  const result = { read: 0, empty: 0, failed: 0 };
+
+  const { data } = await supabase
+    .from('client_forms')
+    .select('id, title, source_filename')
+    .eq('processing_status', 'done')
+    .lt('text_char_count', SCAN_THRESHOLD_CHARS)
+    .not('file_path', 'is', null)
+    .eq('ocr_applied', false)
+    .order('created_at', { ascending: true });
+
+  const rows = data ?? [];
+  for (const [index, row] of rows.entries()) {
+    if (ocrCancelled) break;
+    onProgress?.(index, rows.length, (row.title as string) ?? (row.source_filename as string) ?? '');
+    const outcome = await readWithOcr(row.id as string);
+    if (!outcome.ok) result.failed += 1;
+    else if (outcome.chars > 0) result.read += 1;
+    else result.empty += 1;
+    // Mark it tried either way, so a second run does not start from the top.
+    await supabase.from('client_forms').update({ ocr_applied: true }).eq('id', row.id);
+  }
+
+  onProgress?.(rows.length, rows.length, '');
+  return result;
+}
+
 /**
  * Start a run without waiting for it.
  *
