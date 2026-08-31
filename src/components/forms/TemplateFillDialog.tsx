@@ -571,6 +571,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const dragging = useRef<{ dx: number; dy: number } | null>(null);
   /** Every rendered page, so a signature can be dragged from one to another. */
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const scrollBox = useRef<HTMLDivElement | null>(null);
 
   const sign = async (png: ArrayBuffer, label: string) => {
     try {
@@ -609,6 +610,18 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
    */
   const dragSignature = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging.current) return;
+
+    // Carry the page with you. A ten-page form cannot be crossed by dragging
+    // alone: hold the mark near the top or bottom edge and the form scrolls
+    // under it until the right page is in view.
+    const view = scrollBox.current;
+    if (view) {
+      const box = view.getBoundingClientRect();
+      const EDGE = 60;
+      const STEP = 24;
+      if (e.clientY < box.top + EDGE) view.scrollTop -= STEP;
+      else if (e.clientY > box.bottom - EDGE) view.scrollTop += STEP;
+    }
 
     let index = -1;
     let box: DOMRect | null = null;
@@ -729,7 +742,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           </p>
         )}
 
-        <div className="flex-1 overflow-auto rounded-md border bg-muted/30 p-3">
+        <div ref={scrollBox} className="flex-1 overflow-auto rounded-md border bg-muted/30 p-3">
           {documentFile && activeKey ? (
             <Document
               key={activeKey}
