@@ -105,7 +105,8 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
    * Documents first, because the answers are usually already in a folder.
    * Typing a member ID that a PDF is holding is work nobody needs to do.
    */
-  const [step, setStep] = useState<'documents' | 'form'>('documents');
+  const [step, setStep] = useState<'documents' | 'read' | 'form'>('documents');
+  const [ocrFor, setOcrFor] = useState<string | null>(null);
   const [readings, setReadings] = useState<DocumentReading[]>([]);
   const [reading, setReading] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -133,41 +134,54 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
       const result = await readDroppedDocuments(files, (done, total) =>
         setReading(`Reading ${done} of ${total}`),
       );
-      setReadings(result);
-
-      // Only what the PDFs' own form fields gave up. A date read off printed
-      // text is right about 1% of the time on these forms, and typing a wrong
-      // date of birth into a form somebody is about to save is worse than
-      // leaving the box empty.
-      const { proposals } = proposeFromReadings(result, {}, { onlyFormFields: true });
-      const byColumn: Record<string, string> = {};
-      for (const p of proposals) byColumn[p.column] = p.value;
-      if (byColumn.member_id) form.setValue('member_id', byColumn.member_id);
-      if (byColumn.date_of_birth) form.setValue('date_of_birth', byColumn.date_of_birth);
-
-      const name = nameFromReadings(result);
-      if (name) {
-        // Documents write a name either way round. A comma is the tell.
-        const [first, last] = name.includes(',')
-          ? [name.split(',')[1]?.trim() ?? '', name.split(',')[0]?.trim() ?? '']
-          : [name.split(/\s+/)[0] ?? '', name.split(/\s+/).slice(1).join(' ')];
-        if (first) form.setValue('first_name', first);
-        if (last) form.setValue('last_name', last);
-      }
-
-      const found = Object.keys(byColumn).length + (name ? 1 : 0);
-      toast({
-        title: found
-          ? `${found} detail${found === 1 ? '' : 's'} read from ${files.length} document${files.length === 1 ? '' : 's'}`
-          : 'Nothing could be read from those',
-        description: found ? 'Check every box before saving.' : undefined,
-      });
-      setStep('form');
+      setReadings((r) => [...r, ...result]);
+      setStep('read');
     } catch (err: any) {
       toast({ title: 'Could not read those', description: err.message, variant: 'destructive' });
     } finally {
       setReading('');
     }
+  };
+
+  /** Read one picture-only document properly, and keep its result. */
+  const readOne = async (target: DocumentReading) => {
+    setOcrFor(target.file.name);
+    try {
+      const [reread] = await readDroppedDocuments([target.file], undefined, {}, { ocr: true });
+      if (reread) {
+        setReadings((rs) => rs.map((r) => (r.file.name === target.file.name ? reread : r)));
+      }
+    } catch (err: any) {
+      toast({ title: 'Could not read it', description: err.message, variant: 'destructive' });
+    } finally {
+      setOcrFor(null);
+    }
+  };
+
+  /**
+   * Put what the documents gave up into the form, then let it be corrected.
+   *
+   * Only what the PDFs' own form fields held. A date read off printed text is
+   * right about 1% of the time on these forms, and a wrong date of birth typed
+   * into a form somebody is about to save is worse than an empty box.
+   */
+  const enterTheRest = () => {
+    const { proposals } = proposeFromReadings(readings, {}, { onlyFormFields: true });
+    const byColumn: Record<string, string> = {};
+    for (const p of proposals) byColumn[p.column] = p.value;
+    if (byColumn.member_id) form.setValue('member_id', byColumn.member_id);
+    if (byColumn.date_of_birth) form.setValue('date_of_birth', byColumn.date_of_birth);
+
+    const name = nameFromReadings(readings);
+    if (name) {
+      // Documents write a name either way round. A comma is the tell.
+      const [first, last] = name.includes(',')
+        ? [name.split(',')[1]?.trim() ?? '', name.split(',')[0]?.trim() ?? '']
+        : [name.split(/\s+/)[0] ?? '', name.split(/\s+/).slice(1).join(' ')];
+      if (first) form.setValue('first_name', first);
+      if (last) form.setValue('last_name', last);
+    }
+    setStep('form');
   };
 
   const form = useForm<ClientFormData>({
@@ -359,6 +373,18 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
           <DialogTitle>Add New Client</DialogTitle>
         </DialogHeader>
 
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            e.target.value = '';
+            takeDocuments(files);
+          }}
+        />
+
         {step === 'documents' ? (
           <div
             onDragOver={(e) => {
@@ -400,17 +426,51 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                 </div>
               </>
             )}
-            <input
-              ref={fileInput}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                const files = [...(e.target.files ?? [])];
-                e.target.value = '';
-                takeDocuments(files);
-              }}
-            />
+          </div>
+        ) : step === 'read' ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {readings.filter((r) => r.hasText).length} of {readings.length} were read. A
+              document that is only a picture holds no text until it is read with optical
+              recognition, which takes over a minute a page.
+            </p>
+
+            <div className="divide-y rounded-md border">
+              {readings.map((r) => (
+                <div key={r.file.name} className="flex items-center justify-between gap-3 p-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm">{r.suggestedName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.error
+                        ? r.error
+                        : r.hasText
+                          ? `Read${r.ocrApplied ? ' as a picture' : ''}`
+                          : 'A picture. Nothing read yet.'}
+                    </p>
+                  </div>
+                  {!r.hasText && !r.error && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!!ocrFor}
+                      onClick={() => readOne(r)}
+                    >
+                      {ocrFor === r.file.name ? 'Reading, this takes a while' : 'Read the document'}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => fileInput.current?.click()}>
+                Add another
+              </Button>
+              <Button type="button" onClick={enterTheRest} disabled={!!ocrFor}>
+                Enter remaining information manually
+              </Button>
+            </div>
           </div>
         ) : (
         <Form {...form}>
