@@ -24,7 +24,10 @@ import {
  * initial. Somebody may keep more than one of each, named, so the right one
  * can be picked on a form.
  */
-export const SignatureManager: React.FC = () => {
+export const SignatureManager: React.FC<{
+  /** Called with the mark that was just saved, for a caller waiting on one. */
+  onSaved?: (signature: SavedSignature) => void;
+}> = ({ onSaved }) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const profileId = useEffectiveProfileId();
@@ -130,11 +133,12 @@ export const SignatureManager: React.FC = () => {
     if (!profileId || !user) return;
     setBusy(true);
     try {
-      await saveSignature(profileId, user.id, typed, 'signature', blob);
+      const created = await saveSignature(profileId, user.id, typed, 'signature', blob);
       setTyped('');
       clear();
       await load();
       toast({ title: 'Saved' });
+      onSaved?.(created);
     } catch (err: any) {
       toast({ title: 'Could not save it', description: err.message, variant: 'destructive' });
     } finally {
