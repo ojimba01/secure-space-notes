@@ -19,7 +19,9 @@ import { FileSearch, RotateCcw, AlertTriangle, ScanLine } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   runDocumentQueue,
+  runOcrQueue,
   stopDocumentQueue,
+  stopOcrQueue,
   readWithOcr,
   type QueueProgress,
 } from '@/lib/documentQueue';
@@ -74,6 +76,29 @@ export const DocumentReading: React.FC = () => {
   const [scanRows, setScanRows] = useState<ProblemRow[]>([]);
   /** The one document currently being read by optical recognition, if any. */
   const [ocrId, setOcrId] = useState<string | null>(null);
+  /** The run over every picture-only document, when one is going. */
+  const [ocrAll, setOcrAll] = useState<{ done: number; total: number; current: string } | null>(null);
+
+  const readEveryPicture = async () => {
+    setOcrAll({ done: 0, total: counts.scans, current: '' });
+    try {
+      const result = await runOcrQueue((done, total, current) =>
+        setOcrAll({ done, total, current }),
+      );
+      toast({
+        title: `${result.read} of ${result.read + result.empty + result.failed} gave up text`,
+        description:
+          result.empty > 0
+            ? `${result.empty} held nothing readable even as pictures.`
+            : undefined,
+      });
+    } catch (err: any) {
+      toast({ title: 'Stopped', description: err.message, variant: 'destructive' });
+    } finally {
+      setOcrAll(null);
+      await load();
+    }
+  };
 
   const countWhere = useCallback(async (build: (q: any) => any) => {
     const { count } = await build(
@@ -353,6 +378,22 @@ export const DocumentReading: React.FC = () => {
             <CardTitle className="flex items-center gap-2">
               <ScanLine className="h-5 w-5" /> Documents that are only pictures
             </CardTitle>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button onClick={readEveryPicture} disabled={!!ocrAll || reading}>
+                Read all {counts.scans.toLocaleString()} pictures
+              </Button>
+              {ocrAll && (
+                <>
+                  <Button variant="outline" onClick={stopOcrQueue}>
+                    Stop after this one
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {ocrAll.done} of {ocrAll.total}
+                    {ocrAll.current ? ` · ${ocrAll.current}` : ''}
+                  </span>
+                </>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">
               These were read and held no text, so they are photographs or scans rather than
               documents the computer can read. Optical recognition can read the picture, taking
