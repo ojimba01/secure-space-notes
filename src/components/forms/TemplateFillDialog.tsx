@@ -118,8 +118,8 @@ export const PDF_TEMPLATES: PdfTemplate[] = [
     formType: 'Prior Authorization Request',
     mco: 'Wellpoint',
     file: '/form-templates/wellpoint-support-services-request.pdf',
-    label: 'Wellpoint Support Services Request',
-    description: 'Wellpoint support services request. Provider details already filled in.',
+    label: 'Wellpoint Authorization Request',
+    description: 'Wellpoint authorization request. Provider details already filled in.',
   },
 ];
 
@@ -569,6 +569,8 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     placement: SignaturePlacement;
   } | null>(null);
   const dragging = useRef<{ dx: number; dy: number } | null>(null);
+  /** Every rendered page, so a signature can be dragged from one to another. */
+  const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const sign = async (png: ArrayBuffer, label: string) => {
     try {
@@ -596,19 +598,46 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     }
   };
 
-  /** Move the signature with the pointer, in fractions of the page. */
+  /**
+   * Move the signature with the pointer, in fractions of whichever page it is
+   * over.
+   *
+   * Pages are stacked in one column, so dragging past the bottom of one lands
+   * on the next. Without this the mark was stuck on the page it arrived on,
+   * and the form that asks for it on page 6 of 10 would have been unfixable
+   * if it landed anywhere else.
+   */
   const dragSignature = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging.current) return;
-    const box = e.currentTarget.parentElement?.getBoundingClientRect();
-    if (!box) return;
-    const nextX = (e.clientX - box.left) / box.width - dragging.current.dx;
-    const nextY = (e.clientY - box.top) / box.height - dragging.current.dy;
+
+    let index = -1;
+    let box: DOMRect | null = null;
+    pageRefs.current.forEach((el, i) => {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (e.clientY >= r.top && e.clientY <= r.bottom) {
+        index = i;
+        box = r;
+      }
+    });
+    // Past the last page, or in the gap between two: keep the page it is on.
+    if (index < 0 || !box) {
+      const current = pageRefs.current[signature?.placement.pageIndex ?? 0];
+      if (!current) return;
+      index = signature?.placement.pageIndex ?? 0;
+      box = current.getBoundingClientRect();
+    }
+
+    const rect = box as DOMRect;
+    const nextX = (e.clientX - rect.left) / rect.width - dragging.current.dx;
+    const nextY = (e.clientY - rect.top) / rect.height - dragging.current.dy;
     setSignature((sig) =>
       sig
         ? {
             ...sig,
             placement: {
               ...sig.placement,
+              pageIndex: index,
               x: Math.max(0, Math.min(1 - sig.placement.width, nextX)),
               y: Math.max(0, Math.min(1 - sig.placement.height, nextY)),
             },
@@ -727,7 +756,13 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             >
               <div className="flex flex-col items-center gap-4">
                 {Array.from({ length: numPages }, (_, i) => (
-                  <div key={i} className="relative shadow-sm">
+                  <div
+                    key={i}
+                    ref={(el) => {
+                      pageRefs.current[i] = el;
+                    }}
+                    className="relative shadow-sm"
+                  >
                     <Page
                       pageNumber={i + 1}
                       width={BASE_PAGE_WIDTH * scale}
