@@ -35,8 +35,8 @@ interface Props {
 /**
  * Drop a client's documents in, see what they say, correct it, save.
  *
- * Three steps and no decisions hidden between them: choose the files, look at
- * what was read, apply what is right. A value the record already holds is
+ * One screen. The drop zone stays put and documents pile up under it, so a
+ * folder goes in one at a time. A value the record already holds is
  * shown beside the proposal and left unticked, because a document is evidence
  * and a person who typed something is not overruled by a regex.
  */
@@ -52,7 +52,6 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
   const profileId = useEffectiveProfileId();
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState<'choose' | 'review'>('choose');
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState('');
   const [readings, setReadings] = useState<DocumentReading[]>([]);
@@ -101,7 +100,6 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
   };
 
   const reset = () => {
-    setStep('choose');
     setReadings([]);
     setProposals([]);
     setConflicts([]);
@@ -133,7 +131,6 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
           found.map((p) => [p.column, { include: p.current === null, value: p.value }]),
         ),
       );
-      setStep('review');
     } catch (err: any) {
       toast({ title: 'Could not read those', description: err.message, variant: 'destructive' });
     } finally {
@@ -188,61 +185,57 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {step === 'choose' ? `Upload forms for ${clientName}` : 'What the documents say'}
+            Upload forms for {clientName}
           </DialogTitle>
           <DialogDescription>
-            {step === 'choose'
-              ? 'The documents are read here, in your browser, and filed on this client. Nothing is sent anywhere to be read.'
-              : 'Tick what should go onto the client record. Every document is filed either way.'}
+            Read here, in your browser, and filed on this client. Tick what should go onto the
+            client record; every document is filed either way.
           </DialogDescription>
         </DialogHeader>
 
-        {step === 'choose' ? (
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              take([...e.dataTransfer.files]);
-            }}
-            className={`flex flex-col items-center gap-3 rounded-md border-2 border-dashed p-10 text-center ${
-              dragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/30'
-            }`}
-          >
-            {busy ? (
-              <>
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <p className="text-sm">{busyLabel}</p>
-              </>
-            ) : (
-              <>
-                <FileUp className="h-6 w-6 text-muted-foreground" />
-                <p className="text-sm">Drag this client's documents here.</p>
-                <Button variant="outline" onClick={() => fileInput.current?.click()}>
-                  Choose files
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  PDFs are read for a member ID, Medicaid ID, date of birth and diagnosis.
-                  Anything else is filed without being read.
-                </p>
-              </>
-            )}
-          </div>
-        ) : (
+        {/* The drop zone stays put. Documents pile up under it, so a folder
+            goes in one at a time without the screen changing underneath. */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            take([...e.dataTransfer.files]);
+          }}
+          className={`flex flex-col items-center gap-3 rounded-md border-2 border-dashed p-8 text-center ${
+            dragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/30'
+          }`}
+        >
+          {busy ? (
+            <>
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <p className="text-sm">{busyLabel}</p>
+            </>
+          ) : (
+            <>
+              <FileUp className="h-6 w-6 text-muted-foreground" />
+              <p className="text-sm">
+                {readings.length
+                  ? 'Drop another document here.'
+                  : "Drag this client's documents here."}
+              </p>
+              <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
+                Choose files
+              </Button>
+            </>
+          )}
+        </div>
+
+        {readings.length > 0 && (
           <div className="space-y-4 max-h-[55vh] overflow-y-auto">
             <div className="space-y-2 rounded-md border p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm">
-                  {readings.length} document{readings.length === 1 ? '' : 's'} ready to file
-                </span>
-                <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
-                  Add another
-                </Button>
-              </div>
+              <span className="text-sm">
+                {readings.length} document{readings.length === 1 ? '' : 's'} ready to file
+              </span>
               <div className="space-y-1">
                 {readings.map((r) => (
                   <div key={r.file.name} className="flex items-center justify-between gap-2">
@@ -325,7 +318,6 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Outside both steps, so Add another works on the review as well. */}
         <input
           ref={fileInput}
           type="file"
@@ -339,7 +331,7 @@ export const DocumentIntakeDialog: React.FC<Props> = ({
         />
 
         <DialogFooter>
-          {step === 'review' && (
+          {readings.length > 0 && (
             <>
               <Button variant="outline" onClick={reset} disabled={busy}>
                 Start again

@@ -468,7 +468,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
 
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={enterTheRest} disabled={!!ocrFor || !!reading}>
-                {readings.length ? 'Enter remaining information manually' : 'Enter manually'}
+                {readings.length ? 'Enter remaining info manually' : 'Enter manually'}
               </Button>
             </div>
           </div>
