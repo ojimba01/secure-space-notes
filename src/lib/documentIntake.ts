@@ -82,7 +82,46 @@ const FIELD_TO_COLUMN: { key: keyof DocumentFields; column: string; label: strin
   { key: 'medicaidId', column: 'medicaid_id', label: 'Medicaid ID' },
   { key: 'memberDob', column: 'date_of_birth', label: 'Date of birth' },
   { key: 'icd10Code', column: 'diagnosis_code', label: 'Diagnosis' },
+  // The IAT asks for all four of these and holds them in its form fields.
+  { key: 'phone', column: 'phone', label: 'Phone' },
+  { key: 'email', column: 'email', label: 'Email' },
+  { key: 'mco', column: 'insurance', label: 'MCO' },
+  { key: 'county', column: 'county', label: 'County' },
 ];
+
+/**
+ * The authorization a letter describes, decided by how long it ran.
+ *
+ * An approval letter carries the number and the From/To range, and those were
+ * read and then dropped on this screen - which is the 30-day start date the
+ * whole schedule hangs off.
+ */
+export function authorizationFromReadings(
+  readings: DocumentReading[],
+): { prefix: string; start: string; end: string; number: string | null } | null {
+  const PERIODS = [
+    { prefix: 'auth_30', min: 25, max: 35 },
+    { prefix: 'auth_150', min: 140, max: 160 },
+    { prefix: 'auth_180', min: 170, max: 190 },
+  ];
+  for (const r of readings) {
+    const start = r.fields.serviceStart;
+    const end = r.fields.serviceEnd;
+    if (!start || !end) continue;
+    const days = Math.round(
+      (new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime()) / 86_400_000,
+    );
+    const period = PERIODS.find((p) => days >= p.min && days <= p.max);
+    if (!period) continue;
+    return {
+      prefix: period.prefix,
+      start,
+      end,
+      number: (r.fields.authorizationNumber ?? '').trim() || null,
+    };
+  }
+  return null;
+}
 
 export async function readDroppedDocuments(
   files: File[],

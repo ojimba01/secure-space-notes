@@ -24,6 +24,15 @@ export interface DocumentFields {
   icd10Code: string | null;
   noticeDate: string | null;
   submissionDate: string | null;
+  /**
+   * Four more the IAT asks for in its own form fields. They were being read
+   * past: the form holds a phone number, an email, the MCO and the county, and
+   * somebody was typing all four back in beside the document that had them.
+   */
+  phone: string | null;
+  email: string | null;
+  mco: string | null;
+  county: string | null;
 }
 
 export const NO_FIELDS: DocumentFields = {
@@ -38,6 +47,10 @@ export const NO_FIELDS: DocumentFields = {
   icd10Code: null,
   noticeDate: null,
   submissionDate: null,
+  phone: null,
+  email: null,
+  mco: null,
+  county: null,
 };
 
 /** The earliest and latest a date on one of these documents could sensibly be. */
@@ -215,6 +228,12 @@ export function extractDocumentFields(rawText: string): DocumentFields {
     icd10Code,
     noticeDate,
     submissionDate,
+    // Printed text is not a source for these. They come off the IAT's own
+    // form fields, where the answer is the value rather than a heading.
+    phone: null,
+    email: null,
+    mco: null,
+    county: null,
   };
 }
 
@@ -284,7 +303,16 @@ const normField = (name: string) =>
 
 type FieldKey = keyof Pick<
   DocumentFields,
-  'memberName' | 'memberId' | 'medicaidId' | 'memberDob' | 'authorizationNumber' | 'icd10Code'
+  | 'memberName'
+  | 'memberId'
+  | 'medicaidId'
+  | 'memberDob'
+  | 'authorizationNumber'
+  | 'icd10Code'
+  | 'phone'
+  | 'email'
+  | 'mco'
+  | 'county'
 >;
 
 /**
@@ -331,6 +359,18 @@ const FORM_FIELD_RULES: { key: FieldKey; match: RegExp }[] = [
   // Authorization number, where a form carries one
   { key: 'authorizationNumber', match: /^authorization number$/ },
   { key: 'authorizationNumber', match: /^prior auth(orization)? number$/ },
+
+  // The IAT asks for these and nothing was reading them.
+  { key: 'phone', match: /^3 phone number/ },
+  { key: 'phone', match: /^5 phone number/ },
+  { key: 'phone', match: /^phone$/ },
+  { key: 'email', match: /^4 email address/ },
+  { key: 'email', match: /^6 email address/ },
+  { key: 'email', match: /^email( if applicable)?$/ },
+  { key: 'mco', match: /^6 managed care organization/ },
+  { key: 'mco', match: /^managed care organization/ },
+  { key: 'county', match: /^8 location county/ },
+  { key: 'county', match: /^county$/ },
 ];
 
 // The Wellpoint request labels its people `Name` and `Name_2`, with a separate

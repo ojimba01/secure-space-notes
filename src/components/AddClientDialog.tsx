@@ -19,6 +19,7 @@ import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { FileUp, Loader2 } from 'lucide-react';
 import {
   applyIntake,
+  authorizationFromReadings,
   nameFromReadings,
   proposeFromReadings,
   readDroppedDocuments,
@@ -169,8 +170,19 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
     const { proposals } = proposeFromReadings(readings, {}, { onlyFormFields: true });
     const byColumn: Record<string, string> = {};
     for (const p of proposals) byColumn[p.column] = p.value;
-    if (byColumn.member_id) form.setValue('member_id', byColumn.member_id);
-    if (byColumn.date_of_birth) form.setValue('date_of_birth', byColumn.date_of_birth);
+    for (const [column, value] of Object.entries(byColumn)) {
+      form.setValue(column as keyof ClientFormData, value as never);
+    }
+
+    // An approval letter carries the period the whole schedule is counted
+    // from. It was being read and dropped.
+    const auth = authorizationFromReadings(readings);
+    if (auth) {
+      form.setValue(`${auth.prefix}_start` as keyof ClientFormData, auth.start as never);
+      if (auth.number) {
+        form.setValue(`${auth.prefix}_number` as keyof ClientFormData, auth.number as never);
+      }
+    }
 
     const name = nameFromReadings(readings);
     if (name) {
