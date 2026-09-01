@@ -586,7 +586,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         return;
       }
       const bitmap = await createImageBitmap(new Blob([png], { type: 'image/png' }));
-      const placement = await defaultPlacement(current, bitmap.width / bitmap.height);
+      const placement = await defaultPlacement(current, bitmap.width / bitmap.height, formType);
       setSignature({
         png,
         url: URL.createObjectURL(new Blob([png], { type: 'image/png' })),
