@@ -14,6 +14,7 @@ import {
   X,
   DollarSign,
   FilePlus2,
+  UserCircle,
 } from "lucide-react";
 import { useTutorial } from '@/components/TutorialProvider';
 import { useAuth } from '@/components/AuthProvider';
@@ -24,6 +25,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { AdvancedTools } from '@/components/AdvancedTools';
+import { AccountDialog } from '@/components/AccountDialog';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
@@ -45,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   const routeVariant = (path: string) => (location.pathname === path ? 'default' : 'ghost');
   const { user, signOut } = useAuth();
   const { startTutorial } = useTutorial();
+  const [accountOpen, setAccountOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -117,6 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
 
   return (
     <>
+      <AccountDialog open={accountOpen} onOpenChange={setAccountOpen} />
       <MobileToolbar />
       <Overlay />
       <div className={cn(
@@ -246,6 +250,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
 
         {/* Advanced Tools (superadmin only) - pinned to bottom */}
         <div className="mt-auto space-y-2">
+          {/* Your own account, where a signature can be changed without
+              starting a form you did not mean to submit. */}
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={() => setAccountOpen(true)}
+          >
+            <UserCircle className="h-4 w-4" />
+            Your account
+          </Button>
           <AdvancedTools />
           {/* Logout Button */}
           <Button 

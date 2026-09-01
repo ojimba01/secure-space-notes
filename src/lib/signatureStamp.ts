@@ -25,73 +25,100 @@ export interface SignaturePlacement {
  * the footer of the last page, which is where the signature block is on every
  * one of these forms.
  */
+/**
+ * The box each form wants the case manager's signature in.
+ *
+ * Read off the templates rather than guessed. Taking the first signature field
+ * on a form is wrong on two of them: the HSP's first is the member's, and both
+ * of the IAT's belong to the member and their parent or guardian.
+ *
+ * | Form           | Field                    | Page   |
+ * |----------------|--------------------------|--------|
+ * | Client Intake  | cert_staff_signature     | 7 of 7 |
+ * | LON            | Signature2               | 6 of 10|
+ * | HSP            | Case Manager Signature   | 6 of 6 |
+ * | Wellpoint      | Signature                | 3 of 3 |
+ * | IAT            | none - the member signs it        |
+ * | Aetna          | none - the form has no signature line |
+ *
+ * The Client Intake's is a text box rather than a signature field, so the
+ * lookup takes any field by name and does not care which kind it is.
+ */
+export const SIGNATURE_FIELD: Record<string, string> = {
+  'Client Intake': 'cert_staff_signature',
+  'Level of Need (LON)': 'Signature2',
+  'Housing Stabilization Plan (HSP)': 'Case Manager Signature',
+  'Prior Authorization Request': 'Signature',
+};
+
+/** Where the form wants the signature, and which page that is on. */
 export async function defaultPlacement(
   pdfBytes: ArrayBuffer | Uint8Array,
   aspect: number,
+  formType?: string,
 ): Promise<SignaturePlacement> {
   const doc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
   const pages = doc.getPages();
+  const wanted = formType ? SIGNATURE_FIELD[formType] : undefined;
 
   try {
-    for (const field of doc.getForm().getFields()) {
-      if (field.constructor.name !== 'PDFSignature') continue;
-      const widget = field.acroField.getWidgets()[0];
-      if (!widget) continue;
-      const rect = widget.getRectangle();
-      if (rect.width < 20 || rect.height < 8) continue;
+    const fields = doc.getForm().getFields();
+    // The named box for this form. Nothing else is looked at: the first
+    // signature field on a form is often somebody else's.
+    const field = wanted
+      ? fields.find((f) => f.getName() === wanted)
+      : fields.find((f) => f.constructor.name === 'PDFSignature');
 
-      // Which page the field is actually on. The LON's signature line is on
-      // page 6 of 10, and assuming the last page put the mark six pages past
-      // where the form asks for it.
-      //
-      // Two ways of asking, because neither is reliable alone: the widget's
-      // own page reference is often absent, and comparing references by
-      // identity fails when they are rebuilt. Both are compared as strings,
-      // and the page's own annotation list is the fallback.
-      // pdf-lib keeps the widget's own reference on the field, not the widget.
-      const widgetRefs = field.acroField
-        .getWidgets()
-        .map((w) => (w.dict?.context?.getObjectRef?.(w.dict) ?? undefined)?.toString())
-        .filter(Boolean) as string[];
-      const pageRef = widget.P()?.toString();
-      let pageIndex = -1;
-      for (let i = 0; i < pages.length; i += 1) {
-        if (pageRef && pages[i].ref.toString() === pageRef) {
-          pageIndex = i;
-          break;
-        }
-        const annots = pages[i].node.Annots();
-        if (!annots || widgetRefs.length === 0) continue;
-        for (let a = 0; a < annots.size(); a += 1) {
-          if (widgetRefs.includes(annots.get(a)?.toString() ?? '')) {
+    const widget = field?.acroField.getWidgets()[0];
+    if (widget) {
+      const rect = widget.getRectangle();
+      if (rect.width >= 20 && rect.height >= 8) {
+        const widgetRefs = field!.acroField
+          .getWidgets()
+          .map((w) => w.dict?.context?.getObjectRef?.(w.dict)?.toString())
+          .filter(Boolean) as string[];
+        const pageRef = widget.P()?.toString();
+
+        let pageIndex = -1;
+        for (let i = 0; i < pages.length; i += 1) {
+          if (pageRef && pages[i].ref.toString() === pageRef) {
             pageIndex = i;
             break;
           }
+          const annots = pages[i].node.Annots();
+          if (!annots || widgetRefs.length === 0) continue;
+          for (let a = 0; a < annots.size(); a += 1) {
+            if (widgetRefs.includes(annots.get(a)?.toString() ?? '')) {
+              pageIndex = i;
+              break;
+            }
+          }
+          if (pageIndex >= 0) break;
         }
-        if (pageIndex >= 0) break;
+        if (pageIndex < 0) pageIndex = pages.length - 1;
+
+        const { width: pw, height: ph } = pages[pageIndex].getSize();
+        // The line runs the width of the page; a signature does not. Fit the
+        // height, keep the shape, sit at the left where a hand would start.
+        let width = rect.height * aspect;
+        if (width > rect.width) width = rect.width;
+        const height = width / aspect;
+
+        return {
+          pageIndex,
+          x: rect.x / pw,
+          y: (ph - rect.y - rect.height + (rect.height - height) / 2) / ph,
+          width: width / pw,
+          height: height / ph,
+        };
       }
-      if (pageIndex < 0) pageIndex = pages.length - 1;
-      const { width: pw, height: ph } = pages[pageIndex].getSize();
-
-      // The signature line runs the width of the page; a signature does not.
-      // Fit the height and keep the shape, sitting at the left of the line
-      // where somebody signing by hand would start.
-      let width = rect.height * aspect;
-      if (width > rect.width) width = rect.width;
-      const height = width / aspect;
-
-      return {
-        pageIndex,
-        x: rect.x / pw,
-        y: (ph - rect.y - rect.height + (rect.height - height) / 2) / ph,
-        width: width / pw,
-        height: height / ph,
-      };
     }
   } catch {
-    // No form at all. The fallback below is the answer for those.
+    // No form, or a field that cannot be measured. The fallback answers both.
   }
 
+  // The IAT and the Aetna request have no line for a case manager, so the mark
+  // lands above the footer of the last page and is dragged from there.
   const lastIndex = pages.length - 1;
   const { width: pw, height: ph } = pages[lastIndex].getSize();
   const width = Math.min(220, pw * 0.32);
