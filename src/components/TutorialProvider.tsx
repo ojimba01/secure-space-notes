@@ -46,14 +46,10 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       // If no record or not completed, user hasn't done tutorial
       setHasCompletedTutorial(data?.completed ?? false);
-      
-      // Auto-start tutorial for first-time users (after onboarding)
-      if (!data?.completed) {
-        // Small delay to let the page render first
-        setTimeout(() => {
-          setIsTutorialActive(true);
-        }, 500);
-      }
+
+      // The tour is asked for, never launched on its own. It used to start
+      // itself half a second after a new account first landed, which put an
+      // overlay over the screen the person was being shown.
     } catch (error) {
       console.error('Error checking tutorial status:', error);
     } finally {

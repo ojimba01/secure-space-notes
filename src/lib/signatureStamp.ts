@@ -63,11 +63,28 @@ export async function defaultPlacement(
 
   try {
     const fields = doc.getForm().getFields();
-    // The named box for this form. Nothing else is looked at: the first
-    // signature field on a form is often somebody else's.
-    const field = wanted
-      ? fields.find((f) => f.getName() === wanted)
-      : fields.find((f) => f.constructor.name === 'PDFSignature');
+    // The named box for this form.
+    let field = wanted ? fields.find((f) => f.getName() === wanted) : undefined;
+
+    // A template the state or an MCO reissues can rename its fields, and an
+    // administrator can put that new file in without a code change. Rather
+    // than dropping the mark at the foot of the last page, take a signature
+    // box the form does have — but only on a form we know signs a case
+    // manager, and never one the member or a guardian signs.
+    if (wanted && !field) {
+      field = fields.find((f) => {
+        const name = f.getName().toLowerCase();
+        if (/member|client|patient|parent|guardian|witness|physician|provider rep/.test(name)) {
+          return false;
+        }
+        return /signature|signed|sign\b/.test(name);
+      });
+    }
+
+    // Nothing is guessed on a form with no case manager's line of its own.
+    // The first signature field on the IAT is the member's, and putting the
+    // case manager's mark there is a filing error rather than a misplaced
+    // picture. Those get the neutral spot below, to be dragged from.
 
     const widget = field?.acroField.getWidgets()[0];
     if (widget) {

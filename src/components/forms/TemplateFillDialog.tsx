@@ -31,7 +31,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
-import { Download, Upload, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, Maximize2, Minimize2, Upload, X, ZoomIn, ZoomOut } from 'lucide-react';
 import type { FormType } from '@/lib/formSigning';
 import type { FormRow } from '@/components/forms/FormsHub';
 import {
@@ -405,11 +405,11 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         blob = await collectFilledPdf();
         // The mark goes on last, where it was left, so it lands on the answers
         // rather than under them.
-        if (signature) {
+        for (const sig of signatures) {
           const stamped = await stampSignature(
             await blob.arrayBuffer(),
-            signature.png,
-            signature.placement,
+            sig.png,
+            sig.placement,
           );
           blob = new Blob([stamped], { type: 'application/pdf' });
         }
@@ -556,43 +556,96 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   };
 
   /**
-   * The signature sitting on the form, before it is drawn into it.
+   * The signatures sitting on the form, before they are drawn into it.
    *
-   * Kept as a placement rather than stamped straight away, so it can be
-   * dragged to where it belongs. It is drawn into the PDF on submit, at
-   * wherever it was left.
+   * A list rather than one mark: a form can want a signature and a set of
+   * initials, or the same hand on two lines, and signing again used to move
+   * the one mark there was instead of adding another. Each is kept as a
+   * placement rather than stamped straight away, so it can be dragged to
+   * where it belongs. They are drawn into the PDF on submit, in the order
+   * they were added, wherever they were left.
    */
-  const [signature, setSignature] = useState<{
+  interface PlacedSignature {
+    id: string;
     png: ArrayBuffer;
     url: string;
     label: string;
     placement: SignaturePlacement;
+  }
+  const [signatures, setSignatures] = useState<PlacedSignature[]>([]);
+  const dragging = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  /**
+   * The corner being pulled, and the corner staying put.
+   *
+   * `ratio` is width over height in fractions of the page, so holding it fixed
+   * holds the shape of the mark: a signature stretched on one axis stops
+   * looking like the person's hand.
+   */
+  const resizing = useRef<{
+    id: string;
+    ratio: number;
+    ax: number;
+    ay: number;
+    east: boolean;
+    south: boolean;
   } | null>(null);
-  const dragging = useRef<{ dx: number; dy: number } | null>(null);
   /** Every rendered page, so a signature can be dragged from one to another. */
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollBox = useRef<HTMLDivElement | null>(null);
+  /** The mark the corner handles and the Delete key act on, if any. */
+  const [selectedSig, setSelectedSig] = useState<string | null>(null);
 
   const sign = async (png: ArrayBuffer, label: string) => {
     try {
-      // The blank template until a client is chosen. Pre-filling only happens
-      // once there is a client, and signing does not have to wait for one.
-      let current: ArrayBuffer | Uint8Array | null = existing ? existingBytes : prefilledBytes;
-      if (!current && template) {
-        current = await loadBlankTemplate(template.formType, template.mco, template.file);
+      /**
+       * Where the form wants a signature is read off the blank template, not
+       * off the copy on screen.
+       *
+       * The copy on screen is pre-filled, and its bytes have been handed to
+       * the PDF viewer, which takes the buffer for its own worker and leaves
+       * nothing here to read. Measuring that instead of the template is what
+       * dropped the mark at the foot of the last page rather than on the line
+       * the form actually asks for.
+       */
+      let geometry: ArrayBuffer | Uint8Array | null = null;
+      if (template) {
+        geometry = await loadBlankTemplate(template.formType, template.mco, template.file);
+      } else if (existingBytes) {
+        geometry = new Uint8Array(existingBytes);
       }
-      if (!current) {
+      if (!geometry) {
         toast({ title: 'The form has not loaded yet', variant: 'destructive' });
         return;
       }
+
       const bitmap = await createImageBitmap(new Blob([png], { type: 'image/png' }));
-      const placement = await defaultPlacement(current, bitmap.width / bitmap.height, formType);
-      setSignature({
-        png,
-        url: URL.createObjectURL(new Blob([png], { type: 'image/png' })),
-        label,
-        placement,
-      });
+      const placement = await defaultPlacement(geometry, bitmap.width / bitmap.height, formType);
+
+      // A second mark would otherwise land exactly on top of the first. Step
+      // each one down its own height until the spot is free.
+      const taken = (at: SignaturePlacement) =>
+        signatures.some(
+          (s) =>
+            s.placement.pageIndex === at.pageIndex &&
+            Math.abs(s.placement.x - at.x) < 0.01 &&
+            Math.abs(s.placement.y - at.y) < 0.01,
+        );
+      while (taken(placement) && placement.y + placement.height * 2.2 < 1) {
+        placement.y += placement.height * 1.2;
+      }
+
+      const id = crypto.randomUUID();
+      setSignatures((list) => [
+        ...list,
+        {
+          id,
+          png,
+          url: URL.createObjectURL(new Blob([png], { type: 'image/png' })),
+          label,
+          placement,
+        },
+      ]);
+      setSelectedSig(id);
       toast({ title: `Signed with ${label}`, description: 'Drag it to where it belongs.' });
     } catch (err: any) {
       toast({ title: 'Could not sign it', description: err.message, variant: 'destructive' });
@@ -600,7 +653,37 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   };
 
   /**
-   * Move the signature with the pointer, in fractions of whichever page it is
+   * The marks as they stand, for handlers that outlive the render they were
+   * made in. A gesture listens on the window, so it must not read a placement
+   * captured when the button went down.
+   */
+  const sigsRef = useRef(signatures);
+  useEffect(() => {
+    sigsRef.current = signatures;
+  });
+
+  const lastPointer = useRef<{ x: number; y: number } | null>(null);
+  const autoScroll = useRef<number | null>(null);
+
+  /** Take one mark off the form. It can be added again from the button. */
+  const removeSignature = (id: string) => {
+    const gone = sigsRef.current.find((s) => s.id === id);
+    if (gone) URL.revokeObjectURL(gone.url);
+    setSignatures((list) => list.filter((s) => s.id !== id));
+    setSelectedSig((cur) => (cur === id ? null : cur));
+  };
+
+  /** Change one mark's placement, leaving the rest of the list alone. */
+  const updatePlacement = (
+    id: string,
+    change: (p: SignaturePlacement) => SignaturePlacement,
+  ) =>
+    setSignatures((list) =>
+      list.map((s) => (s.id === id ? { ...s, placement: change(s.placement) } : s)),
+    );
+
+  /**
+   * Move a signature with the pointer, in fractions of whichever page it is
    * over.
    *
    * Pages are stacked in one column, so dragging past the bottom of one lands
@@ -608,70 +691,213 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
    * and the form that asks for it on page 6 of 10 would have been unfixable
    * if it landed anywhere else.
    */
-  const dragSignature = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragging.current) return;
-
-    // Carry the page with you. A ten-page form cannot be crossed by dragging
-    // alone: hold the mark near the top or bottom edge and the form scrolls
-    // under it until the right page is in view.
-    const view = scrollBox.current;
-    if (view) {
-      const box = view.getBoundingClientRect();
-      const EDGE = 60;
-      const STEP = 24;
-      if (e.clientY < box.top + EDGE) view.scrollTop -= STEP;
-      else if (e.clientY > box.bottom - EDGE) view.scrollTop += STEP;
-    }
+  const placeAtPointer = (clientX: number, clientY: number) => {
+    const held = dragging.current;
+    if (!held) return;
+    const sig = sigsRef.current.find((s) => s.id === held.id);
+    if (!sig) return;
 
     let index = -1;
-    let box: DOMRect | null = null;
+    let found: DOMRect | null = null;
     pageRefs.current.forEach((el, i) => {
       if (!el) return;
       const r = el.getBoundingClientRect();
-      if (e.clientY >= r.top && e.clientY <= r.bottom) {
+      if (clientY >= r.top && clientY <= r.bottom) {
         index = i;
-        box = r;
+        found = r;
       }
     });
     // Past the last page, or in the gap between two: keep the page it is on.
-    if (index < 0 || !box) {
-      const current = pageRefs.current[signature?.placement.pageIndex ?? 0];
+    if (index < 0 || !found) {
+      const current = pageRefs.current[sig.placement.pageIndex];
       if (!current) return;
-      index = signature?.placement.pageIndex ?? 0;
-      box = current.getBoundingClientRect();
+      index = sig.placement.pageIndex;
+      found = current.getBoundingClientRect();
     }
 
-    const rect = box as DOMRect;
-    const nextX = (e.clientX - rect.left) / rect.width - dragging.current.dx;
-    const nextY = (e.clientY - rect.top) / rect.height - dragging.current.dy;
-    setSignature((sig) =>
-      sig
-        ? {
-            ...sig,
-            placement: {
-              ...sig.placement,
-              pageIndex: index,
-              x: Math.max(0, Math.min(1 - sig.placement.width, nextX)),
-              y: Math.max(0, Math.min(1 - sig.placement.height, nextY)),
-            },
-          }
-        : sig,
-    );
+    const rect = found as DOMRect;
+    const nextX = (clientX - rect.left) / rect.width - held.dx;
+    const nextY = (clientY - rect.top) / rect.height - held.dy;
+    updatePlacement(held.id, (p) => ({
+      ...p,
+      pageIndex: index,
+      x: Math.max(0, Math.min(1 - p.width, nextX)),
+      y: Math.max(0, Math.min(1 - p.height, nextY)),
+    }));
   };
+
+  /**
+   * Pull one corner. The opposite corner stays where it is and the shape of
+   * the mark is kept, so the signature is only ever made larger or smaller.
+   */
+  const resizeAtPointer = (clientX: number, clientY: number) => {
+    const r = resizing.current;
+    const sig = r ? sigsRef.current.find((s) => s.id === r.id) : undefined;
+    if (!r || !sig) return;
+    const page = pageRefs.current[sig.placement.pageIndex];
+    if (!page) return;
+    const rect = page.getBoundingClientRect();
+
+    const px = (clientX - rect.left) / rect.width;
+    const py = (clientY - rect.top) / rect.height;
+
+    // Whichever axis the hand pulled further decides the size; the other
+    // follows from the shape.
+    const pulledW = r.east ? px - r.ax : r.ax - px;
+    const pulledH = r.south ? py - r.ay : r.ay - py;
+    let width = Math.max(pulledW, pulledH * r.ratio, 0.03);
+
+    // Nothing may run off the edge of the page it sits on.
+    width = Math.min(width, r.east ? 1 - r.ax : r.ax);
+    let height = width / r.ratio;
+    height = Math.min(height, r.south ? 1 - r.ay : r.ay);
+    width = height * r.ratio;
+
+    updatePlacement(r.id, (p) => ({
+      ...p,
+      x: r.east ? r.ax : r.ax - width,
+      y: r.south ? r.ay : r.ay - height,
+      width,
+      height,
+    }));
+  };
+
+  const applyPointer = (clientX: number, clientY: number) => {
+    if (resizing.current) resizeAtPointer(clientX, clientY);
+    else placeAtPointer(clientX, clientY);
+  };
+
+  /**
+   * Carry the page with you while a gesture is held near the top or bottom.
+   *
+   * On its own frame loop rather than on pointer moves: holding still at the
+   * edge has to keep scrolling, and one step per mouse move scrolled slower
+   * than the hand was asking for and left the mark trailing the page. Each
+   * scroll re-places the mark under the pointer it never moved away from.
+   */
+  const edgeScroll = () => {
+    autoScroll.current = requestAnimationFrame(edgeScroll);
+    const view = scrollBox.current;
+    const at = lastPointer.current;
+    if (!view || !at) return;
+
+    const box = view.getBoundingClientRect();
+    const EDGE = 90;
+    const MAX = 28;
+    let step = 0;
+    if (at.y < box.top + EDGE) step = -MAX * Math.min(1, (box.top + EDGE - at.y) / EDGE);
+    else if (at.y > box.bottom - EDGE) step = MAX * Math.min(1, (at.y - (box.bottom - EDGE)) / EDGE);
+    if (!step) return;
+
+    const before = view.scrollTop;
+    view.scrollTop = before + step;
+    if (view.scrollTop !== before) applyPointer(at.x, at.y);
+  };
+
+  /**
+   * Follow the pointer on the window until the button comes up.
+   *
+   * The mark moves between pages, which unmounts the box being dragged and
+   * with it any capture or handler bound to it. Held on the window, the
+   * gesture ends when the button does, instead of leaving the signature
+   * following the mouse with nothing pressed.
+   */
+  const trackGesture = (e: React.PointerEvent) => {
+    lastPointer.current = { x: e.clientX, y: e.clientY };
+
+    const move = (ev: PointerEvent) => {
+      lastPointer.current = { x: ev.clientX, y: ev.clientY };
+      applyPointer(ev.clientX, ev.clientY);
+    };
+    const end = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      if (autoScroll.current !== null) cancelAnimationFrame(autoScroll.current);
+      autoScroll.current = null;
+      lastPointer.current = null;
+      dragging.current = null;
+      resizing.current = null;
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    autoScroll.current = requestAnimationFrame(edgeScroll);
+  };
+
+  useEffect(
+    () => () => {
+      if (autoScroll.current !== null) cancelAnimationFrame(autoScroll.current);
+    },
+    [],
+  );
 
   const showReplacementPicker = existing && hasFields === false;
 
+  /**
+   * Fill the screen, or sit in the middle of it.
+   *
+   * A ten-page form in a box two thirds the height of the screen is read three
+   * lines at a time. Remembered between forms, because somebody who wants the
+   * whole page for one form wants it for the next as well.
+   *
+   * It is the same dialog either way, only wider. The page underneath is never
+   * unmounted or navigated away from, so Cancel and Submit put you back on it
+   * exactly where you were reading.
+   */
+  const EXPANDED_KEY = 'form-fill-full-page';
+  const [expanded, setExpanded] = useState(() => {
+    try {
+      return localStorage.getItem(EXPANDED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleExpanded = () =>
+    setExpanded((wide) => {
+      try {
+        localStorage.setItem(EXPANDED_KEY, wide ? '0' : '1');
+      } catch {
+        // A browser set to keep no site data still opens the form.
+      }
+      return !wide;
+    });
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-5xl h-[94vh] flex flex-col gap-3">
+      <DialogContent
+        className={
+          expanded
+            ? 'left-0 top-0 h-screen w-screen max-w-none translate-x-0 translate-y-0 flex flex-col gap-3 rounded-none border-0 p-4 sm:rounded-none'
+            : 'max-w-5xl h-[94vh] flex flex-col gap-3'
+        }
+      >
         <DialogHeader>
-          <DialogTitle>
-            {existing ? `Edit & resubmit — ${formType}` : formType}
-          </DialogTitle>
+          {/* Clear of the dialog's own close button, at the top right. */}
+          <div className="flex items-center justify-between gap-3 pr-8">
+            <DialogTitle>
+              {existing ? `Edit & resubmit — ${formType}` : formType}
+            </DialogTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={toggleExpanded}
+              title={expanded ? 'Show the form in a window' : 'Show the form on the whole page'}
+            >
+              {expanded ? (
+                <Minimize2 className="h-4 w-4 mr-2" />
+              ) : (
+                <Maximize2 className="h-4 w-4 mr-2" />
+              )}
+              {expanded ? 'Exit full page' : 'Full page'}
+            </Button>
+          </div>
         </DialogHeader>
 
         {/* Signing is part of filling the form in, so it sits with it. */}
-        {!showReplacementPicker && <SignOnForm signed={signature !== null} onSign={sign} />}
+        {!showReplacementPicker && <SignOnForm count={signatures.length} onSign={sign} />}
 
         {existing?.status === 'changes_requested' && existing.review_note && (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
@@ -783,37 +1009,120 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                       renderAnnotationLayer
                       renderForms
                     />
-                    {signature && signature.placement.pageIndex === i && (
-                      <div
-                        onPointerDown={(e) => {
-                          const box = e.currentTarget.parentElement?.getBoundingClientRect();
-                          if (!box) return;
-                          e.currentTarget.setPointerCapture(e.pointerId);
-                          dragging.current = {
-                            dx: (e.clientX - box.left) / box.width - signature.placement.x,
-                            dy: (e.clientY - box.top) / box.height - signature.placement.y,
-                          };
-                        }}
-                        onPointerMove={dragSignature}
-                        onPointerUp={() => {
-                          dragging.current = null;
-                        }}
-                        style={{
-                          left: `${signature.placement.x * 100}%`,
-                          top: `${signature.placement.y * 100}%`,
-                          width: `${signature.placement.width * 100}%`,
-                          height: `${signature.placement.height * 100}%`,
-                        }}
-                        className="absolute cursor-move touch-none rounded border border-dashed border-primary/60 bg-primary/5"
-                        title="Drag the signature where it belongs"
-                      >
-                        <img
-                          src={signature.url}
-                          alt={signature.label}
-                          className="pointer-events-none h-full w-full object-contain"
-                        />
-                      </div>
-                    )}
+                    {signatures
+                      .filter((sig) => sig.placement.pageIndex === i)
+                      .map((sig) => {
+                        const selected = selectedSig === sig.id;
+                        return (
+                          <div
+                            key={sig.id}
+                            ref={(el) => {
+                              // The box is remade when the mark crosses onto
+                              // another page. Take the focus back, so Delete
+                              // still reaches the thing that is plainly
+                              // selected.
+                              if (el && selected && document.activeElement === document.body) {
+                                el.focus({ preventScroll: true });
+                              }
+                            }}
+                            tabIndex={0}
+                            onPointerDown={(e) => {
+                              const box = e.currentTarget.parentElement?.getBoundingClientRect();
+                              if (!box) return;
+                              setSelectedSig(sig.id);
+                              dragging.current = {
+                                id: sig.id,
+                                dx: (e.clientX - box.left) / box.width - sig.placement.x,
+                                dy: (e.clientY - box.top) / box.height - sig.placement.y,
+                              };
+                              trackGesture(e);
+                            }}
+                            onFocus={() => setSelectedSig(sig.id)}
+                            onBlur={(e) => {
+                              // A corner handle is part of the box, not
+                              // somewhere else on the form.
+                              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                setSelectedSig((cur) => (cur === sig.id ? null : cur));
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Delete' || e.key === 'Backspace') {
+                                e.preventDefault();
+                                removeSignature(sig.id);
+                              }
+                            }}
+                            style={{
+                              left: `${sig.placement.x * 100}%`,
+                              top: `${sig.placement.y * 100}%`,
+                              width: `${sig.placement.width * 100}%`,
+                              height: `${sig.placement.height * 100}%`,
+                            }}
+                            className={`absolute cursor-move touch-none rounded border border-dashed outline-none ${
+                              selected
+                                ? 'border-primary bg-primary/10'
+                                : 'border-primary/60 bg-primary/5'
+                            }`}
+                            title="Drag to move it. Pull a corner to resize it. Press Delete to remove it."
+                          >
+                            <img
+                              src={sig.url}
+                              alt={sig.label}
+                              className="pointer-events-none h-full w-full object-contain"
+                            />
+
+                            {selected && (
+                              <>
+                                {/* Pull a corner to resize. They only appear
+                                    once the mark is selected, so a form being
+                                    read is not covered in handles. */}
+                                {([
+                                  { east: false, south: false, at: 'left-0 top-0', cursor: 'nwse-resize', label: 'Resize from the top left' },
+                                  { east: true, south: false, at: 'right-0 top-0', cursor: 'nesw-resize', label: 'Resize from the top right' },
+                                  { east: false, south: true, at: 'left-0 bottom-0', cursor: 'nesw-resize', label: 'Resize from the bottom left' },
+                                  { east: true, south: true, at: 'right-0 bottom-0', cursor: 'nwse-resize', label: 'Resize from the bottom right' },
+                                ] as const).map((h) => (
+                                  <button
+                                    key={h.label}
+                                    type="button"
+                                    aria-label={h.label}
+                                    title={h.label}
+                                    style={{
+                                      cursor: h.cursor,
+                                      transform: `translate(${h.east ? 50 : -50}%, ${h.south ? 50 : -50}%)`,
+                                    }}
+                                    onPointerDown={(e) => {
+                                      e.stopPropagation();
+                                      const p = sig.placement;
+                                      resizing.current = {
+                                        id: sig.id,
+                                        ratio: p.width / p.height,
+                                        ax: h.east ? p.x : p.x + p.width,
+                                        ay: h.south ? p.y : p.y + p.height,
+                                        east: h.east,
+                                        south: h.south,
+                                      };
+                                      trackGesture(e);
+                                    }}
+                                    className={`absolute ${h.at} h-3 w-3 rounded-sm border border-primary bg-background shadow-sm`}
+                                  />
+                                ))}
+
+                                {/* Or take it off the form altogether. */}
+                                <button
+                                  type="button"
+                                  aria-label="Remove this signature"
+                                  title="Remove this signature"
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                  onClick={() => removeSignature(sig.id)}
+                                  className="absolute -right-7 -top-7 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow"
+                                >
+                                  <X className="h-3 w-3" strokeWidth={3} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
                 ))}
               </div>

@@ -98,12 +98,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
       >
         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex flex-1 items-center gap-2 min-w-0">
         <div className="p-1.5 bg-medical-blue rounded-md">
           <Stethoscope className="w-4 h-4 text-white" />
         </div>
         <span className="font-semibold truncate">Case Notes</span>
       </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-10 w-10 shrink-0"
+        onClick={() => setAccountOpen(true)}
+        title="Your account"
+        aria-label="Your account"
+      >
+        <UserCircle className="h-5 w-5" />
+      </Button>
     </div>
   );
 
@@ -134,20 +144,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
       )}>
         {/* Header - hidden on mobile since toolbar shows it */}
         <div className="space-y-3 md:pt-0">
-          <div className="hidden md:block">
+          <div className="hidden md:flex items-center gap-2">
             <button
               type="button"
               onClick={() => handleViewChange('clients')}
-              className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer w-full text-left"
+              className="flex flex-1 min-w-0 items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer text-left"
             >
               <div className="p-2 bg-medical-blue rounded-lg">
                 <Stethoscope className="w-5 h-5 text-white" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h2 className="font-semibold text-lg">Case Notes</h2>
                 <p className="text-sm text-muted-foreground">HIPAA Compliant</p>
               </div>
             </button>
+            {/* Your own account: your signatures and your password. At the top
+                where a profile belongs, rather than at the foot of the
+                navigation under everything else. */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0 h-10 w-10"
+              onClick={() => setAccountOpen(true)}
+              title="Your account"
+              aria-label="Your account"
+            >
+              <UserCircle className="h-6 w-6" />
+            </Button>
           </div>
             
         </div>
@@ -250,16 +273,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
 
         {/* Advanced Tools (superadmin only) - pinned to bottom */}
         <div className="mt-auto space-y-2">
-          {/* Your own account, where a signature can be changed without
-              starting a form you did not mean to submit. */}
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2"
-            onClick={() => setAccountOpen(true)}
-          >
-            <UserCircle className="h-4 w-4" />
-            Your account
-          </Button>
           <AdvancedTools />
           {/* Logout Button */}
           <Button 

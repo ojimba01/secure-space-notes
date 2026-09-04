@@ -76,11 +76,11 @@ const ADMIN_STEPS: Step[] = [
 ];
 
 /**
- * The walkthrough everybody sees once.
+ * The walkthrough, opened from the sidebar.
  *
- * It cannot be closed until the last step is acknowledged. Touchpoints begin
- * counting against people who have been through it, so half-reading it and
- * closing the tab is not an option the screen offers.
+ * It used to open itself the first time somebody signed in and refuse to close
+ * until every step was acknowledged. That put a modal over the screen of
+ * anybody being shown the site, so it is now only ever asked for.
  */
 export const FeatureWalkthrough: React.FC = () => {
   const { user } = useAuth();
@@ -96,12 +96,11 @@ export const FeatureWalkthrough: React.FC = () => {
     (async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('id, touchpoint_tutorial_acknowledged_at')
+        .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
       if (cancelled || !data) return;
       setProfileId(data.id as string);
-      if (!(data as Record<string, unknown>).touchpoint_tutorial_acknowledged_at) setOpen(true);
     })();
     return () => {
       cancelled = true;
@@ -134,17 +133,14 @@ export const FeatureWalkthrough: React.FC = () => {
     setOpen(false);
   };
 
+  const close = () => setOpen(false);
+
   if (!open) return null;
   const current = steps[step];
 
   return (
-    <Dialog open>
-      <DialogContent
-        className="max-w-lg [&>button]:hidden"
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
-      >
+    <Dialog open onOpenChange={(o) => !o && close()}>
+      <DialogContent className="max-w-lg">
         <DialogTitle>New features</DialogTitle>
 
         <p className="text-xs text-muted-foreground">

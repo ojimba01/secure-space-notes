@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Trash2, Upload } from 'lucide-react';
+import { PenLine, Trash2, Upload } from 'lucide-react';
 import {
   cleanPhotograph,
   deleteSignature,
@@ -32,6 +32,7 @@ export const SignatureManager: React.FC<{
   const { user } = useAuth();
   const profileId = useEffectiveProfileId();
   const canvas = useRef<HTMLCanvasElement>(null);
+  const preview = useRef<HTMLCanvasElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const drawing = useRef(false);
 
@@ -39,28 +40,43 @@ export const SignatureManager: React.FC<{
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [typed, setTyped] = useState('');
+  /**
+   * Typing a name and drawing one are two different jobs, so they are two
+   * screens rather than one.
+   *
+   * Both used to be on top of each other, with an Add button that only wrote
+   * the typed name onto the canvas and a Save button that stored whatever the
+   * canvas held. Nothing on the screen said which of the two finished the job.
+   * Now Add finishes the typed one, and Save finishes the drawn one.
+   */
+  const [mode, setMode] = useState<'type' | 'draw'>('type');
 
   /**
-   * Write a typed name onto the canvas in a script face.
+   * Write a typed name onto a canvas in a script face.
    *
    * The browser's own cursive family, so nothing is downloaded and this works
-   * with no connection. It lands on the same canvas as a drawing, so it can be
-   * looked at, cleared, or saved by the same button.
+   * with no connection. The same drawing feeds the preview under the box and
+   * the image that is stored, so what is saved is what was looked at.
    */
-  const writeTyped = () => {
-    const c = canvas.current;
+  const writeTyped = (c: HTMLCanvasElement | null, name: string) => {
     const ctx = c?.getContext('2d');
-    if (!c || !ctx || !typed.trim()) return;
+    if (!c || !ctx) return;
     ctx.clearRect(0, 0, c.width, c.height);
+    if (!name.trim()) return;
     ctx.fillStyle = '#111';
     ctx.textBaseline = 'middle';
     let size = 64;
     do {
       ctx.font = `italic ${size}px "Snell Roundhand", "Segoe Script", "Brush Script MT", cursive`;
       size -= 2;
-    } while (ctx.measureText(typed).width > c.width - 40 && size > 18);
-    ctx.fillText(typed.trim(), 20, c.height / 2);
+    } while (ctx.measureText(name).width > c.width - 40 && size > 18);
+    ctx.fillText(name.trim(), 20, c.height / 2);
   };
+
+  // The preview keeps up with the box as it is typed in.
+  useEffect(() => {
+    if (mode === 'type') writeTyped(preview.current, typed);
+  }, [typed, mode]);
 
   const load = async () => {
     if (!profileId) return;
@@ -154,6 +170,22 @@ export const SignatureManager: React.FC<{
     canvas.current?.toBlob((blob) => blob && store(blob), 'image/png');
   };
 
+  /**
+   * Add the typed name. One press finishes it.
+   *
+   * The name is written onto a canvas of its own rather than the one that is
+   * drawn on, so this works from the typing screen where that canvas is not
+   * on the page at all.
+   */
+  const addTyped = () => {
+    if (!typed.trim()) return;
+    const c = document.createElement('canvas');
+    c.width = 520;
+    c.height = 140;
+    writeTyped(c, typed);
+    c.toBlob((blob) => blob && store(blob), 'image/png');
+  };
+
   const setDefault = async (sig: SavedSignature) => {
     try {
       await makeDefault(sig.id);
@@ -178,68 +210,118 @@ export const SignatureManager: React.FC<{
         <CardTitle className="text-lg">Your signature</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Type your name, draw it, or upload a photograph of the one you sign on paper. Only you
-          can see these.
-        </p>
+        {mode === 'type' ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Type your name and press Add. Only you can see your signatures.
+            </p>
 
-        {/* One box. What is typed is the mark and its name both: type SD and
-            you get initials, type a full name and you get a signature. */}
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="flex-1 min-w-[200px] space-y-1.5">
-            <Label htmlFor="sig-typed">Name</Label>
-            <Input
-              id="sig-typed"
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              placeholder="Shade Dickson, or SD"
-            />
-          </div>
-          <Button type="button" variant="outline" onClick={writeTyped} disabled={!typed.trim()}>
-            Add
-          </Button>
-        </div>
+            {/* One box. What is typed is the mark and its name both: type SD
+                and you get initials, type a full name and you get a
+                signature. */}
+            <div className="space-y-1.5">
+              <Label htmlFor="sig-typed">Name</Label>
+              <Input
+                id="sig-typed"
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder="Shade Dickson, or SD"
+              />
+            </div>
 
-        <div className="space-y-2">
-          <canvas
-            ref={canvas}
-            width={520}
-            height={140}
-            onPointerDown={start}
-            onPointerMove={move}
-            onPointerUp={stop}
-            onPointerLeave={stop}
-            className="w-full touch-none rounded-md border bg-white"
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={saveDrawing} disabled={busy}>
-              Save
-            </Button>
-            <Button type="button" variant="outline" onClick={clear} disabled={busy}>
-              Clear
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInput.current?.click()}
-              disabled={busy}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload a photo
-            </Button>
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = '';
-                if (f) cleanPhotograph(f).then(store);
-              }}
+            {/* What will be saved, shown before it is. Nothing to press on it:
+                the only button that finishes this screen is Add. */}
+            <canvas
+              ref={preview}
+              width={520}
+              height={140}
+              aria-hidden
+              className="w-full rounded-md border bg-white"
             />
-          </div>
-        </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={addTyped} disabled={busy || !typed.trim()}>
+                Add
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setMode('draw')} disabled={busy}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload or draw signature instead
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Draw your signature, or upload a photograph of the one you sign on paper, then press
+              Save. Only you can see your signatures.
+            </p>
+
+            {/* Named here as well as on the typing screen. Several drawings
+                all called "Signature" cannot be told apart in the list a form
+                asks you to choose from. */}
+            <div className="space-y-1.5">
+              <Label htmlFor="sig-drawn-name">Name</Label>
+              <Input
+                id="sig-drawn-name"
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder="Shade Dickson, or SD"
+              />
+            </div>
+
+            <canvas
+              ref={canvas}
+              width={520}
+              height={140}
+              onPointerDown={start}
+              onPointerMove={move}
+              onPointerUp={stop}
+              onPointerLeave={stop}
+              className="w-full touch-none rounded-md border bg-white"
+            />
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={saveDrawing} disabled={busy}>
+                Save
+              </Button>
+              <Button type="button" variant="outline" onClick={clear} disabled={busy}>
+                Clear
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInput.current?.click()}
+                disabled={busy}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload a photo
+              </Button>
+              <input
+                ref={fileInput}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  if (f) cleanPhotograph(f).then(store);
+                }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  clear();
+                  setMode('type');
+                }}
+                disabled={busy}
+              >
+                <PenLine className="h-4 w-4 mr-2" />
+                Type it instead
+              </Button>
+            </div>
+          </>
+        )}
 
         {saved.length > 0 && (
           <div className="space-y-2">

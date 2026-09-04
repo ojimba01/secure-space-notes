@@ -15,18 +15,19 @@ import {
 interface Props {
   /** Called with the chosen mark's PNG bytes, to be drawn onto the form. */
   onSign: (png: ArrayBuffer, label: string) => void;
-  /** True once something has been signed, so the button can say so. */
-  signed?: boolean;
+  /** How many marks are already on the form, so the button can say so. */
+  count?: number;
 }
 
 /**
  * Sign the form you are filling in.
  *
- * One button for the usual case: add the signature you always use. Choosing a
- * different one, or making your first, is behind it rather than in front of
- * it — most signing is the same mark every time.
+ * Every press adds a mark; none of them replaces the one before it, because a
+ * form can want a signature on one line and initials on another. Where more
+ * than one mark is saved, the press asks which — a drawn signature, a typed
+ * one and a photograph of the one signed on paper are all in the same list.
  */
-export const SignOnForm: React.FC<Props> = ({ onSign, signed }) => {
+export const SignOnForm: React.FC<Props> = ({ onSign, count = 0 }) => {
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
   const [saved, setSaved] = useState<SavedSignature[] | null>(null);
@@ -68,7 +69,7 @@ export const SignOnForm: React.FC<Props> = ({ onSign, signed }) => {
     }
   };
 
-  const addDefault = async () => {
+  const addSignature = async () => {
     const list = saved ?? [];
     // Nothing saved: the first thing to do is make one, so do that instead of
     // showing an empty list and asking again.
@@ -76,29 +77,35 @@ export const SignOnForm: React.FC<Props> = ({ onSign, signed }) => {
       setMaking(true);
       return;
     }
-    const preferred = list.find((s) => s.isDefault && s.kind === 'signature')
-      ?? list.find((s) => s.isDefault)
-      ?? list.find((s) => s.kind === 'signature')
-      ?? list[0];
-    await apply(preferred);
+    // One saved mark is not a choice worth asking about. More than one is,
+    // every time: the second mark on a form is rarely the same as the first.
+    if (list.length === 1) {
+      await apply(list[0]);
+      return;
+    }
+    setPicking(true);
   };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button type="button" onClick={addDefault} disabled={busy}>
+      <Button type="button" onClick={addSignature} disabled={busy}>
         <PenLine className="h-4 w-4 mr-2" />
-        {signed ? 'Sign again' : 'Add signature'}
+        {count > 0 ? 'Add another signature' : 'Add signature'}
       </Button>
-      {(saved?.length ?? 0) > 1 && (
-        <Button type="button" variant="outline" onClick={() => setPicking(true)} disabled={busy}>
-          Select
+      {(saved?.length ?? 0) > 0 && (
+        <Button type="button" variant="outline" onClick={() => setMaking(true)} disabled={busy}>
+          Make a new one
         </Button>
       )}
-      {signed && <span className="text-xs text-muted-foreground">Signed.</span>}
+      {count > 0 && (
+        <span className="text-xs text-muted-foreground">
+          {count === 1 ? '1 signature on the form.' : `${count} signatures on the form.`}
+        </span>
+      )}
 
       <Dialog open={picking} onOpenChange={setPicking}>
         <DialogContent className="max-w-md">
-          <DialogTitle>Select a different signature</DialogTitle>
+          <DialogTitle>Choose a signature</DialogTitle>
           <div className="divide-y rounded-md border">
             {(saved ?? []).map((s) => (
               <button

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
 import { FeatureWalkthrough } from '@/components/FeatureWalkthrough';
 import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from "@/components/Sidebar";
@@ -110,47 +109,15 @@ const Index = () => {
     setActiveView('clients');
   };
 
-  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      checkOnboardingStatus();
-    } else {
-      setCheckingOnboarding(false);
-    }
-  }, [user]);
-
-  const checkOnboardingStatus = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('user_onboarding')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      setNeedsOnboarding(!data);
-    } catch (error) {
-      console.error('Error checking onboarding status:', error);
-      setNeedsOnboarding(false);
-    } finally {
-      setCheckingOnboarding(false);
-    }
-  };
-
-  if (loading || checkingOnboarding) {
+  // Signing in lands on the work, not on a guide. An account with nothing in
+  // `user_onboarding` used to be sent to the help guide before it ever saw the
+  // dashboard; the guide is still in the sidebar, for whoever wants it.
+  if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
   if (!user) {
     return <Navigate to="/auth" replace />;
-  }
-
-  if (needsOnboarding) {
-    return <Navigate to="/onboarding" replace />;
   }
 
   return (
