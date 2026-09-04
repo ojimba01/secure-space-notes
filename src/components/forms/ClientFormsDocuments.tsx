@@ -15,13 +15,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Check, ChevronDown, ChevronRight, Download, FileText, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Download, FileText, Printer, Upload, X } from 'lucide-react';
 import { EXTERNAL_STATUS_LABEL, FORM_SOURCE_LABEL, goesToMco } from '@/lib/formSigning';
 import { formDownloadName } from '@/lib/formAutofill';
 import { recordFormVersion } from '@/lib/formVersions';
 import { CHECKLIST_TYPES, loadManualTicks } from '@/lib/formChecklist';
 import { FORM_LIST_COLUMNS, type FormRow } from '@/components/forms/FormsHub';
 import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
+import { FAX_COLUMNS, FAX_STATUS_LABEL, formatFaxNumber } from '@/lib/fax';
+import { FaxFormDialog } from '@/components/forms/FaxFormDialog';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
@@ -32,6 +34,12 @@ const FIELD_COLUMNS =
   'fields_extracted_at';
 
 type DocumentRow = FormRow & Partial<Record<
+  | 'fax_id'
+  | 'fax_status'
+  | 'fax_to_number'
+  | 'fax_requested_at'
+  | 'fax_completed_at'
+  | 'fax_error'
   | 'field_member_name'
   | 'field_member_id'
   | 'field_medicaid_id'
@@ -81,8 +89,10 @@ const EXTRA_GROUPS: { title: string; match: (f: DocumentRow) => boolean }[] = [
 const McoStep: React.FC<{
   form: DocumentRow;
   onSet: (form: DocumentRow, status: string) => void;
-}> = ({ form, onSet }) => {
+  onFax: (form: DocumentRow) => void;
+}> = ({ form, onSet, onFax }) => {
   const status = form.external_status ?? 'not_sent';
+  const fax = form.fax_status ?? null;
 
   if (status === 'accepted' || status === 'denied') {
     return (
@@ -109,10 +119,34 @@ const McoStep: React.FC<{
     );
   }
 
+  // On its way. Nothing to press until the other machine answers, and a
+  // second press here would fax the same record twice.
+  if (fax === 'queued' || fax === 'sending') {
+    return (
+      <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+        {FAX_STATUS_LABEL[fax]}
+        {form.fax_to_number ? ` to ${formatFaxNumber(form.fax_to_number)}` : ''}
+      </span>
+    );
+  }
+
   return (
-    <Button variant="outline" size="sm" onClick={() => onSet(form, 'sent_to_mco')}>
-      Sent to MCO
-    </Button>
+    <div className="flex flex-wrap items-center gap-1.5">
+      {/* Faxing it is the thing being done. Marking it sent is for a form that
+          went some other way -- posted, or faxed from a machine. */}
+      {form.file_path && (
+        <Button size="sm" onClick={() => onFax(form)}>
+          <Printer className="mr-1.5 h-3.5 w-3.5" />
+          {fax === 'failed' ? 'Try the fax again' : 'Fax to MCO'}
+        </Button>
+      )}
+      <Button variant="outline" size="sm" onClick={() => onSet(form, 'sent_to_mco')}>
+        Sent to MCO
+      </Button>
+      {fax === 'failed' && form.fax_error && (
+        <span className="basis-full text-xs text-destructive">{form.fax_error}</span>
+      )}
+    </div>
   );
 };
 
@@ -139,6 +173,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState<DocumentRow | null>(null);
+  /** The form being faxed to the MCO, while its number is confirmed. */
+  const [faxing, setFaxing] = useState<DocumentRow | null>(null);
   /** The form type a document is being uploaded for, from a checklist row. */
   const [uploadFor, setUploadFor] = useState<string | null>(null);
   const [preview, setPreview] = useState<{
@@ -154,7 +190,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       const [formsResult, ticks] = await Promise.all([
         supabase
           .from('client_forms')
-          .select(`${FORM_LIST_COLUMNS}, ${FIELD_COLUMNS}`)
+          .select(`${FORM_LIST_COLUMNS}, ${FIELD_COLUMNS}, ${FAX_COLUMNS}`)
           .eq('client_id', clientId)
           .order('created_at', { ascending: false }),
         loadManualTicks(clientId).catch(() => new Set<string>()),
@@ -347,7 +383,9 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       </button>
 
       <div className="flex items-center gap-1.5">
-        {goesToMco(form.form_type) && <McoStep form={form} onSet={setMcoStatus} />}
+        {goesToMco(form.form_type) && (
+          <McoStep form={form} onSet={setMcoStatus} onFax={setFaxing} />
+        )}
 
         <Button
           variant="ghost"
@@ -498,6 +536,20 @@ export const ClientFormsDocuments: React.FC<Props> = ({
           onSubmitted={() => {
             setUploadFor(null);
             load();
+          }}
+        />
+      )}
+
+      {faxing && (
+        <FaxFormDialog
+          formId={faxing.id}
+          formTitle={faxing.form_type}
+          clientId={clientId}
+          clientName={`${clientLastName}, ${clientFirstName}`.trim()}
+          onClose={() => setFaxing(null)}
+          onSent={() => {
+            load();
+            onChanged?.();
           }}
         />
       )}
