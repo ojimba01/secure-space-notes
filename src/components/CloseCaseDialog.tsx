@@ -4,6 +4,12 @@
 // exactly where they are. What changes is that the lifecycle moves to Closed,
 // so the app stops asking anyone to do anything for them.
 //
+// It also changes who may look. A closed case is an administrator's: the case
+// manager who carried it loses sight of the client and everything hanging off
+// them, enforced in the database rather than by hiding rows on screen. The
+// dialog says so before the button is pressed, because it cannot be undone
+// from here — reopening is an administrator's too.
+//
 // Deliberately does NOT set status to inactive. Billing only counts active
 // clients, and a case is routinely closed while its last cycles are still
 // inside the six-month filing window — deactivating here would hide money that
@@ -33,6 +39,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useViewAs } from '@/components/ViewAsProvider';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { isStillBillable, todayAgency, type BillingCycle } from '@/lib/billing';
 
 const REASON_OPTIONS = [
@@ -62,6 +69,7 @@ export const CloseCaseDialog: React.FC<Props> = ({
 }) => {
   const { toast } = useToast();
   const { isViewingAs } = useViewAs();
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
   const [reason, setReason] = useState<string>('');
   const [reasonOther, setReasonOther] = useState('');
   const [closedDate, setClosedDate] = useState(todayAgency());
@@ -142,12 +150,24 @@ export const CloseCaseDialog: React.FC<Props> = ({
           <DialogTitle>Close this case?</DialogTitle>
           <DialogDescription>
             {clientName} stops appearing as work: no next step, no touchpoints to make. The record,
-            forms, notes and billing history all stay exactly as they are, and the case can be
-            reopened by changing the stage back.
+            forms, notes and billing history all stay exactly as they are, and an administrator can
+            reopen the case.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Said plainly, and before the reason is chosen, because it is the
+              one part of closing that cannot be undone from this side of it.
+              The second sentence waits for the role to resolve rather than
+              telling an administrator they are about to lose the record. */}
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            A closed case is visible to administrators only.
+            {!adminLoading && !isAdmin && (
+              <> You will no longer be able to open this client, their documents or their notes,
+              and only an administrator can reopen the case.</>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label>Reason for closing</Label>
             <Select value={reason} onValueChange={setReason}>

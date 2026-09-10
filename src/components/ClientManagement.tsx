@@ -269,6 +269,25 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
     [managerOptions],
   );
 
+  /**
+   * A closed case is an administrator's to look at, so staff are not offered
+   * the stage. Asking for it would return nothing anyway — the database stops
+   * serving a closed client to the person who carried them — and an empty list
+   * with no explanation reads as a fault. Previewing an employee is the
+   * employee's view, so the stage goes there too.
+   */
+  const canSeeClosed = isAdmin && !isViewingAs;
+  const stageOptions = useMemo(
+    () => WORKFLOW_STAGES.filter((st) => st !== 'closed' || canSeeClosed),
+    [canSeeClosed],
+  );
+
+  // A superadmin who picked the closed stage and then previewed an employee
+  // would otherwise sit on a filter they can no longer choose.
+  useEffect(() => {
+    if (!canSeeClosed && stageFilter === 'closed') setStageFilter('all');
+  }, [canSeeClosed, stageFilter]);
+
   const filteredClients = clients.filter((client) => {
     const matchesSearch =
       `${client.first_name} ${client.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -521,7 +540,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All case stages</SelectItem>
-            {WORKFLOW_STAGES.map((st) => (
+            {stageOptions.map((st) => (
               <SelectItem key={st} value={st}>{STAGE_LABEL[st]}</SelectItem>
             ))}
           </SelectContent>

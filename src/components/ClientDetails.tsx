@@ -193,7 +193,10 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {client.status === 'closed' && (
+                {/* Reopening is an administrator's, because a closed case is
+                    only theirs to see. Staff reach this record while it is
+                    open, close it, and are taken back to their list. */}
+                {client.status === 'closed' && isAdmin && (
                   <Button size="sm" onClick={() => setReopenOpen(true)}>
                     Reopen case
                   </Button>
