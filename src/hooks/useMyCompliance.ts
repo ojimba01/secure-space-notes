@@ -9,7 +9,7 @@
 //      hand anyone a backlog they never had a chance to make.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { serviceStartDate, isSetupComplete, hspSubmitted } from '@/lib/workflow';
+import { serviceStartDate, isCaseClosed, isSetupComplete, hspSubmitted } from '@/lib/workflow';
 import { daysUntilHspDue, hspDueDateFor, HSP_WARNING_DAYS } from '@/lib/billing';
 import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { regenerateTouchpointsForStaff } from '@/lib/touchpoints';
@@ -141,7 +141,7 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
 
     const { data: cls } = await supabase
       .from('clients')
-      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, status')
+      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, status, workflow_stage')
       .eq('assigned_employee_id', profileId)
       .eq('status', 'active');
 
@@ -164,7 +164,9 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
     hspDueSoon.sort((a, b) => a.daysLeft - b.daysLeft);
 
     // Setup-complete only. Missing information belongs to Admin and Superadmin.
-    const list = (cls ?? []).filter((c) => isSetupComplete(c));
+    // A closed case is nobody's work, and the stage says so even on the rows
+    // closed before `status` was set with it.
+    const list = (cls ?? []).filter((c) => isSetupComplete(c) && !isCaseClosed(c));
     const ids = list.map((c) => c.id);
 
     const contactsByClient: Record<string, ContactRow[]> = {};

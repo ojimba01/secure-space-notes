@@ -1,6 +1,7 @@
 -- The two cases that were closed but never went inactive.
 --
--- NOT YET APPLIED.
+-- NOT YET APPLIED. Superseded by a-closed-case-belongs-to-admin.sql, which
+-- runs the same update as its first step. Running both is harmless.
 --
 -- Closing a case set workflow_stage to 'closed' and left status as 'active'.
 -- Every screen that hides a closed client reads status, so closing one closed

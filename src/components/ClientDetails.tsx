@@ -18,7 +18,7 @@ import { ClientWorkflowCard } from '@/components/ClientWorkflowCard';
 import { AuthorizationsSection } from '@/components/AuthorizationsSection';
 import { AuthorizationsFromDocuments } from '@/components/AuthorizationsFromDocuments';
 
-import { serviceStartDate } from '@/lib/workflow';
+import { isCaseClosed, serviceStartDate } from '@/lib/workflow';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
 import { ComplianceCard } from '@/components/ComplianceCard';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -88,7 +88,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const { isAdmin } = useIsAdmin();
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
   const { isViewingAs } = useViewAs();
   const { isSuperadmin } = useIsSuperadmin();
   const [caseManagerName, setCaseManagerName] = useState<string | null>(null);
@@ -97,6 +97,19 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
     fetchCaseManager();
   }, [user, client.assigned_employee_id]);
 
+  // A closed case belongs to Admin and Superadmin. Staff can reach this record
+  // for a moment - it is open on screen when they close it themselves, and a
+  // link can still point at it - so the record shows them the way out rather
+  // than the client. Everything under it is closed to them in the database;
+  // this is what stops them staring at a page of empty tabs wondering why.
+  //
+  // It waits on the role rather than assuming staff: an administrator opening a
+  // closed record would otherwise be thrown off it before their role resolved.
+  const closedToThisViewer = isCaseClosed(client) && !adminLoading && !isAdmin;
+  useEffect(() => {
+    if (closedToThisViewer) onBack();
+  }, [closedToThisViewer, onBack]);
+  if (closedToThisViewer) return null;
 
   const fetchCaseManager = async () => {
     if (!client.assigned_employee_id) {

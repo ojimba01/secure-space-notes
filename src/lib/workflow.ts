@@ -23,6 +23,24 @@ export const STAGE_LABEL: Record<string, string> = {
 };
 
 /**
+ * Is this case closed?
+ *
+ * Two columns can say so and they have not always agreed: closing used to set
+ * `workflow_stage` alone and leave `status` as 'active', which is how two
+ * clients stayed on every list after they were closed. Either one closes the
+ * case, so nothing depends on the pair being in step.
+ *
+ * A closed case is visible to administrators and superadmins only, so this is
+ * also the question every screen asks before showing a client to staff.
+ */
+export function isCaseClosed(c: {
+  status?: string | null;
+  workflow_stage?: string | null;
+}): boolean {
+  return c.status === 'closed' || c.workflow_stage === 'closed';
+}
+
+/**
  * The stage a client is actually at, whatever the column says.
  *
  * A client with no 30-day authorization date and no 30-day number has not been
@@ -38,7 +56,7 @@ export function displayStage(c: {
   auth_30_start?: string | null;
   auth_30_number?: string | null;
 }): string {
-  if (c.status === 'closed' || c.workflow_stage === 'closed') return 'closed';
+  if (isCaseClosed(c)) return 'closed';
   const hasInitial = !!c.auth_30_start || !!(c.auth_30_number ?? '').trim();
   if (!hasInitial) return 'initial_auth_pending';
   return c.workflow_stage ?? 'referred';

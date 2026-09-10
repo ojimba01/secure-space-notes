@@ -12,6 +12,7 @@ import { EditCalendarEventDialog } from './EditCalendarEventDialog';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { todayAgency } from '@/lib/compliance';
+import { isCaseClosed } from '@/lib/workflow';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, startOfWeek, endOfWeek } from 'date-fns';
 
 interface CalendarEvent {
@@ -30,7 +31,9 @@ interface CalendarEvent {
   clients?: {
     first_name: string;
     last_name: string;
-  };
+    status: string | null;
+    workflow_stage: string | null;
+  } | null;
 }
 
 export const CaseManagerCalendar = () => {
@@ -59,7 +62,7 @@ export const CaseManagerCalendar = () => {
 
   useEffect(() => {
     fetchEvents();
-  }, [currentDate, isViewingAs, viewAsEmployeeId]);
+  }, [currentDate, isViewingAs, viewAsEmployeeId, isAdmin]);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -72,7 +75,7 @@ export const CaseManagerCalendar = () => {
         .select(`
           *,
           profiles:employee_id (first_name, last_name),
-          clients:client_id (first_name, last_name)
+          clients:client_id (first_name, last_name, status, workflow_stage)
         `)
         .gte('start_time', monthStart.toISOString())
         .lte('start_time', monthEnd.toISOString())
@@ -85,7 +88,16 @@ export const CaseManagerCalendar = () => {
       const { data, error } = await query;
 
       if (error) throw error;
-      setEvents(data || []);
+      // A closed case is off the calendar for everyone but an administrator,
+      // the same as it is off the client list. An event whose client did not
+      // come back with it is one this viewer cannot see either, so it goes for
+      // the same reason - a bare "Home visit" with the name missing tells them
+      // nothing and shows a slot they cannot act on.
+      const visible = (data || []).filter((e: CalendarEvent) => {
+        if (isAdmin || !e.client_id) return true;
+        return !!e.clients && !isCaseClosed(e.clients);
+      });
+      setEvents(visible);
     } catch (error) {
       console.error('Error fetching events:', error);
       toast({

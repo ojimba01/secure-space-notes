@@ -46,6 +46,7 @@ import {
   type PdfTemplate,
 } from '@/components/forms/TemplateFillDialog';
 import { formDownloadName } from '@/lib/formAutofill';
+import { isCaseClosed } from '@/lib/workflow';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,7 +92,12 @@ export interface FormRow {
   page_count?: number | null;
   ocr_applied?: boolean | null;
   text_truncated?: boolean | null;
-  clients?: { first_name: string; last_name: string } | null;
+  clients?: {
+    first_name: string;
+    last_name: string;
+    status: string | null;
+    workflow_stage: string | null;
+  } | null;
   profiles?: { first_name: string | null; last_name: string | null } | null;
 }
 
@@ -189,7 +195,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
       let query = supabase
         .from('client_forms')
         .select(
-          `${FORM_LIST_COLUMNS}, clients:client_id (first_name, last_name), profiles:employee_id (first_name, last_name)`,
+          `${FORM_LIST_COLUMNS}, clients:client_id (first_name, last_name, status, workflow_stage), profiles:employee_id (first_name, last_name)`,
         )
         .order('created_at', { ascending: false });
 
@@ -203,7 +209,14 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
 
       const { data, error } = await query;
       if (error) throw error;
-      setForms((data as unknown as FormRow[]) ?? []);
+      // A closed case is an administrator's to see, documents included. Staff
+      // keep every document they filed except these: filing one is not a claim
+      // on the client after the case has closed. A row whose client did not
+      // come back with it is one they cannot see either, so it goes too.
+      const rows = (data as unknown as FormRow[]) ?? [];
+      setForms(
+        reviewMode ? rows : rows.filter((f) => !!f.clients && !isCaseClosed(f.clients)),
+      );
     } catch (err: any) {
       toast({ title: 'Could not load forms', description: err.message, variant: 'destructive' });
     } finally {

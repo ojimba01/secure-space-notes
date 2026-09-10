@@ -2,7 +2,11 @@
 //
 // The client, their forms, notes, touchpoints and billing history all stay
 // exactly where they are. What changes is that the lifecycle moves to Closed,
-// so the app stops asking anyone to do anything for them.
+// so the app stops asking anyone to do anything for them - and the record
+// passes to Admin and Superadmin, who are the only people who can see a closed
+// case. For a case manager that is a one-way door: the client leaves their
+// list, their calendar and their documents the moment they confirm, and only
+// an administrator can reopen the case. The dialog says so before they do it.
 //
 // Deliberately does NOT set status to inactive. Billing only counts active
 // clients, and a case is routinely closed while its last cycles are still
@@ -33,6 +37,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useViewAs } from '@/components/ViewAsProvider';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { isStillBillable, todayAgency, type BillingCycle } from '@/lib/billing';
 
 const REASON_OPTIONS = [
@@ -62,6 +67,7 @@ export const CloseCaseDialog: React.FC<Props> = ({
 }) => {
   const { toast } = useToast();
   const { isViewingAs } = useViewAs();
+  const { isAdmin } = useIsAdmin();
   const [reason, setReason] = useState<string>('');
   const [reasonOther, setReasonOther] = useState('');
   const [closedDate, setClosedDate] = useState(todayAgency());
@@ -142,12 +148,21 @@ export const CloseCaseDialog: React.FC<Props> = ({
           <DialogTitle>Close this case?</DialogTitle>
           <DialogDescription>
             {clientName} stops appearing as work: no next step, no touchpoints to make. The record,
-            forms, notes and billing history all stay exactly as they are, and the case can be
-            reopened by changing the stage back.
+            forms, notes and billing history all stay exactly as they are, and an administrator can
+            reopen the case.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {!isAdmin && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+              <span className="font-medium">This is the last you will see of this client.</span> A
+              closed case is visible to administrators only, so {clientName} leaves your client
+              list, your calendar and your documents as soon as you close it. Nothing is deleted,
+              and an administrator can reopen the case.
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Reason for closing</Label>
             <Select value={reason} onValueChange={setReason}>

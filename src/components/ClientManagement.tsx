@@ -13,7 +13,7 @@ import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
 import { AddTouchpointDialog } from '@/components/AddTouchpointDialog';
-import { STAGE_LABEL, WORKFLOW_STAGES, displayStage, isSetupComplete } from '@/lib/workflow';
+import { STAGE_LABEL, WORKFLOW_STAGES, displayStage, isCaseClosed, isSetupComplete } from '@/lib/workflow';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useMyCompliance } from '@/hooks/useMyCompliance';
@@ -245,9 +245,13 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       // the default view and out of All case stages - and comes back only when
       // somebody asks for the closed stage by name. One control instead of a
       // filter and a toggle that had to agree with each other.
-      const visible =
-        stageFilter === 'closed' ? all : all.filter((c) => c.status !== 'closed');
-      const list = visible;
+      //
+      // And only an administrator can ask. A closed case is theirs to see:
+      // staff lose sight of it the moment it closes, here and everywhere else.
+      // The database says the same thing, so this is the list agreeing with it
+      // rather than the only thing enforcing it.
+      const list =
+        isAdmin && stageFilter === 'closed' ? all : all.filter((c) => !isCaseClosed(c));
       setClients(list);
       // Keep the currently open client detail in sync with the latest data
       setSelectedClient((current) =>
@@ -263,6 +267,13 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       setLoading(false);
     }
   };
+
+  // Closed is an administrator's filter. Offering it to staff would be a
+  // control that can only ever come back empty.
+  const stageOptions = useMemo(
+    () => WORKFLOW_STAGES.filter((st) => st !== 'closed' || isAdmin),
+    [isAdmin],
+  );
 
   const activeManagerOptions = useMemo(
     () => managerOptions.filter((m) => m.active),
@@ -521,7 +532,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All case stages</SelectItem>
-            {WORKFLOW_STAGES.map((st) => (
+            {stageOptions.map((st) => (
               <SelectItem key={st} value={st}>{STAGE_LABEL[st]}</SelectItem>
             ))}
           </SelectContent>

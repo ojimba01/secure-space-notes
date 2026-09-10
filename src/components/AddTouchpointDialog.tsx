@@ -27,7 +27,7 @@ import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
-import { isSetupComplete } from '@/lib/workflow';
+import { isCaseClosed, isSetupComplete } from '@/lib/workflow';
 import {
   CONTACT_METHOD_OPTIONS, TOUCHPOINT_TYPES, contactMethodLabel, touchpointTypeLabel,
   isInPersonMethod, todayAgency,
@@ -215,7 +215,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     // real supervisory job -- so the filter is dropped for them.
     let query = supabase
       .from('clients')
-      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, assigned_employee_id')
+      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, assigned_employee_id, status, workflow_stage')
       .eq('status', 'active')
       // Deliberately no .eq('hsp_submitted', true). A 150-day or 180-day
       // authorization number proves the plan was submitted even when the flag
@@ -226,8 +226,9 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
 
     query.then(async ({ data }) => {
         // Staff only work setup-complete clients, and this is the one place
-        // that decides what that means.
-        const setupDone = (data ?? []).filter((c) => isSetupComplete(c));
+        // that decides what that means. A closed case is not offered at all:
+        // there is no touchpoint to record on a case nobody is working.
+        const setupDone = (data ?? []).filter((c) => isSetupComplete(c) && !isCaseClosed(c));
 
         // Names for the "contact made by" default, so the picker can say
         // whose client this is rather than showing a bare id.
