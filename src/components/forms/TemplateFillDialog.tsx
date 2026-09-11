@@ -411,7 +411,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             sig.png,
             sig.placement,
           );
-          blob = new Blob([stamped], { type: 'application/pdf' });
+          blob = new Blob([stamped.slice().buffer], { type: 'application/pdf' });
         }
       }
       if (blob.size > MAX_BYTES) {
