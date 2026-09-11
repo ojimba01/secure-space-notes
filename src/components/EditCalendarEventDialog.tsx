@@ -58,8 +58,8 @@ interface EditCalendarEventDialogProps {
   /**
    * Open the record of the client this event is for.
    *
-   * Only the agency calendar passes it: from a client's own calendar the
-   * button would lead back to the page it was pressed on.
+   * Only the agency calendar passes it: from the schedule inside a client's
+   * record the button would lead back to the page it was pressed on.
    */
   onOpenClient?: (clientId: string) => void;
 }

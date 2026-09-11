@@ -161,7 +161,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">Client calendar</h2>
+        {/* Not "client calendar". A client has no calendar here: they do not
+            sign in and never see this. These are staff appointments about
+            them, which is a different thing with the same dates on it. */}
+        <h2 className="text-base font-semibold">Scheduled work</h2>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
             <Button>
