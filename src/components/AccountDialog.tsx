@@ -321,14 +321,15 @@ export const AccountDialog: React.FC<{
                     </CollapsibleContent>
                   </Collapsible>
 
-                  {/* The only warning worth making. A "use your work account"
-                      line was cut: staff have no other account to use, so it
-                      spent a reader's attention telling them nothing. */}
+                  {/* Two sentences, and neither repeats the other. "Do not
+                      forward it" was cut: a reader who has just been told
+                      anyone holding the link can read their calendar has
+                      already drawn that conclusion. */}
                   <div className="text-xs">
                     <p className="font-medium">Keep this link private</p>
                     <p className="text-muted-foreground">
-                      Anyone with it can read your calendar without signing in. Do not forward it.
-                      If it gets out, replace it — the old link stops working immediately.
+                      Anyone with it can read your calendar without signing in. If needed, press
+                      Replace link and the old link will become inactive.
                     </p>
                   </div>
 
