@@ -119,14 +119,15 @@ create policy "Employees can view their assigned clients"
     )
   );
 
--- Write: the same, with one deliberate exception. A case manager may still
--- close their own case, and closing it is an update whose *new* row is closed.
--- Postgres reuses a policy's USING expression as its WITH CHECK when none is
--- given, so without the explicit WITH CHECK below the closing write would fail
--- on the row it had just written. USING decides what they may edit -- an open
--- case of theirs -- and WITH CHECK decides what they may leave behind, which
--- is their own client, open or closed. Reopening is not among them: the case
--- is invisible to them by then, and only an administrator can undo it.
+-- Write: their own case, while it is open, and it stays theirs and open.
+--
+-- Closing is deliberately NOT reachable from here, because it cannot be.
+-- Postgres applies a table's SELECT policies to the *new* row of an UPDATE:
+-- you may not update a row into a state where you could no longer see it. The
+-- read policy above hides a closed case from staff, so the moment it exists,
+-- no staff UPDATE can ever turn a case closed -- with or without a WITH CHECK
+-- of its own, which is what an earlier draft of this file got wrong. Closing
+-- goes through close_case() below instead.
 
 drop policy if exists "Employees can update their assigned clients" on public.clients;
 create policy "Employees can update their assigned clients"
@@ -136,7 +137,74 @@ create policy "Employees can update their assigned clients"
     and status is distinct from 'closed'
     and workflow_stage is distinct from 'closed'
   )
-  with check (assigned_employee_id = public.get_profile_id(auth.uid()));
+  with check (
+    assigned_employee_id = public.get_profile_id(auth.uid())
+    and status is distinct from 'closed'
+    and workflow_stage is distinct from 'closed'
+  );
+
+-- Closing a case: the one write that crosses the line, so it is the one write
+-- that does not go through the table.
+--
+-- Security definer, so it is not bound by the read policy that is about to
+-- hide the row from the person closing it. It checks for itself that the
+-- caller is the case manager carrying the case or an administrator, which is
+-- exactly what the UPDATE policy would have checked. Both columns are written
+-- here, in one place, so a case can never again go closed by stage alone.
+--
+-- Reopening is not here on purpose: it is an ordinary admin update, and by
+-- then staff cannot see the case to ask.
+
+create or replace function public.close_case(
+  _client_id uuid,
+  _reason text,
+  _closed_date date default null,
+  _notes text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  _caller uuid := auth.uid();
+begin
+  if _caller is null then
+    raise exception 'Not signed in';
+  end if;
+
+  if not (
+    public.is_admin(_caller)
+    or exists (
+      select 1
+        from public.clients c
+        join public.profiles p on p.id = c.assigned_employee_id
+       where c.id = _client_id
+         and p.user_id = _caller
+         and p.active = true
+    )
+  ) then
+    raise exception 'That is not your case to close';
+  end if;
+
+  update public.clients
+     set status = 'closed',
+         workflow_stage = 'closed',
+         workflow_stage_updated_at = now(),
+         closed_date = coalesce(_closed_date, current_date),
+         reason_closed = _reason,
+         notes = coalesce(nullif(btrim(_notes), ''), notes)
+   where id = _client_id
+     and deleted_at is null;
+
+  if not found then
+    raise exception 'No such client';
+  end if;
+end;
+$$;
+
+revoke all on function public.close_case(uuid, text, date, text) from public;
+grant execute on function public.close_case(uuid, text, date, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 5. The policies that reach a client's data without asking whose client it is
@@ -291,32 +359,44 @@ create policy "Employees can update their own notes"
   );
 
 -- ---------------------------------------------------------------------------
--- Expect: still_open_but_closed = 0, and every policy below present (1 each).
+-- Did it land?
 -- ---------------------------------------------------------------------------
+-- Expect one row reading: 0 stragglers, 4 functions, 11 policies.
+-- Anything else means part of the script did not run. It is idempotent --
+-- create-or-replace, drop-if-exists, and an update that matches nothing the
+-- second time -- so the fix is always to run the whole thing again.
+
 select
   (select count(*) from public.clients
-    where deleted_at is null and workflow_stage = 'closed'
-      and status is distinct from 'closed')                     as still_open_but_closed,
-  (select count(*) from pg_policies where schemaname = 'public'
-     and tablename = 'clients'
-     and policyname = 'Employees can view their assigned clients')       as clients_select,
-  (select count(*) from pg_policies where schemaname = 'public'
-     and tablename = 'clients'
-     and policyname = 'Employees can update their assigned clients')     as clients_update,
-  (select count(*) from pg_policies where schemaname = 'public'
-     and tablename = 'client_forms'
-     and policyname = 'Employees view their own forms')                  as forms_select,
-  (select count(*) from pg_policies where schemaname = 'public'
-     and tablename = 'client_form_versions'
-     and policyname = 'Employees view versions of their own forms')      as versions_select,
-  (select count(*) from pg_policies where schemaname = 'public'
-     and tablename = 'client_notes'
-     and policyname = 'Employees can view notes for their clients')      as notes_select,
-  (select count(*) from pg_policies where schemaname = 'public'
-     and tablename = 'client_files'
-     and policyname = 'Users can view files for their clients')          as files_select,
-  (select count(*) from pg_policies where schemaname = 'public'
-     and tablename = 'calendar_events'
-     and policyname = 'Users can view their own events')                 as events_select,
-  (select count(*) from pg_policies where schemaname = 'storage'
-     and policyname = 'Users read form files they own or administer')    as storage_select;
+    where deleted_at is null
+      and workflow_stage = 'closed'
+      and status is distinct from 'closed')      as still_open_but_closed,  -- expect 0
+
+  -- All three names already existed, so the check is that each one's *body*
+  -- now mentions the closed case. A name alone would pass without the script.
+  (select count(*) from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname in ('is_case_closed', 'is_assigned_to_client',
+                        'can_access_client_files', 'close_case')
+      and pg_get_functiondef(p.oid) like '%closed%')  as functions_updated,  -- expect 4
+
+  -- Same again: each of these policy names existed before, so what is counted
+  -- is the ones whose rule now mentions the closed case. The insert policies
+  -- keep their rule in with_check rather than qual, hence both.
+  (select count(*) from pg_policies
+    where coalesce(qual, '') || coalesce(with_check, '') like '%closed%'
+      and ((schemaname, tablename, policyname) in (
+      ('public', 'clients',              'Employees can view their assigned clients'),
+      ('public', 'clients',              'Employees can update their assigned clients'),
+      ('public', 'client_forms',         'Employees view their own forms'),
+      ('public', 'client_form_versions', 'Employees view versions of their own forms'),
+      ('public', 'client_notes',         'Employees can view notes for their clients'),
+      ('public', 'client_notes',         'Employees can create notes for their clients'),
+      ('public', 'client_notes',         'Employees can update their own notes'),
+      ('public', 'client_files',         'Users can view files for their clients'),
+      ('public', 'client_files',         'Users can upload files for their clients'),
+      ('public', 'calendar_events',      'Users can view their own events')
+    )
+    or (schemaname = 'storage'
+        and policyname = 'Users read form files they own or administer')))  as policies_updated;  -- expect 11
