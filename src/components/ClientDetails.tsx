@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FileManager } from '@/components/FileManager';
 import { EditClientDialog } from '@/components/EditClientDialog';
 import { ReassignClientDialog } from '@/components/ReassignClientDialog';
-import { AssignmentHistory } from '@/components/AssignmentHistory';
+import { CaseHistory } from '@/components/CaseHistory';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CalendarView } from '@/components/CalendarView';
 import { ClientWorkflowCard } from '@/components/ClientWorkflowCard';
@@ -393,7 +393,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </TabsContent>
 
         <TabsContent value="history">
-          <AssignmentHistory clientId={client.id} />
+          <CaseHistory clientId={client.id} />
         </TabsContent>
 
         {isSuperadmin && (
