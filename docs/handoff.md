@@ -44,9 +44,14 @@ sentence. They will tell you when copy is bad, and they are usually right —
   titles.
 - The `calendar-feed` edge function is deployed.
 
-## Not applied, and nobody is waiting on it
+## Waiting to be run
 
-Nothing. Every script written this session has been run.
+`docs/hsp-dates-are-authorization-dates.sql` — mirrors hsp_150_date and
+hsp_180_date into the authorization columns for clients already carrying them,
+and writes the client_authorizations rows that go with them (including the
+initial_30 rows that were never created). Tested on a throwaway Postgres
+against a client with the HSP date only, one with a period already recorded by
+hand, and a deleted client. Everything else written this session has been run.
 
 ## Three things that will bite you
 

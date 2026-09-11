@@ -384,11 +384,16 @@ export function authorizationSpans(c: AuthorizationSpans): AuthSpan[] {
     if (start && e) spans.push({ phase, start, end: e });
   };
   push('initial_30', c.auth_30_start, c.auth_30_end ?? null, 30);
-  push('period_150', c.auth_150_start, c.auth_150_end ?? null, 150);
+  // hsp_150_date is the same day as auth_150_start — the edit form calls it
+  // "HSP 150-day Start" — but only the IAT field was ever mirrored across.
+  // Clients carrying the HSP date and no authorization column are common, and
+  // without this they lose their 150 days from the cycle list.
+  push('period_150', c.auth_150_start || c.hsp_150_date, c.auth_150_end ?? null, 150);
   // The extension usually follows the 150-day period without being given its
   // own start date, which is how the database derives it too.
+  const start150 = c.auth_150_start || c.hsp_150_date;
   const ext180Start =
-    c.auth_180_start || (c.auth_150_start ? addDays(c.auth_150_start, 150) : null);
+    c.auth_180_start || (start150 ? addDays(start150, 150) : null);
   push('extension_180', ext180Start, c.auth_180_end ?? null, 180);
   return spans;
 }
