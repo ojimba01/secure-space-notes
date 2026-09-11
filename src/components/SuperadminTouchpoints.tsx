@@ -91,7 +91,7 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
           Current cycle: {fmtD(r.windowStart)}–{fmtD(r.windowEnd)}
         </div>
         <div className="mt-0.5 text-xs text-red-700">
-          {r.contactDays} of {r.requiredContacts} touchpoints completed · {r.inPersonDays} of {r.requiredInPerson} in person
+          {r.inPersonDays > 0 ? 'Visit done' : 'No in-person visit this cycle'}
         </div>
       </div>
       <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />

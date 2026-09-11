@@ -41,13 +41,22 @@ export interface Requirements {
   requiredActivities: number;
 }
 
-export function requirementsForTier(tier: string | null | undefined): Requirements {
-  if (tier === 'High Level') {
-    // 4 touchpoints per 30-day cycle, at least 2 in person
-    return { requiredContacts: 4, requiredInPerson: 2, requiredActivities: 2 };
-  }
-  // Low Level: 2 touchpoints per 30-day cycle, at least 1 in person
-  return { requiredContacts: 2, requiredInPerson: 1, requiredActivities: 0 };
+/**
+ * One in-person touchpoint per 30-day cycle. For everybody.
+ *
+ * This used to vary by level of need — four contacts and two visits for High
+ * Level, two and one for Low — and the agency does not work that way. The in-
+ * person visit is the touchpoint that matters and the only one the app should
+ * ask for. Phone calls, emails and everything else are still logged, and still
+ * appear on the calendar and in the case log; they are simply not a quota the
+ * app chases anybody about.
+ *
+ * The tier argument stays because the level of need still decides the billing
+ * rate (see billing_rate_for_level) and every caller passes it. It no longer
+ * changes the answer here.
+ */
+export function requirementsForTier(_tier?: string | null): Requirements {
+  return { requiredContacts: 1, requiredInPerson: 1, requiredActivities: 0 };
 }
 
 // A valid level of need value (Low Level / High Level). Anything else = not set.

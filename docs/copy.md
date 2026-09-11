@@ -142,10 +142,21 @@ the accent colour because that is the part that changes.
 Overdue / On track.
 
 - `Current 30-day cycle: {start} – {end}`
-- `Level of need: {High Level | Low Level}`
-- `Required touchpoints: {n} · Required in person: {n}`
-- `Completed: {n} · Remaining: {n}`
-- `Suggested next: {type}`
+- `Required: 1 in-person visit`
+- `Done: yes | not yet`
+
+Then, in full: "One in-person visit per 30-day cycle. Phone calls, emails and
+video are worth logging and appear on the calendar and in the case log, but only
+the visit is required."
+
+**One visit a month, for everybody.** The requirement used to vary by level of
+need — four contacts and two visits for High Level, two and one for Low. It does
+not any more. The level of need still sets the billing rate; it no longer says
+what is owed. Support activities and the monthly summary note were part of that
+old model and are gone from the screen.
+
+Missing setup now means one thing: "Add an authorization start date to enable
+automatic scheduling." A level of need is not required to schedule anything.
 
 **All 30-day touchpoint cycles** — one row per cycle, `MM/DD/YYYY – MM/DD/YYYY`,
 six at a time. Colour says which authorization pays for it:

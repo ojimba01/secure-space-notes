@@ -162,9 +162,15 @@ Findings:
 - Already correct: cycles anchored to `serviceStartDate`; compliance read only
   from `client_contacts`; every scheduling protection; `calendar_event_id`
   already exists on `client_contacts` and is already written.
-- **Settled, and not to be reopened:** the spec asks for two contacts on the
-  same day to count as two. The agency decided they count as **one**, which is
-  what `distinctDays()` already does. Leave `windowProgress`, `computeProgress`,
+- **Superseded.** The spec's whole quota model is gone. The agency wants one
+  in-person visit per 30-day cycle and nothing else chased, so
+  `requirementsForTier` returns `{1, 1, 0}` whatever the tier, and the tier
+  argument survives only because the level of need still sets the billing rate.
+  Same-day counting is therefore moot.
+- **A trap this exposed:** `generateTouchpointDates` stopped once the *contact*
+  count was met, so a client whose only contact that cycle was a phone call had
+  their visit quietly cancelled. It now schedules `max(contacts owed, visits
+  owed)`. If the quotas ever diverge again, that is the line to check first. Leave `windowProgress`, `computeProgress`,
   `cycleStatus` and `overdueReasons` counting days. "Not enough days left in
   billing window" therefore stays a valid overdue reason — it only stops making
   sense if same-day contacts ever start counting separately. The ≥7-day spacing

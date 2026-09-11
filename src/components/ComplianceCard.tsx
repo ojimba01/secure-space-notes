@@ -4,8 +4,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Plus, Phone, Video, MapPin, Trash2 } from 'lucide-react';
@@ -14,10 +12,9 @@ import { useComplianceTooltips } from '@/hooks/useComplianceTooltips';
 import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { useViewAs } from '@/components/ViewAsProvider';
 import {
-  Modality, SUPPORT_ACTIVITIES, ComplianceStatus,
   requirementsForTier, computeProgress, deriveStatus, generatePlanDates,
   firstOfMonth, todayAgency, daysBetween, ENFORCEMENT_START, ContactRow,
-  hasValidTier, currentBillingWindow, contactsInWindow, windowProgress,
+  currentBillingWindow, contactsInWindow, windowProgress,
   windowStatus, suggestTouchpointType,
 } from '@/lib/compliance';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
@@ -57,8 +54,9 @@ export const ComplianceCard: React.FC<Props> = ({
   const month = firstOfMonth(today);
   const tier = levelOfNeed === 'High Level' ? 'High Level' : 'Low Level';
   const req = requirementsForTier(tier);
-  const isHigh = tier === 'High Level';
-  const setupComplete = hasValidTier(levelOfNeed) && !!hspStartDate;
+  // A start date and nothing else. The level of need sets the billing rate, not
+  // what is owed: every client owes one in-person visit per 30-day cycle.
+  const setupComplete = !!hspStartDate;
   const window = setupComplete ? currentBillingWindow(hspStartDate!, today) : null;
 
   const isNewClientFirstWeek =
@@ -159,32 +157,9 @@ export const ComplianceCard: React.FC<Props> = ({
     onChanged?.();
   };
 
-  const toggleActivity = async (key: string, checked: boolean) => {
-    // Local toggle first (visible in view-as sandbox).
-    const next = checked ? [...new Set([...activities, key])] : activities.filter((a) => a !== key);
-    setActivities(next);
-
-    if (guardWrite()) return;
-    if (complianceId) {
-      await supabase.from('client_month_compliance').update({ activities_done: next as any }).eq('id', complianceId);
-    }
-  };
-
-  const saveNote = async () => {
-    // Note text is already reflected in local state (summaryNote).
-    if (guardWrite()) return;
-    if (!complianceId) return;
-    setSavingNote(true);
-    await supabase.from('client_month_compliance').update({ summary_note: summaryNote }).eq('id', complianceId);
-    setSavingNote(false);
-    toast({ title: 'Note saved' });
-  };
-
-  // current 30-day billing window progress
   const winContacts = window ? contactsInWindow(contacts, window) : [];
   const winProg = window ? windowProgress(req, winContacts) : null;
   const winStatus = window ? windowStatus(req, window, winContacts, today) : 'missing_setup';
-  const suggestion = window ? suggestTouchpointType(req, winContacts) : null;
   const fmtShort = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
 
@@ -225,18 +200,18 @@ export const ComplianceCard: React.FC<Props> = ({
             </div>
             {!setupComplete ? (
               <p className="text-xs text-muted-foreground">
-                Add a {hspStartDate ? '' : 'HSP approval / authorization start date'}{!hspStartDate && !hasValidTier(levelOfNeed) ? ' and ' : ''}{hasValidTier(levelOfNeed) ? '' : 'level of need'} to enable automatic scheduling.
+                Add an authorization start date to enable automatic scheduling.
               </p>
             ) : (
               <div className="text-xs text-muted-foreground space-y-1">
                 <div>Current 30-day cycle: <span className="font-medium text-foreground">{fmtShort(window!.start)} – {fmtShort(window!.end)}</span></div>
-                <div>Level of need: <span className="font-medium text-foreground">{levelOfNeed}</span></div>
-                <div>Required touchpoints: <span className="font-medium text-foreground">{req.requiredContacts}</span> · Required in person: <span className="font-medium text-foreground">{req.requiredInPerson}</span></div>
-                <div>Completed: <span className="font-medium text-foreground">{winProg!.contactDays}</span> · Remaining: <span className="font-medium text-foreground">{winProg!.remaining}</span></div>
-                {suggestion && <div>Suggested next: <span className="font-medium text-foreground">{suggestion}</span></div>}
-                <p className="pt-1">{isHigh
-                  ? 'High Level: 4 touchpoints per 30-day cycle. At least 2 must be in person. Touchpoints must be on separate days.'
-                  : 'Low Level: 2 touchpoints per 30-day cycle. At least 1 must be in person. Touchpoints must be on separate days.'}</p>
+                <div>Required: <span className="font-medium text-foreground">1 in-person visit</span></div>
+                <div>Done: <span className="font-medium text-foreground">{winProg!.inPersonSpaced > 0 ? 'yes' : 'not yet'}</span></div>
+                <p className="pt-1">
+                  One in-person visit per 30-day cycle. Phone calls, emails and
+                  video are worth logging and appear on the calendar and in the
+                  case log, but only the visit is required.
+                </p>
               </div>
             )}
           </div>
@@ -284,38 +259,6 @@ export const ComplianceCard: React.FC<Props> = ({
             />
           </div>
 
-          {/* high-level: activities + note */}
-          {isHigh && (
-            <div className="space-y-3 border-t pt-4">
-              <div className="text-sm font-medium">
-                Support activities: {progress.activitiesDone} of {req.requiredActivities}
-              </div>
-              <div className="space-y-2">
-                {SUPPORT_ACTIVITIES.map((a) => (
-                  <div key={a.key} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`act-${a.key}`}
-                      checked={activities.includes(a.key)}
-                      onCheckedChange={(c) => toggleActivity(a.key, !!c)}
-                    />
-                    <Label htmlFor={`act-${a.key}`} className="text-sm font-normal flex items-center gap-1">
-                      {a.label} <InfoHint text={tooltips[a.tooltipKey] || a.label} />
-                    </Label>
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm">Monthly summary note</Label>
-                <Textarea
-                  value={summaryNote}
-                  onChange={(e) => setSummaryNote(e.target.value)}
-                  rows={3}
-                  placeholder="Summarize housing coordination, referrals, handoffs, and other support provided this month."
-                />
-                <Button size="sm" variant="outline" onClick={saveNote} disabled={savingNote}>Save note</Button>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
     </TooltipProvider>

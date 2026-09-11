@@ -18,7 +18,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import {
   requirementsForTier,
-  hasValidTier,
   currentBillingWindow,
   contactsInWindow,
   spacedInPersonDates,
@@ -36,7 +35,7 @@ import {
   ContactRow,
   BillingWindow,
 } from '@/lib/compliance';
-import { serviceStartDate, isSetupComplete } from '@/lib/workflow';
+import { serviceStartDate } from '@/lib/workflow';
 import { goLiveDate } from '@/lib/touchpointSettings';
 
 export interface TouchpointDate {
@@ -132,7 +131,10 @@ export function generateTouchpointDates(
   /** Types already used in this cycle, from contacts staff have logged. */
   loggedTypes: string[] = [],
 ): TouchpointDate[] {
-  if (!hasValidTier(tier) || !serviceStart) return [];
+  // A level of need no longer changes what is owed, so it no longer decides
+  // whether anything is scheduled. The start date is the only thing the 30-day
+  // maths genuinely needs.
+  if (!serviceStart) return [];
   const window = currentBillingWindow(serviceStart, today);
   if (!window) return [];
   const req = requirementsForTier(tier);
@@ -155,7 +157,15 @@ export function generateTouchpointDates(
     spacedInPersonDates(winContacts).length + winManual.filter((m) => m.modality === 'in_person').length;
   let inPersonRemaining = Math.max(0, req.requiredInPerson - inPersonCovered);
 
-  if (remaining <= 0) return [];
+  // The in-person visit is owed on its own account.
+  //
+  // This used to stop at `remaining <= 0`, counting any contact against the
+  // quota — so a client whose only contact that cycle was a phone call had
+  // their visit quietly cancelled, because the call had already filled the one
+  // slot the contact count allows. Schedule whichever is larger: the contacts
+  // still owed, or the visits still owed.
+  const toSchedule = Math.max(remaining, inPersonRemaining);
+  if (toSchedule <= 0) return [];
 
   // Schedule across the remainder of the cycle: never in the past, and never
   // before the agency went live.
@@ -163,7 +173,7 @@ export function generateTouchpointDates(
   const from = daysBetween(window.start, floor) > 0 ? floor : window.start;
   const to = window.end;
   if (daysBetween(from, to) < 0) return []; // cycle already closed
-  const dates = pickDates(from, to, remaining, new Set(usedDays), seed);
+  const dates = pickDates(from, to, toSchedule, new Set(usedDays), seed);
 
   const usedTypes = new Set<string>([
     ...loggedTypes.filter(Boolean),
@@ -226,9 +236,13 @@ async function insertTouchpoints(
   }
 
   if (client.status !== 'active') return;
-  // Setup-complete clients only. An incomplete client is Admin work, and
-  // scheduling one would put a client in a staff queue that cannot show it.
-  if (!isSetupComplete(client)) return;
+  // A start date and somebody to do the visit. That is the whole gate.
+  //
+  // It used to require isSetupComplete — an HSP submission and a level of need
+  // as well — so a client whose paperwork was still catching up was scheduled
+  // nothing at all. Those fields arrive late as a matter of course, and the
+  // visit is owed from the day the authorization starts regardless.
+  if (!serviceStartDate(client)) return;
   if (!client.assigned_employee_id) return;
 
   // Preserved manual events feed into the coverage calculation.
