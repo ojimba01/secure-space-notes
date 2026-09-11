@@ -446,8 +446,17 @@ export async function syncAuthorizationsFromLegacyColumns(
     },
     {
       type: 'reauthorization_180',
-      // A 180-day period only exists once it has been approved.
-      start: client.auth_180_approved ? client.auth_180_start : null,
+      // The start date is the proof, not the flag.
+      //
+      // This used to read `auth_180_approved ? auth_180_start : null`, so a
+      // 180-day date somebody had recorded produced no authorization at all
+      // until a separate tickbox was also set. Six clients carried a start date
+      // and no record because of it. Nobody writes a reauthorization date they
+      // have not been granted, and auth_180_approved goes untended exactly the
+      // way hsp_submitted does — which is why hspSubmitted() derives its answer
+      // rather than trusting that flag either. The 30 and the 150 have always
+      // worked off their start date alone; the 180 now matches them.
+      start: client.auth_180_start,
       end: client.auth_180_end,
       number: client.auth_180_number,
     },

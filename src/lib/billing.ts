@@ -519,10 +519,19 @@ export function daysUntil150End(client: { auth_150_end?: string | null }, today 
 }
 
 export function needsExtensionReview(
-  client: { auth_150_end?: string | null; auth_180_approved?: boolean | null; status?: string | null },
+  client: {
+    auth_150_end?: string | null;
+    auth_180_approved?: boolean | null;
+    auth_180_start?: string | null;
+    status?: string | null;
+  },
   today = todayAgency(),
 ): boolean {
-  if (client.auth_180_approved) return false;
+  // A recorded start date settles it as well as the flag. Nobody writes a
+  // reauthorization date they have not been granted, and chasing somebody to
+  // arrange an extension they already hold is the kind of warning people learn
+  // to ignore.
+  if (client.auth_180_approved || (client.auth_180_start ?? '').trim()) return false;
   const days = daysUntil150End(client, today);
   if (days == null) return false;
   // Once the 150-day end date is more than six months (about 183 days) past,

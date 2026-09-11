@@ -167,7 +167,8 @@ Authorizations."
 ### Authorizations
 
 One row per authorization, newest first: the period, its dates, its number, its
-status. A start date alone creates the row — the number can follow.
+status. **A start date alone creates the row**, for all three periods — the
+number can follow, and the 180-day no longer waits on an approval tickbox.
 
 Where a number is missing, the cell holds a dashed red button reading
 **Update auth #**. Pressing it opens the same editor the Edit button does, on
