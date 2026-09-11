@@ -198,9 +198,21 @@ Four numbers across the top, supporting the page rather than being it:
 | Scheduled | For this week |
 | Logged | {Month} {Year} |
 
-**Case managers** — "Press a name to open their {Month} case log." Superadmins
-are left out: the owner and the root accounts are not case managers, so a page
-about caseloads should not list them. Each row:
+**Case managers** — "Press a name to open their {Month} case log."
+
+Who appears is a rule, not a list of names. Superadmins never do — the owner and
+the root accounts carry no caseload in any meaningful sense. Admins appear only
+when they have clients: one admin carries the largest caseload in the agency and
+another carries none, so the role cannot settle it and the caseload does. Staff
+appear whether or not they have clients, being new or between assignments.
+
+**Past logs** — "Pick a month, or a run of them. Tick case managers to narrow it
+— leave them all clear for everybody." From and To month pickers, a row of
+tick boxes, and **Find logs**. Results read `{staff}` · `{Month} {Year}` with
+`{n} entries`, newest first; pressing one opens that month's form. **Download
+all as one PDF** stitches the range into a single document, flattened so it
+prints the same everywhere. A month nobody logged anything in is left out rather
+than listed as a blank form. Each row:
 the name, then `{n} clients` and `· {n} overdue` in red when there are any,
 then a badge reading `{n} logged` — touchpoints recorded that month, which is
 what their case log holds.
@@ -216,9 +228,6 @@ it is not a blocker — these fields get filled in late as a matter of course.
 
 **Overdue** stays at the bottom, grouped by case manager, rows carrying the
 client's name alone.
-
-**Hidden cases notice:** `{n} older cases started before {date} are hidden. To
-view them, turn on Show historical data in Admin settings.`
 
 ---
 

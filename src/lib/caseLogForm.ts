@@ -170,6 +170,29 @@ export async function buildCaseLogPdf(
   return await pdf.save();
 }
 
+/**
+ * Several built logs as one document.
+ *
+ * Field names repeat across the parts — every log has a `Row_1_Client_Name` —
+ * so the forms are flattened on the way in. A run of months is read and
+ * printed, never typed into, and flattening is what makes it open the same way
+ * everywhere rather than depending on the reader's form support.
+ */
+export async function mergeCaseLogPdfs(parts: Uint8Array[]): Promise<Uint8Array> {
+  // pdf-lib normalises a pageless document into one blank page, so merging
+  // nothing would hand back a phantom form rather than nothing. Say so instead.
+  if (parts.length === 0) throw new Error('There are no logs to merge.');
+
+  const out = await PDFDocument.create();
+  for (const part of parts) {
+    const doc = await PDFDocument.load(part);
+    doc.getForm().flatten();
+    const pages = await out.copyPages(doc, doc.getPageIndices());
+    pages.forEach((pg) => out.addPage(pg));
+  }
+  return await out.save();
+}
+
 /** The file name a downloaded log should carry. */
 export const caseLogFileName = (caseManager: string, month: string): string =>
   `HMIS Case Log — ${caseManager} — ${month}.pdf`.replace(/[/\\]/g, '-');

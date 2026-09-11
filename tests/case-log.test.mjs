@@ -13,7 +13,7 @@ const bundle = await build({
   stdin: {
     contents: `
       export { monthKey, monthLabel, monthsAvailable, FIRST_LOG_MONTH } from './src/lib/caseLog';
-      export { buildCaseLogPdf, pagesNeeded, caseLogFileName, ROWS_PER_PAGE } from './src/lib/caseLogForm';
+      export { buildCaseLogPdf, mergeCaseLogPdfs, pagesNeeded, caseLogFileName, ROWS_PER_PAGE } from './src/lib/caseLogForm';
     `,
     resolveDir: process.cwd(),
   },
@@ -36,7 +36,7 @@ const mod = await import(
 );
 const {
   monthKey, monthLabel, monthsAvailable, FIRST_LOG_MONTH,
-  buildCaseLogPdf, pagesNeeded, caseLogFileName, ROWS_PER_PAGE,
+  buildCaseLogPdf, mergeCaseLogPdfs, pagesNeeded, caseLogFileName, ROWS_PER_PAGE,
 } = mod;
 
 const BLANK = readFileSync('public/form-templates/hmis-case-log-monthly.pdf');
@@ -169,4 +169,30 @@ test('the file name says whose log it is and which month', () => {
 
 test('a name with a slash cannot break out of the file name', () => {
   assert.ok(!caseLogFileName('A/B', 'September 2026').includes('/'));
+});
+
+// ---- merging a range -----------------------------------------------------
+
+test('a range merges into one document with every page kept', async () => {
+  const sept = await buildCaseLogPdf(blankBuffer(), { caseManager: 'Shade', month: 'September 2026' },
+    Array.from({ length: 35 }, (_, i) => entry(i + 1)));           // 2 pages
+  const oct = await buildCaseLogPdf(blankBuffer(), { caseManager: 'Khyla', month: 'October 2026' },
+    [entry(1)]);                                                    // 1 page
+  const merged = await mergeCaseLogPdfs([sept, oct]);
+  const pdf = await PDFDocument.load(merged);
+  assert.equal(pdf.getPageCount(), 3);
+});
+
+test('merging flattens the forms, so repeated field names cannot collide', async () => {
+  const a = await buildCaseLogPdf(blankBuffer(), { caseManager: 'A', month: 'September 2026' }, [entry(1)]);
+  const b = await buildCaseLogPdf(blankBuffer(), { caseManager: 'B', month: 'October 2026' }, [entry(2)]);
+  const pdf = await PDFDocument.load(await mergeCaseLogPdfs([a, b]));
+  assert.equal(pdf.getPageCount(), 2);
+  assert.equal(pdf.getForm().getFields().length, 0, 'a merged range carries no live form fields');
+});
+
+test('merging nothing says so rather than handing back a blank page', async () => {
+  // pdf-lib turns a pageless document into a single empty page, which would
+  // look like a real but unfilled form. Refusing is the honest answer.
+  await assert.rejects(() => mergeCaseLogPdfs([]), /no logs to merge/i);
 });

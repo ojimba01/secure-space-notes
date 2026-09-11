@@ -63,11 +63,8 @@ export function useCaseManagers(month: string = monthKey(new Date())): CaseManag
           .select('assigned_employee_id, status')
           .is('deleted_at', null)
           .eq('status', 'active'),
-        // Superadmins are the owner and the root accounts. They are not case
-        // managers, so they do not belong on a list of case managers — even the
-        // ones carrying a client or two. ReassignClientDialog leaves them out of
-        // the assignable list for the same reason.
-        supabase.from('user_roles').select('user_id').eq('role', 'superadmin'),
+        // Roles decide who is a case manager, alongside the caseload below.
+        supabase.from('user_roles').select('user_id, role').in('role', ['superadmin', 'admin']),
       ]);
 
       if (cancelled) return;
@@ -83,11 +80,34 @@ export function useCaseManagers(month: string = monthKey(new Date())): CaseManag
         if (id) load.set(id, (load.get(id) ?? 0) + 1);
       });
 
-      const superIds = new Set((superRoles ?? []).map((r) => r.user_id as string));
+      const superIds = new Set(
+        (superRoles ?? []).filter((r) => r.role === 'superadmin').map((r) => r.user_id as string),
+      );
+      const adminIds = new Set(
+        (superRoles ?? []).filter((r) => r.role === 'admin').map((r) => r.user_id as string),
+      );
+
+      // Who counts as a case manager.
+      //
+      // Superadmins never do — the owner and the root accounts are not carrying
+      // a caseload, and ReassignClientDialog leaves them out of the assignable
+      // list for the same reason.
+      //
+      // Admins are the awkward case, because role does not settle it: one of
+      // them carries the largest caseload in the agency and another carries
+      // none. The caseload settles it. An admin with clients is a case manager
+      // who also administers; an admin with none is an administrator, and a page
+      // about whose month is whose has nothing to say about them. Staff with no
+      // clients stay — new, or between assignments, and still expected here.
+      const isCaseManager = (userId: string, profileId: string) => {
+        if (superIds.has(userId)) return false;
+        if (adminIds.has(userId)) return (load.get(profileId) ?? 0) > 0;
+        return true;
+      };
 
       setRows(
         (staff ?? [])
-          .filter((p) => !superIds.has(p.user_id as string))
+          .filter((p) => isCaseManager(p.user_id as string, p.id as string))
           .map((p) => {
             return {
               id: p.id as string,

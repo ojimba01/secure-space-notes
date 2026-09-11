@@ -49,6 +49,8 @@ interface Props {
   caseManagerName: string;
   /** An admin reads someone else's log; only its author edits it. */
   readOnly?: boolean;
+  /** Open on this month rather than the current one, for a look-up. */
+  initialMonth?: string;
 }
 
 const blank = (): CaseLogEntry => ({ clientName: '', phone: '', date: '', completed: false });
@@ -57,9 +59,10 @@ export const CaseLog: React.FC<Props> = ({
   employeeId,
   caseManagerName,
   readOnly = false,
+  initialMonth,
 }) => {
   const months = useMemo(() => monthsAvailable(), []);
-  const [month, setMonth] = useState(months[0]);
+  const [month, setMonth] = useState(initialMonth ?? months[0]);
   const [stored, setStored] = useState<CaseLogRow | null>(null);
   const [entries, setEntries] = useState<CaseLogEntry[]>([]);
   const [loading, setLoading] = useState(true);

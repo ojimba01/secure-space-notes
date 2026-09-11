@@ -28,6 +28,7 @@ import { useSuperadminCompliance, StaffOverdueRow } from '@/hooks/useSuperadminC
 import { useCaseManagers, type CaseManagerRow } from '@/hooks/useCaseManagers';
 import { useTeamWeek } from '@/hooks/useTeamWeek';
 import { CaseLog } from '@/components/CaseLog';
+import { CaseLogArchive } from '@/components/CaseLogArchive';
 import { monthKey, monthLabel } from '@/lib/caseLog';
 
 interface Props {
@@ -113,14 +114,6 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         <Stat icon={<ClipboardList className="h-4 w-4" />} label="Logged" value={managers.rows.reduce((n, r) => n + r.logged, 0)} hint={monthLabel(month)} />
       </div>
 
-      {data.preGoLiveCount > 0 && !data.showHistorical && (
-        <p className="text-xs text-muted-foreground">
-          {data.preGoLiveCount} older case{data.preGoLiveCount === 1 ? '' : 's'} started before{' '}
-          {fmtD(data.goLiveDate)} {data.preGoLiveCount === 1 ? 'is' : 'are'} hidden. To view{' '}
-          {data.preGoLiveCount === 1 ? 'it' : 'them'}, turn on Show historical data in Admin settings.
-        </p>
-      )}
-
       {/* The page proper. */}
       <Card>
         <CardHeader>
@@ -187,6 +180,8 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
           ))}
         </CardContent>
       </Card>
+
+      <CaseLogArchive managers={managers.rows} />
 
       {data.overdueRows.length > 0 && (
         <Card>
