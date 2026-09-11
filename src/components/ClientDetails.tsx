@@ -374,7 +374,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setIntakeOpen(true)}>
               <FileUp className="h-4 w-4 mr-2" />
-              Read documents to fill in this record
+              Upload documents
             </Button>
           </div>
 

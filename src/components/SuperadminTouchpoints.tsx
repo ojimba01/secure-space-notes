@@ -57,7 +57,10 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
       className="w-full text-left rounded-md border border-red-200 bg-red-50 p-3 hover:bg-red-100 flex items-start justify-between gap-3">
       <div>
         <div className="font-medium flex items-center gap-2">
-          {r.client_name} — assigned to {r.staff_name} {lonBadge(r.level_of_need)}
+          {/* The staff member is the heading these rows sit under. Repeating
+              them on every row pushed the client's name — the only thing that
+              changes from row to row — along by half the width. */}
+          {r.client_name} {lonBadge(r.level_of_need)}
         </div>
         <div className="text-xs text-muted-foreground mt-0.5">
           Current cycle: {fmtD(r.windowStart)}–{fmtD(r.windowEnd)}

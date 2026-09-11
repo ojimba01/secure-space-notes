@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { CalendarClock, CalendarSync, CheckCircle2, Plus, UserRound } from 'lucide-react';
+import { CalendarClock, CalendarSync, CheckCircle2, Plus } from 'lucide-react';
 import {
   useMyCompliance, ScheduledTouchpoint, CycleRow, SupervisorReminder,
 } from '@/hooks/useMyCompliance';
@@ -109,8 +109,34 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
     data.refresh();
   };
 
+  /**
+   * Every row names a client and opens that client. It used to carry a button
+   * saying so, on every row of every section — a column of identical controls
+   * restating what the row was for. The row is the control now; the buttons
+   * still on it stop the click from reaching it.
+   */
+  const openOnClick = (clientId: string) => ({
+    role: 'button' as const,
+    tabIndex: 0,
+    title: 'Open this client',
+    onClick: () => onOpenClient(clientId),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onOpenClient(clientId);
+      }
+    },
+  });
+
+  /** Anything clickable sitting on a clickable row. */
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
   const tpRow = (t: ScheduledTouchpoint) => (
-    <div key={t.id} className="flex items-center justify-between rounded-md border p-3 gap-2">
+    <div
+      key={t.id}
+      {...openOnClick(t.client_id)}
+      className="flex cursor-pointer items-center justify-between gap-2 rounded-md border p-3 transition-colors hover:border-primary/50 hover:bg-muted/40"
+    >
       <div className="min-w-0">
         <div className="font-medium truncate">{t.client_name}</div>
         <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap mt-0.5">
@@ -128,20 +154,11 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => openMove(t)}
+          onClick={(e) => { stop(e); openMove(t); }}
           title="Reschedule"
           aria-label="Reschedule this touchpoint"
         >
           <CalendarSync className="h-4 w-4" />
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => onOpenClient(t.client_id)}
-          title="Open client"
-          aria-label="Open this client's record"
-        >
-          <UserRound className="h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -150,7 +167,8 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
   const reminderRow = (r: SupervisorReminder, cleared = false) => (
     <div
       key={r.id}
-      className={`flex items-center justify-between rounded-md border p-3 gap-2 ${
+      {...openOnClick(r.client_id)}
+      className={`flex cursor-pointer items-center justify-between rounded-md border p-3 gap-2 transition-colors hover:border-primary/50 ${
         cleared ? 'border-green-200 bg-green-50'
           : r.status === 'overdue' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
       }`}
@@ -175,30 +193,25 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
           <Button
             size="sm"
             variant="outline"
-            onClick={() =>
-              r.touchpoint
-                ? addFromTouchpoint(r.touchpoint)
-                : openAdd({ clientId: r.client_id, clientName: r.client_name, locked: true, date: today })
-            }
+            onClick={(e) => {
+              stop(e);
+              if (r.touchpoint) addFromTouchpoint(r.touchpoint);
+              else openAdd({ clientId: r.client_id, clientName: r.client_name, locked: true, date: today });
+            }}
           >
             Add touchpoint
           </Button>
         )}
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => onOpenClient(r.client_id)}
-          title="Open client"
-          aria-label="Open this client's record"
-        >
-          <UserRound className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   );
 
   const cycleRow = (c: CycleRow) => (
-    <div key={c.client_id} className="flex items-center justify-between rounded-md border p-3 gap-2">
+    <div
+      key={c.client_id}
+      {...openOnClick(c.client_id)}
+      className="flex cursor-pointer items-center justify-between gap-2 rounded-md border p-3 transition-colors hover:border-primary/50 hover:bg-muted/40"
+    >
       <div className="min-w-0">
         <div className="font-medium flex items-center gap-2 truncate">
           {c.client_name} {lonBadge(c.level_of_need)}
@@ -221,17 +234,10 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
       <div className="flex items-center gap-1 shrink-0">
         {statusBadge(c.status)}
         {c.status !== 'completed' && (
-          <Button size="sm" variant="outline" onClick={() => addFromCycle(c)}>Add touchpoint</Button>
+          <Button size="sm" variant="outline" onClick={(e) => { stop(e); addFromCycle(c); }}>
+            Add touchpoint
+          </Button>
         )}
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => onOpenClient(c.client_id)}
-          title="Open client"
-          aria-label="Open this client's record"
-        >
-          <UserRound className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   );
@@ -267,7 +273,8 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
             {data.hspDueSoon.map((h) => (
               <div
                 key={h.clientId}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-3"
+                {...openOnClick(h.clientId)}
+                className="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 transition-colors hover:bg-amber-100"
               >
                 <div>
                   <div className="font-medium">{h.clientName}</div>
@@ -281,9 +288,6 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
                         ? 'Due today'
                         : `Due in ${h.daysLeft} day${h.daysLeft === 1 ? '' : 's'}`}
                   </Badge>
-                  <Button size="sm" variant="outline" onClick={() => onOpenClient(h.clientId)}>
-                    Open client
-                  </Button>
                 </div>
               </div>
             ))}

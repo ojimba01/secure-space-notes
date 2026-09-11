@@ -39,8 +39,8 @@ const TouchpointViews: React.FC<{ onOpenClient: (id: string) => void }> = ({ onO
     <div>
       <div className="px-6 pt-6">
         <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
-          <Tab id="oversight" label="Oversight" hint="Every case manager" />
-          <Tab id="mine" label="My caseload" hint="Clients assigned to me" />
+          <Tab id="oversight" label="All cases" hint="Every case manager" />
+          <Tab id="mine" label="My cases" hint="Assigned to me" />
         </div>
       </div>
       {view === 'oversight'
