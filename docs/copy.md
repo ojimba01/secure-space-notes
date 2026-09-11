@@ -26,10 +26,15 @@ called **Scheduled work** and not "client calendar".
 |---|---|
 | Product name | **Case Notes** |
 | Footer mark | HIPAA Compliant |
-| Sidebar | Admin Dashboard · Clients · Forms · Billing · Touchpoints · Calendar · Help guide |
+| Sidebar | Admin Dashboard · Clients · Forms · Billing · Team touchpoints / My touchpoints · Calendar · Help guide |
 | Account button | Your account |
 
 Admin Dashboard and Billing appear for Admin and Superadmin only.
+
+**The touchpoints item is named for whose work it is** — **Team touchpoints**
+for an admin, **My touchpoints** for everyone else, and for an admin who is
+viewing as an employee. Plain "Touchpoints" collided with the Touchpoints
+section inside a client's record and nobody could tell which one was meant.
 
 ---
 
@@ -175,43 +180,96 @@ Empty: "Nothing has happened to this case yet."
 
 ---
 
-## Touchpoints
+## Team touchpoints
 
-Two tabs: **All cases** ("Every case manager") and **My cases** ("Assigned to
-me"). Staff see only My cases, without the switcher.
+The admin view. Two tabs: **All cases** ("Every case manager") and **My cases**
+("Assigned to me"). Staff never see the switcher.
 
 ### All cases
 
-**Team performance** — "See which staff members are falling behind and need
-follow-up."
+"Every case manager, their month, and the log they file at the end of it."
+
+Four numbers across the top, supporting the page rather than being it:
 
 | Card | Sub-label |
 |---|---|
 | Overdue | Across all staff |
-| Scheduled | For this week |
 | Completed | Logged this week |
-| In progress | Scheduled but not yet logged |
-| Needs setup | Cannot be scheduled |
+| Scheduled | For this week |
+| Logs filed | {Month} {Year} |
 
-A card's label and its sub-label never repeat a noun, and sub-labels stop at
-six words.
+**Case managers** — "Press a name to open their {Month} case log." Each row:
+the name, then `{n} clients` and `· {n} overdue` in red when there are any,
+then a badge reading **Log submitted** / **Log in progress** / **Log not
+started**.
 
-**Overdue** is grouped by staff member, so rows carry the client's name alone:
-`{client}` plus a High/Low badge. **Incomplete setups** is not grouped, so its
-rows read `{client} — {staff}` with `Missing: {what}` beneath.
+**Logged this week** — "{date}–{date}. Every touchpoint staff have recorded."
+Rows read `{client} — {staff}` with `{date} · {In person | Phone | Video}`
+beneath. Empty: "Nothing logged yet this week. Touchpoints appear here as staff
+record them."
+
+This replaced **Incomplete setups**, which asked what was missing rather than
+what had happened. Missing setup is already flagged on the record itself, and
+it is not a blocker — these fields get filled in late as a matter of course.
+
+**Overdue** stays at the bottom, grouped by case manager, rows carrying the
+client's name alone.
 
 **Hidden cases notice:** `{n} older cases started before {date} are hidden. To
-view them, turn on Show historical data in Admin settings.` The toggle in Admin
-carries that exact name.
+view them, turn on Show historical data in Admin settings.`
 
-### My cases
+---
 
-"Your touchpoint work queue." Sections: Supervisor reminders ("Clients who need
-follow-up before their cycle closes.") · this week ("Nothing scheduled this
-week.") · Touchpoint cycles.
+## My touchpoints
+
+"Your work queue and your monthly log." Sections in the order somebody works:
+
+**Needs follow-up** — "These cycles close before the required touchpoints are
+done." Empty: "Every cycle is on track."
+
+This was called **Supervisor reminders**, which implied a person behind it and
+a message somebody could send. Nothing sends it: the rows are worked out from
+cycle progress on every load, which is why completing the touchpoint clears
+them.
+
+**Upcoming this week** · **Touchpoint cycles** · **HMIS case log**.
+
+A client appears here as soon as they have a start date. Nothing else hides
+their work from the person doing it.
 
 Every row opens the client it names — there is no Open client button, because
 the row is the button.
+
+### HMIS case log
+
+"Filled from what you have logged. Check it, then submit it at the end of the
+month."
+
+One row per touchpoint, oldest first, numbered straight through. A client met
+twice appears twice, each with its own date.
+
+| Control | Words |
+|---|---|
+| Month picker | `{Month} {Year}`, back to September 2026 and no further |
+| State | **Draft** / **Submitted** |
+| Where the rows came from | `From logged touchpoints` / `Edited by hand` |
+| Buttons | Refill from touchpoints · Download PDF · Submit log · Reopen (admin) · Add row · Save changes |
+
+Footer: `{n} entries`, then `· fits one page` or `· prints on {n} pages,
+numbered straight through`.
+
+Empty: "No touchpoints logged in {Month} {Year}. Rows appear here as they are
+logged, or add one by hand."
+
+An administrator reads a log and may **Reopen** it. They never rewrite somebody
+else's account of their own month.
+
+**The form itself.** The PDF the state issues has no fields — 152 places to
+write and nothing to type into. The app lays fields over the table and fills
+them: Case Manager, Month, then `#`, Client Name, Phone #, Completed (a tick),
+Date as `MM/DD/YYYY`. Thirty rows a page; a longer month runs onto a second
+page and keeps counting at 31. Downloads as
+`HMIS Case Log — {staff} — {Month} {Year}.pdf`.
 
 ---
 

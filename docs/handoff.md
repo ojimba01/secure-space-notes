@@ -45,7 +45,7 @@ sentence. They will tell you when copy is bad, and they are usually right —
   titles.
 - The `calendar-feed` edge function is deployed.
 
-## Applied since, and one sweep still to run
+## Applied since
 
 ~~`docs/hsp-dates-are-authorization-dates.sql`~~ — APPLIED as migration
 `20260911220454`. It mirrored hsp_150_date and
@@ -55,8 +55,9 @@ initial_30 rows that were never created). Tested on a throwaway Postgres
 against a client with the HSP date only, one with a period already recorded by
 hand, and a deleted client.
 
-`docs/stale-auto-touchpoints.sql` — deletes auto-scheduled touchpoints from
-before September 2026 that nobody worked. **The root cause is still there:**
+~~`docs/stale-auto-touchpoints.sql`~~ — APPLIED as migration `20260911223917`,
+alongside the case_logs table. It deleted auto-scheduled touchpoints from before
+September 2026 that nobody worked. **The root cause is still there:**
 `insertTouchpoints()` in `src/lib/touchpoints.ts` deletes auto-generated events
 only inside the *current* billing window, so every cycle that rolls over
 abandons its unkept suggestions on the calendar. The script is a sweep, not a
@@ -128,6 +129,30 @@ and has to go through `close_case()`. Case manager is a dropdown calling
 `reassign_client` directly; the Reassign button in the header still works and
 was left alone.
 
+## The monthly case log
+
+**The form had to grow its own fields.** `public/form-templates/hmis-case-log-monthly.pdf`
+is the state's PDF exactly as issued: 152 places to write and not one AcroForm
+field, which is why nobody could type into it. Every other template in that
+folder is a real form and `formAutofill.ts` writes into the fields already
+there. This one is different, and the difference is load-bearing: fields are
+added at **fill time**, in `src/lib/caseLogForm.ts`, because a month past thirty
+touchpoints needs a second page and two pages carrying the same field names
+would collide. Page two's rows are `Row_31` upward.
+
+The geometry in that file was measured off the original with pdfjs, not
+guessed. If the state reissues the form, re-measure the table's rules before
+touching anything else.
+
+**A log is derived until somebody edits it.** `case_logs.entries` is null while
+that holds and the rows come fresh from `client_contacts` on every open, so a
+touchpoint logged this afternoon is on the form tonight. An edit writes the
+whole list down; submitting freezes it, because "submitted" has to name the
+thing that was actually submitted rather than a query that keeps changing.
+
+**One row per touchpoint**, oldest first — the agency's decision, not a default.
+A client met twice in a month appears twice.
+
 ## Open work
 
 **The touchpoint compliance spec — diagnosed, and one day is one touchpoint.**
@@ -151,9 +176,11 @@ Findings:
   contacts linking to one event.
 
 **There is a test runner now.** `npm test` runs `node --test tests/*.test.mjs`
-— 29 tests across four files, bundled with esbuild against a mocked Supabase.
-It covers the cycle maths, authorization dates, authorization numbers, and the
-status-carry-through above. Add to it rather than standing up vitest.
+— 43 tests across five files, bundled with esbuild against a mocked Supabase.
+It covers the cycle maths, authorization dates, authorization numbers, the
+status-carry-through above, and the case log's months, pagination and PDF
+(including the hundred-entry four-page case, where field names must stay
+unique). Add to it rather than standing up vitest.
 
 **Auto-reading an uploaded document** — the user asked, and the machinery
 already exists (`DocumentIntakeDialog`, `documentIntake.ts`,
@@ -182,6 +209,26 @@ assignments, the touchpoints, and *that* a case is closed — not when. Widening
 that policy for a client's own case manager is one small SQL script if it
 matters.
 
+## Two things that were not what they looked like
+
+**The staff queue was empty because setup gated it.** `useMyCompliance` filtered
+on `isSetupComplete`, which wants HSP submission *and* a start date *and* a
+level of need. Most clients fail that while their paperwork catches up, so
+Upcoming this week and Touchpoint cycles showed nothing at all. It gates on
+`serviceStartDate` alone now — the anchor the 30-day maths counts from, and the
+only one that is arithmetic rather than policy. A missing level of need already
+falls back to the Low Level quota in `requirementsForTier`, the lower of the
+two, so nothing over-flags. **`src/lib/touchpoints.ts` still gates
+auto-scheduling on `isSetupComplete`, deliberately** — showing a client's cycle
+is not the same as writing calendar events for them.
+
+**"Supervisor reminders" was never sent by a supervisor.** The rows are computed
+from cycle progress in `useMyCompliance` on every load. The only thing that ever
+wrote `compliance_escalations` was the compliance cron, retired 2026-08-28 (see
+`docs/retire-compliance-cron.sql`), so no admin screen could send one and none
+ever will until somebody builds it. Renamed to **Needs follow-up**. The user has
+asked about admin-to-staff reminders; that is a real feature, not a fix.
+
 ## Where things are
 
 | Thing | File |
@@ -192,6 +239,9 @@ matters.
 | The client record and its section bar | `src/components/ClientDetails.tsx` |
 | Agency calendar, search, day dialog | `src/components/CaseManagerCalendar.tsx` |
 | The 30-day cycle list | `src/components/TouchpointCycles.tsx` |
+| The monthly case log, and its PDF | `src/components/CaseLog.tsx`, `src/lib/caseLog.ts`, `src/lib/caseLogForm.ts` |
+| Team touchpoints (admin) | `src/components/SuperadminTouchpoints.tsx` |
+| My touchpoints (staff) | `src/components/StaffTouchpoints.tsx` |
 | Case history | `src/components/CaseHistory.tsx` |
 | Calendar subscription feed | `supabase/functions/calendar-feed/index.ts` |
 | The client record, inline editor included | `src/components/ClientOverview.tsx` |
