@@ -318,23 +318,15 @@ export const AccountDialog: React.FC<{
                     </CollapsibleContent>
                   </Collapsible>
 
-                  {/* Two warnings, not one paragraph. Somebody scanning this
-                      needs to catch "work account" and "do not forward" without
-                      reading a sentence that explains why either is true. */}
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <p className="font-medium">Use your work account</p>
-                      <p className="text-muted-foreground">
-                        Entries include client names. Never subscribe with a personal account.
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Keep this link private</p>
-                      <p className="text-muted-foreground">
-                        Anyone with it can read your calendar without signing in. Do not forward
-                        it. If it gets out, replace it — the old link stops working immediately.
-                      </p>
-                    </div>
+                  {/* The only warning worth making. A "use your work account"
+                      line was cut: staff have no other account to use, so it
+                      spent a reader's attention telling them nothing. */}
+                  <div className="text-xs">
+                    <p className="font-medium">Keep this link private</p>
+                    <p className="text-muted-foreground">
+                      Anyone with it can read your calendar without signing in. Do not forward it.
+                      If it gets out, replace it — the old link stops working immediately.
+                    </p>
                   </div>
 
                   {feed.lastAccessedAt && (
