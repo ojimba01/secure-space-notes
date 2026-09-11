@@ -366,7 +366,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <ClipboardList className="h-5 w-5 text-muted-foreground" />
-            Case lifecycle
+            Case overview
           </CardTitle>
           <Badge variant="secondary" className={STAGE_CLASS[stage] ?? ''}>
             {STAGE_LABEL[stage] ?? stage}
@@ -374,12 +374,19 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-md border bg-muted/30 p-3">
-          <p className="text-xs font-medium uppercase text-muted-foreground">Next step</p>
-          <p className="font-medium">{action.label}</p>
-          <p className="text-sm text-muted-foreground">{action.detail}</p>
-          <div className="mt-3 flex flex-wrap gap-2">{actionButton()}</div>
-        </div>
+        {/* Nothing to do is not news. A box saying "Up to date" sat at the top
+            of the record for the whole of a case's healthy life, taking the
+            place the eye goes to first and spending it on an absence. It
+            appears when there is a step, and gets out of the way when there
+            is not. */}
+        {action.kind !== 'none' && (
+          <div className="rounded-md border bg-muted/30 p-3">
+            <p className="text-xs font-medium uppercase text-muted-foreground">Next step</p>
+            <p className="font-medium">{action.label}</p>
+            <p className="text-sm text-muted-foreground">{action.detail}</p>
+            <div className="mt-3 flex flex-wrap gap-2">{actionButton()}</div>
+          </div>
+        )}
 
         {reauthDue && (
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3">

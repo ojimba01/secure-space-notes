@@ -38,6 +38,7 @@ import {
   authPhaseOn,
   AUTH_PHASE_DOT,
   AUTH_PHASE_LABEL,
+  AUTH_PHASE_TINT,
   type AuthorizationSpans,
 } from '@/lib/compliance';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, startOfWeek, endOfWeek } from 'date-fns';
@@ -320,6 +321,20 @@ export const CaseManagerCalendar = () => {
    * display quirk — it is work nobody is paying for, and the calendar is where
    * somebody would notice.
    */
+  /**
+   * The fill behind an entry in a day square.
+   *
+   * The colour was a dot six pixels across, which is not something anyone
+   * reads a month by. The whole chip is tinted instead, so a glance at the
+   * grid shows which authorization the month's work belongs to.
+   */
+  const chipTint = (event: CalendarEvent): string => {
+    if (event.event_type !== 'touch_point') return 'bg-muted/60';
+    if (event.status === 'completed') return 'bg-slate-100 text-slate-500';
+    const phase = authPhaseOn(event.clients ?? null, event.start_time.slice(0, 10));
+    return phase ? AUTH_PHASE_TINT[phase] : 'bg-amber-100 text-amber-900';
+  };
+
   const dotColor = (event: CalendarEvent): string => {
     if (event.event_type !== 'touch_point') {
       return eventTypeColors[event.event_type ?? 'other'] ?? 'bg-slate-500';
@@ -492,12 +507,11 @@ export const CaseManagerCalendar = () => {
                             e.stopPropagation();
                             openEditDialog(event);
                           }}
-                          className={`flex items-center gap-1 w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight hover:bg-muted transition-colors ${
+                          className={`flex items-center gap-1 w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight transition-opacity hover:opacity-80 ${chipTint(event)} ${
                             event.event_type === 'touch_point' ? 'cursor-grab active:cursor-grabbing' : ''
                           } ${draggingId === event.id ? 'opacity-40' : ''}`}
                           title={event.event_type === 'touch_point' ? `${event.title} — drag to reschedule` : event.title}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor(event)}`} />
                           <span className="truncate">{event.title}</span>
                         </button>
                       ))}

@@ -284,6 +284,13 @@ export const AUTH_PHASE_DOT: Record<AuthPhase, string> = {
   extension_180: 'bg-purple-500',
 };
 
+/** The pale fill for a block of colour a person reads at a glance, not a dot. */
+export const AUTH_PHASE_TINT: Record<AuthPhase, string> = {
+  initial_30: 'bg-blue-100 text-blue-900',
+  period_150: 'bg-green-100 text-green-900',
+  extension_180: 'bg-purple-100 text-purple-900',
+};
+
 export const AUTH_PHASE_CLASS: Record<AuthPhase, string> = {
   initial_30: 'border-blue-300 bg-blue-50 text-blue-900',
   period_150: 'border-green-300 bg-green-50 text-green-900',
