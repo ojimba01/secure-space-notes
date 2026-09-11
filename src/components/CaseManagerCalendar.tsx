@@ -7,6 +7,13 @@ const TODAY_PAGE = 5;
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { AddCalendarEventDialog } from './AddCalendarEventDialog';
 import { EditCalendarEventDialog } from './EditCalendarEventDialog';
 import { useViewAs } from '@/components/ViewAsProvider';
@@ -39,6 +46,8 @@ interface CalendarEvent {
 export const CaseManagerCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  /** The day popup. A day's work belongs over the calendar, not beside it. */
+  const [dayOpen, setDayOpen] = useState(false);
   /** Five of today's at a time. A day with thirty is a wall, not a schedule. */
   const [todayPage, setTodayPage] = useState(0);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -152,6 +161,11 @@ export const CaseManagerCalendar = () => {
     toast({ title: 'Touchpoint rescheduled', description: 'Manual moves are preserved.' });
   };
 
+  const openDay = (day: Date) => {
+    setSelectedDate(day);
+    setDayOpen(true);
+  };
+
   const getDaysInMonth = () => {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
@@ -226,9 +240,9 @@ export const CaseManagerCalendar = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Calendar */}
-        <Card className="p-6 lg:col-span-2">
+      <div className="space-y-6">
+        {/* The calendar has the width to itself. A day's events open over it. */}
+        <Card className="p-6">
           {/* Calendar Controls */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
@@ -271,9 +285,12 @@ export const CaseManagerCalendar = () => {
                     key={idx}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setSelectedDate(day)}
+                    onClick={() => openDay(day)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') setSelectedDate(day);
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openDay(day);
+                      }
                     }}
                     onDragOver={(e) => {
                       if (!draggingId) return;
@@ -336,10 +353,8 @@ export const CaseManagerCalendar = () => {
           </div>
         </Card>
 
-        {/* Side Panel */}
-        <div className="space-y-6">
-          {/* Today's Schedule */}
-          <Card className="p-4">
+        {/* Today at a glance, without having to click today. */}
+        <Card className="p-4">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="w-4 h-4 text-muted-foreground" />
               <h3 className="font-semibold">Today's Schedule</h3>
@@ -389,54 +404,58 @@ export const CaseManagerCalendar = () => {
                 </div>
               )}
             </div>
-          </Card>
-
-          {/* Selected Day Events */}
-          <Card className="p-4">
-            <h3 className="font-semibold mb-4">
-              {format(selectedDate, 'EEEE, MMMM d')}
-            </h3>
-            <div className="space-y-3">
-              {selectedDayEvents.length > 0 ? (
-                selectedDayEvents.map(event => (
-                  <button
-                    key={event.id}
-                    onClick={() => openEditDialog(event)}
-                    className="w-full text-left p-3 rounded-lg border space-y-2 hover:border-primary/50 hover:bg-muted/30 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${eventTypeColors[event.event_type]}`} />
-                          <h4 className="font-medium text-sm">{event.title}</h4>
-                          {eventTypeLabels[event.event_type] && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">
-                              {eventTypeLabels[event.event_type]}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(event.start_time), 'h:mm a')} - {format(new Date(event.end_time), 'h:mm a')}
-                        </p>
-                        {event.clients && (
-                          <p className="text-xs text-muted-foreground">
-                            Client: {event.clients.first_name} {event.clients.last_name}
-                          </p>
-                        )}
-                        {event.description && (
-                          <p className="text-xs text-muted-foreground mt-1">{event.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No events are scheduled.</p>
-              )}
-            </div>
-          </Card>
-        </div>
+        </Card>
       </div>
+
+      {/* A day's work, over the calendar rather than beside it. Closing it
+          gives the month back in full. */}
+      <Dialog open={dayOpen} onOpenChange={setDayOpen}>
+        <DialogContent className="max-h-[80vh] max-w-lg overflow-y-auto">
+          <DialogHeader className="text-left">
+            <DialogTitle>{format(selectedDate, 'EEEE, MMMM d')}</DialogTitle>
+            <DialogDescription>
+              {selectedDayEvents.length === 0
+                ? 'Nothing scheduled.'
+                : `${selectedDayEvents.length} ${selectedDayEvents.length === 1 ? 'entry' : 'entries'}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {selectedDayEvents.map((event) => (
+              <button
+                key={event.id}
+                onClick={() => {
+                  setDayOpen(false);
+                  openEditDialog(event);
+                }}
+                className="w-full space-y-2 rounded-lg border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/30"
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${eventTypeColors[event.event_type]}`} />
+                  <h4 className="text-sm font-medium">{event.title}</h4>
+                  {eventTypeLabels[event.event_type] && (
+                    <span className="rounded-full bg-teal-100 px-1.5 py-0.5 text-[10px] font-medium text-teal-700">
+                      {eventTypeLabels[event.event_type]}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {format(new Date(event.start_time), 'h:mm a')} –{' '}
+                  {format(new Date(event.end_time), 'h:mm a')}
+                </p>
+                {event.clients && (
+                  <p className="text-xs text-muted-foreground">
+                    Client: {event.clients.first_name} {event.clients.last_name}
+                  </p>
+                )}
+                {event.description && (
+                  <p className="mt-1 text-xs text-muted-foreground">{event.description}</p>
+                )}
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AddCalendarEventDialog 
         open={isAddDialogOpen}
