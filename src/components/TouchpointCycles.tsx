@@ -71,7 +71,7 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
         supabase
           .from('clients')
           .select(
-            'auth_30_start, auth_30_end, auth_150_start, auth_150_end, auth_180_start, auth_180_end, hsp_150_date',
+            'iat_date, auth_30_start, auth_30_end, auth_150_start, auth_150_end, auth_180_start, auth_180_end, hsp_150_date',
           )
           .eq('id', clientId)
           .maybeSingle(),

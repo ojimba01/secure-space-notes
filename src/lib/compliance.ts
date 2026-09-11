@@ -311,6 +311,8 @@ export interface AuthorizationCycle {
 }
 
 export interface AuthorizationSpans {
+  /** The IAT date is the 30-day start, under the name the edit form gives it. */
+  iat_date?: string | null;
   auth_30_start?: string | null;
   auth_30_end?: string | null;
   auth_150_start?: string | null;
@@ -383,7 +385,12 @@ export function authorizationSpans(c: AuthorizationSpans): AuthSpan[] {
     const e = spanEnd(start, end, len);
     if (start && e) spans.push({ phase, start, end: e });
   };
-  push('initial_30', c.auth_30_start, c.auth_30_end ?? null, 30);
+  // Both names for the same day, for the same reason as the 150 below: only
+  // one of the three date fields on the edit form was ever mirrored into its
+  // authorization column, so a client can carry an IAT date and no
+  // auth_30_start — and lose their first thirty days from this list while the
+  // date sits on the record.
+  push('initial_30', c.auth_30_start || c.iat_date, c.auth_30_end ?? null, 30);
   // hsp_150_date is the same day as auth_150_start — the edit form calls it
   // "HSP 150-day Start" — but only the IAT field was ever mirrored across.
   // Clients carrying the HSP date and no authorization column are common, and
@@ -453,7 +460,7 @@ export function authorizationCycles(
   // Cycles are anchored to the day services started, which is the first
   // authorization if the legacy columns have nothing to say.
   const serviceStart =
-    c.auth_30_start || c.auth_150_start || c.hsp_150_date || spans[0].start;
+    c.auth_30_start || c.iat_date || c.auth_150_start || c.hsp_150_date || spans[0].start;
   if (!serviceStart) return [];
 
   const lastEnd = spans.reduce((acc, s) => (daysBetween(acc, s.end) > 0 ? s.end : acc), spans[0].end);
