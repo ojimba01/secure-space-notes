@@ -144,7 +144,10 @@ export const AccountDialog: React.FC<{
     try {
       await turnCalendarFeedOff();
       setFeed(false);
-      toast({ title: 'Calendar link switched off', description: 'Every subscription to it has stopped.' });
+      toast({
+        title: 'Calendar link deleted',
+        description: 'Your calendar has stopped updating. Create a new link whenever you want it back.',
+      });
     } catch (e) {
       toast({ title: 'Could not switch it off', description: msg(e), variant: 'destructive' });
     } finally {
@@ -262,7 +265,7 @@ export const AccountDialog: React.FC<{
                       Replace link
                     </Button>
                     <Button size="sm" variant="ghost" onClick={turnFeedOff} disabled={busy}>
-                      Switch off
+                      Delete link
                     </Button>
                   </div>
 
