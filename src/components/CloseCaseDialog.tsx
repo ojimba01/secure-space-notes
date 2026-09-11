@@ -40,19 +40,6 @@ import { useViewAs } from '@/components/ViewAsProvider';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { isStillBillable, todayAgency, type BillingCycle } from '@/lib/billing';
 
-/** close_case() postdates the generated types, the same way adminDashboard reaches past them. */
-const looselyRpc = supabase as unknown as {
-  rpc: (
-    fn: string,
-    args: Record<string, unknown>,
-  ) => Promise<{ error: { code?: string; message?: string } | null }>;
-};
-
-/** PostgREST cannot find a function it has no schema entry for; Postgres raises 42883. */
-const isMissingFunction = (e: { code?: string; message?: string }) =>
-  e.code === 'PGRST202' ||
-  e.code === '42883' ||
-  /could not find the function/i.test(e.message ?? '');
 
 const REASON_OPTIONS = [
   'Housed',
@@ -131,37 +118,13 @@ export const CloseCaseDialog: React.FC<Props> = ({
       // a row into a state you could not see. So closing goes through
       // close_case(), which checks for itself that the case is the caller's
       // and writes both columns, rather than through the table.
-      const { error: rpcError } = await looselyRpc.rpc('close_case', {
+      const { error } = await supabase.rpc('close_case', {
         _client_id: clientId,
         _reason: finalReason,
         _closed_date: closedDate,
         _notes: notes.trim() || null,
       });
-
-      // Until docs/a-closed-case-belongs-to-admin.sql has been run the
-      // function does not exist, and the old direct write still works because
-      // the read policy that forbids it is not there yet either. Once the SQL
-      // is applied this branch stops being reachable and can be deleted.
-      if (rpcError && isMissingFunction(rpcError)) {
-        const { error } = await supabase
-          .from('clients')
-          .update({
-            // Everything that hides a closed client reads status, not
-            // workflow_stage. Setting only the stage closed the case on paper
-            // and left them in every list, which is what happened to the two
-            // closed on 2026-08-30.
-            status: 'closed',
-            workflow_stage: 'closed',
-            workflow_stage_updated_at: new Date().toISOString(),
-            closed_date: closedDate,
-            reason_closed: finalReason,
-            ...(notes.trim() ? { notes: notes.trim() } : {}),
-          })
-          .eq('id', clientId);
-        if (error) throw error;
-      } else if (rpcError) {
-        throw rpcError;
-      }
+      if (error) throw error;
 
       toast({
         title: 'Case closed',
