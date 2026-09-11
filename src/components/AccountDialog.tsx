@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronDown, ChevronLeft } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { SignatureManager } from '@/components/SignatureManager';
 import { loadSignatures, signatureUrl } from '@/lib/signatures';
 import {
@@ -61,6 +66,7 @@ export const AccountDialog: React.FC<{
   /** null while loading, false once we know there is no feed. */
   const [feed, setFeed] = useState<CalendarFeed | null | false>(null);
   const [copied, setCopied] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -233,9 +239,8 @@ export const AccountDialog: React.FC<{
               ) : feed === false ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    Put your touchpoints and appointments in the calendar you already use. Your
-                    calendar decides how often to check for changes — usually a few hours, so treat
-                    it as a reminder and the app as the record.
+                    See your touchpoints in Outlook, Google or Apple Calendar. Changes appear
+                    within a few hours, so check the app for anything urgent.
                   </p>
                   <Button size="sm" variant="outline" onClick={turnFeedOn} disabled={busy}>
                     Create my calendar link
@@ -261,14 +266,82 @@ export const AccountDialog: React.FC<{
                     </Button>
                   </div>
 
-                  <p className="text-xs text-muted-foreground">
-                    Entries name the client, so subscribe with your work account and not a
-                    personal one. Anyone who has this link can read your calendar without signing
-                    in — do not forward it. Replace it and the old one stops working immediately.
-                    {feed.lastAccessedAt && (
-                      <> Last read {new Date(feed.lastAccessedAt).toLocaleString()}.</>
-                    )}
-                  </p>
+                  {/* Subscribing is not downloading, and the difference is not
+                      obvious: clicking the link gets you a file that never
+                      updates, which looks like the feature working. So the
+                      steps live here rather than in a document nobody opens. */}
+                  <Collapsible open={howOpen} onOpenChange={setHowOpen}>
+                    <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs font-medium hover:bg-muted/50">
+                      How to add this to your calendar
+                      <ChevronDown
+                        className={`h-4 w-4 opacity-60 transition-transform ${howOpen ? 'rotate-180' : ''}`}
+                      />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-3 px-1 pt-3 text-xs">
+                      <ol className="list-decimal space-y-1 pl-4">
+                        <li>Copy the link above.</li>
+                        <li>Open your calendar app.</li>
+                        <li>Find the option to add a calendar from a web address.</li>
+                        <li>Paste the link.</li>
+                      </ol>
+
+                      <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-amber-900">
+                        <p className="font-medium">Do not open the link in your browser</p>
+                        <p>
+                          That downloads a one-time copy that never updates. Paste the link into
+                          your calendar app instead.
+                        </p>
+                      </div>
+
+                      <dl className="space-y-1.5 text-muted-foreground">
+                        <div>
+                          <dt className="font-medium text-foreground">Outlook (web)</dt>
+                          <dd>Calendar → Add calendar → Subscribe from web</dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-foreground">Outlook (desktop)</dt>
+                          <dd>Account Settings → Internet Calendars → New</dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-foreground">Google Calendar</dt>
+                          <dd>Other calendars → + → From URL</dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-foreground">Apple Calendar</dt>
+                          <dd>File → New Calendar Subscription</dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-foreground">iPhone</dt>
+                          <dd>Settings → Calendar → Accounts → Add Account → Other</dd>
+                        </div>
+                      </dl>
+                    </CollapsibleContent>
+                  </Collapsible>
+
+                  {/* Two warnings, not one paragraph. Somebody scanning this
+                      needs to catch "work account" and "do not forward" without
+                      reading a sentence that explains why either is true. */}
+                  <div className="space-y-2 text-xs">
+                    <div>
+                      <p className="font-medium">Use your work account</p>
+                      <p className="text-muted-foreground">
+                        Entries include client names. Never subscribe with a personal account.
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-medium">Keep this link private</p>
+                      <p className="text-muted-foreground">
+                        Anyone with it can read your calendar without signing in. Do not forward
+                        it. If it gets out, replace it — the old link stops working immediately.
+                      </p>
+                    </div>
+                  </div>
+
+                  {feed.lastAccessedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Last read {new Date(feed.lastAccessedAt).toLocaleString()}.
+                    </p>
+                  )}
                 </>
               )}
             </section>
