@@ -152,6 +152,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
     }
     setIsSubmitting(true);
 
+    const changed = (field: 'iat_date' | 'hsp_150_date' | 'hsp_180_date') =>
+      (data[field] || '') !== (client[field] || '');
 
     try {
       const { error } = await supabase
@@ -175,6 +177,18 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           auth_30_start: data.iat_date || null,
           hsp_150_date: data.hsp_150_date || null,
           hsp_180_date: data.hsp_180_date || null,
+          // The HSP 150-day and 180-day dates ARE those authorizations' start
+          // dates, and until now nothing said so. The IAT field has mirrored
+          // into auth_30_start all along, which is the only reason editing the
+          // 30-day date worked; these two wrote a column that the authorization
+          // sync never reads, so the edit saved and went nowhere.
+          //
+          // Mirrored only when the field was actually edited. Writing them on
+          // every save would let a stale value in this form overwrite a start
+          // date recorded precisely under Authorizations, on a save that was
+          // about a phone number.
+          ...(changed('hsp_150_date') ? { auth_150_start: data.hsp_150_date || null } : {}),
+          ...(changed('hsp_180_date') ? { auth_180_start: data.hsp_180_date || null } : {}),
           hsp_due_date: derivedHspDue,
           closed_date: data.closed_date || null,
           reason_closed: data.reason_closed || null,
@@ -196,8 +210,6 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       // true. Both helpers have to run together — the history first, then the
       // cycles and touchpoints derived from it. Doing one without the other is
       // the most repeated source of defects in this app.
-      const changed = (field: 'iat_date' | 'hsp_150_date' | 'hsp_180_date') =>
-        (data[field] || '') !== (client[field] || '');
       const authorizationDateChanged =
         changed('iat_date') || changed('hsp_150_date') || changed('hsp_180_date');
 

@@ -65,7 +65,18 @@ history but rows go missing (clients with no `initial_30` row are common).
 wins where both describe the same days, the columns fill its gaps. Do not go
 back to preferring one.
 
-**3. A change to an authorization date needs two calls, in order.**
+**3. The HSP date fields are not the authorization columns.**
+`EditClientDialog` shows "HSP 150-day Start" and writes `hsp_150_date`, but
+`syncAuthorizationsFromLegacyColumns()` reads `auth_150_start`. The IAT field
+has always mirrored into `auth_30_start`, which is the only reason editing the
+30-day date ever worked; the other two wrote a column nothing downstream read,
+so the edit saved and went nowhere. They mirror now, but only when the field
+was actually edited — writing them on every save would let a stale form value
+overwrite a start date recorded precisely under Authorizations, on a save that
+was about a phone number. Note the 180 is still gated on `auth_180_approved`
+inside the sync: a start date alone will not create that authorization.
+
+**4. A change to an authorization date needs two calls, in order.**
 `syncAuthorizationsFromLegacyColumns()` then `resyncDerivedSchedules()`. Doing
 one without the other is, as a comment in `EditClientDialog` puts it, the most
 repeated source of defects in this app. `EditClientDialog` now fires on any of
