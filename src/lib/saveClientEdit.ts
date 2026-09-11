@@ -32,7 +32,14 @@ export interface ClientEditValues {
   auth_180_number?: string;
   closed_date?: string;
   reason_closed?: string;
-  status: 'active' | 'inactive';
+  /**
+   * Carried through as it is, never narrowed.
+   *
+   * Mapping anything unrecognised to 'active' would have reopened a closed
+   * case on a save that was about a phone number. Closing and reopening are
+   * their own acts; this only ever writes back what it was given.
+   */
+  status: string;
   notes?: string;
 }
 

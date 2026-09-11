@@ -26,6 +26,9 @@ import { formatDay } from '@/lib/dates';
 import { MCO_OPTIONS, addDays, hspDueDateFor } from '@/lib/billing';
 import { NJ_COUNTIES } from '@/lib/clientIntake';
 import { saveClientEdit, type ClientEditValues } from '@/lib/saveClientEdit';
+import { CloseCaseDialog } from '@/components/CloseCaseDialog';
+import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
+import { supabase } from '@/integrations/supabase/client';
 import {
   editAuthorizationDates,
   editAuthorizationNumbers,
@@ -64,6 +67,7 @@ export interface OverviewClient {
   auth_30_number?: string | null;
   auth_150_number?: string | null;
   auth_180_number?: string | null;
+  assigned_employee_id?: string | null;
   closed_date?: string | null;
   reason_closed?: string | null;
   notes?: string;
@@ -115,14 +119,18 @@ const Block: React.FC<{ title: string; children: React.ReactNode; wide?: boolean
   </Card>
 );
 
-/** An end date is worked out from its start; it is shown, never typed. */
+/**
+ * An end date, worked out from its start and never typed.
+ *
+ * With no start there is nothing to work out, and a blank looks like a field
+ * somebody forgot to fill in rather than one that cannot be filled in.
+ */
 const Derived: React.FC<{ start?: string | null; days: number }> = ({ start, days }) =>
   start ? (
-    <span>
-      {formatDay(addDays(start, days - 1))}{' '}
-      <span className="text-xs text-muted-foreground">(from the start date)</span>
-    </span>
-  ) : null;
+    <span>{formatDay(addDays(start, days - 1))}</span>
+  ) : (
+    <span className="font-normal text-muted-foreground">N/A</span>
+  );
 
 type Values = ClientEditValues;
 
@@ -144,7 +152,7 @@ const initialValues = (c: OverviewClient): Values => ({
   ...editAuthorizationNumbers(c),
   closed_date: c.closed_date ?? '',
   reason_closed: c.reason_closed ?? '',
-  status: (c.status === 'inactive' ? 'inactive' : 'active') as 'active' | 'inactive',
+  status: c.status,
   notes: c.notes ?? '',
 });
 
@@ -162,6 +170,9 @@ export const ClientOverview: React.FC<{
   const [v, setV] = useState<Values>(() => initialValues(client));
   const [saving, setSaving] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
+  const [reassigning, setReassigning] = useState(false);
 
   // Opening the editor starts from what is on the record now, not from
   // whatever was typed and abandoned last time.
@@ -170,6 +181,61 @@ export const ClientOverview: React.FC<{
   }, [editing, client]);
 
   const set = (k: keyof Values) => (value: string) => setV((p) => ({ ...p, [k]: value }));
+
+  useEffect(() => {
+    if (!editing || !isAdmin) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .eq('active', true)
+        .order('first_name');
+      if (cancelled) return;
+      setManagers(
+        (data ?? []).map((p) => ({
+          id: p.id as string,
+          name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || (p.email as string),
+        })),
+      );
+    })();
+    return () => { cancelled = true; };
+  }, [editing, isAdmin]);
+
+  /**
+   * Handing the client to somebody else.
+   *
+   * Through reassign_client, the same call the Reassign button makes, because
+   * that is what writes the assignment history and what the record's History
+   * tab reads. Writing assigned_employee_id from here would move the client
+   * and leave no trace of it having moved.
+   */
+  const reassign = async (profileId: string) => {
+    if (guardWrite()) return;
+    setReassigning(true);
+    try {
+      const previous = client.assigned_employee_id ?? null;
+      const { error } = await supabase.rpc('reassign_client', {
+        _client_id: client.id,
+        _new_employee_id: profileId,
+        _reason: null,
+      });
+      if (error) throw error;
+      await regenerateTouchpointsForClient(client.id).catch(() => {});
+      if (previous) await regenerateTouchpointsForStaff(previous).catch(() => {});
+      await regenerateTouchpointsForStaff(profileId).catch(() => {});
+      toast({ title: 'Client reassigned' });
+      await onSaved?.();
+    } catch (e) {
+      toast({
+        title: 'Could not reassign',
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setReassigning(false);
+    }
+  };
 
   const isUnited = (v.insurance ?? '').toLowerCase().includes('united');
   const readUnited = (client.insurance ?? '').toLowerCase().includes('united');
@@ -209,6 +275,11 @@ export const ClientOverview: React.FC<{
       <Input
         value={(v[k] as string) ?? ''}
         onChange={(e) => set(k)(e.target.value)}
+        // Almost every edit here replaces a value rather than appending to it —
+        // a corrected member ID, a new phone number. Selecting on arrival means
+        // typing replaces and Delete clears, without a drag across the box
+        // first.
+        onFocus={(e) => e.target.select()}
         disabled={disabled}
         className="h-8"
       />
@@ -271,11 +342,34 @@ export const ClientOverview: React.FC<{
         </Block>
 
         <Block title="Case">
+          {/* Active or Closed — not "inactive", which was a third word for a
+              state the rest of the app does not have. Choosing Closed opens
+              the closing dialog rather than writing the status here: closing
+              needs a reason and a date, warns about billing still claimable,
+              and has to go through close_case() because a case manager is not
+              allowed to write a row they would no longer be able to see. */}
           <Row label="Status">
-            {choice('status', ['active', 'inactive'],
+            {editing && client.status !== 'closed' ? (
+              <Select
+                value={v.status}
+                onValueChange={(next) => {
+                  if (next === 'closed') setClosing(true);
+                  else set('status')(next);
+                }}
+              >
+                <SelectTrigger className="h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
               <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
                 {client.status}
-              </Badge>)}
+              </Badge>
+            )}
           </Row>
           <Row label="Intake date">{date('intake_date')}</Row>
           <Row label="Insurance">{choice('insurance', MCO_OPTIONS, client.insurance)}</Row>
@@ -291,10 +385,28 @@ export const ClientOverview: React.FC<{
             {text('lon_score', client.lon_score ?? null)}
           </Row>
           {showCaseManager && (
-            // Reassignment is its own act, with its own history. A box here
-            // would either lie or go around it.
-            <Row label="Case manager" hint={editing ? 'Changed with Reassign' : undefined}>
-              {caseManagerName || <span className="text-muted-foreground">Unassigned</span>}
+            <Row
+              label="Case manager"
+              hint={editing ? 'Takes effect immediately, and is recorded in History' : undefined}
+            >
+              {editing ? (
+                <Select
+                  value={client.assigned_employee_id ?? ''}
+                  onValueChange={reassign}
+                  disabled={reassigning}
+                >
+                  <SelectTrigger className="h-8">
+                    <SelectValue placeholder="Unassigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {managers.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                caseManagerName || <span className="font-normal text-muted-foreground">Unassigned</span>
+              )}
             </Row>
           )}
         </Block>
@@ -359,6 +471,23 @@ export const ClientOverview: React.FC<{
           </Card>
         )}
       </div>
+
+      <CloseCaseDialog
+        open={closing}
+        onOpenChange={(o) => {
+          setClosing(o);
+          // Backing out of closing leaves the status where it was, rather than
+          // showing Closed on a case that is still open.
+          if (!o) set('status')(client.status === 'closed' ? 'closed' : 'active');
+        }}
+        clientId={client.id}
+        clientName={`${client.first_name} ${client.last_name}`.trim()}
+        onClosed={async () => {
+          setClosing(false);
+          await onSaved?.();
+          onDone?.();
+        }}
+      />
     </div>
   );
 };
