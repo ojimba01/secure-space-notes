@@ -14,14 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
 import { SignatureManager } from '@/components/SignatureManager';
 import { loadSignatures, signatureUrl } from '@/lib/signatures';
 import {
   calendarFeedUrl,
   loadCalendarFeed,
   rotateCalendarFeedToken,
-  setCalendarFeedNames,
   turnCalendarFeedOff,
   type CalendarFeed,
 } from '@/lib/calendarFeed';
@@ -148,17 +146,6 @@ export const AccountDialog: React.FC<{
     }
   };
 
-  const toggleFeedNames = async (show: boolean) => {
-    if (!feed) return;
-    setFeed({ ...feed, showClientNames: show });
-    try {
-      await setCalendarFeedNames(show);
-    } catch (e) {
-      setFeed({ ...feed, showClientNames: !show });
-      toast({ title: 'Could not save that', description: msg(e), variant: 'destructive' });
-    }
-  };
-
   const copyFeedUrl = async () => {
     if (!feed) return;
     try {
@@ -274,26 +261,10 @@ export const AccountDialog: React.FC<{
                     </Button>
                   </div>
 
-                  <label className="flex items-start gap-3 pt-1">
-                    <Switch
-                      checked={feed.showClientNames}
-                      onCheckedChange={toggleFeedNames}
-                      disabled={busy}
-                      aria-label="Show client names in the calendar feed"
-                    />
-                    <span className="text-sm">
-                      Show client names
-                      <span className="block text-xs text-muted-foreground">
-                        Off, an entry reads “Touchpoint (In person)” and names nobody. On, it
-                        carries the client's name into whatever calendar you subscribed with —
-                        only do that on an agency account, never a personal one.
-                      </span>
-                    </span>
-                  </label>
-
                   <p className="text-xs text-muted-foreground">
-                    Anyone who has this link can read your calendar without signing in, so do not
-                    forward it. Replace it and the old one stops working immediately.
+                    Entries name the client, so subscribe with your work account and not a
+                    personal one. Anyone who has this link can read your calendar without signing
+                    in — do not forward it. Replace it and the old one stops working immediately.
                     {feed.lastAccessedAt && (
                       <> Last read {new Date(feed.lastAccessedAt).toLocaleString()}.</>
                     )}

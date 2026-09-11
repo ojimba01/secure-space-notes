@@ -8,7 +8,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface CalendarFeed {
   token: string;
-  showClientNames: boolean;
   lastAccessedAt: string | null;
 }
 
@@ -20,13 +19,11 @@ const loosely = supabase as unknown as {
 
 interface FeedRow {
   token: string;
-  show_client_names: boolean;
   last_accessed_at: string | null;
 }
 
 const toFeed = (r: FeedRow): CalendarFeed => ({
   token: r.token,
-  showClientNames: r.show_client_names,
   lastAccessedAt: r.last_accessed_at,
 });
 
@@ -45,7 +42,7 @@ export function calendarFeedUrl(token: string): string {
 export async function loadCalendarFeed(profileId: string): Promise<CalendarFeed | null> {
   const { data, error } = await loosely
     .from('calendar_feed_subscriptions')
-    .select('token, show_client_names, last_accessed_at')
+    .select('token, last_accessed_at')
     .eq('profile_id', profileId)
     .maybeSingle();
   // A missing table means the migration has not been run yet. That is not
@@ -70,13 +67,11 @@ export async function rotateCalendarFeedToken(): Promise<CalendarFeed> {
   // The token is all the function returns; the preference is the row's.
   const { data: row } = await loosely
     .from('calendar_feed_subscriptions')
-    .select('token, show_client_names, last_accessed_at')
+    .select('token, last_accessed_at')
     .eq('token', token)
     .maybeSingle();
 
-  return row
-    ? toFeed(row as unknown as FeedRow)
-    : { token, showClientNames: false, lastAccessedAt: null };
+  return row ? toFeed(row as unknown as FeedRow) : { token, lastAccessedAt: null };
 }
 
 /** Stop publishing entirely. Every calendar subscribed to it goes stale. */
@@ -93,24 +88,6 @@ export async function turnCalendarFeedOff(): Promise<void> {
   const { error } = await loosely
     .from('calendar_feed_subscriptions')
     .delete()
-    .eq('profile_id', profile.id);
-  if (error) throw new Error(error.message);
-}
-
-/** Whether the feed carries client names. Off is the default, and the safe one. */
-export async function setCalendarFeedNames(show: boolean): Promise<void> {
-  const { data: me } = await supabase.auth.getUser();
-  if (!me?.user) throw new Error('Not signed in');
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('user_id', me.user.id)
-    .maybeSingle();
-  if (!profile) throw new Error('Not signed in');
-
-  const { error } = await loosely
-    .from('calendar_feed_subscriptions')
-    .update({ show_client_names: show })
     .eq('profile_id', profile.id);
   if (error) throw new Error(error.message);
 }

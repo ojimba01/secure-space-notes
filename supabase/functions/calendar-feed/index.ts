@@ -11,6 +11,10 @@
 // decides when to re-fetch -- Google can take most of a day, Outlook a few
 // hours, Apple as little as five minutes -- so anything that has to be right
 // now still has to be read in the app.
+//
+// Entries name the client. Staff subscribe with the agency's own Workspace or
+// Microsoft 365 account, so that name lands somewhere the agency controls --
+// which is the assumption this whole feed rests on.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const supabase = createClient(
@@ -115,30 +119,19 @@ interface EventRow {
 const isCaseClosed = (c: { status?: string | null; workflow_stage?: string | null }) =>
   c.status === 'closed' || c.workflow_stage === 'closed';
 
-function summaryFor(e: EventRow, showNames: boolean): string {
+function summaryFor(e: EventRow): string {
   const typeLabel = EVENT_TYPE_LABEL[e.event_type ?? 'other'] ?? 'Event';
   const clientName = `${e.clients?.first_name ?? ''} ${e.clients?.last_name ?? ''}`.trim();
-  const done = e.status === 'completed' ? '✓ ' : '';
-
-  if (!showNames) {
-    // A touchpoint still says what kind of contact it wants, because that is
-    // what decides whether it needs an hour and a car. Manual events fall back
-    // to their type: their titles are typed by hand and cannot be redacted.
-    const modality = e.modality ? MODALITY_LABEL[e.modality] ?? null : null;
-    if (e.event_type === 'touch_point') {
-      return `${done}Touchpoint${modality ? ` (${modality})` : ''}`;
-    }
-    return `${done}${typeLabel}`;
-  }
+  const modality = e.modality ? MODALITY_LABEL[e.modality] ?? null : null;
+  const done = e.status === 'completed' ? '\u2713 ' : '';
 
   if (e.event_type === 'touch_point' && clientName) {
-    const modality = e.modality ? MODALITY_LABEL[e.modality] ?? null : null;
-    return `${done}Touchpoint — ${clientName}${modality ? ` (${modality})` : ''}`;
+    return `${done}Touchpoint \u2014 ${clientName}${modality ? ` (${modality})` : ''}`;
   }
   return `${done}${e.title || typeLabel}`;
 }
 
-function vevent(e: EventRow, showNames: boolean, host: string, now: Date): string {
+function vevent(e: EventRow, host: string, now: Date): string {
   const start = new Date(e.start_time);
   const end = new Date(e.end_time);
   // Auto-scheduled touchpoints carry a date and no time -- they are stored
@@ -158,14 +151,14 @@ function vevent(e: EventRow, showNames: boolean, host: string, now: Date): strin
       // DTEND is exclusive for an all-day event: the day after.
       ? `DTEND;VALUE=DATE:${dateStamp(addDays(start, 1))}`
       : `DTEND:${utcStamp(end)}`,
-    `SUMMARY:${esc(summaryFor(e, showNames))}`,
+    `SUMMARY:${esc(summaryFor(e))}`,
     `STATUS:${e.status === 'cancelled' ? 'CANCELLED' : 'CONFIRMED'}`,
     // Nothing here is an invitation, and a calendar that marks these busy
     // would block a whole day for a phone call that takes ten minutes.
     'TRANSP:TRANSPARENT',
   ];
 
-  if (showNames && e.description) lines.push(`DESCRIPTION:${esc(e.description)}`);
+  if (e.description) lines.push(`DESCRIPTION:${esc(e.description)}`);
   if (APP_URL) lines.push(`URL:${APP_URL}`);
 
   lines.push('END:VEVENT');
@@ -186,7 +179,7 @@ Deno.serve(async (req) => {
 
   const { data: sub } = await supabase
     .from('calendar_feed_subscriptions')
-    .select('profile_id, show_client_names, access_count')
+    .select('profile_id, access_count')
     .eq('token', token)
     .maybeSingle();
 
@@ -243,7 +236,7 @@ Deno.serve(async (req) => {
     // calendar app treats it as a hint and most ignore it.
     'REFRESH-INTERVAL;VALUE=DURATION:PT1H',
     'X-PUBLISHED-TTL:PT1H',
-    ...events.map((e) => vevent(e, sub.show_client_names, host, now)),
+    ...events.map((e) => vevent(e, host, now)),
     'END:VCALENDAR',
     '',
   ].join('\r\n');

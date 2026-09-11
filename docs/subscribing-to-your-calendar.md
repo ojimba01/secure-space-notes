@@ -27,28 +27,23 @@ Your account → **Calendar subscription** → **Create my calendar link**, then
 There is no sign-in step, because a calendar app cannot do one. Whoever holds
 the link can read your calendar. So:
 
-- **Do not forward it.** Not to a colleague, not into a group chat. If someone
-  else needs your calendar, they should make their own link.
+- **Do not forward it.** Not to a colleague, not into a group chat. It carries
+  client names. If someone else needs your calendar, they make their own link.
 - **Replace it if it gets out.** One button. The old link dies immediately and
   every calendar subscribed to it stops updating.
 - The section shows when your link was last read. A link nobody should have
   being fetched from somewhere is worth replacing.
 
-## Client names are off
+## What an entry says
 
-By default an entry reads **Touchpoint (In person)** and names nobody. You will
-know who it is from the app; the calendar just gets you there.
+An entry names the client: **Touchpoint — Jane Doe (In person)**.
 
-This is not caution for its own sake. Subscribing means Google's or Microsoft's
-servers fetch the feed, and a personal `gmail.com` or `outlook.com` account is
-covered by no business associate agreement at all — turning names on would put
-client health information somewhere the agency has no agreement covering.
+Subscribe with your work account — the agency's Workspace or Microsoft 365 —
+and never a personal `gmail.com` or `outlook.com` one. The feed puts client
+names into whatever calendar the link is pasted into, so that calendar has to
+be one the agency controls.
 
-**Only turn names on if you are subscribing with the agency's own Workspace or
-Microsoft 365 account,** and only if an administrator has said the BAA covers
-it. The switch is in the same section.
-
-Closed cases never appear in the feed, named or not.
+Closed cases never appear.
 
 ## For whoever deploys it
 

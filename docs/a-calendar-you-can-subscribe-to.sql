@@ -9,14 +9,15 @@
 -- seconds, and not something we control -- so the feed is a reminder, never
 -- the record.
 --
--- The URL is the credential. Anyone holding it reads that person's calendar
--- without signing in, which is why:
+-- Entries carry the client's name, because staff subscribe with the agency's
+-- own Workspace or Microsoft 365 account -- never a personal one. That is the
+-- assumption the whole feed rests on: it puts client names into whatever
+-- calendar the link is pasted into.
+--
+-- The URL is the credential. Anyone holding it reads that person's calendar,
+-- names included, without signing in, which is why:
 --
 --   * it is off until somebody turns it on, and one click revokes it;
---   * client names are OFF by default. A subscribed feed is fetched by
---     Google's or Microsoft's servers, and a personal gmail.com or
---     outlook.com account is covered by no BAA at all. Redacted, an event
---     says "Touchpoint (In person)" and nothing about who;
 --   * administrators cannot read these rows. An admin can already see every
 --     event in the app, so this is not about hiding the work -- it is that a
 --     token is a credential, and one account being able to read another's
@@ -25,8 +26,6 @@
 create table if not exists public.calendar_feed_subscriptions (
   profile_id uuid primary key references public.profiles(id) on delete cascade,
   token uuid not null unique default gen_random_uuid(),
-  -- Off by default, and deliberately a decision a person has to make.
-  show_client_names boolean not null default false,
   created_at timestamptz not null default now(),
   -- So a person can see their feed is being read, and roughly by how often.
   -- A link that was never meant to be shared being fetched hourly from
