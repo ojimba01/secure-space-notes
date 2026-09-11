@@ -66,7 +66,12 @@ interface CalendarEvent {
   } & AuthorizationSpans) | null;
 }
 
-export const CaseManagerCalendar = () => {
+interface CaseManagerCalendarProps {
+  /** Open a client's record. Without it the calendar offers no way through. */
+  onOpenClient?: (clientId: string) => void;
+}
+
+export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpenClient }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   /** The day popup. A day's work belongs over the calendar, not beside it. */
@@ -684,6 +689,7 @@ export const CaseManagerCalendar = () => {
         onOpenChange={setIsEditDialogOpen}
         event={editingEvent}
         canDelete={isAdmin}
+        onOpenClient={onOpenClient}
         onEventUpdated={fetchEvents}
       />
     </div>

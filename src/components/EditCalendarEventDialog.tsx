@@ -20,9 +20,10 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Trash2 } from 'lucide-react';
+import { Archive, CalendarIcon, Trash2, UserRound } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { CloseCaseDialog } from '@/components/CloseCaseDialog';
 
 interface CalendarEvent {
   id: string;
@@ -54,6 +55,13 @@ interface EditCalendarEventDialogProps {
   /** Whether this user may delete events at all. Staff may not. */
   canDelete?: boolean;
   onEventUpdated: () => void;
+  /**
+   * Open the record of the client this event is for.
+   *
+   * Only the agency calendar passes it: from a client's own calendar the
+   * button would lead back to the page it was pressed on.
+   */
+  onOpenClient?: (clientId: string) => void;
 }
 
 export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = ({
@@ -62,11 +70,13 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
   event,
   canDelete = true,
   onEventUpdated,
+  onOpenClient,
 }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
+  const [closeCaseOpen, setCloseCaseOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
 
@@ -206,11 +216,45 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
     }
   };
 
+  const eventClient = event?.client_id
+    ? clients.find((c) => c.id === event.client_id) ?? null
+    : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
-        <DialogHeader>
+        <DialogHeader className="pr-8">
           <DialogTitle>Edit event</DialogTitle>
+          {/* An event names a client, and the two things anyone wants next are
+              that client's record and, when the work has ended, an end to it.
+              Both were a trip back to the client list to find them. */}
+          {onOpenClient && eventClient && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  onOpenChange(false);
+                  onOpenClient(eventClient.id);
+                }}
+              >
+                <UserRound className="h-4 w-4" />
+                {eventClient.first_name} {eventClient.last_name}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setCloseCaseOpen(true)}
+              >
+                <Archive className="h-4 w-4" />
+                Close case
+              </Button>
+            </div>
+          )}
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -386,6 +430,21 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
           </div>
         </form>
       </DialogContent>
+
+      {eventClient && (
+        <CloseCaseDialog
+          open={closeCaseOpen}
+          onOpenChange={setCloseCaseOpen}
+          clientId={eventClient.id}
+          clientName={`${eventClient.first_name} ${eventClient.last_name}`}
+          onClosed={() => {
+            // The case is closed, so its events leave the calendar. Nothing is
+            // left here worth looking at.
+            onOpenChange(false);
+            onEventUpdated();
+          }}
+        />
+      )}
     </Dialog>
   );
 };

@@ -143,7 +143,7 @@ const Index = () => {
           ) : activeView === 'forms' ? (
             <FormsHub />
           ) : (
-            <CaseManagerCalendar />
+            <CaseManagerCalendar onOpenClient={handleOpenClient} />
           )}
         </main>
       </div>
