@@ -106,6 +106,15 @@ interface EditClientDialogProps {
   onOpenChange: (open: boolean) => void;
   client: Client;
   onClientUpdated: () => void | Promise<void>;
+  /**
+   * Render the fields in the page rather than in a dialog.
+   *
+   * The record's Overview is these same fields read-only, so editing them in a
+   * modal on top of them meant the same information twice, in two layouts, one
+   * covering the other. Inline, Edit turns the section you are looking at into
+   * the section you are typing in.
+   */
+  inline?: boolean;
 }
 
 export const EditClientDialog: React.FC<EditClientDialogProps> = ({
@@ -113,6 +122,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
   onOpenChange,
   client,
   onClientUpdated,
+  inline = false,
 }) => {
   const { toast } = useToast();
   const { guardWrite } = useViewAs();
@@ -232,15 +242,23 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Client</DialogTitle>
-        </DialogHeader>
+  const body = (
+    <>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            {inline && (
+              // At the top, where Edit was pressed — not at the end of
+              // twenty-three fields.
+              <div className="sticky top-0 z-10 -mx-1 flex flex-wrap justify-end gap-2 border-b bg-background px-1 pb-3">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Updating…' : 'Update client'}
+                </Button>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -652,21 +670,34 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               )}
             />
             
-            <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Updating...' : 'Update Client'}
-              </Button>
-            </div>
+            {!inline && (
+              <div className="flex justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Updating...' : 'Update Client'}
+                </Button>
+              </div>
+            )}
           </form>
         </Form>
 
         <div className="pt-2">
           <VisitAvailabilitySection clientId={client.id} />
         </div>
+    </>
+  );
 
+  if (inline) return body;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Client</DialogTitle>
+        </DialogHeader>
+        {body}
       </DialogContent>
     </Dialog>
   );

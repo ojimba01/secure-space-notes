@@ -10,6 +10,7 @@ import { ArrowLeft, Calendar, FileText, FileUp, Upload, Plus, Edit, Trash2, User
 import { useToast } from '@/hooks/use-toast';
 import { FileManager } from '@/components/FileManager';
 import { EditClientDialog } from '@/components/EditClientDialog';
+import { ClientOverview } from '@/components/ClientOverview';
 import { ReassignClientDialog } from '@/components/ReassignClientDialog';
 import { CaseHistory } from '@/components/CaseHistory';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -196,9 +197,17 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </Button>
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+          {/* Edit turns Overview into its own form, so it also has to be the
+              section you are looking at. */}
+          <Button
+            variant="outline"
+            onClick={() => {
+              setActiveTab('overview');
+              setEditDialogOpen(true);
+            }}
+          >
             <Edit className="h-4 w-4 mr-2" />
-            Edit
+            {editDialogOpen ? 'Editing' : 'Edit'}
           </Button>
           {client.workflow_stage !== 'closed' && (
             <Button variant="outline" onClick={() => setCloseDialogOpen(true)}>
@@ -256,68 +265,21 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <Card>
-            <CardContent className="grid grid-cols-1 gap-4 pt-6 md:grid-cols-2 lg:grid-cols-3">
-              {client.notes && (
-                <div className="md:col-span-2 lg:col-span-3">
-                  <p className="text-sm font-medium text-muted-foreground">Notes</p>
-                  <p className="whitespace-pre-wrap">{client.notes}</p>
-                </div>
-              )}
-              {client.email && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Email</p>
-                  <p>{client.email}</p>
-                </div>
-              )}
-              {client.phone && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                  <p>{client.phone}</p>
-                </div>
-              )}
-              {client.address && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Address</p>
-                  <p>{client.address}</p>
-                </div>
-              )}
-              {client.date_of_birth && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Date of Birth</p>
-                  <p>{formatDay(client.date_of_birth)}</p>
-                </div>
-              )}
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Intake Date</p>
-                <p>{formatDay(client.intake_date)}</p>
-              </div>
-              {client.insurance && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Insurance</p>
-                  <p>{client.insurance}</p>
-                </div>
-              )}
-              {client.level_of_need && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Level of Need (LoN)</p>
-                  <p>{client.level_of_need}</p>
-                </div>
-              )}
-              {client.county && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">County</p>
-                  <p>{client.county}</p>
-                </div>
-              )}
-              {isAdmin && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Current Case Manager</p>
-                  <p>{caseManagerName || 'Unassigned'}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {editDialogOpen ? (
+            <EditClientDialog
+              inline
+              open
+              onOpenChange={setEditDialogOpen}
+              client={client}
+              onClientUpdated={recordChanged}
+            />
+          ) : (
+            <ClientOverview
+              client={client as unknown as React.ComponentProps<typeof ClientOverview>['client']}
+              caseManagerName={caseManagerName}
+              showCaseManager={isAdmin}
+            />
+          )}
 
           <ClientWorkflowCard
             key={`workflow-${client.id}-${formsVersion}-${recordVersion}`}
@@ -328,7 +290,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             }}
           />
 
-          {isAdmin && !isViewingAs && (
+          {isAdmin && !isViewingAs && !editDialogOpen && (
             <div className="border-t pt-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -447,13 +409,6 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         current={client as unknown as Record<string, unknown>}
         onApplied={recordChanged}
       />
-
-      {editDialogOpen && <EditClientDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        client={client}
-        onClientUpdated={recordChanged}
-      />}
 
       <ReassignClientDialog
         open={reassignDialogOpen}
