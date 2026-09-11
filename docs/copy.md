@@ -55,6 +55,22 @@ Singular drops the `s` in all three.
 **Filters:** All case stages · All levels (High Level / Low Level / Missing
 level of need) · All statuses · Unassigned · No active case managers
 
+**The case stages**, which are read off the authorizations rather than stored.
+The `workflow_stage` column is set by hand and drifts both ways, so nothing on
+screen reads it — a client filed as a referral while holding a 30-day
+authorization is shown for what they are.
+
+| Stage | What it means |
+|---|---|
+| Referral received | Nothing authorized, intake not started. We have the referral; nobody has been assessed. |
+| Pending approval | Nothing authorized, intake complete. Assessed and submitted; waiting on the MCO. |
+| Initial 30-day authorization | A 30-day authorization exists and nothing later does. |
+| Active authorization | A 150-day or 180-day authorization exists. |
+| Closed | Wins over everything, whatever the case was doing. |
+
+A stage cannot be skipped by hand and cannot be claimed early: recording an
+authorization is what advances it.
+
 **Empty state:** `Adjust your filters or search to see results`
 
 ---

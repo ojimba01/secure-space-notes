@@ -55,23 +55,51 @@ export const OPEN_CASE_STAGE_FILTER = 'workflow_stage.is.null,workflow_stage.neq
 /**
  * The stage a client is actually at, whatever the column says.
  *
- * A client with no 30-day authorization date and no 30-day number has not been
- * approved yet, however they were filed. The stored stage is set by hand and
- * drifts: 17 clients sat at "Referral received" and one at "Active
- * authorization" with no authorization of any kind recorded.
+ * The stored `workflow_stage` is set by hand and drifts in both directions, so
+ * nothing here reads it. Four clients sat at "Referral received" holding a
+ * 30-day authorization, which is how somebody filtering for referrals found a
+ * list of people who had already been approved. An earlier version of this
+ * function only corrected the column downward — a client with no authorization
+ * was forced to "Pending approval" — and left the opposite case exactly as
+ * wrong as it found it.
+ *
+ * So the ladder is read off the authorizations, which are facts:
+ *
+ *   Referral received   nothing authorized, intake not started. We have the
+ *                       referral and nobody has been assessed yet.
+ *   Pending approval    nothing authorized, intake complete. Assessed and
+ *                       submitted; waiting on the MCO to answer.
+ *   Initial 30-day      a 30-day authorization exists and nothing later does.
+ *   Active              a 150-day or 180-day authorization exists.
  *
  * Closed wins over everything. A closed case is closed whatever it was doing.
  */
 export function displayStage(c: {
   status?: string | null;
   workflow_stage?: string | null;
+  intake_status?: string | null;
   auth_30_start?: string | null;
   auth_30_number?: string | null;
+  auth_150_start?: string | null;
+  auth_150_number?: string | null;
+  hsp_150_date?: string | null;
+  auth_180_start?: string | null;
+  auth_180_number?: string | null;
 }): string {
   if (isCaseClosed(c)) return 'closed';
-  const hasInitial = !!c.auth_30_start || !!(c.auth_30_number ?? '').trim();
-  if (!hasInitial) return 'initial_auth_pending';
-  return c.workflow_stage ?? 'referred';
+
+  const set = (v?: string | null) => !!(v ?? '').trim();
+
+  // hsp_150_date is the other name the 150-day start is stored under; both are
+  // read everywhere else that counts cycles, so both count here.
+  const later =
+    set(c.auth_150_start) || set(c.auth_150_number) || set(c.hsp_150_date) ||
+    set(c.auth_180_start) || set(c.auth_180_number);
+  if (later) return 'active_authorization';
+
+  if (set(c.auth_30_start) || set(c.auth_30_number)) return 'initial_30_active';
+
+  return c.intake_status === 'complete' ? 'initial_auth_pending' : 'referred';
 }
 
 export const STAGE_CLASS: Record<string, string> = {
