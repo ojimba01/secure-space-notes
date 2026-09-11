@@ -4,7 +4,10 @@ import { Button } from '@/components/ui/button';
 
 /** How many of today's events are shown before Next. */
 const TODAY_PAGE = 5;
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock } from 'lucide-react';
+
+/** Set once somebody ticks "Don't ask again" on removing a touchpoint. */
+const SKIP_DELETE_ASK_KEY = 'calendar.skipTouchpointDeleteConfirm';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -14,12 +17,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AddCalendarEventDialog } from './AddCalendarEventDialog';
 import { EditCalendarEventDialog } from './EditCalendarEventDialog';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { todayAgency } from '@/lib/compliance';
 import { isCaseClosed } from '@/lib/workflow';
+import {
+  authPhaseOn,
+  AUTH_PHASE_DOT,
+  AUTH_PHASE_LABEL,
+  type AuthorizationSpans,
+} from '@/lib/compliance';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, startOfWeek, endOfWeek } from 'date-fns';
 
 interface CalendarEvent {
@@ -29,18 +49,20 @@ interface CalendarEvent {
   start_time: string;
   end_time: string;
   event_type: string;
+  status: string;
   client_id: string | null;
   employee_id: string;
   profiles?: {
     first_name: string | null;
     last_name: string | null;
   };
-  clients?: {
+  is_auto_generated?: boolean;
+  clients?: ({
     first_name: string;
     last_name: string;
     status: string | null;
     workflow_stage: string | null;
-  } | null;
+  } & AuthorizationSpans) | null;
 }
 
 export const CaseManagerCalendar = () => {
@@ -48,6 +70,10 @@ export const CaseManagerCalendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   /** The day popup. A day's work belongs over the calendar, not beside it. */
   const [dayOpen, setDayOpen] = useState(false);
+  /** The auto-scheduled touchpoint awaiting a yes. Null when nothing is pending. */
+  const [pendingDelete, setPendingDelete] = useState<CalendarEvent | null>(null);
+  const [skipAsk, setSkipAsk] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   /** Five of today's at a time. A day with thirty is a wall, not a schedule. */
   const [todayPage, setTodayPage] = useState(0);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -84,7 +110,11 @@ export const CaseManagerCalendar = () => {
         .select(`
           *,
           profiles:employee_id (first_name, last_name),
-          clients:client_id (first_name, last_name, status, workflow_stage)
+          clients:client_id (
+            first_name, last_name, status, workflow_stage,
+            auth_30_start, auth_30_end, auth_150_start, auth_150_end,
+            auth_180_start, auth_180_end, hsp_150_date
+          )
         `)
         .gte('start_time', monthStart.toISOString())
         .lte('start_time', monthEnd.toISOString())
@@ -161,6 +191,64 @@ export const CaseManagerCalendar = () => {
     toast({ title: 'Touchpoint rescheduled', description: 'Manual moves are preserved.' });
   };
 
+  /**
+   * Whether to ask before removing an auto-scheduled touchpoint.
+   *
+   * A per-person convenience about a reversible act -- the schedule regenerates
+   * -- so it lives in this browser and nowhere else. Reading it can throw in a
+   * private window, and a viewer who cannot store the preference should get
+   * the question, not a silent delete.
+   */
+  const asksBeforeDelete = (): boolean => {
+    try {
+      return localStorage.getItem(SKIP_DELETE_ASK_KEY) !== 'true';
+    } catch {
+      return true;
+    }
+  };
+
+  const removeTouchpoint = async (event: CalendarEvent) => {
+    if (isViewingAs) {
+      toast({ title: 'Preview only', description: 'Changes are not saved while viewing as an employee.' });
+      return;
+    }
+    setDeleting(true);
+    const { error } = await supabase.from('calendar_events').delete().eq('id', event.id);
+    setDeleting(false);
+    if (error) {
+      toast({ title: 'Could not remove it', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setEvents((prev) => prev.filter((e) => e.id !== event.id));
+    toast({
+      title: 'Touchpoint removed',
+      description: 'It may be scheduled again on another day if the cycle still needs one.',
+    });
+  };
+
+  const askThenRemove = (event: CalendarEvent) => {
+    if (asksBeforeDelete()) {
+      setSkipAsk(false);
+      setPendingDelete(event);
+      return;
+    }
+    removeTouchpoint(event);
+  };
+
+  const confirmRemove = async () => {
+    const event = pendingDelete;
+    if (!event) return;
+    if (skipAsk) {
+      try {
+        localStorage.setItem(SKIP_DELETE_ASK_KEY, 'true');
+      } catch {
+        // A browser that will not remember it simply asks again next time.
+      }
+    }
+    setPendingDelete(null);
+    await removeTouchpoint(event);
+  };
+
   const openDay = (day: Date) => {
     setSelectedDate(day);
     setDayOpen(true);
@@ -219,6 +307,27 @@ export const CaseManagerCalendar = () => {
     'other': 'bg-slate-500',
     'touch_point': 'bg-teal-500',
   };
+
+  /**
+   * What colour a dot on the calendar is.
+   *
+   * A touchpoint takes the colour of the authorization that pays for the day
+   * it falls on, so a month reads as blocks of funding rather than a field of
+   * identical teal. One already logged goes grey: it is done, and the eye
+   * should skip it looking for what is not.
+   *
+   * A touchpoint on a day no authorization covers is amber. That is not a
+   * display quirk — it is work nobody is paying for, and the calendar is where
+   * somebody would notice.
+   */
+  const dotColor = (event: CalendarEvent): string => {
+    if (event.event_type !== 'touch_point') {
+      return eventTypeColors[event.event_type ?? 'other'] ?? 'bg-slate-500';
+    }
+    if (event.status === 'completed') return 'bg-slate-400';
+    const phase = authPhaseOn(event.clients ?? null, event.start_time.slice(0, 10));
+    return phase ? AUTH_PHASE_DOT[phase] : 'bg-amber-500';
+  };
   const eventTypeLabels: Record<string, string> = {
     'touch_point': 'Touchpoint',
   };
@@ -241,6 +350,58 @@ export const CaseManagerCalendar = () => {
       </div>
 
       <div className="space-y-6">
+        {/* Today at a glance, without having to click today. */}
+        <Card className="p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <h3 className="font-semibold">Today's Schedule</h3>
+            </div>
+            <div className="space-y-2">
+              {todayEvents.length > 0 ? (
+                todayEvents.slice(todayPage * TODAY_PAGE, todayPage * TODAY_PAGE + TODAY_PAGE).map(event => (
+                  <button
+                    key={event.id}
+                    onClick={() => openEditDialog(event)}
+                    className="w-full text-left p-2 rounded-lg bg-muted/50 space-y-1 hover:bg-muted transition-colors"
+                  >
+                    <div className={`w-2 h-2 rounded-full inline-block mr-2 ${dotColor(event)}`} />
+                    <span className="text-sm font-medium">{event.title}</span>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(event.start_time), 'h:mm a')} - {format(new Date(event.end_time), 'h:mm a')}
+                    </p>
+                  </button>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No events today.</p>
+              )}
+
+              {todayEvents.length > TODAY_PAGE && (
+                <div className="flex items-center gap-2 pt-1 text-xs">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={todayPage === 0}
+                    onClick={() => setTodayPage(p => Math.max(0, p - 1))}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={(todayPage + 1) * TODAY_PAGE >= todayEvents.length}
+                    onClick={() => setTodayPage(p => p + 1)}
+                  >
+                    Next
+                  </Button>
+                  <span className="text-muted-foreground">
+                    {todayPage * TODAY_PAGE + 1}–
+                    {Math.min((todayPage + 1) * TODAY_PAGE, todayEvents.length)} of{' '}
+                    {todayEvents.length}
+                  </span>
+                </div>
+              )}
+            </div>
+        </Card>
         {/* The calendar has the width to itself. A day's events open over it. */}
         <Card className="p-6">
           {/* Calendar Controls */}
@@ -336,7 +497,7 @@ export const CaseManagerCalendar = () => {
                           } ${draggingId === event.id ? 'opacity-40' : ''}`}
                           title={event.event_type === 'touch_point' ? `${event.title} — drag to reschedule` : event.title}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${eventTypeColors[event.event_type] || 'bg-gray-500'}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor(event)}`} />
                           <span className="truncate">{event.title}</span>
                         </button>
                       ))}
@@ -350,61 +511,32 @@ export const CaseManagerCalendar = () => {
                 );
               })}
             </div>
+
+            {/* Without this the colours are decoration. A touchpoint is
+                coloured by the authorization paying for the day it sits on. */}
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 border-t pt-3 text-[11px] text-muted-foreground">
+              {(Object.keys(AUTH_PHASE_LABEL) as (keyof typeof AUTH_PHASE_LABEL)[]).map((p) => (
+                <span key={p} className="flex items-center gap-1.5">
+                  <span className={`h-2 w-2 rounded-full ${AUTH_PHASE_DOT[p]}`} />
+                  {AUTH_PHASE_LABEL[p]}
+                </span>
+              ))}
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-slate-400" />
+                Logged
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                Not authorized
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-medical-blue" />
+                Other events
+              </span>
+            </div>
           </div>
         </Card>
 
-        {/* Today at a glance, without having to click today. */}
-        <Card className="p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <h3 className="font-semibold">Today's Schedule</h3>
-            </div>
-            <div className="space-y-2">
-              {todayEvents.length > 0 ? (
-                todayEvents.slice(todayPage * TODAY_PAGE, todayPage * TODAY_PAGE + TODAY_PAGE).map(event => (
-                  <button
-                    key={event.id}
-                    onClick={() => openEditDialog(event)}
-                    className="w-full text-left p-2 rounded-lg bg-muted/50 space-y-1 hover:bg-muted transition-colors"
-                  >
-                    <div className={`w-2 h-2 rounded-full inline-block mr-2 ${eventTypeColors[event.event_type]}`} />
-                    <span className="text-sm font-medium">{event.title}</span>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(event.start_time), 'h:mm a')} - {format(new Date(event.end_time), 'h:mm a')}
-                    </p>
-                  </button>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No events today.</p>
-              )}
-
-              {todayEvents.length > TODAY_PAGE && (
-                <div className="flex items-center gap-2 pt-1 text-xs">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={todayPage === 0}
-                    onClick={() => setTodayPage(p => Math.max(0, p - 1))}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={(todayPage + 1) * TODAY_PAGE >= todayEvents.length}
-                    onClick={() => setTodayPage(p => p + 1)}
-                  >
-                    Next
-                  </Button>
-                  <span className="text-muted-foreground">
-                    {todayPage * TODAY_PAGE + 1}–
-                    {Math.min((todayPage + 1) * TODAY_PAGE, todayEvents.length)} of{' '}
-                    {todayEvents.length}
-                  </span>
-                </div>
-              )}
-            </div>
-        </Card>
       </div>
 
       {/* A day's work, over the calendar rather than beside it. Closing it
@@ -412,26 +544,48 @@ export const CaseManagerCalendar = () => {
       <Dialog open={dayOpen} onOpenChange={setDayOpen}>
         <DialogContent className="max-h-[80vh] max-w-lg overflow-y-auto">
           <DialogHeader className="text-left">
-            <DialogTitle>{format(selectedDate, 'EEEE, MMMM d')}</DialogTitle>
-            <DialogDescription>
-              {selectedDayEvents.length === 0
-                ? 'Nothing scheduled.'
-                : `${selectedDayEvents.length} ${selectedDayEvents.length === 1 ? 'entry' : 'entries'}`}
-            </DialogDescription>
+            {/* Room for the Add button and the dialog's own X beside it. */}
+            <div className="flex items-start justify-between gap-3 pr-8">
+              <div>
+                <DialogTitle>{format(selectedDate, 'EEEE, MMMM d')}</DialogTitle>
+                <DialogDescription>
+                  {selectedDayEvents.length === 0
+                    ? 'Nothing scheduled.'
+                    : `${selectedDayEvents.length} ${selectedDayEvents.length === 1 ? 'entry' : 'entries'}`}
+                </DialogDescription>
+              </div>
+              {!isViewingAs && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 gap-1.5"
+                  onClick={() => {
+                    setDayOpen(false);
+                    setIsAddDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              )}
+            </div>
           </DialogHeader>
 
           <div className="space-y-3">
             {selectedDayEvents.map((event) => (
-              <button
+              <div
                 key={event.id}
-                onClick={() => {
-                  setDayOpen(false);
-                  openEditDialog(event);
-                }}
-                className="w-full space-y-2 rounded-lg border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/30"
+                className="flex items-start gap-2 rounded-lg border p-3 transition-colors hover:border-primary/50 hover:bg-muted/30"
               >
+                <button
+                  onClick={() => {
+                    setDayOpen(false);
+                    openEditDialog(event);
+                  }}
+                  className="min-w-0 flex-1 space-y-2 text-left"
+                >
                 <div className="flex items-center gap-2">
-                  <div className={`h-2 w-2 rounded-full ${eventTypeColors[event.event_type]}`} />
+                  <div className={`h-2 w-2 rounded-full ${dotColor(event)}`} />
                   <h4 className="text-sm font-medium">{event.title}</h4>
                   {eventTypeLabels[event.event_type] && (
                     <span className="rounded-full bg-teal-100 px-1.5 py-0.5 text-[10px] font-medium text-teal-700">
@@ -451,16 +605,61 @@ export const CaseManagerCalendar = () => {
                 {event.description && (
                   <p className="mt-1 text-xs text-muted-foreground">{event.description}</p>
                 )}
-              </button>
+                </button>
+
+                {/* Only the auto-scheduled ones. Something a person put in the
+                    calendar themselves is theirs to open and change, not to
+                    lose to a button they were aiming near. */}
+                {event.event_type === 'touch_point' && event.is_auto_generated && !isViewingAs && (
+                  <button
+                    onClick={() => askThenRemove(event)}
+                    disabled={deleting}
+                    aria-label={`Remove ${event.title}`}
+                    title="Remove this touchpoint"
+                    className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         </DialogContent>
       </Dialog>
 
-      <AddCalendarEventDialog 
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this touchpoint?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete?.title} on{' '}
+              {pendingDelete && format(new Date(pendingDelete.start_time), 'EEEE, MMMM d')}. The
+              cycle may schedule another in its place if one is still owed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={skipAsk} onCheckedChange={(v) => setSkipAsk(v === true)} />
+            Don't ask me again
+          </label>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRemove}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AddCalendarEventDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         onEventAdded={fetchEvents}
+        defaultDate={selectedDate}
       />
 
       <EditCalendarEventDialog

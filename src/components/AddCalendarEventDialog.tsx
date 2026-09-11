@@ -18,6 +18,8 @@ interface AddCalendarEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEventAdded: () => void;
+  /** Opened from a day on the calendar: start on that day, not on nothing. */
+  defaultDate?: Date;
 }
 
 interface Client {
@@ -30,6 +32,7 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
   open,
   onOpenChange,
   onEventAdded,
+  defaultDate,
 }) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -50,8 +53,12 @@ export const AddCalendarEventDialog: React.FC<AddCalendarEventDialogProps> = ({
   useEffect(() => {
     if (open) {
       fetchClients();
+      if (defaultDate) {
+        setStartDate(defaultDate);
+        setEndDate(defaultDate);
+      }
     }
-  }, [open]);
+  }, [open, defaultDate]);
 
   const fetchClients = async () => {
     try {

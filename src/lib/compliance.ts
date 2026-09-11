@@ -277,6 +277,19 @@ export const AUTH_PHASE_LABEL: Record<AuthPhase, string> = {
   extension_180: '180-day extension',
 };
 
+/** One colour per authorization, shared by every screen that shows them. */
+export const AUTH_PHASE_DOT: Record<AuthPhase, string> = {
+  initial_30: 'bg-blue-500',
+  period_150: 'bg-green-600',
+  extension_180: 'bg-purple-500',
+};
+
+export const AUTH_PHASE_CLASS: Record<AuthPhase, string> = {
+  initial_30: 'border-blue-300 bg-blue-50 text-blue-900',
+  period_150: 'border-green-300 bg-green-50 text-green-900',
+  extension_180: 'border-purple-300 bg-purple-50 text-purple-900',
+};
+
 export interface AuthorizationCycle {
   /** 1-based, as staff count them. */
   number: number;
@@ -304,15 +317,15 @@ const MAX_CYCLES = 24;
 const spanEnd = (start: string | null | undefined, end: string | null | undefined, len: number) =>
   end ?? (start ? addDays(start, len - 1) : null);
 
-/**
- * Every 30-day cycle from the service start to the end of the last
- * authorization, with the authorization each one falls in.
- */
-export function authorizationCycles(c: AuthorizationSpans, today: string): AuthorizationCycle[] {
-  const serviceStart = c.auth_30_start || c.auth_150_start || c.hsp_150_date || null;
-  if (!serviceStart) return [];
+interface AuthSpan {
+  phase: AuthPhase;
+  start: string;
+  end: string;
+}
 
-  const spans: { phase: AuthPhase; start: string; end: string }[] = [];
+/** The three authorization periods a client actually has, in order. */
+export function authorizationSpans(c: AuthorizationSpans): AuthSpan[] {
+  const spans: AuthSpan[] = [];
   const push = (phase: AuthPhase, start: string | null | undefined, end: string | null, len: number) => {
     const e = spanEnd(start, end, len);
     if (start && e) spans.push({ phase, start, end: e });
@@ -324,7 +337,28 @@ export function authorizationCycles(c: AuthorizationSpans, today: string): Autho
   const ext180Start =
     c.auth_180_start || (c.auth_150_start ? addDays(c.auth_150_start, 150) : null);
   push('extension_180', ext180Start, c.auth_180_end ?? null, 180);
+  return spans;
+}
 
+/** Which authorization covers a given day, if any. */
+export function authPhaseOn(c: AuthorizationSpans | null | undefined, day: string): AuthPhase | null {
+  if (!c) return null;
+  return (
+    authorizationSpans(c).find(
+      (s) => daysBetween(s.start, day) >= 0 && daysBetween(day, s.end) >= 0,
+    )?.phase ?? null
+  );
+}
+
+/**
+ * Every 30-day cycle from the service start to the end of the last
+ * authorization, with the authorization each one falls in.
+ */
+export function authorizationCycles(c: AuthorizationSpans, today: string): AuthorizationCycle[] {
+  const serviceStart = c.auth_30_start || c.auth_150_start || c.hsp_150_date || null;
+  if (!serviceStart) return [];
+
+  const spans = authorizationSpans(c);
   if (spans.length === 0) return [];
 
   const lastEnd = spans.reduce((acc, s) => (daysBetween(acc, s.end) > 0 ? s.end : acc), spans[0].end);

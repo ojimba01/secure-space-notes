@@ -11,23 +11,12 @@ import {
   authorizationCycles,
   todayAgency,
   AUTH_PHASE_LABEL,
+  AUTH_PHASE_CLASS,
+  AUTH_PHASE_DOT,
   type AuthPhase,
   type AuthorizationCycle,
   type AuthorizationSpans,
 } from '@/lib/compliance';
-
-/** One colour per authorization, so the run reads as three blocks not twelve rows. */
-const PHASE_CLASS: Record<AuthPhase, string> = {
-  initial_30: 'border-blue-300 bg-blue-50 text-blue-900',
-  period_150: 'border-green-300 bg-green-50 text-green-900',
-  extension_180: 'border-purple-300 bg-purple-50 text-purple-900',
-};
-
-const PHASE_DOT: Record<AuthPhase, string> = {
-  initial_30: 'bg-blue-500',
-  period_150: 'bg-green-600',
-  extension_180: 'bg-purple-500',
-};
 
 /** A cycle no authorization covers. Not hidden — it is the gap somebody must fill. */
 const UNCOVERED_CLASS = 'border-amber-300 bg-amber-50 text-amber-900';
@@ -40,7 +29,7 @@ const fmt = (d: string) => {
 const Row: React.FC<{ cycle: AuthorizationCycle }> = ({ cycle }) => (
   <li
     className={`flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 ${
-      cycle.phase ? PHASE_CLASS[cycle.phase] : UNCOVERED_CLASS
+      cycle.phase ? AUTH_PHASE_CLASS[cycle.phase] : UNCOVERED_CLASS
     } ${cycle.isPast ? 'opacity-55' : ''}`}
   >
     <span className="font-medium tabular-nums">
@@ -98,7 +87,7 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
         {phasesShown.map((p) => (
           <span key={p} className="flex items-center gap-1.5">
-            <span className={`h-2 w-2 rounded-full ${PHASE_DOT[p]}`} />
+            <span className={`h-2 w-2 rounded-full ${AUTH_PHASE_DOT[p]}`} />
             {AUTH_PHASE_LABEL[p]}
           </span>
         ))}
