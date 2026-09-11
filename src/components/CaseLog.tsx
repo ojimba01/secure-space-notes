@@ -25,16 +25,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Check, Download, Eye, Plus, RotateCcw, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, Eye, Plus, RotateCcw, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   caseLogEntries,
   loadCaseLog,
   monthLabel,
   monthsAvailable,
-  reopenCaseLog,
   saveCaseLog,
-  submitCaseLog,
   type CaseLogRow,
 } from '@/lib/caseLog';
 import {
@@ -49,8 +47,6 @@ import {
 interface Props {
   employeeId: string;
   caseManagerName: string;
-  /** Admins may reopen a filed log. Its author may not. */
-  canReopen?: boolean;
   /** An admin reads someone else's log; only its author edits it. */
   readOnly?: boolean;
 }
@@ -60,7 +56,6 @@ const blank = (): CaseLogEntry => ({ clientName: '', phone: '', date: '', comple
 export const CaseLog: React.FC<Props> = ({
   employeeId,
   caseManagerName,
-  canReopen = false,
   readOnly = false,
 }) => {
   const months = useMemo(() => monthsAvailable(), []);
@@ -77,8 +72,7 @@ export const CaseLog: React.FC<Props> = ({
   // A Blob URL leaks until it is revoked, and a month switch builds a new one.
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
-  const submitted = stored?.status === 'submitted';
-  const editable = !readOnly && !submitted;
+  const editable = !readOnly;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -175,39 +169,7 @@ export const CaseLog: React.FC<Props> = ({
     }
   };
 
-  const file = async () => {
-    setBusy(true);
-    try {
-      await submitCaseLog(employeeId, month, entries.filter((e) => e.clientName.trim()));
-      await load();
-      toast({ title: 'Log submitted' });
-    } catch (e) {
-      toast({
-        title: 'Could not submit the log',
-        description: e instanceof Error ? e.message : String(e),
-        variant: 'destructive',
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
 
-  const reopen = async () => {
-    setBusy(true);
-    try {
-      await reopenCaseLog(employeeId, month);
-      await load();
-      toast({ title: 'Log reopened' });
-    } catch (e) {
-      toast({
-        title: 'Could not reopen the log',
-        description: e instanceof Error ? e.message : String(e),
-        variant: 'destructive',
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const filled = entries.filter((e) => e.clientName.trim()).length;
   const pages = pagesNeeded(filled);
@@ -226,20 +188,11 @@ export const CaseLog: React.FC<Props> = ({
               ))}
             </SelectContent>
           </Select>
-          {submitted ? (
-            <Badge variant="secondary" className="gap-1">
-              <Check className="h-3 w-3" /> Submitted
-            </Badge>
-          ) : (
-            <Badge variant="outline">Draft</Badge>
-          )}
           {/* Says where the rows came from, because a form that fills itself
               should say so rather than let somebody wonder who typed it. */}
-          <span className="text-xs text-muted-foreground">
-            {stored?.entries
-              ? 'Edited by hand'
-              : 'From logged touchpoints'}
-          </span>
+          <Badge variant="outline" className="font-normal">
+            {stored?.entries ? 'Edited by hand' : 'From logged touchpoints'}
+          </Badge>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -257,16 +210,6 @@ export const CaseLog: React.FC<Props> = ({
             <Download className="mr-1.5 h-3.5 w-3.5" />
             Download
           </Button>
-          {editable && (
-            <Button size="sm" disabled={busy || loading || filled === 0} onClick={() => void file()}>
-              Submit log
-            </Button>
-          )}
-          {submitted && canReopen && (
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => void reopen()}>
-              Reopen
-            </Button>
-          )}
         </div>
       </div>
 

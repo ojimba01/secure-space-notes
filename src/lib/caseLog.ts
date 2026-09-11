@@ -10,6 +10,12 @@
 // it is opened, so a touchpoint logged this afternoon is on the form tonight.
 // The moment a person changes a row the whole list is written down, because
 // from then on the form is their account of the month rather than the app's.
+//
+// There is no submitted state, deliberately. The app cannot reach HMIS, so a
+// "Submit" button promised a transmission that never happened — the log is
+// always current, and filing it means downloading it and sending it yourself.
+// case_logs still carries status/submitted_at columns from the first cut of
+// this; nothing reads them.
 import { supabase } from '@/integrations/supabase/client';
 import type { CaseLogEntry } from '@/lib/caseLogForm';
 
@@ -49,8 +55,6 @@ export interface CaseLogRow {
   employee_id: string;
   month: string;
   entries: CaseLogEntry[] | null;
-  status: 'draft' | 'submitted';
-  submitted_at: string | null;
 }
 
 /**
@@ -100,7 +104,7 @@ export async function loadCaseLog(
 ): Promise<CaseLogRow | null> {
   const { data, error } = await supabase
     .from('case_logs')
-    .select('id, employee_id, month, entries, status, submitted_at')
+    .select('id, employee_id, month, entries')
     .eq('employee_id', employeeId)
     .eq('month', month)
     .maybeSingle();
@@ -130,43 +134,6 @@ export async function saveCaseLog(
   const { error } = await supabase
     .from('case_logs')
     .upsert({ employee_id: employeeId, month, entries }, { onConflict: 'employee_id,month' });
-  if (error) throw error;
-}
-
-/**
- * Mark the month filed.
- *
- * Submitting freezes the rows on the way past. A log that stayed derived would
- * otherwise keep changing after it was filed, and "submitted" has to mean the
- * thing that was submitted.
- */
-export async function submitCaseLog(
-  employeeId: string,
-  month: string,
-  entries: CaseLogEntry[],
-): Promise<void> {
-  const { error } = await supabase
-    .from('case_logs')
-    .upsert(
-      {
-        employee_id: employeeId,
-        month,
-        entries,
-        status: 'submitted',
-        submitted_at: new Date().toISOString(),
-      },
-      { onConflict: 'employee_id,month' },
-    );
-  if (error) throw error;
-}
-
-/** Hand a submitted log back to its author to correct. Admin only, by policy. */
-export async function reopenCaseLog(employeeId: string, month: string): Promise<void> {
-  const { error } = await supabase
-    .from('case_logs')
-    .update({ status: 'draft', submitted_at: null })
-    .eq('employee_id', employeeId)
-    .eq('month', month);
   if (error) throw error;
 }
 

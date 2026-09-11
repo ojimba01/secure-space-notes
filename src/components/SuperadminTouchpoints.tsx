@@ -2,7 +2,7 @@
 //
 // It used to lead with five numbers spanning the whole agency. A number like
 // that answers no question a supervisor actually has: they want to know who is
-// behind and who has filed their log, and "11 overdue" names nobody. So the
+// behind and how their month is going, and "11 overdue" names nobody. So the
 // case managers are the page now, the totals are a strip above them, and
 // pressing a name opens that person's monthly HMIS Case Log.
 import React, { useMemo, useState } from 'react';
@@ -59,12 +59,6 @@ const Stat: React.FC<{ icon: React.ReactNode; label: string; value: number; hint
   </div>
 );
 
-const logBadge = (row: CaseManagerRow) => {
-  if (row.logStatus === 'submitted') return <Badge variant="secondary">Log submitted</Badge>;
-  if (row.logStatus === 'draft') return <Badge variant="outline">Log in progress</Badge>;
-  return <Badge variant="outline" className="text-muted-foreground">Log not started</Badge>;
-};
-
 export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
   const data = useSuperadminCompliance();
   const month = useMemo(() => monthKey(new Date()), []);
@@ -108,7 +102,7 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
       <div>
         <h1 className="text-2xl font-bold">Team touchpoints</h1>
         <p className="text-sm text-muted-foreground">
-          Every case manager, their month, and the log they file at the end of it.
+          Every case manager, their month, and the log they hand in at the end of it.
         </p>
       </div>
 
@@ -116,7 +110,7 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         <Stat icon={<AlertTriangle className="h-4 w-4" />} label="Overdue" value={data.overdueRows.length} tone="danger" hint="Across all staff" />
         <Stat icon={<CheckCircle2 className="h-4 w-4" />} label="Completed" value={data.completedThisWeek} hint="Logged this week" />
         <Stat icon={<CalendarClock className="h-4 w-4" />} label="Scheduled" value={data.scheduledThisWeek} hint="For this week" />
-        <Stat icon={<ClipboardList className="h-4 w-4" />} label="Logs filed" value={managers.rows.filter((r) => r.logStatus === 'submitted').length} hint={monthLabel(month)} />
+        <Stat icon={<ClipboardList className="h-4 w-4" />} label="Logged" value={managers.rows.reduce((n, r) => n + r.logged, 0)} hint={monthLabel(month)} />
       </div>
 
       {data.preGoLiveCount > 0 && !data.showHistorical && (
@@ -153,7 +147,9 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  {logBadge(m)}
+                  <Badge variant={m.logged > 0 ? 'secondary' : 'outline'} className="font-normal">
+                    {m.logged} logged
+                  </Badge>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
               </button>
@@ -230,9 +226,9 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
           </DialogHeader>
           {open && (
             <div className="max-h-[70vh] overflow-y-auto pr-1">
-              {/* An administrator reads a log and may hand it back. They do not
-                  rewrite somebody else's account of their own month. */}
-              <CaseLog employeeId={open.id} caseManagerName={open.name} canReopen readOnly />
+              {/* An administrator reads a log. They do not rewrite somebody
+                  else's account of their own month. */}
+              <CaseLog employeeId={open.id} caseManagerName={open.name} readOnly />
             </div>
           )}
         </DialogContent>

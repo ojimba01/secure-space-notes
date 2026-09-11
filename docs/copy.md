@@ -196,12 +196,14 @@ Four numbers across the top, supporting the page rather than being it:
 | Overdue | Across all staff |
 | Completed | Logged this week |
 | Scheduled | For this week |
-| Logs filed | {Month} {Year} |
+| Logged | {Month} {Year} |
 
-**Case managers** — "Press a name to open their {Month} case log." Each row:
+**Case managers** — "Press a name to open their {Month} case log." Superadmins
+are left out: the owner and the root accounts are not case managers, so a page
+about caseloads should not list them. Each row:
 the name, then `{n} clients` and `· {n} overdue` in red when there are any,
-then a badge reading **Log submitted** / **Log in progress** / **Log not
-started**.
+then a badge reading `{n} logged` — touchpoints recorded that month, which is
+what their case log holds.
 
 **Logged this week** — "{date}–{date}. Every touchpoint staff have recorded."
 Rows read `{client} — {staff}` with `{date} · {In person | Phone | Video}`
@@ -251,9 +253,8 @@ twice appears twice, each with its own date.
 | Control | Words |
 |---|---|
 | Month picker | `{Month} {Year}`, back to September 2026 and no further |
-| State | **Draft** / **Submitted** |
 | Where the rows came from | `From logged touchpoints` / `Edited by hand` |
-| Buttons | Refill from touchpoints · Download PDF · Submit log · Reopen (admin) · Add row · Save changes |
+| Buttons | Refill from touchpoints · View form · Download · Add row · Save changes |
 
 Footer: `{n} entries`, then `· fits one page` or `· prints on {n} pages,
 numbered straight through`.
@@ -261,8 +262,15 @@ numbered straight through`.
 Empty: "No touchpoints logged in {Month} {Year}. Rows appear here as they are
 logged, or add one by hand."
 
-An administrator reads a log and may **Reopen** it. They never rewrite somebody
-else's account of their own month.
+**There is no submitted state, and that is deliberate.** The app cannot reach
+HMIS, so a Submit button promised a transmission that never happened. The log is
+always current; filing it means downloading it and sending it yourself.
+
+An administrator reads a log. They never rewrite somebody else's account of
+their own month.
+
+**View form** opens the filled PDF in the page, with zoom, the same viewer the
+other templates use. **Download** saves it.
 
 **The form itself.** The PDF the state issues has no fields — 152 places to
 write and nothing to type into. The app lays fields over the table and fills
