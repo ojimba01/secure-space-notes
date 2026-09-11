@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/components/AuthProvider';
@@ -160,7 +161,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Client calendar</h2>
+        <h2 className="text-base font-semibold">Client calendar</h2>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
             <Button>
@@ -251,44 +252,39 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ clientId }) => {
       {loading ? (
         <div className="text-center py-8">Loading events...</div>
       ) : (
-        <div className="space-y-4">
-          {events.map((event) => (
-            <Card
-              key={event.id}
-              className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all"
-              onClick={() => {
-                setEditingEvent(event);
-                setIsEditDialogOpen(true);
-              }}
-            >
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  {event.title}
-                </CardTitle>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {new Date(event.start_time).toLocaleString()} - {new Date(event.end_time).toLocaleString()}
-                  </div>
-                  {event.profiles && (
-                    <span>
-                      with {event.profiles.first_name} {event.profiles.last_name}
-                    </span>
-                  )}
-                </div>
-              </CardHeader>
-              {event.description && (
-                <CardContent>
-                  <p className="text-sm">{event.description}</p>
-                </CardContent>
-              )}
-            </Card>
-          ))}
+        <div className="divide-y rounded-md border">
+          {/* A row each, not a card each. Every event was a full Card with its
+              own icon, heading and two toLocaleString timestamps -- four lines
+              of furniture around one line of fact, and a month of touchpoints
+              ran off the bottom of the screen. */}
+          {events.map((event) => {
+            const start = new Date(event.start_time);
+            const end = new Date(event.end_time);
+            // Auto-scheduled touchpoints carry a date and no time.
+            const allDay = start.getTime() === end.getTime();
+            return (
+              <button
+                key={event.id}
+                onClick={() => {
+                  setEditingEvent(event);
+                  setIsEditDialogOpen(true);
+                }}
+                className="flex w-full items-baseline gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/50"
+              >
+                <span className="w-24 shrink-0 tabular-nums text-muted-foreground">
+                  {format(start, 'EEE, MMM d')}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-medium">{event.title}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {allDay ? 'All day' : format(start, 'h:mm a')}
+                </span>
+              </button>
+            );
+          })}
           {events.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
               No events are scheduled.
-            </div>
+            </p>
           )}
         </div>
       )}

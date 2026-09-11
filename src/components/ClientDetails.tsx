@@ -3,7 +3,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDay } from '@/lib/dates';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Calendar, FileText, FileUp, Upload, Plus, Edit, Trash2, UserCog, Archive } from 'lucide-react';
@@ -70,7 +70,7 @@ interface ClientDetailsProps {
 export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, onUpdate, initialTab }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState(initialTab ?? 'forms');
+  const [activeTab, setActiveTab] = useState(initialTab ?? 'overview');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [hmisOpen, setHmisOpen] = useState(false);
@@ -165,15 +165,32 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
     }
   };
 
+  /**
+   * The record's sections, as a bar rather than a scroll.
+   *
+   * Everything here used to sit one under another, so the only way to learn
+   * that a client had an authorizations panel was to scroll past the case
+   * overview and hope. A bar says what a record holds before you go looking.
+   */
+  const sections = [
+    { value: 'overview', label: 'Overview' },
+    { value: 'authorizations', label: 'Authorizations' },
+    { value: 'touchpoints', label: 'Touchpoints' },
+    { value: 'forms', label: 'Forms' },
+    { value: 'calendar', label: 'Calendar' },
+    { value: 'history', label: 'History' },
+    ...(isSuperadmin ? [{ value: 'billing', label: 'Billing' }] : []),
+  ];
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6 space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button variant="ghost" onClick={onBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Clients
         </Button>
-        
-        <div className="flex gap-2">
+
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
             <Edit className="h-4 w-4 mr-2" />
             Edit
@@ -193,178 +210,198 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </div>
       </div>
 
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-2xl">
-                  {client.first_name} {client.last_name}
-                </CardTitle>
-                {client.member_id && (
-                  <p className="text-muted-foreground">Member ID: {client.member_id}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {client.status === 'closed' && (
-                  <Button size="sm" onClick={() => setReopenOpen(true)}>
-                    Reopen case
-                  </Button>
-                )}
-                <Button variant="outline" size="sm" onClick={() => setHmisOpen(true)}>
-                  HMIS
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setIntakeOpen(true)}>
-                  <FileUp className="h-4 w-4 mr-2" />
-                  Upload forms
-                </Button>
-                <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
-                  {client.status}
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {client.notes && (
-              <div className="md:col-span-2 lg:col-span-3">
-                <p className="text-sm font-medium text-muted-foreground">Notes</p>
-                <p className="whitespace-pre-wrap">{client.notes}</p>
-              </div>
-            )}
-            {client.email && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Email</p>
-                <p>{client.email}</p>
-              </div>
-            )}
-            {client.phone && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                <p>{client.phone}</p>
-              </div>
-            )}
-            {client.address && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Address</p>
-                <p>{client.address}</p>
-              </div>
-            )}
-            {client.date_of_birth && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Date of Birth</p>
-                <p>{formatDay(client.date_of_birth)}</p>
-              </div>
-            )}
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Intake Date</p>
-              <p>{formatDay(client.intake_date)}</p>
-            </div>
-            {client.insurance && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Insurance</p>
-                <p>{client.insurance}</p>
-              </div>
-            )}
-            {client.level_of_need && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Level of Need (LoN)</p>
-                <p>{client.level_of_need}</p>
-              </div>
-            )}
-            {client.county && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">County</p>
-                <p>{client.county}</p>
-              </div>
-            )}
-            {isAdmin && (
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Current Case Manager</p>
-                <p>{caseManagerName || 'Unassigned'}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <ClientWorkflowCard
-          key={`workflow-${formsVersion}`}
-          client={client}
-          onUpdate={() => {
-            formsChanged();
-            onUpdate();
-          }}
-        />
-
-        <AuthorizationsFromDocuments clientId={client.id} onApplied={onUpdate} />
-
-        <AuthorizationsSection clientId={client.id} onUpdate={onUpdate} />
-
-
-        {client.status === 'active' && (
-          <ComplianceCard
-            clientId={client.id}
-            clientName={`${client.first_name} ${client.last_name}`}
-            levelOfNeed={client.level_of_need}
-            hspStartDate={serviceStartDate(client)}
-            assignedEmployeeId={client.assigned_employee_id}
-            clientCreatedAt={(client as any).created_at}
-            onChanged={onUpdate}
-          />
-        )}
-
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`grid w-full ${isSuperadmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
-            <TabsTrigger value="forms">Forms</TabsTrigger>
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            {isSuperadmin && <TabsTrigger value="billing">Billing</TabsTrigger>}
-          </TabsList>
-
-          <TabsContent value="forms" className="space-y-4">
-            <ClientFormsDocuments
-              clientId={client.id}
-              clientFirstName={client.first_name}
-              clientLastName={client.last_name}
-              refreshKey={formsVersion}
-              onChanged={formsChanged}
-            />
-            <FileManager clientId={client.id} />
-          </TabsContent>
-
-          <TabsContent value="calendar">
-            <CalendarView clientId={client.id} />
-          </TabsContent>
-
-
-          <TabsContent value="history">
-            <AssignmentHistory clientId={client.id} />
-          </TabsContent>
-
-          {isSuperadmin && (
-            <TabsContent value="billing">
-              <ClientBillingTimeline clientId={client.id} />
-            </TabsContent>
+      {/* Whose record this is, above the bar and therefore on screen whichever
+          section is open. Three clicks into Billing is exactly where somebody
+          stops being sure. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold leading-tight">
+            {client.first_name} {client.last_name}
+          </h2>
+          {client.member_id && (
+            <p className="text-sm text-muted-foreground">Member ID: {client.member_id}</p>
           )}
-        </Tabs>
+        </div>
+        <div className="flex items-center gap-2">
+          {client.status === 'closed' && (
+            <Button size="sm" onClick={() => setReopenOpen(true)}>
+              Reopen case
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => setHmisOpen(true)}>
+            HMIS
+          </Button>
+          <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
+            {client.status}
+          </Badge>
+        </div>
       </div>
 
-      {isAdmin && !isViewingAs && (
-        <div className="mt-10 border-t pt-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium">Delete this record</p>
-              <p className="text-sm text-muted-foreground">
-                Permanently removes the client and everything attached to them. To stop working a
-                case while keeping its history, close it instead.
-              </p>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-transparent p-0">
+          {sections.map((s) => (
+            <TabsTrigger
+              key={s.value}
+              value={s.value}
+              className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              {s.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <Card>
+            <CardContent className="grid grid-cols-1 gap-4 pt-6 md:grid-cols-2 lg:grid-cols-3">
+              {client.notes && (
+                <div className="md:col-span-2 lg:col-span-3">
+                  <p className="text-sm font-medium text-muted-foreground">Notes</p>
+                  <p className="whitespace-pre-wrap">{client.notes}</p>
+                </div>
+              )}
+              {client.email && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Email</p>
+                  <p>{client.email}</p>
+                </div>
+              )}
+              {client.phone && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Phone</p>
+                  <p>{client.phone}</p>
+                </div>
+              )}
+              {client.address && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Address</p>
+                  <p>{client.address}</p>
+                </div>
+              )}
+              {client.date_of_birth && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Date of Birth</p>
+                  <p>{formatDay(client.date_of_birth)}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Intake Date</p>
+                <p>{formatDay(client.intake_date)}</p>
+              </div>
+              {client.insurance && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Insurance</p>
+                  <p>{client.insurance}</p>
+                </div>
+              )}
+              {client.level_of_need && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Level of Need (LoN)</p>
+                  <p>{client.level_of_need}</p>
+                </div>
+              )}
+              {client.county && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">County</p>
+                  <p>{client.county}</p>
+                </div>
+              )}
+              {isAdmin && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Current Case Manager</p>
+                  <p>{caseManagerName || 'Unassigned'}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <ClientWorkflowCard
+            key={`workflow-${formsVersion}`}
+            client={client}
+            onUpdate={() => {
+              formsChanged();
+              onUpdate();
+            }}
+          />
+
+          {isAdmin && !isViewingAs && (
+            <div className="border-t pt-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">Delete this record</p>
+                  <p className="text-sm text-muted-foreground">
+                    Permanently removes the client and everything attached to them. To stop working
+                    a case while keeping its history, close it instead.
+                  </p>
+                </div>
+                <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
             </div>
-            <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
+          )}
+        </TabsContent>
+
+        <TabsContent value="authorizations" className="space-y-6">
+          <AuthorizationsFromDocuments clientId={client.id} onApplied={onUpdate} />
+          <AuthorizationsSection clientId={client.id} onUpdate={onUpdate} />
+        </TabsContent>
+
+        <TabsContent value="touchpoints">
+          {client.status === 'active' ? (
+            <ComplianceCard
+              clientId={client.id}
+              clientName={`${client.first_name} ${client.last_name}`}
+              levelOfNeed={client.level_of_need}
+              hspStartDate={serviceStartDate(client)}
+              assignedEmployeeId={client.assigned_employee_id}
+              clientCreatedAt={(client as any).created_at}
+              onChanged={onUpdate}
+            />
+          ) : (
+            <p className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
+              Touchpoints are only tracked while a case is open. Nothing logged has been deleted.
+            </p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="forms" className="space-y-4">
+          {/* Both ways of getting a document onto a record live here now. They
+              were one button apart in wording and a whole screen apart in
+              place: "Upload forms" in the header read documents to fill in the
+              record, while the identical-sounding button in this section filed
+              one against a form type. */}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIntakeOpen(true)}>
+              <FileUp className="h-4 w-4 mr-2" />
+              Read documents to fill in this record
             </Button>
           </div>
-        </div>
-      )}
+
+          <ClientFormsDocuments
+            clientId={client.id}
+            clientFirstName={client.first_name}
+            clientLastName={client.last_name}
+            refreshKey={formsVersion}
+            onChanged={formsChanged}
+          />
+          <FileManager clientId={client.id} />
+        </TabsContent>
+
+        <TabsContent value="calendar">
+          <CalendarView clientId={client.id} />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <AssignmentHistory clientId={client.id} />
+        </TabsContent>
+
+        {isSuperadmin && (
+          <TabsContent value="billing">
+            <ClientBillingTimeline clientId={client.id} />
+          </TabsContent>
+        )}
+      </Tabs>
 
       <CloseCaseDialog
         open={closeDialogOpen}

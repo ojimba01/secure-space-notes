@@ -204,7 +204,7 @@ export const ComplianceCard: React.FC<Props> = ({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-lg">
-            Touchpoint {new Date(month + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            Touchpoint — {new Date(month + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </CardTitle>
           {statusChip(status)}
         </CardHeader>

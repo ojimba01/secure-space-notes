@@ -128,13 +128,16 @@ export const CaseManagerCalendar = () => {
       const { data, error } = await query;
 
       if (error) throw error;
-      // A closed case is off the calendar for everyone but an administrator,
-      // the same as it is off the client list. An event whose client did not
-      // come back with it is one this viewer cannot see either, so it goes for
-      // the same reason - a bare "Home visit" with the name missing tells them
-      // nothing and shows a slot they cannot act on.
+      // A closed case is off the calendar entirely, administrators included.
+      // Closing a case ends the work but does not delete the touchpoints
+      // already scheduled beyond it, so they sat on the calendar as jobs
+      // nobody was going to do. An admin can still see a closed case on the
+      // record; what they cannot do is act on a slot that no longer exists.
+      //
+      // An event whose client did not come back with it goes too: a bare
+      // "Home visit" with the name missing tells nobody anything.
       const visible = (data || []).filter((e: CalendarEvent) => {
-        if (isAdmin || !e.client_id) return true;
+        if (!e.client_id) return true;
         return !!e.clients && !isCaseClosed(e.clients);
       });
       setEvents(visible);
