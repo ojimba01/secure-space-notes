@@ -260,7 +260,7 @@ async function insertTouchpoints(
     const iso = toDate(d.date).toISOString();
     const label = d.modality === 'in_person' ? 'In person' : 'Phone, text, email, or video';
     return {
-      title: `Touchpoint — ${client.first_name} ${client.last_name}`,
+      title: `${client.first_name} ${client.last_name}`,
       description: `${touchpointTypeLabel(d.touchpointType)} · suggested contact method: ${label}. Auto-scheduled for the current 30-day cycle.`,
       event_type: 'touch_point',
       is_auto_generated: true,

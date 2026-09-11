@@ -126,7 +126,7 @@ function summaryFor(e: EventRow): string {
   const done = e.status === 'completed' ? '\u2713 ' : '';
 
   if (e.event_type === 'touch_point' && clientName) {
-    return `${done}Touchpoint \u2014 ${clientName}${modality ? ` (${modality})` : ''}`;
+    return `${done}${clientName}${modality ? ` (${modality})` : ''}`;
   }
   return `${done}${e.title || typeLabel}`;
 }
