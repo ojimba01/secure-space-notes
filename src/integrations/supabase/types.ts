@@ -236,6 +236,38 @@ export type Database = {
           },
         ]
       }
+      calendar_feed_subscriptions: {
+        Row: {
+          access_count: number
+          created_at: string
+          last_accessed_at: string | null
+          profile_id: string
+          token: string
+        }
+        Insert: {
+          access_count?: number
+          created_at?: string
+          last_accessed_at?: string | null
+          profile_id: string
+          token?: string
+        }
+        Update: {
+          access_count?: number
+          created_at?: string
+          last_accessed_at?: string | null
+          profile_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_feed_subscriptions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_assignments_history: {
         Row: {
           client_id: string
@@ -2226,6 +2258,7 @@ export type Database = {
         Args: { _client_id: string; _new_employee_id: string; _reason?: string }
         Returns: undefined
       }
+      rotate_calendar_feed_token: { Args: never; Returns: string }
       safe_uuid: { Args: { _text: string }; Returns: string }
       set_employee_admin: {
         Args: { _make_admin: boolean; _profile_id: string }
