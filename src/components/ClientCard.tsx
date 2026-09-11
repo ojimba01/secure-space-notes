@@ -4,8 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { formatDay } from '@/lib/dates';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle, Paperclip } from 'lucide-react';
-import { isSetupComplete, missingSetupShort } from '@/lib/workflow';
+import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle, Paperclip, Archive } from 'lucide-react';
+import { isCaseClosed, isSetupComplete, missingSetupShort } from '@/lib/workflow';
 
 interface Client {
   id: string;
@@ -79,6 +79,15 @@ interface ClientCardProps {
    * that are not there when you open the client is worse than no paperclip.
    */
   documentCount?: number;
+  /**
+   * Close this case from the list.
+   *
+   * Closing meant opening the record to reach the button, and the record is
+   * not where the decision is made — somebody working down a list of finished
+   * cases knows before they open one. Omitted where closing is not on offer,
+   * and the button then is not drawn.
+   */
+  onCloseCase?: (client: Client) => void;
 }
 
 export const ClientCard: React.FC<ClientCardProps> = ({
@@ -90,6 +99,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
   showManager = false,
   assignedManagerName = null,
   documentCount = 0,
+  onCloseCase,
 }) => {
   const handleClick = () => {
     if (selectionMode && onToggleSelect) {
@@ -143,6 +153,24 @@ export const ClientCard: React.FC<ClientCardProps> = ({
                 <AlertTriangle className="h-3 w-3" />
                 Next action overdue
               </Badge>
+            )}
+            {/* Not while picking clients to reassign: a small button beside a
+                checkbox, on a card whose whole surface is already a target, is
+                a misclick with consequences. */}
+            {onCloseCase && !selectionMode && !isCaseClosed(client) && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-muted-foreground hover:bg-amber-50 hover:text-amber-700"
+                title="Close this case"
+                aria-label={`Close the case for ${client.first_name} ${client.last_name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCloseCase(client);
+                }}
+              >
+                <Archive className="h-4 w-4" />
+              </Button>
             )}
             {selectionMode && (
               <Checkbox

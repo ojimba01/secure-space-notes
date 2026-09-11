@@ -15,6 +15,7 @@ import { AddClientDialog } from '@/components/AddClientDialog';
 import { AddTouchpointDialog } from '@/components/AddTouchpointDialog';
 import { STAGE_LABEL, WORKFLOW_STAGES, displayStage, isCaseClosed, isSetupComplete } from '@/lib/workflow';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
+import { CloseCaseDialog } from '@/components/CloseCaseDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useMyCompliance } from '@/hooks/useMyCompliance';
 import { useViewAs } from '@/components/ViewAsProvider';
@@ -116,6 +117,8 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   /** The client just created, waiting for their first touchpoint. */
+  /** The client whose case the list is closing, if any. */
+  const [closingClient, setClosingClient] = useState<Client | null>(null);
   const [touchpointFor, setTouchpointFor] = useState<
     { id: string; name: string; levelOfNeed: string | null } | null
   >(null);
@@ -626,6 +629,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               onToggleSelect={toggleSelect}
               showManager={isAdmin}
               documentCount={documentCounts.get(client.id) ?? 0}
+              onCloseCase={isViewingAs ? undefined : setClosingClient}
               assignedManagerName={
                 client.assigned_employee_id
                   ? managerMap.get(client.assigned_employee_id) ?? null
@@ -690,6 +694,19 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
 
 
 
+
+      {closingClient && (
+        <CloseCaseDialog
+          open
+          onOpenChange={(o) => !o && setClosingClient(null)}
+          clientId={closingClient.id}
+          clientName={`${closingClient.first_name} ${closingClient.last_name}`}
+          onClosed={() => {
+            setClosingClient(null);
+            fetchClients();
+          }}
+        />
+      )}
 
       <BulkReassignDialog
         open={showBulkReassign}
