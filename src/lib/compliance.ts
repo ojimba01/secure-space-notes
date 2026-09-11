@@ -403,6 +403,25 @@ export function authPhaseOn(c: AuthorizationSpans | null | undefined, day: strin
   );
 }
 
+/** Two spans share at least one day. */
+const overlaps = (a: AuthSpan, b: AuthSpan) =>
+  daysBetween(a.start, b.end) >= 0 && daysBetween(b.start, a.end) >= 0;
+
+/**
+ * The recorded periods, plus any legacy period covering days they do not.
+ *
+ * The record wins wherever the two describe the same stretch of time: it is
+ * the one that can hold a second reauthorization. The columns fill the gaps it
+ * has, which in practice is an initial 30 days nobody ever wrote a row for.
+ */
+function mergeSpans(recorded: AuthSpan[], legacy: AuthSpan[]): AuthSpan[] {
+  const out = [...recorded];
+  for (const l of legacy) {
+    if (!out.some((r) => overlaps(l, r))) out.push(l);
+  }
+  return out.sort((a, b) => a.start.localeCompare(b.start));
+}
+
 /**
  * Every 30-day cycle from the service start to the end of the last
  * authorization, with the authorization each one falls in.
@@ -410,10 +429,20 @@ export function authPhaseOn(c: AuthorizationSpans | null | undefined, day: strin
 export function authorizationCycles(
   c: AuthorizationSpans,
   today: string,
-  /** The recorded authorizations, when there are any. They beat the columns. */
+  /** The recorded authorizations. Merged with the columns, not preferred over them. */
   recorded?: AuthSpan[],
 ): AuthorizationCycle[] {
-  const spans = recorded && recorded.length > 0 ? recorded : authorizationSpans(c);
+  // Both sources, not one or the other.
+  //
+  // Preferring the record whenever it held anything meant a client whose
+  // client_authorizations rows covered the 150 and the 180, but never got an
+  // initial_30 row written, lost their first thirty days from this list
+  // entirely — while auth_30_start sat on the client saying exactly when they
+  // began. A touchpoint is owed in that month like any other.
+  //
+  // A legacy period is added only where the record does not already cover
+  // those days, so a period recorded properly is never doubled.
+  const spans = mergeSpans(recorded ?? [], authorizationSpans(c));
   if (spans.length === 0) return [];
 
   // Cycles are anchored to the day services started, which is the first

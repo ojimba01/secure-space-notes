@@ -186,12 +186,22 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
       if (error) throw error;
 
-      // The IAT date is the 30-day authorization start, so editing it here
-      // does change an authorization date, and both helpers have to run: the
-      // history in client_authorizations, then the cycles and touchpoints
-      // derived from it. Doing one without the other is the most repeated
-      // source of defects in this app.
-      if ((data.iat_date || '') !== (client.iat_date || '')) {
+      // Every date on this form that anchors an authorization, not just the
+      // IAT one.
+      //
+      // The sync used to run on a change to iat_date alone, so editing the
+      // 150-day or 180-day date saved the column and left client_authorizations
+      // holding the old period: the record showed the new date and the
+      // Authorizations tab showed the old one, with nothing to say which was
+      // true. Both helpers have to run together — the history first, then the
+      // cycles and touchpoints derived from it. Doing one without the other is
+      // the most repeated source of defects in this app.
+      const changed = (field: 'iat_date' | 'hsp_150_date' | 'hsp_180_date') =>
+        (data[field] || '') !== (client[field] || '');
+      const authorizationDateChanged =
+        changed('iat_date') || changed('hsp_150_date') || changed('hsp_180_date');
+
+      if (authorizationDateChanged) {
         try {
           await syncAuthorizationsFromLegacyColumns(client.id);
           await resyncDerivedSchedules(client.id);
