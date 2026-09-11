@@ -13,7 +13,8 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { History, ArrowRight, Archive, RotateCcw } from 'lucide-react';
+import { History, ArrowRight, Archive, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { contactMethodLabel, touchpointTypeLabel } from '@/lib/compliance';
 import { format } from 'date-fns';
 
 interface Person {
@@ -25,7 +26,7 @@ interface Person {
 const personName = (p: Person | null | undefined): string =>
   p ? `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || p.email || 'Unknown' : 'Unassigned';
 
-type EntryKind = 'assigned' | 'closed' | 'reopened';
+type EntryKind = 'assigned' | 'closed' | 'reopened' | 'touchpoint';
 
 interface Entry {
   id: string;
@@ -40,6 +41,7 @@ const ICON: Record<EntryKind, React.ReactNode> = {
   assigned: <ArrowRight className="h-4 w-4 text-muted-foreground" />,
   closed: <Archive className="h-4 w-4 text-amber-600" />,
   reopened: <RotateCcw className="h-4 w-4 text-green-600" />,
+  touchpoint: <CheckCircle2 className="h-4 w-4 text-blue-600" />,
 };
 
 export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
@@ -48,7 +50,7 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [assignments, audits, current] = await Promise.all([
+      const [assignments, audits, current, contacts] = await Promise.all([
         supabase
           .from('client_assignments_history')
           .select(
@@ -71,6 +73,15 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
           .select('status, closed_date, reason_closed')
           .eq('id', clientId)
           .maybeSingle(),
+        // The work itself. A case history without the visits is a record of
+        // paperwork about a client nobody appears to have contacted.
+        supabase
+          .from('client_contacts')
+          .select(
+            'id, contact_date, modality, touchpoint_type, notes, employee:profiles!client_contacts_employee_id_fkey(first_name, last_name, email)',
+          )
+          .eq('client_id', clientId)
+          .order('contact_date', { ascending: false }),
       ]);
       if (cancelled) return;
 
@@ -133,6 +144,25 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
           kind: 'closed',
           summary: <>Case closed</>,
           detail: client.reason_closed || null,
+        });
+      }
+
+      for (const c of (contacts.data ?? []) as unknown as Record<string, unknown>[]) {
+        const method = contactMethodLabel(c.modality as string);
+        const kind = c.touchpoint_type ? touchpointTypeLabel(c.touchpoint_type as string) : null;
+        out.push({
+          id: `contact-${c.id}`,
+          // A contact carries a date and no time; noon keeps it on its own day
+          // whichever way the browser's timezone rounds.
+          at: `${c.contact_date as string}T12:00:00Z`,
+          kind: 'touchpoint',
+          summary: (
+            <>
+              Touchpoint logged{method ? ` — ${method}` : ''}
+              {kind ? `, ${kind}` : ''} by <strong>{personName(c.employee as Person)}</strong>
+            </>
+          ),
+          detail: (c.notes as string) || null,
         });
       }
 

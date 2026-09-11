@@ -34,17 +34,6 @@ interface Props {
   onChanged?: () => void;
 }
 
-const statusChip = (status: ComplianceStatus) => {
-  switch (status) {
-    case 'complete':
-      return <Badge className="bg-green-600 hover:bg-green-600 text-white">Complete</Badge>;
-    case 'behind':
-    case 'incomplete_escalated':
-      return <Badge className="bg-red-600 hover:bg-red-600 text-white">Needs attention</Badge>;
-    default:
-      return <Badge variant="secondary">On track</Badge>;
-  }
-};
 
 const modalityIcon = (m: Modality) =>
   m === 'phone' ? <Phone className="h-3.5 w-3.5" /> : m === 'virtual' ? <Video className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />;
@@ -202,11 +191,22 @@ export const ComplianceCard: React.FC<Props> = ({
   return (
     <TooltipProvider>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardHeader className="space-y-0">
+          {/* The month is the part that moves, so it is the part that is
+              coloured — otherwise the whole title reads as one fixed heading
+              and nobody notices which month they are looking at.
+
+              The status chip that sat here said the same thing as the badge
+              inside Monthly requirements, a few lines below it. */}
           <CardTitle className="text-lg">
-            Touchpoint — {new Date(month + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            Monthly Touchpoints —{' '}
+            <span className="text-primary">
+              {new Date(month + 'T12:00:00Z').toLocaleDateString('en-US', {
+                month: 'long',
+                year: 'numeric',
+              })}
+            </span>
           </CardTitle>
-          {statusChip(status)}
         </CardHeader>
         <CardContent className="space-y-5">
           {/* touchpoint requirements — current 30-day billing window */}
