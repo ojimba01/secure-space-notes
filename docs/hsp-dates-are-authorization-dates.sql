@@ -1,6 +1,6 @@
 -- The HSP dates are authorization start dates. Nothing ever said so.
 --
--- NOT YET APPLIED.
+-- APPLIED. Landed as migration 20260911220454.
 --
 -- The client record's edit form shows "HSP 150-day Start" and "HSP 180-day
 -- Start" and writes hsp_150_date and hsp_180_date. Every screen that builds an

@@ -45,14 +45,23 @@ sentence. They will tell you when copy is bad, and they are usually right —
   titles.
 - The `calendar-feed` edge function is deployed.
 
-## Waiting to be run
+## Applied since, and one sweep still to run
 
-`docs/hsp-dates-are-authorization-dates.sql` — mirrors hsp_150_date and
+~~`docs/hsp-dates-are-authorization-dates.sql`~~ — APPLIED as migration
+`20260911220454`. It mirrored hsp_150_date and
 hsp_180_date into the authorization columns for clients already carrying them,
 and writes the client_authorizations rows that go with them (including the
 initial_30 rows that were never created). Tested on a throwaway Postgres
 against a client with the HSP date only, one with a period already recorded by
-hand, and a deleted client. Everything else written this session has been run.
+hand, and a deleted client.
+
+`docs/stale-auto-touchpoints.sql` — deletes auto-scheduled touchpoints from
+before September 2026 that nobody worked. **The root cause is still there:**
+`insertTouchpoints()` in `src/lib/touchpoints.ts` deletes auto-generated events
+only inside the *current* billing window, so every cycle that rolls over
+abandons its unkept suggestions on the calendar. The script is a sweep, not a
+fix; the same clutter returns. Making the scheduler clean up past cycles too is
+the real repair and has not been done.
 
 ## Three things that will bite you
 
