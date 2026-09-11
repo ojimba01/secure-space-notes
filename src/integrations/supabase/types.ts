@@ -2182,6 +2182,15 @@ export type Database = {
         Args: { _client_id: string; _user_id: string }
         Returns: boolean
       }
+      close_case: {
+        Args: {
+          _client_id: string
+          _closed_date?: string
+          _notes?: string
+          _reason: string
+        }
+        Returns: undefined
+      }
       create_audit_log: {
         Args: {
           _action: Database["public"]["Enums"]["audit_action"]
@@ -2210,6 +2219,7 @@ export type Database = {
         Args: { _client_id: string; _user_id: string }
         Returns: boolean
       }
+      is_case_closed: { Args: { _client_id: string }; Returns: boolean }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
       is_user_active: { Args: { _user_id: string }; Returns: boolean }
       reassign_client: {
