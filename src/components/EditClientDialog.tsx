@@ -16,7 +16,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { useViewAs } from '@/components/ViewAsProvider';
-import { authorizationDatePatch, editAuthorizationDates } from '@/lib/clientAuthorizationDates';
+import {
+  authorizationDatePatch,
+  authorizationNumberPatch,
+  editAuthorizationDates,
+  editAuthorizationNumbers,
+} from '@/lib/clientAuthorizationDates';
 import { MCO_OPTIONS, hspDueDateFor, addDays } from '@/lib/billing';
 
 
@@ -52,6 +57,9 @@ const clientSchema = z.object({
   iat_date: z.string().optional(),
   hsp_150_date: z.string().optional(),
   hsp_180_date: z.string().optional(),
+  auth_30_number: z.string().optional(),
+  auth_150_number: z.string().optional(),
+  auth_180_number: z.string().optional(),
   hsp_due_date: z.string().optional(),
   closed_date: z.string().optional(),
   reason_closed: z.string().trim().max(100).optional(),
@@ -85,6 +93,9 @@ interface Client {
   auth_30_start?: string | null;
   auth_150_start?: string | null;
   auth_180_start?: string | null;
+  auth_30_number?: string | null;
+  auth_150_number?: string | null;
+  auth_180_number?: string | null;
   closed_date?: string;
   reason_closed?: string;
   notes?: string;
@@ -126,6 +137,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       date_of_birth: client.date_of_birth || '',
       intake_date: client.intake_date || '',
       ...editAuthorizationDates(client),
+      ...editAuthorizationNumbers(client),
       hsp_due_date: client.hsp_due_date || '',
       closed_date: client.closed_date || '',
       reason_closed: client.reason_closed || '',
@@ -154,6 +166,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
     try {
       const datePatch = authorizationDatePatch(client, data);
+      const numberPatch = authorizationNumberPatch(client, data);
       const { error } = await supabase
         .from('clients')
         .update({
@@ -170,6 +183,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           date_of_birth: data.date_of_birth || null,
           intake_date: data.intake_date || null,
           ...datePatch,
+          ...numberPatch,
           hsp_due_date: derivedHspDue,
           closed_date: data.closed_date || null,
           reason_closed: data.reason_closed || null,
@@ -185,7 +199,10 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
 
       // Retrying a partial save must run the synchronization again even when
       // the client row already contains the requested date.
-      const authorizationDateChanged = Object.keys(datePatch).length > 0;
+      // A number alone is enough to need the sync: it is what the MCO is
+      // billed against, and it lives on the authorization record, not here.
+      const authorizationDateChanged =
+        Object.keys(datePatch).length > 0 || Object.keys(numberPatch).length > 0;
       const billingChanged = (data.level_of_need || '') !== (client.level_of_need || '');
       if (authorizationDateChanged || scheduleRetry) {
         setScheduleRetry(true);
@@ -562,13 +579,39 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               );
             })()}
 
-            <div className="rounded-md border p-4">
-              <h4 className="text-sm font-semibold">Authorizations</h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                Authorization numbers and dates are edited in the Authorizations panel on the
-                client record. Recording them there keeps billing cycles and touchpoint windows
-                in step, and keeps the full history rather than only the latest of each type.
-              </p>
+            <div className="rounded-md border p-4 space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold">Authorization numbers</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  The number each period is billed against, beside the dates it applies to. The
+                  Authorizations panel on the record holds the full history — every period ever
+                  recorded, not just the latest of each kind — and is where a second
+                  reauthorization goes.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <FormField control={form.control} name="auth_30_number" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Initial 30-day</FormLabel>
+                    <FormControl><Input {...field} placeholder="Authorization number" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="auth_150_number" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>150-day</FormLabel>
+                    <FormControl><Input {...field} placeholder="Authorization number" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="auth_180_number" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>180-day extension</FormLabel>
+                    <FormControl><Input {...field} placeholder="Authorization number" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
             </div>
 
             <div className="rounded-md border p-4 space-y-4">
