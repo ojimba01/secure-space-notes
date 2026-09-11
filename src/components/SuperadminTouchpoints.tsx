@@ -77,36 +77,36 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
     overdue: 'Overdue by staff',
     scheduled: 'Scheduled this week',
     completed: 'Completed this week',
-    remaining: 'Remaining this week',
-    missing: 'Missing setup information',
+    remaining: 'In progress',
+    missing: 'Incomplete setups',
   };
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Touchpoints oversight</h1>
-        <p className="text-sm text-muted-foreground">Agency-wide view. Which staff members are falling behind, and who to follow up with.</p>
+        <h1 className="text-2xl font-bold">Team performance</h1>
+        <p className="text-sm text-muted-foreground">See which staff members are falling behind and need follow-up.</p>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Overdue" value={data.overdueRows.length}
-          tone="danger" onClick={() => setDetail('overdue')} active={detail === 'overdue'} hint="Cycles overdue across all staff" />
-        <Stat icon={<CalendarClock className="h-5 w-5" />} label="Scheduled this week" value={data.scheduledThisWeek}
-          onClick={() => setDetail('scheduled')} active={detail === 'scheduled'} hint="Touchpoints planned this week" />
-        <Stat icon={<CheckCircle2 className="h-5 w-5" />} label="Completed this week" value={data.completedThisWeek}
+          tone="danger" onClick={() => setDetail('overdue')} active={detail === 'overdue'} hint="Across all staff" />
+        <Stat icon={<CalendarClock className="h-5 w-5" />} label="Scheduled" value={data.scheduledThisWeek}
+          onClick={() => setDetail('scheduled')} active={detail === 'scheduled'} hint="For this week" />
+        <Stat icon={<CheckCircle2 className="h-5 w-5" />} label="Completed" value={data.completedThisWeek}
           onClick={() => setDetail('completed')} active={detail === 'completed'} hint="Logged this week" />
-        <Stat icon={<ClipboardList className="h-5 w-5" />} label="Remaining this week" value={data.remainingThisWeek}
-          onClick={() => setDetail('remaining')} active={detail === 'remaining'} hint="Scheduled but not logged" />
-        <Stat icon={<Settings2 className="h-5 w-5" />} label="Missing setup" value={data.missingRows.length}
-          onClick={() => setDetail('missing')} active={detail === 'missing'} hint="Cannot be scheduled yet" />
+        <Stat icon={<ClipboardList className="h-5 w-5" />} label="In progress" value={data.remainingThisWeek}
+          onClick={() => setDetail('remaining')} active={detail === 'remaining'} hint="Scheduled but not yet logged" />
+        <Stat icon={<Settings2 className="h-5 w-5" />} label="Needs setup" value={data.missingRows.length}
+          onClick={() => setDetail('missing')} active={detail === 'missing'} hint="Cannot be scheduled" />
       </div>
 
       {data.preGoLiveCount > 0 && !data.showHistorical && (
         <p className="text-xs text-muted-foreground">
-          {data.preGoLiveCount} cycle{data.preGoLiveCount === 1 ? '' : 's'} that began before go-live
-          ({fmtD(data.goLiveDate)}) {data.preGoLiveCount === 1 ? 'is' : 'are'} hidden. Turn on
-          &ldquo;Show historical touchpoint cycles&rdquo; in Admin to list them.
+          {data.preGoLiveCount} older case{data.preGoLiveCount === 1 ? '' : 's'} started before{' '}
+          {fmtD(data.goLiveDate)} {data.preGoLiveCount === 1 ? 'is' : 'are'} hidden. To view{' '}
+          {data.preGoLiveCount === 1 ? 'it' : 'them'}, turn on Show historical data in Admin settings.
         </p>
       )}
 
@@ -146,8 +146,8 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
       {data.missingRows.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Missing setup information</CardTitle>
-            <p className="text-sm text-muted-foreground">These clients cannot be scheduled until setup is complete.</p>
+            <CardTitle className="text-lg">Incomplete setups</CardTitle>
+            <p className="text-sm text-muted-foreground">These clients must be set up before they can be scheduled.</p>
           </CardHeader>
           <CardContent className="space-y-2">
             {data.missingRows.map((r) => (

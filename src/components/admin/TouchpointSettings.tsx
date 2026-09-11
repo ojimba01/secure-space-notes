@@ -1,9 +1,9 @@
 // Admin control over the "start today" behaviour.
 //
-// The go-live date is the floor for staff urgency: cycles that began before it
+// The launch date is the floor for staff urgency: cases that began before it
 // are shown for reference but never made overdue, so switching the app on
 // mid-cycle does not hand staff a backlog of touchpoints nobody could have
-// made. Historical cycles stay hidden from oversight unless an admin asks.
+// made. Historical cases stay hidden from Team performance unless an admin asks.
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -41,7 +41,7 @@ export const TouchpointSettings: React.FC = () => {
     await setGoLiveDate(date || null);
     await refresh();
     setSaving(false);
-    toast({ title: 'Go-live date saved', description: 'Cycles that began earlier will not be marked overdue.' });
+    toast({ title: 'Launch date saved', description: 'Earlier cases will not be marked overdue.' });
   };
 
   const resetDate = async () => {
@@ -49,7 +49,7 @@ export const TouchpointSettings: React.FC = () => {
     await setGoLiveDate(null);
     await refresh();
     setSaving(false);
-    toast({ title: 'Go-live date reset', description: 'Back to the date this was installed.' });
+    toast({ title: 'Launch date reset', description: 'Back to the install date.' });
   };
 
   const toggleHistorical = async (checked: boolean) => {
@@ -57,25 +57,25 @@ export const TouchpointSettings: React.FC = () => {
     await setShowHistorical(checked);
     clearTouchpointSettingsCache();
     toast({
-      title: checked ? 'Historical cycles shown' : 'Historical cycles hidden',
+      title: checked ? 'Historical data shown' : 'Historical data hidden',
       description: checked
-        ? 'Oversight now lists cycles that closed before go-live.'
-        : 'Only cycles from the go-live date forward drive follow-up.',
+        ? 'Team performance now lists cases that started before the launch date.'
+        : 'Only cases from the launch date forward drive follow-up.',
     });
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Touchpoint start date</CardTitle>
+        <CardTitle className="text-lg">Launch date</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Touchpoint work begins here. Cycles that started before this date are kept for reference
-          but never fill a staff work queue or count as overdue.
+          Touchpoint work begins on this date. Cases that started earlier are kept for reference,
+          but never appear in a staff work queue or count as overdue.
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="space-y-2">
-          <Label htmlFor="go-live">Go-live date</Label>
+          <Label htmlFor="go-live" className="sr-only">Launch date</Label>
           <div className="flex flex-wrap items-center gap-2">
             <Input
               id="go-live"
@@ -89,23 +89,23 @@ export const TouchpointSettings: React.FC = () => {
             <Button size="sm" onClick={saveDate} disabled={saving || loading || !date}>Save</Button>
             {explicit && (
               <Button size="sm" variant="ghost" onClick={resetDate} disabled={saving}>
-                Use install date
+                Reset
               </Button>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
             {explicit
-              ? 'Set deliberately by an admin.'
-              : 'Defaulting to the date this was installed. Saving a date replaces that.'}
+              ? 'Set by an admin.'
+              : 'Defaults to the install date. Saving replaces it.'}
           </p>
         </div>
 
         <div className="flex items-start justify-between gap-4 rounded-md border p-3">
           <div>
-            <Label htmlFor="show-historical" className="text-sm">Show historical touchpoint cycles</Label>
+            <Label htmlFor="show-historical" className="text-sm">Show historical data</Label>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Lists cycles that closed before the go-live date in the oversight view. Off by default —
-              staff urgency should not come from before the agency started.
+              Lists cases that started before {date || 'the launch date'} in Team performance. Off by
+              default — staff should not be chased for work that predates the agency using this.
             </p>
           </div>
           <Switch
