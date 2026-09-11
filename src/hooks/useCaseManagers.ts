@@ -36,10 +36,10 @@ export function useCaseManagers(month: string = monthKey(new Date())): CaseManag
     const run = async () => {
       setLoading(true);
 
-      const [{ data: staff }, { data: logs }, { data: clients }] = await Promise.all([
+      const [{ data: staff }, { data: logs }, { data: clients }, { data: superRoles }] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, first_name, last_name, email')
+          .select('id, user_id, first_name, last_name, email')
           .eq('active', true)
           .order('first_name', { ascending: true }),
         supabase
@@ -53,6 +53,11 @@ export function useCaseManagers(month: string = monthKey(new Date())): CaseManag
           .select('assigned_employee_id, status')
           .is('deleted_at', null)
           .eq('status', 'active'),
+        // Superadmins are the owner and the root accounts. They are not case
+        // managers, so they do not belong on a list of case managers — even the
+        // ones carrying a client or two. ReassignClientDialog leaves them out of
+        // the assignable list for the same reason.
+        supabase.from('user_roles').select('user_id').eq('role', 'superadmin'),
       ]);
 
       if (cancelled) return;
@@ -66,18 +71,22 @@ export function useCaseManagers(month: string = monthKey(new Date())): CaseManag
         if (id) load.set(id, (load.get(id) ?? 0) + 1);
       });
 
+      const superIds = new Set((superRoles ?? []).map((r) => r.user_id as string));
+
       setRows(
-        (staff ?? []).map((p) => {
-          const log = logByStaff.get(p.id as string);
-          return {
-            id: p.id as string,
-            name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || (p.email as string),
-            email: p.email as string,
-            clients: load.get(p.id as string) ?? 0,
-            logStatus: !log ? 'not_started' : log.status === 'submitted' ? 'submitted' : 'draft',
-            submittedAt: log?.submitted_at ?? null,
-          };
-        }),
+        (staff ?? [])
+          .filter((p) => !superIds.has(p.user_id as string))
+          .map((p) => {
+            const log = logByStaff.get(p.id as string);
+            return {
+              id: p.id as string,
+              name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || (p.email as string),
+              email: p.email as string,
+              clients: load.get(p.id as string) ?? 0,
+              logStatus: !log ? 'not_started' : log.status === 'submitted' ? 'submitted' : 'draft',
+              submittedAt: log?.submitted_at ?? null,
+            };
+          }),
       );
       setLoading(false);
     };

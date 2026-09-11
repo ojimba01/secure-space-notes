@@ -4,6 +4,15 @@
 // filled in. A case manager checks it rather than writes it — which is the
 // only reason a monthly paper form is worth having in software at all.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Document, Page } from 'react-pdf';
+import '@/lib/pdfWorker';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Download, Plus, RotateCcw, Trash2, Check } from 'lucide-react';
+import { Check, Download, Eye, Plus, RotateCcw, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   caseLogEntries,
@@ -60,7 +69,13 @@ export const CaseLog: React.FC<Props> = ({
   const [entries, setEntries] = useState<CaseLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [previewPages, setPreviewPages] = useState(0);
+  const [scale, setScale] = useState(1);
   const { toast } = useToast();
+
+  // A Blob URL leaks until it is revoked, and a month switch builds a new one.
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
   const submitted = stored?.status === 'submitted';
   const editable = !readOnly && !submitted;
@@ -106,16 +121,43 @@ export const CaseLog: React.FC<Props> = ({
     }
   };
 
+  /** The filled form, as bytes. Both viewing and downloading go through here. */
+  const buildPdf = async (): Promise<Uint8Array> => {
+    const res = await fetch(CASE_LOG_TEMPLATE);
+    if (!res.ok) throw new Error(`Could not load the blank form (${res.status}).`);
+    return await buildCaseLogPdf(
+      await res.arrayBuffer(),
+      { caseManager: caseManagerName, month: monthLabel(month) },
+      entries.filter((e) => e.clientName.trim()),
+    );
+  };
+
+  const view = async () => {
+    setBusy(true);
+    try {
+      const bytes = await buildPdf();
+      // react-pdf holds the buffer, and pdf.js detaches whatever it is handed.
+      // A Blob URL keeps the bytes out of React state and survives a rerender.
+      setPreview((old) => {
+        if (old) URL.revokeObjectURL(old);
+        return URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }));
+      });
+      setPreviewPages(0);
+    } catch (e) {
+      toast({
+        title: 'Could not build the form',
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const download = async () => {
     setBusy(true);
     try {
-      const res = await fetch(CASE_LOG_TEMPLATE);
-      if (!res.ok) throw new Error(`Could not load the blank form (${res.status}).`);
-      const bytes = await buildCaseLogPdf(
-        await res.arrayBuffer(),
-        { caseManager: caseManagerName, month: monthLabel(month) },
-        entries.filter((e) => e.clientName.trim()),
-      );
+      const bytes = await buildPdf();
       const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
@@ -207,9 +249,13 @@ export const CaseLog: React.FC<Props> = ({
               Refill from touchpoints
             </Button>
           )}
+          <Button size="sm" variant="outline" disabled={busy || loading} onClick={() => void view()}>
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            View form
+          </Button>
           <Button size="sm" variant="outline" disabled={busy || loading} onClick={() => void download()}>
             <Download className="mr-1.5 h-3.5 w-3.5" />
-            Download PDF
+            Download
           </Button>
           {editable && (
             <Button size="sm" disabled={busy || loading || filled === 0} onClick={() => void file()}>
@@ -314,6 +360,66 @@ export const CaseLog: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      {/* The same react-pdf viewer the other templates use, so the log is read
+          on the site rather than only in whatever opens a download. */}
+      <Dialog
+        open={!!preview}
+        onOpenChange={(o) => {
+          if (o) return;
+          setPreview((old) => { if (old) URL.revokeObjectURL(old); return null; });
+          setScale(1);
+        }}
+      >
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-3 pr-8">
+              <span>HMIS Case Log — {caseManagerName} — {monthLabel(month)}</span>
+              <span className="flex items-center gap-1">
+                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Zoom out"
+                  onClick={() => setScale((z) => Math.max(0.5, z - 0.25))}>
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </Button>
+                <span className="w-12 text-center text-xs font-normal text-muted-foreground">
+                  {Math.round(scale * 100)}%
+                </span>
+                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Zoom in"
+                  onClick={() => setScale((z) => Math.min(2, z + 0.25))}>
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="outline" className="ml-2" onClick={() => void download()}>
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  Download
+                </Button>
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[72vh] overflow-auto rounded-md border bg-muted/30 p-3">
+            {preview && (
+              <Document
+                file={preview}
+                onLoadSuccess={(doc) => setPreviewPages(doc.numPages)}
+                loading={<div className="p-8 text-center text-sm text-muted-foreground">Building the form…</div>}
+                error={<div className="p-8 text-center text-sm text-destructive">Could not display the form. Download it instead.</div>}
+              >
+                <div className="flex flex-col items-center gap-4">
+                  {Array.from({ length: previewPages }, (_, i) => (
+                    <div key={i} className="shadow-sm">
+                      <Page
+                        pageNumber={i + 1}
+                        width={760 * scale}
+                        renderTextLayer={false}
+                        renderAnnotationLayer
+                        renderForms
+                      />
+                    </div>
+                  ))}
+                </div>
+              </Document>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
