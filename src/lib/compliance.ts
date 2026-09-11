@@ -256,6 +256,98 @@ export function currentBillingWindow(
   return { index, start, end: addDays(start, BILLING_WINDOW_DAYS - 1) };
 }
 
+// ---- the whole run of 30-day cycles, laid out ----------------------
+// A client is authorised in three consecutive stretches -- an initial 30 days,
+// a 150-day period, then a 180-day extension -- and a touchpoint quota falls
+// due in every 30 days of all three, the initial period included. The cycles
+// themselves roll every 30 days from the service start and take no notice of
+// where one authorisation ends and the next begins, so the two are worked out
+// separately here: the cycles from the start date, the colour from whichever
+// authorisation covers the day a cycle opens.
+//
+// A cycle belonging to no authorisation is not an error to hide. It is a gap
+// somebody has to fill, and the only place it becomes visible is a list like
+// this one.
+
+export type AuthPhase = 'initial_30' | 'period_150' | 'extension_180';
+
+export const AUTH_PHASE_LABEL: Record<AuthPhase, string> = {
+  initial_30: 'Initial 30 days',
+  period_150: '150-day authorization',
+  extension_180: '180-day extension',
+};
+
+export interface AuthorizationCycle {
+  /** 1-based, as staff count them. */
+  number: number;
+  start: string;
+  end: string;
+  /** Null when no authorization covers the day this cycle opens. */
+  phase: AuthPhase | null;
+  isCurrent: boolean;
+  isPast: boolean;
+}
+
+export interface AuthorizationSpans {
+  auth_30_start?: string | null;
+  auth_30_end?: string | null;
+  auth_150_start?: string | null;
+  auth_150_end?: string | null;
+  auth_180_start?: string | null;
+  auth_180_end?: string | null;
+  hsp_150_date?: string | null;
+}
+
+/** Nobody is authorised for four years. A runaway date should not render 1,000 rows. */
+const MAX_CYCLES = 24;
+
+const spanEnd = (start: string | null | undefined, end: string | null | undefined, len: number) =>
+  end ?? (start ? addDays(start, len - 1) : null);
+
+/**
+ * Every 30-day cycle from the service start to the end of the last
+ * authorization, with the authorization each one falls in.
+ */
+export function authorizationCycles(c: AuthorizationSpans, today: string): AuthorizationCycle[] {
+  const serviceStart = c.auth_30_start || c.auth_150_start || c.hsp_150_date || null;
+  if (!serviceStart) return [];
+
+  const spans: { phase: AuthPhase; start: string; end: string }[] = [];
+  const push = (phase: AuthPhase, start: string | null | undefined, end: string | null, len: number) => {
+    const e = spanEnd(start, end, len);
+    if (start && e) spans.push({ phase, start, end: e });
+  };
+  push('initial_30', c.auth_30_start, c.auth_30_end ?? null, 30);
+  push('period_150', c.auth_150_start, c.auth_150_end ?? null, 150);
+  // The extension usually follows the 150-day period without being given its
+  // own start date, which is how the database derives it too.
+  const ext180Start =
+    c.auth_180_start || (c.auth_150_start ? addDays(c.auth_150_start, 150) : null);
+  push('extension_180', ext180Start, c.auth_180_end ?? null, 180);
+
+  if (spans.length === 0) return [];
+
+  const lastEnd = spans.reduce((acc, s) => (daysBetween(acc, s.end) > 0 ? s.end : acc), spans[0].end);
+  const phaseFor = (day: string): AuthPhase | null =>
+    spans.find((s) => daysBetween(s.start, day) >= 0 && daysBetween(day, s.end) >= 0)?.phase ?? null;
+
+  const cycles: AuthorizationCycle[] = [];
+  let start = serviceStart;
+  for (let i = 0; i < MAX_CYCLES && daysBetween(start, lastEnd) >= 0; i++) {
+    const end = addDays(start, BILLING_WINDOW_DAYS - 1);
+    cycles.push({
+      number: i + 1,
+      start,
+      end,
+      phase: phaseFor(start),
+      isCurrent: daysBetween(start, today) >= 0 && daysBetween(today, end) >= 0,
+      isPast: daysBetween(end, today) > 0,
+    });
+    start = addDays(end, 1);
+  }
+  return cycles;
+}
+
 // Contacts that fall inside a given window (inclusive of both ends).
 export function contactsInWindow(contacts: ContactRow[], w: BillingWindow): ContactRow[] {
   return contacts.filter(

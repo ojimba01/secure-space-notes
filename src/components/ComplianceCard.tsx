@@ -22,6 +22,7 @@ import {
 } from '@/lib/compliance';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 import { AddTouchpointDialog } from '@/components/AddTouchpointDialog';
+import { TouchpointCycles } from '@/components/TouchpointCycles';
 
 interface Props {
   clientId: string;
@@ -242,6 +243,8 @@ export const ComplianceCard: React.FC<Props> = ({
               </div>
             )}
           </div>
+
+          <TouchpointCycles clientId={clientId} />
 
           {/* contacts progress */}
           <div className="space-y-2">
