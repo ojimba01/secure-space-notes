@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 /** How many of today's events are shown before Next. */
 const TODAY_PAGE = 5;
 
 /** Set once somebody ticks "Don't ask again" on removing a touchpoint. */
 const SKIP_DELETE_ASK_KEY = 'calendar.skipTouchpointDeleteConfirm';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, Trash2, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -80,6 +81,9 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
   const [pendingDelete, setPendingDelete] = useState<CalendarEvent | null>(null);
   const [skipAsk, setSkipAsk] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [search, setSearch] = useState('');
+  const [results, setResults] = useState<CalendarEvent[] | null>(null);
+  const [searching, setSearching] = useState(false);
   /** Five of today's at a time. A day with thirty is a wall, not a schedule. */
   const [todayPage, setTodayPage] = useState(0);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -105,6 +109,32 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
     fetchEvents();
   }, [currentDate, isViewingAs, viewAsEmployeeId, isAdmin]);
 
+  /**
+   * A closed case is off the calendar entirely, administrators included.
+   * Closing a case ends the work but does not delete the touchpoints already
+   * scheduled beyond it, so they sat there as jobs nobody was going to do. An
+   * admin can still see a closed case on the record; what they cannot do is
+   * act on a slot that no longer exists.
+   *
+   * An event whose client did not come back with it goes too: a bare "Home
+   * visit" with the name missing tells nobody anything.
+   */
+  const onlyVisible = (rows: CalendarEvent[]) =>
+    rows.filter((e) => {
+      if (!e.client_id) return true;
+      return !!e.clients && !isCaseClosed(e.clients);
+    });
+
+  const EVENT_SELECT = `
+    *,
+    profiles:employee_id (first_name, last_name),
+    clients:client_id (
+      first_name, last_name, status, workflow_stage,
+      auth_30_start, auth_30_end, auth_150_start, auth_150_end,
+      auth_180_start, auth_180_end, hsp_150_date
+    )
+  `;
+
   const fetchEvents = async () => {
     setLoading(true);
     try {
@@ -113,15 +143,7 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
 
       let query = supabase
         .from('calendar_events')
-        .select(`
-          *,
-          profiles:employee_id (first_name, last_name),
-          clients:client_id (
-            first_name, last_name, status, workflow_stage,
-            auth_30_start, auth_30_end, auth_150_start, auth_150_end,
-            auth_180_start, auth_180_end, hsp_150_date
-          )
-        `)
+        .select(EVENT_SELECT)
         .gte('start_time', monthStart.toISOString())
         .lte('start_time', monthEnd.toISOString())
         .order('start_time', { ascending: true });
@@ -141,11 +163,7 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
       //
       // An event whose client did not come back with it goes too: a bare
       // "Home visit" with the name missing tells nobody anything.
-      const visible = (data || []).filter((e: CalendarEvent) => {
-        if (!e.client_id) return true;
-        return !!e.clients && !isCaseClosed(e.clients);
-      });
-      setEvents(visible);
+      setEvents(onlyVisible(data || []));
     } catch (error) {
       console.error('Error fetching events:', error);
       toast({
@@ -256,6 +274,68 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
     }
     setPendingDelete(null);
     await removeTouchpoint(event);
+  };
+
+  /**
+   * Find an event without knowing which month it is in.
+   *
+   * The grid only ever holds one month, so anything scheduled outside it was
+   * unfindable except by pressing the arrow until it appeared. This looks a
+   * year either way and matches on the title and the client's name, which are
+   * the two things somebody has in their head when they go looking.
+   *
+   * The match is made here rather than in Postgres because the client's name
+   * lives on the joined row, not on the event.
+   */
+  useEffect(() => {
+    const term = search.trim().toLowerCase();
+    if (term.length < 2) {
+      setResults(null);
+      setSearching(false);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      const from = new Date(Date.now() - 365 * 86_400_000).toISOString();
+      const to = new Date(Date.now() + 365 * 86_400_000).toISOString();
+      let q = supabase
+        .from('calendar_events')
+        .select(EVENT_SELECT)
+        .gte('start_time', from)
+        .lte('start_time', to)
+        .order('start_time');
+      if (isViewingAs && viewAsEmployeeId) q = q.eq('employee_id', viewAsEmployeeId);
+
+      const { data, error } = await q;
+      if (cancelled) return;
+      if (error) {
+        setResults([]);
+        setSearching(false);
+        return;
+      }
+      const matches = onlyVisible((data as unknown as CalendarEvent[]) ?? []).filter((e) => {
+        const name = `${e.clients?.first_name ?? ''} ${e.clients?.last_name ?? ''}`.toLowerCase();
+        return e.title.toLowerCase().includes(term) || name.includes(term);
+      });
+      setResults(matches.slice(0, 20));
+      setSearching(false);
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, isViewingAs, viewAsEmployeeId]);
+
+  /** Jump the grid to an event found by search, and open it. */
+  const goToEvent = (event: CalendarEvent) => {
+    const when = new Date(event.start_time);
+    setCurrentDate(when);
+    setSelectedDate(when);
+    setSearch('');
+    setResults(null);
+    openEditDialog(event);
   };
 
   const openDay = (day: Date) => {
@@ -369,6 +449,50 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
             <Plus className="w-4 h-4" />
             Add Event
           </Button>
+        )}
+      </div>
+
+      {/* Find an event without knowing its month. */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search events by title or client name"
+          className="pl-9"
+          aria-label="Search events"
+        />
+        {search.trim().length >= 2 && (
+          <div className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-md border bg-background shadow-lg">
+            {searching ? (
+              <p className="px-3 py-3 text-sm text-muted-foreground">Searching</p>
+            ) : !results || results.length === 0 ? (
+              <p className="px-3 py-3 text-sm text-muted-foreground">
+                Nothing matches, within a year either way of today.
+              </p>
+            ) : (
+              <ul className="divide-y">
+                {results.map((e) => (
+                  <li key={e.id}>
+                    <button
+                      onClick={() => goToEvent(e)}
+                      className="flex w-full items-baseline gap-3 px-3 py-2 text-left text-sm hover:bg-muted/60"
+                    >
+                      <span className="w-28 shrink-0 tabular-nums text-muted-foreground">
+                        {format(new Date(e.start_time), 'EEE, MMM d yyyy')}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-medium">{e.title}</span>
+                      {eventTypeLabels[e.event_type] && (
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {eventTypeLabels[e.event_type]}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </div>
 
