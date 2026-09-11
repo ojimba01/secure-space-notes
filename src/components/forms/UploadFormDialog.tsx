@@ -21,6 +21,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { ClientPicker } from '@/components/ClientPicker';
 import { useToast } from '@/hooks/use-toast';
+import { FileDropZone } from '@/components/FileDropZone';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 
@@ -356,17 +357,14 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
 
 
           <div className="space-y-2">
-            <Label htmlFor="form-file">Completed PDF</Label>
-            <Input
+            <FileDropZone
               id="form-file"
-              type="file"
+              file={file}
+              onChange={inspect}
               accept="application/pdf"
-              onChange={(e) => inspect(e.target.files?.[0] ?? null)}
+              label="Upload PDF"
+              hint="PDF only, up to 20 MB. Sign it before uploading if a signature is required."
             />
-            <p className="text-xs text-muted-foreground">
-              PDF only, up to 20 MB. The file is stored exactly as you upload it — sign it before
-              uploading if a signature is required.
-            </p>
 
             {detecting && (
               <p className="text-xs text-muted-foreground">Reading the form…</p>
