@@ -1,9 +1,9 @@
 // Which stage a client is actually at.
 //
 // The stored workflow_stage drifts in both directions. Every case below is a
-// shape found on this agency's records, including the four clients filed as
-// "Referral received" while holding a 30-day authorization — the reason a
-// person filtering for referrals got a list of approved people.
+// shape found on this agency's records, including the four clients filed as a
+// referral while holding a 30-day authorization — the reason a person filtering
+// for referrals got a list of approved people.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { build } from 'esbuild';
@@ -21,12 +21,11 @@ const { displayStage, STAGE_LABEL } = await import(
 
 const label = (c) => STAGE_LABEL[displayStage(c)];
 
-test('a bare referral is a referral', () => {
-  assert.equal(label({ intake_status: 'not_started' }), 'Referral received');
-  assert.equal(label({}), 'Referral received');
-});
-
-test('intake done and nothing approved is pending approval', () => {
+test('nothing authorized is pending approval, however far along intake is', () => {
+  // Referral received and Pending approval were one waiting room with two
+  // doors. The case is waiting on the same answer either way.
+  assert.equal(label({}), 'Pending approval');
+  assert.equal(label({ intake_status: 'not_started' }), 'Pending approval');
   assert.equal(label({ intake_status: 'complete' }), 'Pending approval');
 });
 
@@ -56,7 +55,7 @@ test('a later period counts even when the initial 30 was never recorded', () => 
 
 test('the stored column cannot promote a client past the facts', () => {
   assert.equal(label({ workflow_stage: 'active_authorization', intake_status: 'complete' }), 'Pending approval');
-  assert.equal(label({ workflow_stage: 'initial_30_active' }), 'Referral received');
+  assert.equal(label({ workflow_stage: 'initial_30_active' }), 'Pending approval');
 });
 
 test('closed wins over every authorization', () => {

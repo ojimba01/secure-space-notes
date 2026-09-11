@@ -304,7 +304,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
           ? 'active_authorization'
           : data.auth_30_start
             ? 'initial_30_active'
-            : 'referred',
+            : 'initial_auth_pending',
       };
 
 

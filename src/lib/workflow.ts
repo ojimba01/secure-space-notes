@@ -5,7 +5,6 @@
 // so the lifecycle is described in exactly one place.
 
 export const WORKFLOW_STAGES = [
-  'referred',
   'initial_auth_pending',
   'initial_30_active',
   'active_authorization',
@@ -15,7 +14,10 @@ export const WORKFLOW_STAGES = [
 export type WorkflowStage = (typeof WORKFLOW_STAGES)[number];
 
 export const STAGE_LABEL: Record<string, string> = {
-  referred: 'Referral received',
+  // Kept as an alias, not a stage. Old rows still carry 'referred' in the
+  // stored column and nothing reads it for display, but a stray lookup should
+  // land on the words that are actually on screen.
+  referred: 'Pending approval',
   initial_auth_pending: 'Pending approval',
   initial_30_active: 'Initial 30-day authorization',
   active_authorization: 'Active authorization',
@@ -65,10 +67,10 @@ export const OPEN_CASE_STAGE_FILTER = 'workflow_stage.is.null,workflow_stage.neq
  *
  * So the ladder is read off the authorizations, which are facts:
  *
- *   Referral received   nothing authorized, intake not started. We have the
- *                       referral and nobody has been assessed yet.
- *   Pending approval    nothing authorized, intake complete. Assessed and
- *                       submitted; waiting on the MCO to answer.
+ *   Pending approval    nothing authorized. Whether the referral has only just
+ *                       arrived or intake is long done, the case is waiting on
+ *                       the same answer and there is nothing different to do
+ *                       about it, so it is one stage rather than two.
  *   Initial 30-day      a 30-day authorization exists and nothing later does.
  *   Active              a 150-day or 180-day authorization exists.
  *
@@ -99,11 +101,11 @@ export function displayStage(c: {
 
   if (set(c.auth_30_start) || set(c.auth_30_number)) return 'initial_30_active';
 
-  return c.intake_status === 'complete' ? 'initial_auth_pending' : 'referred';
+  return 'initial_auth_pending';
 }
 
 export const STAGE_CLASS: Record<string, string> = {
-  referred: 'bg-slate-100 text-slate-800',
+  referred: 'bg-amber-100 text-amber-900',
   initial_auth_pending: 'bg-amber-100 text-amber-900',
   initial_30_active: 'bg-blue-100 text-blue-900',
   active_authorization: 'bg-green-100 text-green-800',

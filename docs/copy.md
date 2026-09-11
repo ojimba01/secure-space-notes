@@ -62,11 +62,14 @@ authorization is shown for what they are.
 
 | Stage | What it means |
 |---|---|
-| Referral received | Nothing authorized, intake not started. We have the referral; nobody has been assessed. |
-| Pending approval | Nothing authorized, intake complete. Assessed and submitted; waiting on the MCO. |
+| Pending approval | Nothing authorized. Waiting on the MCO, whether the referral just arrived or intake is long done. |
 | Initial 30-day authorization | A 30-day authorization exists and nothing later does. |
 | Active authorization | A 150-day or 180-day authorization exists. |
 | Closed | Wins over everything, whatever the case was doing. |
+
+There is no separate "Referral received". A new referral and a submitted intake
+are waiting on the same answer, and there is nothing different to do about
+either, so they are one stage rather than two.
 
 A stage cannot be skipped by hand and cannot be claimed early: recording an
 authorization is what advances it.
