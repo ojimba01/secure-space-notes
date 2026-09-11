@@ -59,6 +59,11 @@ level of need) · All statuses · Unassigned · No active case managers
 **Header:** the name, then `Member ID: {member_id}` under it, then the status
 badge. Buttons: Edit · Close case · Reassign · HMIS · Reopen case.
 
+**Close case carries a trash can**, on the record and on the client card alike.
+It is the same symbol as Delete, which is permanent — the words beside it are
+what separate them, so never ship a close-case control without its label or
+its tooltip.
+
 **The section bar:** Overview · Authorizations · Touchpoints · Forms ·
 Calendar · History · Billing. Records open on Overview. Billing is Superadmin
 only.
@@ -76,7 +81,7 @@ availability** and **Notes**.
 
 | Block | Labels |
 |---|---|
-| Contact | First name · Last name · Member ID · Date of birth · Email · Phone · Address · County |
+| Contact | First name · Last name · Member ID · Date of birth · Phone · Email · Address · County |
 | Case | Status · Intake date · Insurance · MCO housing manager · Level of need · LoN score · Case manager |
 | Authorizations | 30-day start · 30-day end · 30-day auth # · 150-day start · 150-day end · 150-day auth # · 180-day start · 180-day end · 180-day auth # |
 | Closure | Closed date · Reason closed |
@@ -140,9 +145,10 @@ Authorizations."
 One row per authorization, newest first: the period, its dates, its number, its
 status. A start date alone creates the row — the number can follow.
 
-Where a number is missing, the cell holds a dashed button reading
+Where a number is missing, the cell holds a dashed red button reading
 **Update auth #**. Pressing it opens the same editor the Edit button does, on
-that row. This is deliberate: the gap is the prompt.
+that row. This is deliberate: the gap is the prompt, and red because an
+unnumbered authorization cannot be billed.
 
 ### Forms
 

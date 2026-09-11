@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Calendar, FileText, FileUp, Upload, Plus, Edit, Trash2, UserCog, Archive } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, FileUp, Upload, Plus, Edit, Trash2, UserCog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileManager } from '@/components/FileManager';
 import { ClientOverview } from '@/components/ClientOverview';
@@ -210,7 +210,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           </Button>
           {client.workflow_stage !== 'closed' && (
             <Button variant="outline" onClick={() => setCloseDialogOpen(true)}>
-              <Archive className="h-4 w-4 mr-2" />
+              <Trash2 className="h-4 w-4 mr-2" />
               Close case
             </Button>
           )}

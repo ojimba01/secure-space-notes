@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Archive, CalendarIcon, Trash2, UserRound } from 'lucide-react';
+import { CalendarIcon, Trash2, UserRound } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
@@ -250,7 +250,7 @@ export const EditCalendarEventDialog: React.FC<EditCalendarEventDialogProps> = (
                 className="gap-1.5"
                 onClick={() => setCloseCaseOpen(true)}
               >
-                <Archive className="h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
                 Close case
               </Button>
             </div>

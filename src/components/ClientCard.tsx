@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDay } from '@/lib/dates';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle, Paperclip, Archive } from 'lucide-react';
+import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle, Paperclip, Trash2 } from 'lucide-react';
 import { isCaseClosed, isSetupComplete, missingSetupShort } from '@/lib/workflow';
 
 interface Client {
@@ -169,7 +169,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
                   onCloseCase(client);
                 }}
               >
-                <Archive className="h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
               </Button>
             )}
             {selectionMode && (

@@ -335,8 +335,10 @@ export const ClientOverview: React.FC<{
           <Row label="Last name">{text('last_name', client.last_name, !isAdmin)}</Row>
           <Row label="Member ID">{text('member_id', client.member_id)}</Row>
           <Row label="Date of birth">{date('date_of_birth')}</Row>
-          <Row label="Email">{text('email', client.email)}</Row>
+          {/* Phone before email on purpose. An email address runs long enough
+              to crowd the field beside it; a phone number never does. */}
           <Row label="Phone">{text('phone', client.phone)}</Row>
+          <Row label="Email">{text('email', client.email)}</Row>
           <Row label="Address" wide>{text('address', client.address)}</Row>
           <Row label="County">{choice('county', NJ_COUNTIES, client.county)}</Row>
         </Block>

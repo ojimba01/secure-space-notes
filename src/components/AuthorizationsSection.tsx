@@ -280,7 +280,7 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-6 border-dashed px-2 text-[11px] font-normal text-muted-foreground"
+                            className="h-6 border-dashed border-red-300 px-2 text-[11px] font-normal text-red-600 hover:bg-red-50 hover:text-red-700"
                             onClick={() => openEdit(r)}
                           >
                             Update auth #
