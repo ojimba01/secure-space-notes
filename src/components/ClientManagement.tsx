@@ -376,6 +376,26 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
     activeManagerOptions.filter((o) => selectedManagerIds.has(o.id)).length +
     (includeUnassigned ? 1 : 0);
   const allFilterSelected = selectedCount === totalFilterOptions;
+
+  /**
+   * What the number beside the list is counting, said in full.
+   *
+   * It used to read "N clients total", and "total" is a claim about the whole
+   * agency. It was not one: closed cases are out of this list, and picking a
+   * stage narrowed it further while the word stayed, so a stage of 12 read as
+   * an agency of 12. Now the number says which of the three it is -- the open
+   * caseload, what a search or filter matched, or the closed cases an
+   * administrator asked for by name.
+   */
+  const countPhrase = (() => {
+    const n = filteredClients.length;
+    const plural = n === 1 ? '' : 's';
+    if (stageFilter === 'closed') return `${n} closed client${plural}`;
+    const narrowed =
+      !!searchTerm || !allFilterSelected || !allStatusesSelected || stageFilter !== 'all';
+    return narrowed ? `${n} client${plural} matched` : `${n} open client${plural}`;
+  })();
+
   const noneFilterSelected = selectedCount === 0;
 
   const toggleAllFilter = () => {
@@ -585,10 +605,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       <div className="flex items-center gap-3">
         <div className="inline-flex items-center gap-2 bg-secondary/40 border rounded-full px-4 py-1.5 text-sm font-medium">
           <Users className="h-4 w-4 text-primary" />
-          <span>
-            {filteredClients.length} client{filteredClients.length !== 1 ? 's' : ''}
-            {searchTerm || !allFilterSelected || !allStatusesSelected ? ' matched' : ' total'}
-          </span>
+          <span>{countPhrase}</span>
         </div>
         {filteredClients.length === 0 && !loading && (
           <span className="text-xs text-muted-foreground">Adjust your filters or search to see results</span>

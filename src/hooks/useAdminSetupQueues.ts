@@ -9,7 +9,7 @@
 // number worth reading first.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { serviceStartDate, hspSubmitted } from '@/lib/workflow';
+import { serviceStartDate, hspSubmitted, OPEN_CASE_STAGE_FILTER } from '@/lib/workflow';
 import {
   daysToFinalDeadline,
   isStillBillable,
@@ -91,6 +91,7 @@ export function useAdminSetupQueues(): AdminSetupQueues {
               'id, first_name, last_name, assigned_employee_id, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, insurance',
             )
             .eq('status', 'active')
+            .or(OPEN_CASE_STAGE_FILTER)
             .order('last_name'),
           supabase.from('profiles').select('id, first_name, last_name'),
           supabase

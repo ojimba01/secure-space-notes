@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { todayAgency } from '@/lib/compliance';
+import { OPEN_CASE_STAGE_FILTER } from '@/lib/workflow';
 
 /**
  * The three questions Shade opens this page to answer.
@@ -112,6 +113,7 @@ export async function loadHspPicture(): Promise<HspPicture> {
     )
     .is('deleted_at', null)
     .eq('status', 'active')
+    .or(OPEN_CASE_STAGE_FILTER)
     .not('hsp_due_date', 'is', null)
     .not('assigned_employee_id', 'is', null);
   if (error) throw new Error(error.message);
@@ -187,6 +189,7 @@ export async function loadStaffTouchpointRows(
     .select('assigned_employee_id')
     .is('deleted_at', null)
     .eq('status', 'active')
+    .or(OPEN_CASE_STAGE_FILTER)
     .not('assigned_employee_id', 'is', null);
 
   const caseload = new Map<string, number>();

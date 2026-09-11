@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
+import { OPEN_CASE_STAGE_FILTER } from '@/lib/workflow';
 import { Button } from '@/components/ui/button';
 import {
   Popover, PopoverContent, PopoverTrigger,
@@ -80,6 +81,7 @@ export const AdvancedTools: React.FC = () => {
         .from('clients')
         .select('assigned_employee_id')
         .eq('status', 'active')
+        .or(OPEN_CASE_STAGE_FILTER)
         .not('assigned_employee_id', 'is', null);
       const clientCount = new Map<string, number>();
       for (const c of counts ?? []) {

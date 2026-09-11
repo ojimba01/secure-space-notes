@@ -41,6 +41,18 @@ export function isCaseClosed(c: {
 }
 
 /**
+ * The same question as a database filter, for the queries that count.
+ *
+ * `.eq('status', 'active')` already leaves a closed case out, but only when
+ * both columns agree -- and they have not always. Chained after it as
+ * `.or(OPEN_CASE_STAGE_FILTER)` this catches the rows closed by stage alone,
+ * so no number anywhere counts a closed case while the backfill is still
+ * pending. The `is.null` half matters: a bare `neq` drops every row whose
+ * stage was never set, which is most of them.
+ */
+export const OPEN_CASE_STAGE_FILTER = 'workflow_stage.is.null,workflow_stage.neq.closed';
+
+/**
  * The stage a client is actually at, whatever the column says.
  *
  * A client with no 30-day authorization date and no 30-day number has not been

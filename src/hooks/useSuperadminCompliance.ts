@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { serviceStartDate, isSetupComplete, missingSetupParts } from '@/lib/workflow';
+import { serviceStartDate, isSetupComplete, missingSetupParts, OPEN_CASE_STAGE_FILTER } from '@/lib/workflow';
 import { loadTouchpointSettings } from '@/lib/touchpointSettings';
 import {
   ContactRow, requirementsForTier,
@@ -82,6 +82,7 @@ export function useSuperadminCompliance(): SuperadminComplianceData {
       .from('clients')
       .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, status, assigned_employee_id')
       .eq('status', 'active')
+      .or(OPEN_CASE_STAGE_FILTER)
       .not('assigned_employee_id', 'is', null);
     const list = cls ?? [];
     const ids = list.map((c) => c.id);
