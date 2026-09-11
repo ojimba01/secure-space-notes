@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { CalendarClock, CalendarSync, CheckCircle2, Plus } from 'lucide-react';
 import {
-  useMyCompliance, ScheduledTouchpoint, CycleRow, SupervisorReminder,
+  useMyCompliance, ScheduledTouchpoint, CycleRow,
 } from '@/hooks/useMyCompliance';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { CaseLog } from '@/components/CaseLog';
@@ -182,84 +182,6 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
     </div>
   );
 
-  const reminderRow = (r: SupervisorReminder, cleared = false) => (
-    <div
-      key={r.id}
-      {...openOnClick(r.client_id)}
-      className={`flex cursor-pointer items-center justify-between rounded-md border p-3 gap-2 transition-colors hover:border-primary/50 ${
-        cleared ? 'border-green-200 bg-green-50'
-          : r.status === 'overdue' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
-      }`}
-    >
-      <div className="min-w-0">
-        <div className="font-medium flex items-center gap-2">
-          {cleared && <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />}
-          <span className="truncate">{r.client_name}</span>
-        </div>
-        <div className="text-xs text-muted-foreground mt-0.5">
-          {r.message} · cycle ends {fmtShort(r.dueDate)}
-        </div>
-        {r.touchpoint && !cleared && (
-          <div className="text-xs text-muted-foreground mt-0.5">
-            Already scheduled for {fmtDay(r.touchpoint.date)} — no need to add another.
-          </div>
-        )}
-      </div>
-      <div className="flex items-center gap-1 shrink-0">
-        {statusBadge(cleared ? 'completed' : r.status)}
-        {!cleared && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(e) => {
-              stop(e);
-              if (r.touchpoint) addFromTouchpoint(r.touchpoint);
-              else openAdd({ clientId: r.client_id, clientName: r.client_name, locked: true, date: today });
-            }}
-          >
-            Add touchpoint
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-
-  const cycleRow = (c: CycleRow) => (
-    <div
-      key={c.client_id}
-      {...openOnClick(c.client_id)}
-      className="flex cursor-pointer items-center justify-between gap-2 rounded-md border p-3 transition-colors hover:border-primary/50 hover:bg-muted/40"
-    >
-      <div className="min-w-0">
-        <div className="font-medium flex items-center gap-2 truncate">
-          {c.client_name} {lonBadge(c.level_of_need)}
-        </div>
-        <div className="text-xs text-muted-foreground mt-0.5">
-          {fmtShort(c.windowStart)} – {fmtShort(c.windowEnd)} · {c.contactDays} of {c.requiredContacts} touchpoints
-          {c.requiredInPerson > 0 && ` · ${c.inPersonDays} of ${c.requiredInPerson} in person`}
-        </div>
-        {c.isPreGoLive && (
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            Cycle began before {fmtShort(data.goLiveDate)} — shown for reference, not counted against you.
-          </div>
-        )}
-        {c.reasons.length > 0 && (
-          <ul className="text-xs text-red-700 list-disc pl-4 mt-0.5">
-            {c.reasons.map((r, i) => <li key={i}>{r}</li>)}
-          </ul>
-        )}
-      </div>
-      <div className="flex items-center gap-1 shrink-0">
-        {statusBadge(c.status)}
-        {c.status !== 'completed' && (
-          <Button size="sm" variant="outline" onClick={(e) => { stop(e); addFromCycle(c); }}>
-            Add touchpoint
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -313,60 +235,32 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         </Card>
       )}
 
-      {/* Supervisor reminders */}
-      <Card>
-        <CardHeader>
-          {/* Not sent by anyone. These are worked out from cycle progress on
-              every load, which is why completing the touchpoint clears the row.
-              Calling them "supervisor reminders" implied a person behind them
-              and a message nobody could actually send. */}
-          <CardTitle className="text-lg">Needs follow-up</CardTitle>
-          <p className="text-sm text-muted-foreground">These cycles close before the required touchpoints are done.</p>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {data.reminders.length === 0 && data.clearedReminders.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Every cycle is on track.</p>
-          ) : (
-            <>
-              {data.reminders.map((r) => reminderRow(r))}
-              {data.clearedReminders.map((r) => reminderRow(r, true))}
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Upcoming this week */}
+      {/* One queue, not three.
+          Needs follow-up, Upcoming this week and Touchpoint cycles were three
+          readings of the same days: a cycle closing, a touchpoint scheduled
+          inside it, and the cycle's own progress bar. Whichever you read, the
+          work was the same work. This is the month, in order, and the status on
+          each row says everything the other two sections were saying. */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <CalendarClock className="h-4 w-4 text-muted-foreground" />
-            Upcoming this week
+            This month
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            {data.completedThisWeek} completed · {data.remainingThisWeek.length} still to do. Full detail is on your calendar.
+            {fmtShort(data.monthStart)}–{fmtShort(data.monthEnd)} · {data.completedThisWeek} logged this week.
+            Full detail is on your calendar.
           </p>
         </CardHeader>
         <CardContent className="space-y-2">
-          {data.upcomingThisWeek.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing scheduled this week.</p>
-          ) : data.upcomingThisWeek.map(tpRow)}
-        </CardContent>
-      </Card>
-
-      {/* Touchpoint cycles */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Touchpoint cycles</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Where each client stands in their current 30-day cycle.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {data.cycles.length === 0 ? (
+          {data.loading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : data.upcomingThisMonth.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              {data.loading ? 'Loading…' : 'No clients are ready for touchpoints yet.'}
+              Nothing scheduled this month. Touchpoints appear here once a client has
+              an authorization start date.
             </p>
-          ) : data.cycles.map(cycleRow)}
+          ) : data.upcomingThisMonth.map(tpRow)}
         </CardContent>
       </Card>
 

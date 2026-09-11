@@ -97,7 +97,10 @@ export interface MyComplianceData {
   hspDueSoon: HspDueSoon[];
   /** Reminders satisfied today — shown as done so the queue confirms the save. */
   clearedReminders: SupervisorReminder[];
-  upcomingThisWeek: ScheduledTouchpoint[];
+  /** Everything scheduled in the current calendar month, past days included. */
+  upcomingThisMonth: ScheduledTouchpoint[];
+  monthStart: string;
+  monthEnd: string;
   cycles: CycleRow[];
   completedThisWeek: number;
   remainingThisWeek: ScheduledTouchpoint[];
@@ -115,7 +118,9 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
     reminders: [],
     hspDueSoon: [],
     clearedReminders: [],
-    upcomingThisWeek: [],
+    upcomingThisMonth: [],
+    monthStart: todayAgency(),
+    monthEnd: todayAgency(),
     cycles: [],
     completedThisWeek: 0,
     remainingThisWeek: [],
@@ -125,6 +130,13 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
   const today = todayAgency();
   const wkStart = startOfWeek(today);
   const wkEnd = endOfWeek(today);
+  // The queue is a month now. A week was too short a horizon to plan against,
+  // and it made three sections say overlapping things about the same days.
+  const moStart = `${today.slice(0, 7)}-01`;
+  const moEnd = (() => {
+    const [y, m] = today.split('-').map(Number);
+    return new Date(Date.UTC(m === 12 ? y + 1 : y, m === 12 ? 0 : m, 0)).toISOString().slice(0, 10);
+  })();
 
   const load = useCallback(async () => {
     if (!profileId) return;
@@ -305,6 +317,11 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
     const scheduledThisWeek = allTps.filter((t) => inThisWeek(t.date));
     const remainingThisWeek = scheduledThisWeek.filter((t) => t.status !== 'completed');
 
+    const inThisMonth = (d: string) => d >= moStart && d <= moEnd;
+    const scheduledThisMonth = allTps
+      .filter((t) => inThisMonth(t.date))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.client_name.localeCompare(b.client_name));
+
     let completedThisWeek = 0;
     Object.values(contactsByClient).forEach((cs) => {
       completedThisWeek += cs.filter((ct) => inThisWeek(ct.contact_date)).length;
@@ -316,14 +333,16 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
       reminders,
       hspDueSoon,
       clearedReminders,
-      upcomingThisWeek: scheduledThisWeek,
+      upcomingThisMonth: scheduledThisMonth,
+      monthStart: moStart,
+      monthEnd: moEnd,
       cycles,
       completedThisWeek,
       remainingThisWeek,
       overdueCount: cycles.filter((c) => c.status === 'overdue').length,
     });
     setLoading(false);
-  }, [profileId, myProfileId, today, wkStart, wkEnd]);
+  }, [profileId, myProfileId, today, wkStart, wkEnd, moStart, moEnd]);
 
   useEffect(() => { load(); }, [load]);
 

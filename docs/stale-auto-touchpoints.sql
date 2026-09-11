@@ -1,56 +1,67 @@
--- Auto-scheduled touchpoints outlive the cycle that made them.
+-- Pre-September touchpoints that nobody worked.
 --
--- The scheduler in src/lib/touchpoints.ts cleans up only the *current* billing
--- window: insertTouchpoints() deletes auto-generated events that fall inside
--- `window`, then writes fresh ones. Everything it suggested in a cycle that has
--- since rolled over is left where it is. Months of never-kept appointments
--- accumulate on the calendar and read as history, which they are not — nobody
--- attended them, and nothing downstream counts them. Compliance is read from
--- client_contacts alone.
+-- A first version of this script required is_auto_generated = true and matched
+-- nothing: every surviving pre-September event carries `false`. The flag was
+-- added after those rows were written, and the events predate it. Measured on
+-- the live database before this rewrite:
 --
--- This removes the suggestions that were never worked, from before September
--- 2026. Dates are compared in the agency's time zone (America/New_York), the
--- same one every date on screen is rendered in.
+--   touchpoint_suggested   196 rows, 30-31 Aug, none with a contact
+--   touch_point            190 rows, 4-22 Jul, none with a contact
+--   client_visit            43 rows, 1-11 Jun, none with a contact
 --
--- What it deliberately keeps:
---   * anything a person put on the calendar (is_auto_generated = false)
---   * anything staff moved by hand (is_manually_adjusted = true) — a moved
---     appointment is somebody's decision, not a guess
---   * any event a logged contact points at, or that sits on a day the client
---     was actually contacted. Those show work that happened. Deleting them
---     would erase the visible record of it from the calendar while the contact
---     row survives, which is the worst of both.
+-- So the filter is the event's type and its date, not a flag that cannot be
+-- trusted on old data.
 --
--- To remove the completed ones as well, delete the two `not exists` blocks.
+-- What goes:
+--   * every `touchpoint_suggested`. The retired compliance cron wrote them and
+--     nothing in src/ has ever read that type — CaseManagerCalendar has no
+--     colour or label for it, so they render as unlabelled dots. The cron was
+--     retired on 2026-08-28 and `cron.job` is now empty, so nothing recreates
+--     them.
+--   * `touch_point` before September that no contact backs and staff never
+--     moved by hand.
+--
+-- What stays:
+--   * `client_visit` and every other type a person enters deliberately.
+--   * anything staff dragged to a new date.
+--   * anything a logged contact points at, or sitting on a day the client was
+--     contacted — those show work that happened.
 
 -- ---------------------------------------------------------------------------
--- Before: what is about to go, and what is being kept
+-- Before: what is about to go
 -- ---------------------------------------------------------------------------
-select
-  count(*) filter (
-    where e.is_auto_generated
-      and not e.is_manually_adjusted
-      and not exists (
-        select 1 from public.client_contacts c where c.calendar_event_id = e.id
-      )
-      and not exists (
-        select 1 from public.client_contacts c
-         where c.client_id = e.client_id
-           and c.contact_date = (e.start_time at time zone 'America/New_York')::date
-      )
-  ) as will_be_deleted,
-  count(*) filter (where e.is_manually_adjusted)   as kept_because_moved_by_hand,
-  count(*) filter (where not e.is_auto_generated)  as kept_because_entered_by_a_person
-from public.calendar_events e
-where e.event_type = 'touch_point'
-  and (e.start_time at time zone 'America/New_York')::date < date '2026-09-01';
+select e.event_type,
+       count(*) as will_be_deleted,
+       min((e.start_time at time zone 'America/New_York')::date) as earliest,
+       max((e.start_time at time zone 'America/New_York')::date) as latest
+  from public.calendar_events e
+ where (
+         e.event_type = 'touchpoint_suggested'
+         or (
+           e.event_type = 'touch_point'
+           and not e.is_manually_adjusted
+           and (e.start_time at time zone 'America/New_York')::date < date '2026-09-01'
+           and not exists (
+             select 1 from public.client_contacts c where c.calendar_event_id = e.id
+           )
+           and not exists (
+             select 1 from public.client_contacts c
+              where c.client_id = e.client_id
+                and c.contact_date = (e.start_time at time zone 'America/New_York')::date
+           )
+         )
+       )
+ group by e.event_type
+ order by e.event_type;
 
 -- ---------------------------------------------------------------------------
 -- Delete them
 -- ---------------------------------------------------------------------------
 delete from public.calendar_events e
+ where e.event_type = 'touchpoint_suggested';
+
+delete from public.calendar_events e
  where e.event_type = 'touch_point'
-   and e.is_auto_generated
    and not e.is_manually_adjusted
    and (e.start_time at time zone 'America/New_York')::date < date '2026-09-01'
    and not exists (
@@ -63,19 +74,19 @@ delete from public.calendar_events e
    );
 
 -- ---------------------------------------------------------------------------
--- After: expect 0. Running this script again is a no-op.
+-- After: expect two zeros. Running this again is a no-op.
 -- ---------------------------------------------------------------------------
-select count(*) as unworked_suggestions_remaining
-  from public.calendar_events e
- where e.event_type = 'touch_point'
-   and e.is_auto_generated
-   and not e.is_manually_adjusted
-   and (e.start_time at time zone 'America/New_York')::date < date '2026-09-01'
-   and not exists (
-     select 1 from public.client_contacts c where c.calendar_event_id = e.id
-   )
-   and not exists (
-     select 1 from public.client_contacts c
-      where c.client_id = e.client_id
-        and c.contact_date = (e.start_time at time zone 'America/New_York')::date
-   );
+select
+  (select count(*) from public.calendar_events
+    where event_type = 'touchpoint_suggested') as suggested_remaining,
+  (select count(*) from public.calendar_events e
+    where e.event_type = 'touch_point'
+      and not e.is_manually_adjusted
+      and (e.start_time at time zone 'America/New_York')::date < date '2026-09-01'
+      and not exists (
+        select 1 from public.client_contacts c where c.calendar_event_id = e.id)
+      and not exists (
+        select 1 from public.client_contacts c
+         where c.client_id = e.client_id
+           and c.contact_date = (e.start_time at time zone 'America/New_York')::date)
+  ) as unworked_touchpoints_remaining;
