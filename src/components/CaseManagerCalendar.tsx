@@ -84,6 +84,8 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<CalendarEvent[] | null>(null);
   const [searching, setSearching] = useState(false);
+  /** Client ids whose case is closed. Loaded once, consulted by every filter. */
+  const [closedIds, setClosedIds] = useState<Set<string>>(new Set());
   /** Five of today's at a time. A day with thirty is a wall, not a schedule. */
   const [todayPage, setTodayPage] = useState(0);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -107,7 +109,24 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
 
   useEffect(() => {
     fetchEvents();
-  }, [currentDate, isViewingAs, viewAsEmployeeId, isAdmin]);
+  }, [currentDate, isViewingAs, viewAsEmployeeId, isAdmin, closedIds]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // Staff cannot read a closed client at all, so their list comes back
+      // empty and the embed guard below carries them. Admins can, which is
+      // exactly the case the embed guard could not catch.
+      const { data } = await supabase
+        .from('clients')
+        .select('id')
+        .or('status.eq.closed,workflow_stage.eq.closed');
+      if (!cancelled) setClosedIds(new Set((data ?? []).map((r) => r.id as string)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /**
    * A closed case is off the calendar entirely, administrators included.
@@ -122,6 +141,12 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
   const onlyVisible = (rows: CalendarEvent[]) =>
     rows.filter((e) => {
       if (!e.client_id) return true;
+      // Asked of a list of ids rather than of the joined row. Reading the
+      // status off the embed meant trusting PostgREST to hand back the shape
+      // expected, and a join that came back differently failed open — the
+      // event stayed on the calendar. A closed id is closed whatever the
+      // join did.
+      if (closedIds.has(e.client_id)) return false;
       return !!e.clients && !isCaseClosed(e.clients);
     });
 
