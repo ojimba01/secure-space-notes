@@ -11,12 +11,6 @@ export interface CalendarFeed {
   lastAccessedAt: string | null;
 }
 
-/** The subscription table and its rotate function postdate the generated types. */
-const loosely = supabase as unknown as {
-  from: (t: string) => ReturnType<typeof supabase.from>;
-  rpc: (fn: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
-};
-
 interface FeedRow {
   token: string;
   last_accessed_at: string | null;
@@ -40,7 +34,7 @@ export function calendarFeedUrl(token: string): string {
 
 /** The signed-in person's feed, or null when they have never turned one on. */
 export async function loadCalendarFeed(profileId: string): Promise<CalendarFeed | null> {
-  const { data, error } = await loosely
+  const { data, error } = await supabase
     .from('calendar_feed_subscriptions')
     .select('token, last_accessed_at')
     .eq('profile_id', profileId)
@@ -60,12 +54,12 @@ export async function loadCalendarFeed(profileId: string): Promise<CalendarFeed 
  * want "revoke" or "regenerate" — one button, old link dead, new link ready.
  */
 export async function rotateCalendarFeedToken(): Promise<CalendarFeed> {
-  const { data, error } = await loosely.rpc('rotate_calendar_feed_token');
+  const { data, error } = await supabase.rpc('rotate_calendar_feed_token');
   if (error) throw new Error(error.message);
   const token = data as string;
 
   // The token is all the function returns; the preference is the row's.
-  const { data: row } = await loosely
+  const { data: row } = await supabase
     .from('calendar_feed_subscriptions')
     .select('token, last_accessed_at')
     .eq('token', token)
@@ -85,7 +79,7 @@ export async function turnCalendarFeedOff(): Promise<void> {
     .maybeSingle();
   if (!profile) throw new Error('Not signed in');
 
-  const { error } = await loosely
+  const { error } = await supabase
     .from('calendar_feed_subscriptions')
     .delete()
     .eq('profile_id', profile.id);
