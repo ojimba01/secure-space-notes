@@ -62,6 +62,7 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
   /** The recorded authorizations. They outrank the legacy columns. */
   const [recorded, setRecorded] = useState<AuthSpan[]>([]);
   const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +83,7 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
       const fromRecord = spansFromAuthorizations(auths);
       setSpans(loaded);
       setRecorded(fromRecord);
+      setLoading(false);
 
       // Open on the cycle being worked, not on a page of finished ones.
       if (loaded || fromRecord.length) {
@@ -95,9 +97,23 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
     };
   }, [clientId]);
 
-  if (!spans) return null;
-  const cycles = authorizationCycles(spans, todayAgency(), recorded);
-  if (cycles.length === 0) return null;
+  // The list used to return null on both of these, so a client with no
+  // authorization dates produced an empty space where a section had been and
+  // the feature looked broken. Nothing to show is a thing worth saying.
+  const cycles = authorizationCycles(spans ?? {}, todayAgency(), recorded);
+
+  if (loading || cycles.length === 0) {
+    return (
+      <div className="space-y-2">
+        <div className="text-sm font-semibold">All 30-day touchpoint cycles</div>
+        <p className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+          {loading
+            ? 'Loading'
+            : 'No cycles yet. They appear once this client has an authorization with a start date — record one under Authorizations.'}
+        </p>
+      </div>
+    );
+  }
 
   const pages = Math.max(1, Math.ceil(cycles.length / PAGE));
   const safePage = Math.min(page, pages - 1);

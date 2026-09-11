@@ -153,16 +153,26 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
             <p className="text-sm text-muted-foreground">These clients must be set up before they can be scheduled.</p>
           </CardHeader>
           <CardContent className="space-y-2">
+            {/* The row opens the client, as everywhere else. These are not
+                grouped by staff, so the row keeps the name of whoever carries
+                it. */}
             {data.missingRows.map((r) => (
-              <div key={r.id} className="flex items-center justify-between rounded-md border p-3">
-                <div>
-                  <div className="font-medium">{r.client_name} — {r.staff_name}</div>
+              <button
+                key={r.id}
+                onClick={() => onOpenClient(r.id)}
+                title="Open this client"
+                className="flex w-full items-center justify-between gap-3 rounded-md border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
+              >
+                <div className="min-w-0">
+                  <div className="truncate font-medium">
+                    {r.client_name} — {r.staff_name}
+                  </div>
                   <div className="text-xs text-muted-foreground">
                     Missing: {r.missing.join(', ')}
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => onOpenClient(r.id)}>Open client</Button>
-              </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
             ))}
           </CardContent>
         </Card>
