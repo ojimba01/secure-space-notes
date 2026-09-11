@@ -98,9 +98,11 @@ interface ClientManagementProps {
   /** Tab to open the client record on, e.g. 'intake'. */
   initialTab?: string;
   onConsumeInitialClient?: () => void;
+  /** Fires whenever the open record changes, so the page can remember it. */
+  onOpenClientChange?: (clientId: string | null) => void;
 }
 
-export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClientId, initialTab, onConsumeInitialClient }) => {
+export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClientId, initialTab, onConsumeInitialClient, onOpenClientChange }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isAdmin, loading: adminLoading } = useIsAdmin();
@@ -152,6 +154,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
     const match = clients.find((c) => c.id === pendingOpenId);
     if (match) {
       setSelectedClient(match);
+      onOpenClientChange?.(match.id);
       setPendingOpenId(null);
     }
   }, [pendingOpenId, clients]);
@@ -161,6 +164,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       const match = clients.find((c) => c.id === initialClientId);
       if (match) {
         setSelectedClient(match);
+        onOpenClientChange?.(match.id);
         onConsumeInitialClient?.();
       }
     }
@@ -437,7 +441,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
     return (
       <ClientDetails 
         client={selectedClient} 
-        onBack={() => setSelectedClient(null)}
+        onBack={() => { setSelectedClient(null); onOpenClientChange?.(null); }}
         onUpdate={fetchClients}
         initialTab={selectedClientTab ?? initialTab}
       />
@@ -623,7 +627,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
             <ClientCard
               key={client.id}
               client={client}
-              onSelect={setSelectedClient}
+              onSelect={(c) => { setSelectedClient(c); onOpenClientChange?.(c?.id ?? null); }}
               selectionMode={selectionMode}
               selected={selectedIds.has(client.id)}
               onToggleSelect={toggleSelect}

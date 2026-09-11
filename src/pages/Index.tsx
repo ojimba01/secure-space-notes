@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { FeatureWalkthrough } from '@/components/FeatureWalkthrough';
 import { TutorialProvider } from '@/components/TutorialProvider';
@@ -13,6 +13,9 @@ import { SuperadminTouchpoints } from '@/components/SuperadminTouchpoints';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 type View = 'compliance' | 'clients' | 'calendar' | 'forms';
+
+const VIEWS: View[] = ['compliance', 'clients', 'calendar', 'forms'];
+const isView = (v: string | null): v is View => !!v && (VIEWS as string[]).includes(v);
 
 /**
  * Two different questions, so two views rather than one blended screen:
@@ -55,11 +58,22 @@ const Index = () => {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const { isViewingAs } = useViewAs();
   const location = useLocation();
-  const [activeView, setActiveView] = useState<View>('compliance');
+  // The section and the open record live in the URL, so a refresh comes back
+  // where you were instead of at the top of the client list. Written with
+  // replace rather than push: the sidebar is an app shell, and filling the
+  // browser's history with section changes makes Back mean nothing useful.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlView = searchParams.get('view');
+  const urlClient = searchParams.get('client');
+  const [activeView, setActiveView] = useState<View>(isView(urlView) ? urlView : 'compliance');
   const [clientsKey, setClientsKey] = useState(0);
-  const [initialClientId, setInitialClientId] = useState<string | null>(null);
-  const [defaultApplied, setDefaultApplied] = useState(false);
+  const [initialClientId, setInitialClientId] = useState<string | null>(urlClient);
+  // A view read off the URL is the answer already; the landing default below
+  // must not overwrite it on the first render after a refresh.
+  const [defaultApplied, setDefaultApplied] = useState(isView(urlView));
   const [wasViewingAs, setWasViewingAs] = useState(false);
+  /** The record currently open, so a refresh reopens it rather than the list. */
+  const [openClientId, setOpenClientId] = useState<string | null>(urlClient);
 
   // Honor a view requested by another page (for example the admin sidebar),
   // and a specific client with it — the admin dashboard's queues are lists of
@@ -97,16 +111,28 @@ const Index = () => {
     }
   }, [isViewingAs, wasViewingAs]);
 
+  useEffect(() => {
+    if (!defaultApplied) return;
+    const next = new URLSearchParams(searchParams);
+    if (next.get('view') === activeView && (next.get('client') ?? null) === openClientId) return;
+    next.set('view', activeView);
+    if (openClientId) next.set('client', openClientId);
+    else next.delete('client');
+    setSearchParams(next, { replace: true });
+  }, [activeView, openClientId, defaultApplied, searchParams, setSearchParams]);
+
   const handleViewChange = (view: View) => {
     if (view === 'clients') {
       setClientsKey((k) => k + 1);
     }
     setActiveView(view);
+    setOpenClientId(null);
   };
 
   const handleOpenClient = (clientId: string) => {
     setInitialClientId(clientId);
     setActiveView('clients');
+    setOpenClientId(clientId);
   };
 
   // Signing in lands on the work, not on a guide. An account with nothing in
@@ -137,6 +163,7 @@ const Index = () => {
           ) : activeView === 'clients' ? (
             <ClientManagement
               key={clientsKey}
+              onOpenClientChange={setOpenClientId}
               initialClientId={initialClientId}
               onConsumeInitialClient={() => setInitialClientId(null)}
             />
