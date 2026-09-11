@@ -457,10 +457,19 @@ export function authorizationCycles(
   const spans = mergeSpans(recorded ?? [], authorizationSpans(c));
   if (spans.length === 0) return [];
 
-  // Cycles are anchored to the day services started, which is the first
-  // authorization if the legacy columns have nothing to say.
-  const serviceStart =
-    c.auth_30_start || c.iat_date || c.auth_150_start || c.hsp_150_date || spans[0].start;
+  // Services started on the earliest authorization there is, from either
+  // source — not on whichever the legacy columns happen to mention.
+  //
+  // Preferring the columns meant a client whose initial 30 days live only in
+  // client_authorizations, and whose one legacy column is a later HSP date,
+  // began his cycle run four months after his first authorization did. The
+  // thirty days he was actually authorised for fell before the first cycle and
+  // appeared nowhere, while the Authorizations tab showed them plainly.
+  const legacyStart =
+    c.auth_30_start || c.iat_date || c.auth_150_start || c.hsp_150_date || null;
+  const serviceStart = [legacyStart, spans[0].start]
+    .filter((d): d is string => !!d)
+    .sort((a, b) => a.localeCompare(b))[0];
   if (!serviceStart) return [];
 
   const lastEnd = spans.reduce((acc, s) => (daysBetween(acc, s.end) > 0 ? s.end : acc), spans[0].end);

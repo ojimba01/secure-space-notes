@@ -98,3 +98,23 @@ test('a superseded authorization still covered the days it ran', () => {
 test('a client with no dates at all has no cycles', () => {
   assert.equal(authorizationCycles({}, TODAY).length, 0);
 });
+
+test('cycles begin at the earliest authorization from either source', () => {
+  // The 30-day lives only in client_authorizations; the one legacy column is a
+  // later HSP date. Anchoring on the column started the run four months late.
+  const recorded = spansFromAuthorizations([
+    { authorization_type: 'initial_30', start_date: '2026-06-17', end_date: '2026-07-17', status: 'expired' },
+  ]);
+  const cycles = authorizationCycles({ hsp_150_date: '2026-10-10' }, TODAY, recorded);
+  assert.equal(cycles[0].start, '2026-06-17');
+  assert.equal(cycles[0].phase, 'initial_30');
+  assert.ok(cycles.some((c) => c.start <= '2026-06-17' && c.end >= '2026-06-17'));
+});
+
+test('a legacy column earlier than any record still anchors the run', () => {
+  const recorded = spansFromAuthorizations([
+    { authorization_type: 'continuation_150', start_date: '2026-10-10', end_date: '2027-03-08', status: 'active' },
+  ]);
+  const cycles = authorizationCycles({ iat_date: '2026-09-10' }, TODAY, recorded);
+  assert.equal(cycles[0].start, '2026-09-10');
+});

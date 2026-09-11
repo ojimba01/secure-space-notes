@@ -47,13 +47,25 @@ const Row: React.FC<{ label: string; children?: React.ReactNode }> = ({ label, c
   </div>
 );
 
-const Block: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <Card>
+/**
+ * A block of fields.
+ *
+ * `wide` blocks take the full row and lay their fields out in two columns;
+ * the rest sit beside each other. A record of short values in one narrow
+ * column left two thirds of the screen empty and pushed the run of fields
+ * twice as far down as it needed to go.
+ */
+const Block: React.FC<{ title: string; children: React.ReactNode; wide?: boolean }> = ({
+  title,
+  children,
+  wide = false,
+}) => (
+  <Card className={wide ? 'lg:col-span-2' : ''}>
     <CardContent className="pt-5">
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </h3>
-      <dl>{children}</dl>
+      <dl className={wide ? 'grid gap-x-8 md:grid-cols-2' : ''}>{children}</dl>
     </CardContent>
   </Card>
 );
@@ -67,7 +79,7 @@ export const ClientOverview: React.FC<{
   const isUnited = (client.insurance ?? '').toLowerCase().includes('united');
 
   return (
-    <div className="space-y-4">
+    <div className="grid items-start gap-4 lg:grid-cols-2">
       <Block title="Contact">
         <Row label="Full name">
           {`${client.first_name} ${client.last_name}`.trim()}
@@ -104,17 +116,17 @@ export const ClientOverview: React.FC<{
         )}
       </Block>
 
-      <Block title="Authorizations">
+      <Block title="Authorizations" wide>
         <Row label="IAT / 30-day start">{client.iat_date && formatDay(client.iat_date)}</Row>
-        <Row label="30-day number">{client.auth_30_number}</Row>
+        <Row label="30-day auth #">{client.auth_30_number}</Row>
         <Row label="HSP 150-day start">
           {client.hsp_150_date && formatDay(client.hsp_150_date)}
         </Row>
-        <Row label="150-day number">{client.auth_150_number}</Row>
+        <Row label="150-day auth #">{client.auth_150_number}</Row>
         <Row label="HSP 180-day start">
           {client.hsp_180_date && formatDay(client.hsp_180_date)}
         </Row>
-        <Row label="180-day number">{client.auth_180_number}</Row>
+        <Row label="180-day auth #">{client.auth_180_number}</Row>
       </Block>
 
       {/* Two permanently empty rows on every open case is what this block
@@ -127,7 +139,7 @@ export const ClientOverview: React.FC<{
       )}
 
       {client.notes && (
-        <Block title="Notes">
+        <Block title="Notes" wide>
           <p className="whitespace-pre-wrap py-1 text-sm">{client.notes}</p>
         </Block>
       )}

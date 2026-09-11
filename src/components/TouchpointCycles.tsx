@@ -8,8 +8,33 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { fetchClientAuthorizations } from '@/lib/authorizations';
+import {
+  AUTHORIZATION_TYPE_LABEL,
+  fetchClientAuthorizations,
+  recordAuthorization,
+  resyncDerivedSchedules,
+  syncAuthorizationsFromLegacyColumns,
+  type AuthorizationType,
+} from '@/lib/authorizations';
 import {
   authorizationCycles,
   spansFromAuthorizations,
@@ -31,7 +56,10 @@ const fmt = (d: string) => {
   return `${m}/${day}/${y}`;
 };
 
-const Row: React.FC<{ cycle: AuthorizationCycle }> = ({ cycle }) => (
+const Row: React.FC<{ cycle: AuthorizationCycle; onAdd?: (c: AuthorizationCycle) => void }> = ({
+  cycle,
+  onAdd,
+}) => (
   <li className="flex items-center gap-2">
     {/* The block of colour ends with the dates. Stretched across the column it
         read as a progress bar measuring nothing. */}
@@ -47,9 +75,16 @@ const Row: React.FC<{ cycle: AuthorizationCycle }> = ({ cycle }) => (
         Now
       </span>
     ) : !cycle.phase ? (
-      <span className="text-[10px] font-medium uppercase tracking-wide text-amber-700">
-        Not authorized
-      </span>
+      // Naming the problem and leaving the reader to go and find the screen
+      // that fixes it is half a message. This is the other half.
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-6 border-amber-300 px-2 text-[11px] text-amber-800 hover:bg-amber-100"
+        onClick={() => onAdd?.(cycle)}
+      >
+        Add authorization code
+      </Button>
     ) : null}
   </li>
 );
@@ -63,6 +98,13 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
   const [recorded, setRecorded] = useState<AuthSpan[]>([]);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  /** The uncovered cycle somebody is recording an authorization for. */
+  const [adding, setAdding] = useState<AuthorizationCycle | null>(null);
+  const [addType, setAddType] = useState<AuthorizationType>('reauthorization_180');
+  const [addNumber, setAddNumber] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [reload, setReload] = useState(0);
+  const { toast } = useToast();
 
   useEffect(() => {
     let cancelled = false;
@@ -95,7 +137,39 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
     return () => {
       cancelled = true;
     };
-  }, [clientId]);
+  }, [clientId, reload]);
+
+  const saveAuthorization = async () => {
+    if (!adding) return;
+    setSaving(true);
+    try {
+      await recordAuthorization({
+        clientId,
+        type: addType,
+        // The cycle's own first day: it is the stretch that was uncovered, so
+        // it is the day the authorization has to begin to cover it.
+        startDate: adding.start,
+        authorizationNumber: addNumber.trim() || null,
+      });
+      await syncAuthorizationsFromLegacyColumns(clientId).catch(() => {});
+      await resyncDerivedSchedules(clientId).catch(() => {});
+      setAdding(null);
+      setAddNumber('');
+      setReload((n) => n + 1);
+      toast({
+        title: 'Authorization recorded',
+        description: 'The cycles it covers have been recoloured.',
+      });
+    } catch (e) {
+      toast({
+        title: 'Could not record it',
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // The list used to return null on both of these, so a client with no
   // authorization dates produced an empty space where a section had been and
@@ -143,9 +217,62 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
 
       <ul className="space-y-1.5 text-xs">
         {shown.map((c) => (
-          <Row key={c.number} cycle={c} />
+          <Row key={c.number} cycle={c} onAdd={setAdding} />
         ))}
       </ul>
+
+      <Dialog open={!!adding} onOpenChange={(o) => !o && setAdding(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add an authorization</DialogTitle>
+            <DialogDescription>
+              Nothing covers {adding && fmt(adding.start)} – {adding && fmt(adding.end)}. Recording
+              a period that starts on that day colours this cycle and every other it reaches.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Period</Label>
+              <Select value={addType} onValueChange={(v) => setAddType(v as AuthorizationType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(['initial_30', 'continuation_150', 'reauthorization_180'] as const).map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {AUTHORIZATION_TYPE_LABEL[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="auth-number">Authorization number</Label>
+              <Input
+                id="auth-number"
+                value={addNumber}
+                onChange={(e) => setAddNumber(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Starts {adding && fmt(adding.start)}. The end date follows from the period.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdding(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={saveAuthorization} disabled={saving}>
+              {saving ? 'Recording…' : 'Record'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {pages > 1 && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

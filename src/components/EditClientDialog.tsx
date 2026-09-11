@@ -610,21 +610,21 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <FormField control={form.control} name="auth_30_number" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Initial 30-day</FormLabel>
+                    <FormLabel>30-day auth #</FormLabel>
                     <FormControl><Input {...field} placeholder="Authorization number" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="auth_150_number" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>150-day</FormLabel>
+                    <FormLabel>150-day auth #</FormLabel>
                     <FormControl><Input {...field} placeholder="Authorization number" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="auth_180_number" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>180-day extension</FormLabel>
+                    <FormLabel>180-day auth #</FormLabel>
                     <FormControl><Input {...field} placeholder="Authorization number" /></FormControl>
                     <FormMessage />
                   </FormItem>
