@@ -15,9 +15,8 @@ import { syncAuthorizationsFromLegacyColumns, resyncDerivedSchedules } from '@/l
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
-import { regenerateClientCycles } from '@/lib/billingSync';
-import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 import { useViewAs } from '@/components/ViewAsProvider';
+import { authorizationDatePatch, editAuthorizationDates } from '@/lib/clientAuthorizationDates';
 import { MCO_OPTIONS, hspDueDateFor, addDays } from '@/lib/billing';
 
 
@@ -82,8 +81,10 @@ interface Client {
   hsp_180_date?: string;
   mco_housing_manager?: string;
   hsp_due_date?: string;
-  /** Read-only here: the 30-day dates are managed in the Authorizations section. */
+  /** Authorization dates also populate records created outside this form. */
   auth_30_start?: string | null;
+  auth_150_start?: string | null;
+  auth_180_start?: string | null;
   closed_date?: string;
   reason_closed?: string;
   notes?: string;
@@ -93,7 +94,7 @@ interface EditClientDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client: Client;
-  onClientUpdated: () => void;
+  onClientUpdated: () => void | Promise<void>;
 }
 
 export const EditClientDialog: React.FC<EditClientDialogProps> = ({
@@ -106,6 +107,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
   const { guardWrite } = useViewAs();
   const { isAdmin } = useIsAdmin();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [scheduleRetry, setScheduleRetry] = useState(false);
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -123,9 +125,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
       mco_housing_manager: client.mco_housing_manager || '',
       date_of_birth: client.date_of_birth || '',
       intake_date: client.intake_date || '',
-      iat_date: client.iat_date || '',
-      hsp_150_date: client.hsp_150_date || '',
-      hsp_180_date: client.hsp_180_date || '',
+      ...editAuthorizationDates(client),
       hsp_due_date: client.hsp_due_date || '',
       closed_date: client.closed_date || '',
       reason_closed: client.reason_closed || '',
@@ -152,10 +152,8 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
     }
     setIsSubmitting(true);
 
-    const changed = (field: 'iat_date' | 'hsp_150_date' | 'hsp_180_date') =>
-      (data[field] || '') !== (client[field] || '');
-
     try {
+      const datePatch = authorizationDatePatch(client, data);
       const { error } = await supabase
         .from('clients')
         .update({
@@ -171,24 +169,7 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           county: data.county || null,
           date_of_birth: data.date_of_birth || null,
           intake_date: data.intake_date || null,
-          // The IAT start and the 30-day authorization start are the same
-          // day, so both columns are written from the one field.
-          iat_date: data.iat_date || null,
-          auth_30_start: data.iat_date || null,
-          hsp_150_date: data.hsp_150_date || null,
-          hsp_180_date: data.hsp_180_date || null,
-          // The HSP 150-day and 180-day dates ARE those authorizations' start
-          // dates, and until now nothing said so. The IAT field has mirrored
-          // into auth_30_start all along, which is the only reason editing the
-          // 30-day date worked; these two wrote a column that the authorization
-          // sync never reads, so the edit saved and went nowhere.
-          //
-          // Mirrored only when the field was actually edited. Writing them on
-          // every save would let a stale value in this form overwrite a start
-          // date recorded precisely under Authorizations, on a save that was
-          // about a phone number.
-          ...(changed('hsp_150_date') ? { auth_150_start: data.hsp_150_date || null } : {}),
-          ...(changed('hsp_180_date') ? { auth_180_start: data.hsp_180_date || null } : {}),
+          ...datePatch,
           hsp_due_date: derivedHspDue,
           closed_date: data.closed_date || null,
           reason_closed: data.reason_closed || null,
@@ -196,80 +177,37 @@ export const EditClientDialog: React.FC<EditClientDialogProps> = ({
           status: data.status,
           notes: data.notes || null,
         })
-        .eq('id', client.id);
+        .eq('id', client.id)
+        .select('id')
+        .single();
 
       if (error) throw error;
 
-      // Every date on this form that anchors an authorization, not just the
-      // IAT one.
-      //
-      // The sync used to run on a change to iat_date alone, so editing the
-      // 150-day or 180-day date saved the column and left client_authorizations
-      // holding the old period: the record showed the new date and the
-      // Authorizations tab showed the old one, with nothing to say which was
-      // true. Both helpers have to run together — the history first, then the
-      // cycles and touchpoints derived from it. Doing one without the other is
-      // the most repeated source of defects in this app.
-      const authorizationDateChanged =
-        changed('iat_date') || changed('hsp_150_date') || changed('hsp_180_date');
-
-      if (authorizationDateChanged) {
-        try {
-          await syncAuthorizationsFromLegacyColumns(client.id);
-          await resyncDerivedSchedules(client.id);
-        } catch (err: any) {
-          toast({
-            title: 'The date was saved, but the schedule was not rebuilt',
-            description: `${err.message} — save again to retry.`,
-            variant: 'destructive',
-          });
-        }
+      // Retrying a partial save must run the synchronization again even when
+      // the client row already contains the requested date.
+      const authorizationDateChanged = Object.keys(datePatch).length > 0;
+      const billingChanged = (data.level_of_need || '') !== (client.level_of_need || '');
+      if (authorizationDateChanged || scheduleRetry) {
+        setScheduleRetry(true);
+        await syncAuthorizationsFromLegacyColumns(client.id);
       }
-
-      // Level of need sets the billing rate, so a change to it rebuilds too.
-      const billingChanged =
-        (data.level_of_need || '') !== (client.level_of_need || '');
-      if (billingChanged) {
-        try {
-          await regenerateClientCycles(client.id);
-        } catch (err: any) {
-          toast({
-            title: 'Billing cycles were not rebuilt',
-            description: `${err.message} — save again to retry.`,
-            variant: 'destructive',
-          });
-        }
+      if (authorizationDateChanged || billingChanged || scheduleRetry) {
+        setScheduleRetry(true);
+        await resyncDerivedSchedules(client.id);
       }
-
-      // Touchpoint frequency comes from the level of need; hsp_150_date is
-      // still the fallback service anchor for records that predate
-      // authorization tracking, so a change to either reschedules.
-      const touchpointsChanged =
-        (data.hsp_150_date || '') !== (client.hsp_150_date || '') ||
-        (data.level_of_need || '') !== (client.level_of_need || '');
-      if (touchpointsChanged) {
-        try {
-          await regenerateTouchpointsForClient(client.id);
-        } catch (err: any) {
-          toast({
-            title: 'Touchpoints were not rescheduled',
-            description: err.message,
-            variant: 'destructive',
-          });
-        }
-      }
+      setScheduleRetry(false);
 
       toast({
         title: "Client Updated",
         description: "Client information has been updated successfully.",
       });
 
-      onClientUpdated();
+      await onClientUpdated();
       onOpenChange(false);
     } catch (error: any) {
       toast({
         title: "Error updating client",
-        description: error.message,
+        description: `${error.message} Your changes may already be saved. Keep this dialog open and press Save to retry.`,
         variant: "destructive",
       });
     } finally {

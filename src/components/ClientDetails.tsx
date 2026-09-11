@@ -62,7 +62,7 @@ interface Client {
 interface ClientDetailsProps {
   client: Client;
   onBack: () => void;
-  onUpdate: () => void;
+  onUpdate: () => void | Promise<void>;
   /** Tab to open on. Defaults to the overview. */
   initialTab?: string;
 }
@@ -83,6 +83,11 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
    * saying it had not been.
    */
   const [formsVersion, setFormsVersion] = useState(0);
+  const [recordVersion, setRecordVersion] = useState(0);
+  const recordChanged = async () => {
+    await onUpdate();
+    setRecordVersion((v) => v + 1);
+  };
   const formsChanged = () => setFormsVersion((v) => v + 1);
   const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -315,11 +320,11 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           </Card>
 
           <ClientWorkflowCard
-            key={`workflow-${formsVersion}`}
+            key={`workflow-${client.id}-${formsVersion}-${recordVersion}`}
             client={client}
             onUpdate={() => {
               formsChanged();
-              onUpdate();
+              recordChanged();
             }}
           />
 
@@ -343,13 +348,14 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </TabsContent>
 
         <TabsContent value="authorizations" className="space-y-6">
-          <AuthorizationsFromDocuments clientId={client.id} onApplied={onUpdate} />
-          <AuthorizationsSection clientId={client.id} onUpdate={onUpdate} />
+          <AuthorizationsFromDocuments clientId={client.id} onApplied={recordChanged} />
+          <AuthorizationsSection key={`authorizations-${client.id}-${recordVersion}`} clientId={client.id} onUpdate={recordChanged} />
         </TabsContent>
 
         <TabsContent value="touchpoints">
           {client.status === 'active' ? (
             <ComplianceCard
+              key={`compliance-${client.id}-${recordVersion}`}
               clientId={client.id}
               clientName={`${client.first_name} ${client.last_name}`}
               levelOfNeed={client.level_of_need}
@@ -439,15 +445,15 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         clientId={client.id}
         clientName={`${client.first_name} ${client.last_name}`}
         current={client as unknown as Record<string, unknown>}
-        onApplied={onUpdate}
+        onApplied={recordChanged}
       />
 
-      <EditClientDialog
+      {editDialogOpen && <EditClientDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         client={client}
-        onClientUpdated={onUpdate}
-      />
+        onClientUpdated={recordChanged}
+      />}
 
       <ReassignClientDialog
         open={reassignDialogOpen}

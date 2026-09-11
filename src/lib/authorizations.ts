@@ -319,6 +319,7 @@ export async function mirrorAuthorizationToLegacyColumns(
   if (type === 'initial_30') {
     payload = {
       auth_30_number: values.authorizationNumber,
+      iat_date: values.startDate,
       auth_30_start: values.startDate,
       auth_30_end: values.endDate,
       initial_authorization_status: 'active',
@@ -328,6 +329,7 @@ export async function mirrorAuthorizationToLegacyColumns(
   } else if (type === 'continuation_150') {
     payload = {
       auth_150_number: values.authorizationNumber,
+      hsp_150_date: values.startDate,
       auth_150_start: values.startDate,
       auth_150_end: values.endDate,
       continuation_authorization_status: 'active',
@@ -339,6 +341,7 @@ export async function mirrorAuthorizationToLegacyColumns(
     // in client_authorizations.
     payload = {
       auth_180_number: values.authorizationNumber,
+      hsp_180_date: values.startDate,
       auth_180_start: values.startDate,
       auth_180_end: values.endDate,
       auth_180_approved: true,
@@ -474,7 +477,9 @@ export async function syncAuthorizationsFromLegacyColumns(
           authorization_number: period.number || null,
           status: statusForPeriod(period.start, end),
         })
-        .eq('id', newest.id);
+        .eq('id', newest.id)
+        .select('id')
+        .single();
       if (error) throw new Error(error.message);
       updated += 1;
     } else {
