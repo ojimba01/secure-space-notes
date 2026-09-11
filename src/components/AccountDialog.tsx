@@ -14,8 +14,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { SignatureManager } from '@/components/SignatureManager';
 import { loadSignatures, signatureUrl } from '@/lib/signatures';
+import {
+  calendarFeedUrl,
+  loadCalendarFeed,
+  rotateCalendarFeedToken,
+  setCalendarFeedNames,
+  turnCalendarFeedOff,
+  type CalendarFeed,
+} from '@/lib/calendarFeed';
+
+const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** The heading over each part of the page, in the same voice throughout. */
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -49,6 +60,9 @@ export const AccountDialog: React.FC<{
   /** The default mark, shown so the section says what is already saved. */
   const [preview, setPreview] = useState<{ url: string; label: string } | null>(null);
   const [savedCount, setSavedCount] = useState<number | null>(null);
+  /** null while loading, false once we know there is no feed. */
+  const [feed, setFeed] = useState<CalendarFeed | null | false>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -84,6 +98,77 @@ export const AccountDialog: React.FC<{
       cancelled = true;
     };
   }, [open, profileId]);
+
+  useEffect(() => {
+    if (!open || !profileId) return;
+    let cancelled = false;
+    loadCalendarFeed(profileId)
+      .then((f) => { if (!cancelled) setFeed(f ?? false); })
+      .catch(() => { if (!cancelled) setFeed(false); });
+    return () => { cancelled = true; };
+  }, [open, profileId]);
+
+  const turnFeedOn = async () => {
+    setBusy(true);
+    try {
+      setFeed(await rotateCalendarFeedToken());
+      toast({ title: 'Calendar link ready', description: 'Paste it into Outlook, Google or Apple Calendar.' });
+    } catch (e) {
+      toast({ title: 'Could not create the link', description: msg(e), variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const replaceFeedLink = async () => {
+    setBusy(true);
+    try {
+      setFeed(await rotateCalendarFeedToken());
+      toast({
+        title: 'Old link is dead',
+        description: 'Anything still subscribed to it stops updating. Paste the new one in its place.',
+      });
+    } catch (e) {
+      toast({ title: 'Could not replace it', description: msg(e), variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const turnFeedOff = async () => {
+    setBusy(true);
+    try {
+      await turnCalendarFeedOff();
+      setFeed(false);
+      toast({ title: 'Calendar link switched off', description: 'Every subscription to it has stopped.' });
+    } catch (e) {
+      toast({ title: 'Could not switch it off', description: msg(e), variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleFeedNames = async (show: boolean) => {
+    if (!feed) return;
+    setFeed({ ...feed, showClientNames: show });
+    try {
+      await setCalendarFeedNames(show);
+    } catch (e) {
+      setFeed({ ...feed, showClientNames: !show });
+      toast({ title: 'Could not save that', description: msg(e), variant: 'destructive' });
+    }
+  };
+
+  const copyFeedUrl = async () => {
+    if (!feed) return;
+    try {
+      await navigator.clipboard.writeText(calendarFeedUrl(feed.token));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: 'Could not copy', description: 'Select the link and copy it by hand.' });
+    }
+  };
 
   const changePassword = async () => {
     if (password.length < 8) {
@@ -152,6 +237,69 @@ export const AccountDialog: React.FC<{
                   Send a recovery email
                 </Button>
               </div>
+            </section>
+
+            <section className="space-y-3 px-5 py-4">
+              <SectionHeading>Calendar subscription</SectionHeading>
+              {feed === null ? (
+                <p className="text-sm text-muted-foreground">Loading</p>
+              ) : feed === false ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Put your touchpoints and appointments in the calendar you already use. Your
+                    calendar decides how often to check for changes — usually a few hours, so treat
+                    it as a reminder and the app as the record.
+                  </p>
+                  <Button size="sm" variant="outline" onClick={turnFeedOn} disabled={busy}>
+                    Create my calendar link
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {/* Readable, selectable, and never a link you can click: opening
+                      it in a browser downloads a file, which is not what anyone
+                      wants and looks like the feature is broken. */}
+                  <code className="block w-full break-all rounded border bg-muted/40 p-2 text-[11px] leading-relaxed">
+                    {calendarFeedUrl(feed.token)}
+                  </code>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" onClick={copyFeedUrl} disabled={busy}>
+                      {copied ? 'Copied' : 'Copy link'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={replaceFeedLink} disabled={busy}>
+                      Replace link
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={turnFeedOff} disabled={busy}>
+                      Switch off
+                    </Button>
+                  </div>
+
+                  <label className="flex items-start gap-3 pt-1">
+                    <Switch
+                      checked={feed.showClientNames}
+                      onCheckedChange={toggleFeedNames}
+                      disabled={busy}
+                      aria-label="Show client names in the calendar feed"
+                    />
+                    <span className="text-sm">
+                      Show client names
+                      <span className="block text-xs text-muted-foreground">
+                        Off, an entry reads “Touchpoint (In person)” and names nobody. On, it
+                        carries the client's name into whatever calendar you subscribed with —
+                        only do that on an agency account, never a personal one.
+                      </span>
+                    </span>
+                  </label>
+
+                  <p className="text-xs text-muted-foreground">
+                    Anyone who has this link can read your calendar without signing in, so do not
+                    forward it. Replace it and the old one stops working immediately.
+                    {feed.lastAccessedAt && (
+                      <> Last read {new Date(feed.lastAccessedAt).toLocaleString()}.</>
+                    )}
+                  </p>
+                </>
+              )}
             </section>
 
             <section className="space-y-3 px-5 py-4">
