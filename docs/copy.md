@@ -69,9 +69,9 @@ It is the same symbol as Delete, which is permanent — the words beside it are
 what separate them, so never ship a close-case control without its label or
 its tooltip.
 
-**The section bar:** Overview · Authorizations · Touchpoints · Forms ·
-Calendar · History · Billing. Records open on Overview. Billing is Superadmin
-only.
+**The section bar:** Overview · Authorizations · Touchpoints · Forms · From
+documents · Calendar · History · Billing. Records open on Overview. Billing is
+Superadmin only.
 
 ### Overview
 
@@ -155,6 +155,30 @@ Where a number is missing, the cell holds a dashed red button reading
 that row. This is deliberate: the gap is the prompt, and red because an
 unnumbered authorization cannot be billed.
 
+### From documents
+
+"What the uploaded files say that this record does not. Tick what is right,
+then accept — nothing is written until you do."
+
+Every row reads the same way: the label, then **what the record says now → what
+the document says**, an arrow between them, and "Read from {file}" beneath. A
+record holding nothing reads *nothing on the record* in italics rather than a
+dash. A value the document and the record already agree on is not shown at all —
+listing it makes a reader scan past what is true to find what is not.
+
+Replacing dates that cycles are already counted from carries its own line, in
+amber: "Accepting this replaces those dates and every cycle counted from them."
+
+The button says **Accept changes** — not how many, which told a reader something
+they could already see in the ticks.
+
+Accepting writes to the record and rebuilds what follows from it, so the
+Overview, Authorizations, Touchpoints and Calendar all show the new value
+without reopening the client.
+
+Empty: "Nothing to change. Every value the documents carry already matches this
+record, or no document has been read yet — uploads are read under Forms."
+
 ### Forms
 
 Button: **Upload documents**. Inside, the drop zone reads **Upload PDF** /
@@ -235,15 +259,17 @@ client's name alone.
 
 "Your work queue and your monthly log." Sections in the order somebody works:
 
-**Needs follow-up** — "These cycles close before the required touchpoints are
-done." Empty: "Every cycle is on track."
+**This month** — `{date}–{date} · {n} logged this week. Full detail is on your
+calendar.` Every touchpoint scheduled in the current calendar month, in date
+order, each with its own status. Empty: "Nothing scheduled this month.
+Touchpoints appear here once a client has an authorization start date."
 
-This was called **Supervisor reminders**, which implied a person behind it and
-a message somebody could send. Nothing sends it: the rows are worked out from
-cycle progress on every load, which is why completing the touchpoint clears
-them.
+This replaced three sections. Needs follow-up, Upcoming this week and Touchpoint
+cycles were three readings of the same days — a cycle closing, a touchpoint
+scheduled inside it, and that cycle's progress — and whichever you read, the
+work was the same work.
 
-**Upcoming this week** · **Touchpoint cycles** · **HMIS case log**.
+**HMIS case log**.
 
 A client appears here as soon as they have a start date. Nothing else hides
 their work from the person doing it.

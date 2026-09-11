@@ -16,7 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CalendarView } from '@/components/CalendarView';
 import { ClientWorkflowCard } from '@/components/ClientWorkflowCard';
 import { AuthorizationsSection } from '@/components/AuthorizationsSection';
-import { AuthorizationsFromDocuments } from '@/components/AuthorizationsFromDocuments';
+import { FromDocuments } from '@/components/FromDocuments';
 
 import { isCaseClosed, serviceStartDate } from '@/lib/workflow';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
@@ -182,6 +182,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
     { value: 'authorizations', label: 'Authorizations' },
     { value: 'touchpoints', label: 'Touchpoints' },
     { value: 'forms', label: 'Forms' },
+    { value: 'documents', label: 'From documents' },
     { value: 'calendar', label: 'Calendar' },
     { value: 'history', label: 'History' },
     ...(isSuperadmin ? [{ value: 'billing', label: 'Billing' }] : []),
@@ -302,8 +303,15 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </TabsContent>
 
         <TabsContent value="authorizations" className="space-y-6">
-          <AuthorizationsFromDocuments clientId={client.id} onApplied={recordChanged} />
           <AuthorizationsSection key={`authorizations-${client.id}-${recordVersion}`} clientId={client.id} onUpdate={recordChanged} />
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <FromDocuments
+            key={`documents-${client.id}-${recordVersion}`}
+            clientId={client.id}
+            onApplied={recordChanged}
+          />
         </TabsContent>
 
         <TabsContent value="touchpoints">
@@ -349,7 +357,10 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </TabsContent>
 
         <TabsContent value="calendar">
-          <CalendarView clientId={client.id} />
+          {/* Keyed on the record too: accepting a document change rebuilds the
+              touchpoint schedule, and this view would otherwise still be showing
+              the events that were replaced. */}
+          <CalendarView key={`calendar-${client.id}-${recordVersion}`} clientId={client.id} />
         </TabsContent>
 
         <TabsContent value="history">
