@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Calendar, FileText, FileUp, Upload, Plus, Edit, Trash2, UserCog, Archive } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileManager } from '@/components/FileManager';
-import { EditClientDialog } from '@/components/EditClientDialog';
 import { ClientOverview } from '@/components/ClientOverview';
 import { ReassignClientDialog } from '@/components/ReassignClientDialog';
 import { CaseHistory } from '@/components/CaseHistory';
@@ -265,21 +264,14 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {editDialogOpen ? (
-            <EditClientDialog
-              inline
-              open
-              onOpenChange={setEditDialogOpen}
-              client={client}
-              onClientUpdated={recordChanged}
-            />
-          ) : (
-            <ClientOverview
-              client={client as unknown as React.ComponentProps<typeof ClientOverview>['client']}
-              caseManagerName={caseManagerName}
-              showCaseManager={isAdmin}
-            />
-          )}
+          <ClientOverview
+            client={client as unknown as React.ComponentProps<typeof ClientOverview>['client']}
+            editing={editDialogOpen}
+            onDone={() => setEditDialogOpen(false)}
+            onSaved={recordChanged}
+            caseManagerName={caseManagerName}
+            showCaseManager={isAdmin}
+          />
 
           <ClientWorkflowCard
             key={`workflow-${client.id}-${formsVersion}-${recordVersion}`}
