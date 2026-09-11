@@ -1,15 +1,16 @@
 // The staff touchpoint work queue.
 //
 // Two rules shape everything here:
-//   1. Staff only see setup-complete clients. A client missing an HSP
-//      submission, an approval start date, or a level of need is Admin work and
-//      never appears in a staff queue.
+//   1. A client needs a start date and nothing else. That is the anchor the
+//      30-day maths counts from. HSP submission and level of need used to gate
+//      this list too, which emptied queues of the clients staff were meant to
+//      be working — those fields get filled in late as a matter of course.
 //   2. Work starts today. Cycles that began before the go-live date are shown
 //      for reference but never made overdue, so switching the app on does not
 //      hand anyone a backlog they never had a chance to make.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { serviceStartDate, isCaseClosed, isSetupComplete, hspSubmitted } from '@/lib/workflow';
+import { serviceStartDate, isCaseClosed, hspSubmitted } from '@/lib/workflow';
 import { daysUntilHspDue, hspDueDateFor, HSP_WARNING_DAYS } from '@/lib/billing';
 import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { regenerateTouchpointsForStaff } from '@/lib/touchpoints';
@@ -163,10 +164,18 @@ export function useMyCompliance(overrideProfileId?: string | null): MyCompliance
     }
     hspDueSoon.sort((a, b) => a.daysLeft - b.daysLeft);
 
-    // Setup-complete only. Missing information belongs to Admin and Superadmin.
+    // A start date is the only thing a cycle genuinely needs: it is the anchor
+    // the 30-day maths counts from, and without it there is nothing to compute.
+    // Everything else used to gate this list too — HSP submission, a level of
+    // need — and that was wrong. Those get filled in late as a matter of course,
+    // so gating on them emptied a case manager's queue of the very clients they
+    // were supposed to be working. A missing level of need falls back to the
+    // Low Level quota in requirementsForTier, which is the lower of the two and
+    // will not over-flag anybody.
+    //
     // A closed case is nobody's work, and the stage says so even on the rows
     // closed before `status` was set with it.
-    const list = (cls ?? []).filter((c) => isSetupComplete(c) && !isCaseClosed(c));
+    const list = (cls ?? []).filter((c) => !!serviceStartDate(c) && !isCaseClosed(c));
     const ids = list.map((c) => c.id);
 
     const contactsByClient: Record<string, ContactRow[]> = {};

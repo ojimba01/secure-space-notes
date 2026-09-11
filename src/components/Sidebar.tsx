@@ -224,7 +224,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             onClick={() => handleViewChange('compliance')}
           >
             <ClipboardList className="h-4 w-4" />
-            Touchpoints
+            {/* Named for whose work it is. "Touchpoints" alone collided with
+                the Touchpoints section inside a client's record, and staff
+                could not tell which one anybody meant. */}
+            {isAdmin && !isViewingAs ? 'Team touchpoints' : 'My touchpoints'}
           </Button>
 
           <Button

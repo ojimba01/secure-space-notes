@@ -1,17 +1,38 @@
+// Team touchpoints — the supervisory view, organised around people.
+//
+// It used to lead with five numbers spanning the whole agency. A number like
+// that answers no question a supervisor actually has: they want to know who is
+// behind and who has filed their log, and "11 overdue" names nobody. So the
+// case managers are the page now, the totals are a strip above them, and
+// pressing a name opens that person's monthly HMIS Case Log.
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertTriangle, CalendarClock, CheckCircle2, ClipboardList, Settings2, ChevronRight, ChevronDown } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
+  ClipboardList,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react';
 import { format } from 'date-fns';
-import { useSuperadminCompliance, StaffOverdueRow, StaffMissingRow } from '@/hooks/useSuperadminCompliance';
+import { useSuperadminCompliance, StaffOverdueRow } from '@/hooks/useSuperadminCompliance';
+import { useCaseManagers, type CaseManagerRow } from '@/hooks/useCaseManagers';
+import { useTeamWeek } from '@/hooks/useTeamWeek';
+import { CaseLog } from '@/components/CaseLog';
+import { monthKey, monthLabel } from '@/lib/caseLog';
 
 interface Props {
   onOpenClient: (id: string) => void;
 }
-
-type DetailKey = 'overdue' | 'scheduled' | 'completed' | 'remaining' | 'missing';
 
 const lonBadge = (lon: string | null) => {
   if (lon === 'High Level') return <Badge variant="destructive">High</Badge>;
@@ -21,24 +42,42 @@ const lonBadge = (lon: string | null) => {
 
 const fmtD = (d: string) => format(new Date(`${d}T12:00:00`), 'MMM d');
 
-const Stat: React.FC<{
-  icon: React.ReactNode; label: string; value: number; hint: string;
-  active?: boolean; onClick?: () => void; tone?: 'danger' | 'default';
-}> = ({ icon, label, value, hint, active, onClick, tone = 'default' }) => (
-  <button
-    onClick={onClick}
-    className={`text-left rounded-lg border p-4 transition-colors hover:bg-muted/60 ${active ? 'ring-2 ring-primary' : ''} ${tone === 'danger' && value > 0 ? 'border-red-200 bg-red-50' : ''}`}
-  >
-    <div className="flex items-center gap-2 text-muted-foreground">{icon}<span className="text-sm">{label}</span></div>
-    <div className="text-2xl font-bold mt-1">{value}</div>
-    <div className="text-xs text-muted-foreground mt-1">{hint}</div>
-  </button>
+const MODALITY: Record<string, string> = {
+  in_person: 'In person',
+  phone: 'Phone',
+  virtual: 'Video',
+};
+
+/** One number, said plainly. These support the page; they are not the page. */
+const Stat: React.FC<{ icon: React.ReactNode; label: string; value: number; hint: string; tone?: 'danger' }> = ({
+  icon, label, value, hint, tone,
+}) => (
+  <div className={`rounded-lg border p-3 ${tone === 'danger' && value > 0 ? 'border-red-200 bg-red-50' : ''}`}>
+    <div className="flex items-center gap-2 text-muted-foreground">{icon}<span className="text-xs">{label}</span></div>
+    <div className="mt-0.5 text-xl font-bold">{value}</div>
+    <div className="text-[11px] text-muted-foreground">{hint}</div>
+  </div>
 );
+
+const logBadge = (row: CaseManagerRow) => {
+  if (row.logStatus === 'submitted') return <Badge variant="secondary">Log submitted</Badge>;
+  if (row.logStatus === 'draft') return <Badge variant="outline">Log in progress</Badge>;
+  return <Badge variant="outline" className="text-muted-foreground">Log not started</Badge>;
+};
 
 export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
   const data = useSuperadminCompliance();
-  const [detail, setDetail] = useState<DetailKey | null>(null);
+  const month = useMemo(() => monthKey(new Date()), []);
+  const managers = useCaseManagers(month);
+  const week = useTeamWeek();
+  const [open, setOpen] = useState<CaseManagerRow | null>(null);
   const [expanded, setExpanded] = useState(false);
+
+  const overdueByStaffId = useMemo(() => {
+    const counts: Record<string, number> = {};
+    data.overdueRows.forEach((r) => { counts[r.staff_id] = (counts[r.staff_id] ?? 0) + 1; });
+    return counts;
+  }, [data.overdueRows]);
 
   const overdueByStaff = useMemo(() => {
     const groups: Record<string, StaffOverdueRow[]> = {};
@@ -46,63 +85,38 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
     return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
   }, [data.overdueRows]);
 
-  const missingByStaff = useMemo(() => {
-    const groups: Record<string, StaffMissingRow[]> = {};
-    data.missingRows.forEach((r) => { (groups[r.staff_name] ||= []).push(r); });
-    return Object.entries(groups).sort((a, b) => b[1].length - a[1].length);
-  }, [data.missingRows]);
-
   const overdueRow = (r: StaffOverdueRow) => (
     <button key={r.id} onClick={() => onOpenClient(r.id)}
-      className="w-full text-left rounded-md border border-red-200 bg-red-50 p-3 hover:bg-red-100 flex items-start justify-between gap-3">
+      className="flex w-full items-start justify-between gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-left hover:bg-red-100">
       <div>
-        <div className="font-medium flex items-center gap-2">
-          {/* The staff member is the heading these rows sit under. Repeating
-              them on every row pushed the client's name — the only thing that
-              changes from row to row — along by half the width. */}
+        <div className="flex items-center gap-2 font-medium">
           {r.client_name} {lonBadge(r.level_of_need)}
         </div>
-        <div className="text-xs text-muted-foreground mt-0.5">
+        <div className="mt-0.5 text-xs text-muted-foreground">
           Current cycle: {fmtD(r.windowStart)}–{fmtD(r.windowEnd)}
         </div>
-        <div className="text-xs text-red-700 mt-0.5">
+        <div className="mt-0.5 text-xs text-red-700">
           {r.contactDays} of {r.requiredContacts} touchpoints completed · {r.inPersonDays} of {r.requiredInPerson} in person
         </div>
-        <ul className="text-xs text-red-700 list-disc pl-4 mt-0.5">
-          {r.reasons.map((reason, i) => <li key={i}>{reason}</li>)}
-        </ul>
       </div>
-      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+      <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
     </button>
   );
 
-  const detailTitle: Record<DetailKey, string> = {
-    overdue: 'Overdue by staff',
-    scheduled: 'Scheduled this week',
-    completed: 'Completed this week',
-    remaining: 'In progress',
-    missing: 'Incomplete setups',
-  };
-
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
       <div>
-        <h1 className="text-2xl font-bold">Team performance</h1>
-        <p className="text-sm text-muted-foreground">See which staff members are falling behind and need follow-up.</p>
+        <h1 className="text-2xl font-bold">Team touchpoints</h1>
+        <p className="text-sm text-muted-foreground">
+          Every case manager, their month, and the log they file at the end of it.
+        </p>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Stat icon={<AlertTriangle className="h-5 w-5" />} label="Overdue" value={data.overdueRows.length}
-          tone="danger" onClick={() => setDetail('overdue')} active={detail === 'overdue'} hint="Across all staff" />
-        <Stat icon={<CalendarClock className="h-5 w-5" />} label="Scheduled" value={data.scheduledThisWeek}
-          onClick={() => setDetail('scheduled')} active={detail === 'scheduled'} hint="For this week" />
-        <Stat icon={<CheckCircle2 className="h-5 w-5" />} label="Completed" value={data.completedThisWeek}
-          onClick={() => setDetail('completed')} active={detail === 'completed'} hint="Logged this week" />
-        <Stat icon={<ClipboardList className="h-5 w-5" />} label="In progress" value={data.remainingThisWeek}
-          onClick={() => setDetail('remaining')} active={detail === 'remaining'} hint="Scheduled but not yet logged" />
-        <Stat icon={<Settings2 className="h-5 w-5" />} label="Needs setup" value={data.missingRows.length}
-          onClick={() => setDetail('missing')} active={detail === 'missing'} hint="Cannot be scheduled" />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Stat icon={<AlertTriangle className="h-4 w-4" />} label="Overdue" value={data.overdueRows.length} tone="danger" hint="Across all staff" />
+        <Stat icon={<CheckCircle2 className="h-4 w-4" />} label="Completed" value={data.completedThisWeek} hint="Logged this week" />
+        <Stat icon={<CalendarClock className="h-4 w-4" />} label="Scheduled" value={data.scheduledThisWeek} hint="For this week" />
+        <Stat icon={<ClipboardList className="h-4 w-4" />} label="Logs filed" value={managers.rows.filter((r) => r.logStatus === 'submitted').length} hint={monthLabel(month)} />
       </div>
 
       {data.preGoLiveCount > 0 && !data.showHistorical && (
@@ -113,30 +127,94 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         </p>
       )}
 
-      {/* Overdue — hidden when empty, top 3 by default */}
+      {/* The page proper. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Case managers</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Press a name to open their {monthLabel(month)} case log.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {managers.loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+          {!managers.loading && managers.rows.length === 0 && (
+            <p className="text-sm text-muted-foreground">No active staff.</p>
+          )}
+          {managers.rows.map((m) => {
+            const overdue = overdueByStaffId[m.id] ?? 0;
+            return (
+              <button key={m.id} onClick={() => setOpen(m)}
+                className="flex w-full items-center justify-between gap-3 rounded-md border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/40">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{m.name}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {m.clients} {m.clients === 1 ? 'client' : 'clients'}
+                    {overdue > 0 && <span className="text-red-700"> · {overdue} overdue</span>}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {logBadge(m)}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </button>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {/* Replaces "Incomplete setups": what came in, rather than what is missing. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Logged this week</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {fmtD(week.weekStart)}–{fmtD(week.weekEnd)}. Every touchpoint staff have recorded.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {week.loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+          {!week.loading && week.contacts.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nothing logged yet this week. Touchpoints appear here as staff record them.
+            </p>
+          )}
+          {week.contacts.map((c) => (
+            <button key={c.id} onClick={() => onOpenClient(c.clientId)}
+              className="flex w-full items-center justify-between gap-3 rounded-md border p-2.5 text-left transition-colors hover:border-primary/50 hover:bg-muted/40">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">{c.clientName} — {c.staffName}</div>
+                <div className="text-xs text-muted-foreground">
+                  {fmtD(c.date)} · {MODALITY[c.modality] ?? c.modality}
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+
       {data.overdueRows.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg text-red-600">Overdue</CardTitle>
-            <p className="text-sm text-muted-foreground">Grouped by staff member.</p>
+            <p className="text-sm text-muted-foreground">Grouped by case manager.</p>
           </CardHeader>
           <CardContent className="space-y-4">
             {overdueByStaff.map(([staff, rows]) => {
               const shown = expanded ? rows : rows.slice(0, 3);
               return (
                 <div key={staff} className="space-y-2">
-                  <div className="text-sm font-semibold flex items-center gap-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
                     {staff} <Badge variant="outline">{rows.length}</Badge>
                   </div>
                   {shown.map(overdueRow)}
                   {!expanded && rows.length > 3 && (
-                    <div className="text-xs text-muted-foreground pl-1">+{rows.length - 3} more…</div>
+                    <div className="pl-1 text-xs text-muted-foreground">+{rows.length - 3} more…</div>
                   )}
                 </div>
               );
             })}
             {data.overdueRows.length > 3 && (
-              <Button variant="ghost" size="sm" onClick={() => setExpanded((v) => !v)} className="gap-1">
+              <Button variant="ghost" size="sm" className="gap-1" onClick={() => setExpanded((v) => !v)}>
                 {expanded ? 'Show less' : 'View all'}
                 <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
               </Button>
@@ -145,63 +223,18 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         </Card>
       )}
 
-      {/* Missing setup */}
-      {data.missingRows.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Incomplete setups</CardTitle>
-            <p className="text-sm text-muted-foreground">These clients must be set up before they can be scheduled.</p>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {/* The row opens the client, as everywhere else. These are not
-                grouped by staff, so the row keeps the name of whoever carries
-                it. */}
-            {data.missingRows.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => onOpenClient(r.id)}
-                title="Open this client"
-                className="flex w-full items-center justify-between gap-3 rounded-md border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
-              >
-                <div className="min-w-0">
-                  <div className="truncate font-medium">
-                    {r.client_name} — {r.staff_name}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Missing: {r.missing.join(', ')}
-                  </div>
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </button>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Detail drawer */}
-      <Dialog open={detail !== null} onOpenChange={(o) => !o && setDetail(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>{detail ? detailTitle[detail] : ''}</DialogTitle></DialogHeader>
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-            {detail === 'overdue' && (data.overdueRows.length ? data.overdueRows.map(overdueRow) : <p className="text-sm text-muted-foreground">Nothing overdue.</p>)}
-            {detail === 'missing' && (data.missingRows.length ? missingByStaff.map(([staff, rows]) => (
-              <div key={staff} className="space-y-1">
-                <div className="text-sm font-semibold">{staff}</div>
-                {rows.map((r) => (
-                  <button key={r.id} onClick={() => { setDetail(null); onOpenClient(r.id); }} className="w-full text-left rounded-md border p-2 hover:bg-muted/60 text-sm">
-                    {r.client_name}
-                  </button>
-                ))}
-              </div>
-            )) : <p className="text-sm text-muted-foreground">No clients missing setup.</p>)}
-            {(detail === 'scheduled' || detail === 'completed' || detail === 'remaining') && (
-              <p className="text-sm text-muted-foreground">
-                {detail === 'scheduled' && `${data.scheduledThisWeek} touchpoints scheduled this week across all staff.`}
-                {detail === 'completed' && `${data.completedThisWeek} touchpoints completed this week across all staff.`}
-                {detail === 'remaining' && `${data.remainingThisWeek} touchpoints scheduled but not yet logged this week.`}
-              </p>
-            )}
-          </div>
+      <Dialog open={!!open} onOpenChange={(o) => { if (!o) { setOpen(null); managers.refresh(); } }}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>HMIS Case Log — {open?.name}</DialogTitle>
+          </DialogHeader>
+          {open && (
+            <div className="max-h-[70vh] overflow-y-auto pr-1">
+              {/* An administrator reads a log and may hand it back. They do not
+                  rewrite somebody else's account of their own month. */}
+              <CaseLog employeeId={open.id} caseManagerName={open.name} canReopen readOnly />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

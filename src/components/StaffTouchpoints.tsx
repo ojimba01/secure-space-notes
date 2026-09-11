@@ -1,9 +1,10 @@
-// The staff touchpoint work queue.
+// My touchpoints — a case manager's own work queue.
 //
-// Three sections, in the order a case manager actually works: what a supervisor
-// would chase, what is on this week, and where each client's 30-day cycle
-// stands. Clients with incomplete setup never appear — that is Admin work.
-import React, { useState } from 'react';
+// In the order somebody actually works: what needs following up, what is on
+// this week, where each 30-day cycle stands, and the monthly log that falls
+// out of all of it. A client appears here as soon as they have a start date;
+// nothing else is a reason to hide their work from the person doing it.
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import {
   useMyCompliance, ScheduledTouchpoint, CycleRow, SupervisorReminder,
 } from '@/hooks/useMyCompliance';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
+import { CaseLog } from '@/components/CaseLog';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { AddTouchpointDialog, TouchpointContext } from '@/components/AddTouchpointDialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,6 +58,22 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
   const { toast } = useToast();
   const data = useMyCompliance(effectiveProfileId);
   const today = todayAgency();
+  // The name that goes in the Case Manager blank at the top of the form.
+  const [myName, setMyName] = useState('');
+  useEffect(() => {
+    if (!effectiveProfileId) return;
+    let cancelled = false;
+    void supabase
+      .from('profiles')
+      .select('first_name, last_name, email')
+      .eq('id', effectiveProfileId)
+      .maybeSingle()
+      .then(({ data: p }) => {
+        if (cancelled || !p) return;
+        setMyName(`${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || p.email);
+      });
+    return () => { cancelled = true; };
+  }, [effectiveProfileId]);
 
   const [addOpen, setAddOpen] = useState(false);
   const [addContext, setAddContext] = useState<TouchpointContext | null>(null);
@@ -246,8 +264,8 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Touchpoints</h1>
-          <p className="text-muted-foreground">Your touchpoint work queue.</p>
+          <h1 className="text-2xl font-bold">My touchpoints</h1>
+          <p className="text-muted-foreground">Your work queue and your monthly log.</p>
         </div>
         <Button className="gap-2" onClick={() => openAdd(null)}>
           <Plus className="h-4 w-4" />
@@ -298,12 +316,16 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
       {/* Supervisor reminders */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Supervisor reminders</CardTitle>
-          <p className="text-sm text-muted-foreground">Clients who need follow-up before their cycle closes.</p>
+          {/* Not sent by anyone. These are worked out from cycle progress on
+              every load, which is why completing the touchpoint clears the row.
+              Calling them "supervisor reminders" implied a person behind them
+              and a message nobody could actually send. */}
+          <CardTitle className="text-lg">Needs follow-up</CardTitle>
+          <p className="text-sm text-muted-foreground">These cycles close before the required touchpoints are done.</p>
         </CardHeader>
         <CardContent className="space-y-2">
           {data.reminders.length === 0 && data.clearedReminders.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No client needs following up before their cycle closes.</p>
+            <p className="text-sm text-muted-foreground">Every cycle is on track.</p>
           ) : (
             <>
               {data.reminders.map((r) => reminderRow(r))}
@@ -347,6 +369,24 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
           ) : data.cycles.map(cycleRow)}
         </CardContent>
       </Card>
+
+      {/* The month's log, filled from the touchpoints above it. It sits last
+          because it is the end of the month's work, and it is here rather than
+          on its own screen so nobody has to go looking for a form that is
+          already written. */}
+      {effectiveProfileId && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">HMIS case log</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Filled from what you have logged. Check it, then submit it at the end of the month.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <CaseLog employeeId={effectiveProfileId} caseManagerName={myName} />
+          </CardContent>
+        </Card>
+      )}
 
       <AddTouchpointDialog
         open={addOpen}
