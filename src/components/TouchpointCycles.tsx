@@ -79,11 +79,12 @@ const Row: React.FC<{ cycle: AuthorizationCycle; onAdd?: (c: AuthorizationCycle)
       // that fixes it is half a message. This is the other half.
       <Button
         size="sm"
-        variant="outline"
-        className="h-6 border-amber-300 px-2 text-[11px] text-amber-800 hover:bg-amber-100"
+        // Red, not amber: thirty days of work nobody is paying for is not a
+        // note, and the row beside it is already amber.
+        className="h-6 bg-red-600 px-2 text-[11px] text-white hover:bg-red-700"
         onClick={() => onAdd?.(cycle)}
       >
-        Add authorization code
+        Add Auth Code
       </Button>
     ) : null}
   </li>

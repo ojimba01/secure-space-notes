@@ -65,12 +65,40 @@ only.
 
 ### Overview
 
-Field labels: Notes · Email · Phone · Address · Date of Birth · Intake Date ·
-Insurance · Level of Need (LoN) · County · Current Case Manager
-(`Unassigned` when there is none).
+The record and its editor are the same screen. **Edit** unlocks every field in
+place — the labels stay put, the values become inputs — and **Update client**
+and **Cancel** sit at the top, above the fields they govern. Focusing a field
+selects what is in it, so a correction is one keystroke.
 
-**Case overview** card — `Next step` appears only when there is one. When a
-case has no outstanding task the box is not shown at all.
+Four blocks, each headed by a rule: **Contact** · **Case** · **Authorizations**
+· **Closure** (closed cases only). Two more appear while editing: **Visit
+availability** and **Notes**.
+
+| Block | Labels |
+|---|---|
+| Contact | First name · Last name · Member ID · Date of birth · Email · Phone · Address · County |
+| Case | Status · Intake date · Insurance · MCO housing manager · Level of need · LoN score · Case manager |
+| Authorizations | 30-day start · 30-day end · 30-day auth # · 150-day start · 150-day end · 150-day auth # · 180-day start · 180-day end · 180-day auth # |
+| Closure | Closed date · Reason closed |
+
+An empty value reads as a faint em dash. An end date with no start reads
+**N/A** — it is calculated, not typed, so there is nothing to fill in.
+
+**Status** offers two words and only two: **Active** and **Closed**. Choosing
+Closed opens the closing dialog rather than writing the status, because closing
+takes a reason. "Inactive" is not a state this app has; do not reintroduce it.
+
+**Case manager** is a dropdown, not a button. Hint: "Takes effect immediately,
+and is recorded in History."
+
+**MCO housing manager** appears only when the insurer is United.
+
+**Locked periods** explain themselves rather than greying out silently:
+"Unlocks once the 30-day period is due" · "Unlocks once the 150-day period is
+due". Names carry "Only admins can edit names" for everyone else.
+
+**Case overview** card, below the blocks — `Next step` appears only when there
+is one. When a case has no outstanding task the box is not shown at all.
 
 **Delete this record** — "Permanently removes the client and everything
 attached to them. To stop working a case while keeping its history, close it
@@ -98,11 +126,23 @@ six at a time. Colour says which authorization pays for it:
 | Blue | Initial 30 days |
 | Green | 150-day authorization |
 | Purple | 180-day extension |
-| Amber + `NOT AUTHORIZED` | No authorization covers any day of that cycle |
+| Amber + **Add Auth Code** (red) | No authorization covers any day of that cycle |
+
+**Add Auth Code** opens the authorization dialog on that cycle's dates, so a
+gap is fixed where it is seen rather than from another tab.
 
 The current cycle is tagged `NOW`. Empty state: "No cycles yet. They appear
 once this client has an authorization with a start date — record one under
 Authorizations."
+
+### Authorizations
+
+One row per authorization, newest first: the period, its dates, its number, its
+status. A start date alone creates the row — the number can follow.
+
+Where a number is missing, the cell holds a dashed button reading
+**Update auth #**. Pressing it opens the same editor the Edit button does, on
+that row. This is deliberate: the gap is the prompt.
 
 ### Forms
 

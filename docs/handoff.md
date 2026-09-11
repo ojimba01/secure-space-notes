@@ -1,6 +1,7 @@
 # Handing this over
 
-State of play for whoever picks this up next. Written at `25c16d5`.
+State of play for whoever picks this up next. Written after the inline-editing
+rebuild of the client record.
 
 ## How this repo works
 
@@ -71,7 +72,7 @@ wins where both describe the same days, the columns fill its gaps. Do not go
 back to preferring one.
 
 **3. The HSP date fields are not the authorization columns.**
-`EditClientDialog` shows "HSP 150-day Start" and writes `hsp_150_date`, but
+The form shows "150-day start" and writes `hsp_150_date`, but
 `syncAuthorizationsFromLegacyColumns()` reads `auth_150_start`. The IAT field
 has always mirrored into `auth_30_start`, which is the only reason editing the
 30-day date ever worked; the other two wrote a column nothing downstream read,
@@ -83,9 +84,40 @@ inside the sync: a start date alone will not create that authorization.
 
 **4. A change to an authorization date needs two calls, in order.**
 `syncAuthorizationsFromLegacyColumns()` then `resyncDerivedSchedules()`. Doing
-one without the other is, as a comment in `EditClientDialog` puts it, the most
-repeated source of defects in this app. `EditClientDialog` now fires on any of
-`iat_date`, `hsp_150_date`, `hsp_180_date`.
+one without the other is the most repeated source of defects in this app.
+`saveClientEdit()` fires both on any authorization date or number change, and
+again on a retry.
+
+**5. Status is carried through a save verbatim, and must stay that way.**
+`initialValues` once mapped an unrecognised status to `'active'`. Saving a
+phone number on a closed client would then have reopened the case silently.
+Two tests in `tests/save-client-status.test.mjs` guard it. Never narrow
+`ClientEditValues.status` to a union.
+
+## The client record, as rebuilt
+
+**`EditClientDialog` is gone.** The record and its editor are one screen:
+`ClientOverview.tsx` renders each field as a value or an input depending on a
+single `editing` flag, and **Update client** sits at the top. The save path it
+calls lives in `src/lib/saveClientEdit.ts` — extracted from the deleted dialog
+unchanged, and now the only way a client edit is written. `VisitAvailabilitySection`
+was reachable only from inside that dialog; it moved into the overview rather
+than being lost with it.
+
+**Authorization numbers are editable in three places, on purpose.** The edit
+form (`30-day auth #`, `150-day auth #`, `180-day auth #`), a dashed
+**Update auth #** button standing in for a missing number on the Authorizations
+tab, and a red **Add Auth Code** button on any uncovered cycle in the touchpoint
+list. All three end at `recordAuthorization` / `authorizationNumberPatch` in
+`src/lib/clientAuthorizationDates.ts`. A start date alone already creates the
+authorization row — `syncAuthorizationsFromLegacyColumns` only requires
+`period.start` — so the number is always allowed to arrive later.
+
+**Status closes a case.** Choosing Closed in the Status dropdown opens
+`CloseCaseDialog` instead of writing the status, because closing takes a reason
+and has to go through `close_case()`. Case manager is a dropdown calling
+`reassign_client` directly; the Reassign button in the header still works and
+was left alone.
 
 ## Open work
 
@@ -110,9 +142,10 @@ full specification; it is in the conversation, not the repo. Findings:
 - `calendar_event_id` has no foreign key and no index, and nothing stops two
   contacts linking to one event.
 
-**There is no test runner.** No vitest, no test files. Anything resembling the
-spec's test list means adding one. Verification so far has been esbuild +
-node against the pure functions in `src/lib/compliance.ts`, which works well.
+**There is a test runner now.** `npm test` runs `node --test tests/*.test.mjs`
+— 29 tests across four files, bundled with esbuild against a mocked Supabase.
+It covers the cycle maths, authorization dates, authorization numbers, and the
+status-carry-through above. Add to it rather than standing up vitest.
 
 **Auto-reading an uploaded document** — the user asked, and the machinery
 already exists (`DocumentIntakeDialog`, `documentIntake.ts`,
@@ -153,4 +186,7 @@ matters.
 | The 30-day cycle list | `src/components/TouchpointCycles.tsx` |
 | Case history | `src/components/CaseHistory.tsx` |
 | Calendar subscription feed | `supabase/functions/calendar-feed/index.ts` |
+| The client record, inline editor included | `src/components/ClientOverview.tsx` |
+| The one client save path | `src/lib/saveClientEdit.ts` |
+| Authorization dates and numbers | `src/lib/clientAuthorizationDates.ts` |
 | Every string on the site | `docs/copy.md` |

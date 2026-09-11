@@ -270,7 +270,24 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
                     </td>
                     <td className="px-3 py-2">{r.sequence_number}</td>
                     <td className="px-3 py-2">
-                      {cleanAuthorizationNumber(r.authorization_number) || '—'}
+                      {/* A period is recorded from its start date alone, so a
+                          missing number is the ordinary state of a new one
+                          rather than an error. It offers the way to fill it in
+                          instead of printing a dash and leaving somebody to
+                          find the Edit button at the end of the row. */}
+                      {cleanAuthorizationNumber(r.authorization_number) ||
+                        (canEdit ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 border-dashed px-2 text-[11px] font-normal text-muted-foreground"
+                            onClick={() => openEdit(r)}
+                          >
+                            Update auth #
+                          </Button>
+                        ) : (
+                          '—'
+                        ))}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {formatAuthDate(r.start_date)} – {formatAuthDate(r.end_date)}
