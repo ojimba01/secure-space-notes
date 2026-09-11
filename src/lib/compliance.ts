@@ -369,8 +369,36 @@ export function authorizationCycles(c: AuthorizationSpans, today: string): Autho
   if (spans.length === 0) return [];
 
   const lastEnd = spans.reduce((acc, s) => (daysBetween(acc, s.end) > 0 ? s.end : acc), spans[0].end);
-  const phaseFor = (day: string): AuthPhase | null =>
-    spans.find((s) => daysBetween(s.start, day) >= 0 && daysBetween(day, s.end) >= 0)?.phase ?? null;
+
+  /**
+   * The authorization a whole cycle belongs to: the one covering most of its
+   * days, not the one covering its first.
+   *
+   * Cycles run on their own 30-day beat from the service start and pay no
+   * attention to when an authorization was approved, so a cycle routinely
+   * straddles the join between two. Reading only day one called such a cycle
+   * unauthorized whenever the next period had not quite begun -- a cycle 16 of
+   * whose 30 days were funded showed as a red flag sitting between two healthy
+   * ones, which is the "random unauthorized date in the middle" nobody could
+   * account for.
+   *
+   * Null is now reserved for a cycle no authorization touches at all, which is
+   * the only kind worth alarming anyone about.
+   */
+  const phaseForCycle = (start: string, end: string): AuthPhase | null => {
+    let best: AuthPhase | null = null;
+    let bestDays = 0;
+    for (const s of spans) {
+      const from = daysBetween(start, s.start) > 0 ? s.start : start;
+      const to = daysBetween(s.end, end) > 0 ? s.end : end;
+      const days = daysBetween(from, to) + 1;
+      if (days > bestDays) {
+        bestDays = days;
+        best = s.phase;
+      }
+    }
+    return bestDays > 0 ? best : null;
+  };
 
   const cycles: AuthorizationCycle[] = [];
   let start = serviceStart;
@@ -380,7 +408,7 @@ export function authorizationCycles(c: AuthorizationSpans, today: string): Autho
       number: i + 1,
       start,
       end,
-      phase: phaseFor(start),
+      phase: phaseForCycle(start, end),
       isCurrent: daysBetween(start, today) >= 0 && daysBetween(today, end) >= 0,
       isPast: daysBetween(end, today) > 0,
     });
