@@ -121,24 +121,23 @@ was left alone.
 
 ## Open work
 
-**The touchpoint compliance spec — diagnosed, not built.** The user pasted a
-full specification; it is in the conversation, not the repo. Findings:
+**The touchpoint compliance spec — diagnosed, and one day is one touchpoint.**
+The user pasted a full specification; it is in the conversation, not the repo.
+Findings:
 
 - Already correct: cycles anchored to `serviceStartDate`; compliance read only
   from `client_contacts`; every scheduling protection; `calendar_event_id`
   already exists on `client_contacts` and is already written.
-- **The real bug:** `distinctDays()` counts distinct *days*, so two contacts on
-  the same day count as one. The spec says they should count separately, with
-  the ≥7-day rule applying only to in-person visits. Fixing it touches
-  `windowProgress`, `computeProgress`, `cycleStatus`, `overdueReasons` and the
-  UI strings.
-- **A decision is waiting on the user, and was asked:** once same-day contacts
-  count, "Not enough days left in billing window" stops being a valid overdue
-  reason — all four could be logged on the last day. Dropping it makes fewer
-  cycles read overdue. Do not decide this alone.
+- **Settled, and not to be reopened:** the spec asks for two contacts on the
+  same day to count as two. The agency decided they count as **one**, which is
+  what `distinctDays()` already does. Leave `windowProgress`, `computeProgress`,
+  `cycleStatus` and `overdueReasons` counting days. "Not enough days left in
+  billing window" therefore stays a valid overdue reason — it only stops making
+  sense if same-day contacts ever start counting separately. The ≥7-day spacing
+  on in-person visits is unaffected either way.
 - Completion is matched by **date**, not by `calendar_event_id`. That is the
   unreliability the spec's item 5 is aimed at; the column exists and nothing
-  reads it.
+  reads it. This one is still open.
 - `calendar_event_id` has no foreign key and no index, and nothing stops two
   contacts linking to one event.
 
