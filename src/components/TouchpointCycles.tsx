@@ -9,8 +9,11 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { fetchClientAuthorizations } from '@/lib/authorizations';
 import {
   authorizationCycles,
+  spansFromAuthorizations,
+  type AuthSpan,
   todayAgency,
   AUTH_PHASE_LABEL,
   AUTH_PHASE_CLASS,
@@ -56,24 +59,33 @@ const PAGE = 6;
 
 export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) => {
   const [spans, setSpans] = useState<AuthorizationSpans | null>(null);
+  /** The recorded authorizations. They outrank the legacy columns. */
+  const [recorded, setRecorded] = useState<AuthSpan[]>([]);
   const [page, setPage] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from('clients')
-        .select(
-          'auth_30_start, auth_30_end, auth_150_start, auth_150_end, auth_180_start, auth_180_end, hsp_150_date',
-        )
-        .eq('id', clientId)
-        .maybeSingle();
+      const [{ data }, auths] = await Promise.all([
+        supabase
+          .from('clients')
+          .select(
+            'auth_30_start, auth_30_end, auth_150_start, auth_150_end, auth_180_start, auth_180_end, hsp_150_date',
+          )
+          .eq('id', clientId)
+          .maybeSingle(),
+        fetchClientAuthorizations(clientId).catch(() => []),
+      ]);
       if (cancelled) return;
+
       const loaded = (data as AuthorizationSpans) ?? null;
+      const fromRecord = spansFromAuthorizations(auths);
       setSpans(loaded);
+      setRecorded(fromRecord);
+
       // Open on the cycle being worked, not on a page of finished ones.
-      if (loaded) {
-        const all = authorizationCycles(loaded, todayAgency());
+      if (loaded || fromRecord.length) {
+        const all = authorizationCycles(loaded ?? {}, todayAgency(), fromRecord);
         const i = all.findIndex((c) => c.isCurrent);
         if (i >= 0) setPage(Math.floor(i / PAGE));
       }
@@ -84,7 +96,7 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
   }, [clientId]);
 
   if (!spans) return null;
-  const cycles = authorizationCycles(spans, todayAgency());
+  const cycles = authorizationCycles(spans, todayAgency(), recorded);
   if (cycles.length === 0) return null;
 
   const pages = Math.max(1, Math.ceil(cycles.length / PAGE));
@@ -100,7 +112,7 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <div className="text-sm font-semibold">30-day cycles</div>
+        <div className="text-sm font-semibold">All 30-day touchpoint cycles</div>
         <div className="text-xs text-muted-foreground">A touchpoint quota is due in each one.</div>
       </div>
 

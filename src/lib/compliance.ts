@@ -271,6 +271,8 @@ export function currentBillingWindow(
 
 export type AuthPhase = 'initial_30' | 'period_150' | 'extension_180';
 
+export type { AuthSpan };
+
 export const AUTH_PHASE_LABEL: Record<AuthPhase, string> = {
   initial_30: 'Initial 30 days',
   period_150: '150-day authorization',
@@ -324,6 +326,50 @@ const MAX_CYCLES = 24;
 const spanEnd = (start: string | null | undefined, end: string | null | undefined, len: number) =>
   end ?? (start ? addDays(start, len - 1) : null);
 
+/**
+ * The authorization periods a client actually holds, from the record of them.
+ *
+ * The three legacy columns on `clients` hold one initial, one continuation and
+ * one reauthorization, and that is all they can hold. A client on their second
+ * or third reauthorization has periods those columns cannot represent, so
+ * building the cycle list from them left the real months in between looking
+ * unauthorized. `client_authorizations` is the history; this reads that.
+ *
+ * Denied and cancelled periods authorize nothing, so they are left out.
+ * Superseded ones are kept: a period that was later replaced still covered the
+ * days it ran for, and dropping it would punch a hole in the past.
+ */
+export function spansFromAuthorizations(
+  rows: {
+    authorization_type: string;
+    start_date: string | null;
+    end_date: string | null;
+    status: string;
+  }[],
+): AuthSpan[] {
+  const PHASE_OF: Record<string, AuthPhase> = {
+    initial_30: 'initial_30',
+    continuation_150: 'period_150',
+    reauthorization_180: 'extension_180',
+  };
+  const LENGTH_OF: Record<string, number> = {
+    initial_30: 30,
+    continuation_150: 150,
+    reauthorization_180: 180,
+  };
+
+  return rows
+    .filter((r) => r.status !== 'denied' && r.status !== 'cancelled')
+    .flatMap((r) => {
+      const phase = PHASE_OF[r.authorization_type];
+      if (!phase || !r.start_date) return [];
+      const end = r.end_date ?? addDays(r.start_date, (LENGTH_OF[r.authorization_type] ?? 30) - 1);
+      if (daysBetween(r.start_date, end) < 0) return []; // an end before its start covers nothing
+      return [{ phase, start: r.start_date, end }];
+    })
+    .sort((a, b) => a.start.localeCompare(b.start));
+}
+
 interface AuthSpan {
   phase: AuthPhase;
   start: string;
@@ -361,12 +407,20 @@ export function authPhaseOn(c: AuthorizationSpans | null | undefined, day: strin
  * Every 30-day cycle from the service start to the end of the last
  * authorization, with the authorization each one falls in.
  */
-export function authorizationCycles(c: AuthorizationSpans, today: string): AuthorizationCycle[] {
-  const serviceStart = c.auth_30_start || c.auth_150_start || c.hsp_150_date || null;
-  if (!serviceStart) return [];
-
-  const spans = authorizationSpans(c);
+export function authorizationCycles(
+  c: AuthorizationSpans,
+  today: string,
+  /** The recorded authorizations, when there are any. They beat the columns. */
+  recorded?: AuthSpan[],
+): AuthorizationCycle[] {
+  const spans = recorded && recorded.length > 0 ? recorded : authorizationSpans(c);
   if (spans.length === 0) return [];
+
+  // Cycles are anchored to the day services started, which is the first
+  // authorization if the legacy columns have nothing to say.
+  const serviceStart =
+    c.auth_30_start || c.auth_150_start || c.hsp_150_date || spans[0].start;
+  if (!serviceStart) return [];
 
   const lastEnd = spans.reduce((acc, s) => (daysBetween(acc, s.end) > 0 ? s.end : acc), spans[0].end);
 

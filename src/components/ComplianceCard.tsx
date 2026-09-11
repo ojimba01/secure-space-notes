@@ -191,11 +191,6 @@ export const ComplianceCard: React.FC<Props> = ({
     toast({ title: 'Note saved' });
   };
 
-  // Built-in fallback guidance so info buttons are never blank when DB tooltips are empty.
-  const contactHintItems = isHigh
-    ? ['**High Level:** 4 touchpoints per 30-day cycle. At least 2 must be in person. Touchpoints must be on separate days.']
-    : ['**Low Level:** 2 touchpoints per 30-day cycle. At least 1 must be in person. Touchpoints must be on separate days.'];
-
   // current 30-day billing window progress
   const winContacts = window ? contactsInWindow(contacts, window) : [];
   const winProg = window ? windowProgress(req, winContacts) : null;
@@ -208,14 +203,16 @@ export const ComplianceCard: React.FC<Props> = ({
     <TooltipProvider>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-lg">{new Date(month + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</CardTitle>
+          <CardTitle className="text-lg">
+            Touchpoint {new Date(month + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </CardTitle>
           {statusChip(status)}
         </CardHeader>
         <CardContent className="space-y-5">
           {/* touchpoint requirements — current 30-day billing window */}
           <div className="rounded-md border p-3 space-y-2 bg-muted/30">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">Touchpoint requirements</div>
+              <div className="text-sm font-semibold">Monthly requirements</div>
               {!setupComplete ? (
                 <Badge className="bg-amber-500 text-white hover:bg-amber-500">Missing setup</Badge>
               ) : winStatus === 'complete' ? (
@@ -249,15 +246,6 @@ export const ComplianceCard: React.FC<Props> = ({
           {/* contacts progress */}
           <div className="space-y-2">
 
-            <div className="flex items-center gap-2 text-sm font-medium">
-              Contacts completed: {progress.contactDays} of {req.requiredContacts}
-              {req.requiredInPerson > 0 && (
-                <span className="text-muted-foreground">
-                  · In person: {progress.inPersonSpaced} of {req.requiredInPerson}
-                </span>
-              )}
-              <InfoHint text={tooltips.contact || undefined} items={!tooltips.contact ? contactHintItems : undefined} />
-            </div>
             {isNewClientFirstWeek && (
               <p className="text-xs text-muted-foreground">New client — first week grace; contacts spaced ≥2 weeks apart.</p>
             )}
