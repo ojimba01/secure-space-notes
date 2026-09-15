@@ -48,6 +48,8 @@ import {
   writeThroughPlan,
 } from '@/lib/clientIntake';
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
+import { relaxPdfFormFields } from '@/lib/pdfFormFields';
+import { wireAutoGrowFields } from '@/lib/pdfAutoGrow';
 import { loadBlankTemplate } from '@/lib/formTemplates';
 
 export interface PdfTemplate {
@@ -227,7 +229,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         setLoadError(error.message);
         return;
       }
-      setExistingBytes(new Uint8Array(await data.arrayBuffer()));
+      // Drafts saved before the intake's answer boxes were uncapped still
+      // carry the cap; lift it on the way in so reopening one is not a step
+      // backwards.
+      setExistingBytes(await relaxPdfFormFields(await data.arrayBuffer()));
     })();
   }, [existing?.file_path]);
 
@@ -262,7 +267,9 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         const bytes = await prefillTemplate(blank, template.formType, client, {
           name: signerName,
         });
-        if (!cancelled) setPrefilledBytes(bytes);
+        // The registry copy is whatever an admin last uploaded, so it is
+        // relaxed here rather than trusted to have been built that way.
+        if (!cancelled) setPrefilledBytes(await relaxPdfFormFields(bytes));
       } catch (err: any) {
         // The blank template still works; pre-fill is a convenience.
         if (!cancelled) {
@@ -1008,6 +1015,13 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                       renderTextLayer={false}
                       renderAnnotationLayer
                       renderForms
+                      // The tall answer boxes hold more than they show, so
+                      // each one grows to its text while it is being written
+                      // in. Zooming re-renders the layer and builds new
+                      // fields, hence wiring them up on every render.
+                      onRenderAnnotationLayerSuccess={() =>
+                        wireAutoGrowFields(pageRefs.current[i])
+                      }
                     />
                     {signatures
                       .filter((sig) => sig.placement.pageIndex === i)

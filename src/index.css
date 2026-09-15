@@ -129,3 +129,16 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/*
+ * A multi-line PDF field that has grown past the box drawn on the page (see
+ * src/lib/pdfAutoGrow.ts). It lies over the rest of the form, so it has to be
+ * opaque against the white page — pdf.js makes a focused field transparent,
+ * which would leave the questions underneath showing through the answer. Its
+ * stacking order is set there rather than here, over pdf.js's own inline one.
+ */
+.annotationLayer section.pdf-field-grown textarea,
+.annotationLayer section.pdf-field-grown textarea:focus {
+  background-color: #fff;
+  box-shadow: 0 4px 14px rgb(15 23 42 / 22%);
+}
