@@ -20,17 +20,17 @@
 // So: every multi-line field loses its length cap and gets an auto-sized font.
 // Single-line fields keep theirs — a date of birth that runs past its box is a
 // mistake, not a long answer.
-import { PDFDocument, PDFTextField } from 'pdf-lib';
+import { PDFDocument, PDFFont, PDFTextField, StandardFonts } from 'pdf-lib';
 
 /**
- * Whether this field pins its text to one size. The default appearance reads
- * like `/Helv 10 Tf 0 g`; a 0 there already means auto-size, and a field with
- * no default appearance at all inherits the form's, which we leave alone.
+ * The size in a field's default appearance, which reads like `/Helv 10 Tf 0 g`.
+ * 0 means size-to-fit; undefined means the field has no default appearance of
+ * its own and inherits the form's, which we leave alone.
  */
-function fixedFontSize(field: PDFTextField): boolean {
+function defaultFontSize(field: PDFTextField): number | undefined {
   const da = field.acroField.getDefaultAppearance();
   const size = da?.match(/(\d+(?:\.\d+)?)\s+Tf/)?.[1];
-  return size !== undefined && Number(size) > 0;
+  return size === undefined ? undefined : Number(size);
 }
 
 /**
@@ -68,7 +68,7 @@ export function relaxMultilineFields(doc: PDFDocument): number {
       field.setMaxLength(undefined);
       touched = true;
     }
-    if (fixedFontSize(field)) {
+    if ((defaultFontSize(field) ?? 0) > 0) {
       // 0 means "size it to fit" in an AcroForm default appearance.
       field.setFontSize(0);
       touched = true;
@@ -96,4 +96,105 @@ export async function relaxPdfFormFields(
   } catch {
     return original;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Making the printed page carry the whole answer
+// ---------------------------------------------------------------------------
+
+/**
+ * The largest type a printed answer uses. The form was drawn at 10pt and the
+ * rest of it still is, so a two-word answer in a six-line box should not come
+ * out in headline type just because there is room for it.
+ */
+const MAX_PRINTED_FONT_SIZE = 10;
+
+/**
+ * pdf.js sizes a multi-line answer by asking whether the lines, measured at the
+ * font size, fit the box — and then draws them a third further apart than it
+ * measured. So it settles on a size about one line too large, and that last
+ * line is drawn just below the box, where nothing shows it. The answer is all
+ * there in the field, and the client record reads it back in full, but a copy
+ * printed or handed to an MCO is short a line.
+ *
+ * pdf-lib measures and draws to the same line height, so it does fit. After the
+ * viewer has saved the form, every multi-line answer is drawn again through it,
+ * capped at the form's own 10pt so short answers still look like the rest of
+ * the page. The field's own value and its size-to-fit default appearance are
+ * put back afterwards, so the next person to open the form is editing exactly
+ * what was typed.
+ */
+export async function fitMultilineText(
+  bytes: ArrayBuffer | Uint8Array,
+): Promise<Uint8Array> {
+  const original = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  try {
+    const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    const form = doc.getForm();
+    const answered = form
+      .getFields()
+      .filter(
+        (f): f is PDFTextField =>
+          f instanceof PDFTextField && f.isMultiline() && !f.isCombed() && !!f.getText(),
+      );
+    if (!answered.length) return original;
+
+    const helvetica = await doc.embedFont(StandardFonts.Helvetica);
+    const undo: Array<() => void> = [];
+
+    for (const field of answered) {
+      const text = field.getText() ?? '';
+      const appearance = field.acroField.getDefaultAppearance();
+      const drawable = drawableText(text, helvetica);
+      // Setting the text is also what marks the field for redrawing.
+      field.setText(drawable);
+      undo.push(() => {
+        if (drawable !== text) field.setText(text);
+        if (appearance !== undefined) field.acroField.setDefaultAppearance(appearance);
+      });
+    }
+    form.updateFieldAppearances(helvetica);
+
+    // Sizing to fit is a floor, not a target: where the answer is short enough
+    // to be drawn larger than the form's own type, bring it back down.
+    const oversized = answered.filter(
+      (f) => (defaultFontSize(f) ?? 0) > MAX_PRINTED_FONT_SIZE,
+    );
+    for (const field of oversized) field.setFontSize(MAX_PRINTED_FONT_SIZE);
+    if (oversized.length) form.updateFieldAppearances(helvetica);
+
+    for (const restore of undo) restore();
+    return await doc.save(SAVE_OPTIONS);
+  } catch {
+    // Never stand between a case manager and a submitted form. The viewer's
+    // own rendering is what gets filed, exactly as it was before this step.
+    return original;
+  }
+}
+
+/**
+ * The answer as the form's font can draw it. Helvetica's encoding covers Latin
+ * text and ordinary punctuation, curly quotes and dashes included, but not
+ * everything someone can type: "Nguyễn" would throw rather than print. Accents
+ * it does not know are stripped to their base letter and anything still
+ * unknown becomes a question mark, so the page shows an answer rather than
+ * nothing at all. Only what is drawn is changed — the field keeps every
+ * character exactly as it was typed, and that is what the client record and
+ * every later edit read.
+ */
+function drawableText(text: string, font: PDFFont): string {
+  const encodable = (s: string) => {
+    try {
+      font.encodeText(s);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (encodable(text)) return text;
+
+  // Combining marks come off first: "ễ" is an "e" the font does know.
+  const stripped = text.normalize('NFD').replace(/\p{M}+/gu, '').normalize('NFC');
+  if (encodable(stripped)) return stripped;
+  return [...stripped].map((c) => (encodable(c) ? c : '?')).join('');
 }

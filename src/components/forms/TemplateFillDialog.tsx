@@ -48,7 +48,7 @@ import {
   writeThroughPlan,
 } from '@/lib/clientIntake';
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
-import { relaxPdfFormFields } from '@/lib/pdfFormFields';
+import { fitMultilineText, relaxPdfFormFields } from '@/lib/pdfFormFields';
 import { wireAutoGrowFields } from '@/lib/pdfAutoGrow';
 import { loadBlankTemplate } from '@/lib/formTemplates';
 
@@ -351,7 +351,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     const doc = docRef.current;
     if (!doc) throw new Error('The form is still loading — try again in a moment.');
     const bytes = await doc.saveDocument();
-    return new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
+    // The viewer draws a long answer's last line just below its box, where it
+    // prints as nothing. Redraw the big boxes to fit before the form is filed.
+    const fitted = await fitMultilineText(bytes);
+    return new Blob([fitted as unknown as BlobPart], { type: 'application/pdf' });
   };
 
   const handleDownloadCopy = async () => {
