@@ -392,8 +392,14 @@ export const INTAKE_ARRAY_TEXT_FIELDS: Record<string, string> = {
   county_4: 'counties_of_interest',
 };
 
-/** Household member rows: form prefix → child-row index. */
-export const INTAKE_HOUSEHOLD_PREFIXES = ['member_1', 'member_2', 'member_3', 'member_4'];
+/**
+ * Household member rows: form prefix → child-row index. Question 52 of the
+ * intake has six of them; the table itself holds as many as a form carries, so
+ * a seventh row on a later template only needs adding here.
+ */
+export const INTAKE_HOUSEHOLD_PREFIXES = [
+  'member_1', 'member_2', 'member_3', 'member_4', 'member_5', 'member_6',
+];
 
 /** The column a form field writes to, when it writes to one at all. */
 export function intakeColumnFor(field: string): string | null {
@@ -569,7 +575,7 @@ export function intakeDraftFromPdfFields(raw: Record<string, string>): IntakeFro
     if (!value || INTENTIONALLY_UNSTORED.has(field)) continue;
 
     // Household members are child rows, keyed by the member_N prefix.
-    const memberMatch = field.match(/^(member_[1-4])_(name|age|relationship)$/);
+    const memberMatch = field.match(/^(member_[1-6])_(name|age|relationship)$/);
     if (memberMatch) {
       const [, prefix, part] = memberMatch;
       const entry = household.get(prefix) ?? { name: '', age: '', relationship: '' };
