@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDay } from '@/lib/dates';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle, Paperclip, Trash2 } from 'lucide-react';
+import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle, Paperclip, RotateCcw, Trash2 } from 'lucide-react';
 import { isCaseClosed, isSetupComplete, missingSetupShort } from '@/lib/workflow';
 
 interface Client {
@@ -88,6 +88,8 @@ interface ClientCardProps {
    * and the button then is not drawn.
    */
   onCloseCase?: (client: Client) => void;
+  /** Only reachable where closed cases are listed, which is an admin's filter. */
+  onReopenCase?: (client: Client) => void;
 }
 
 export const ClientCard: React.FC<ClientCardProps> = ({
@@ -100,6 +102,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
   assignedManagerName = null,
   documentCount = 0,
   onCloseCase,
+  onReopenCase,
 }) => {
   const handleClick = () => {
     if (selectionMode && onToggleSelect) {
@@ -170,6 +173,25 @@ export const ClientCard: React.FC<ClientCardProps> = ({
                 }}
               >
                 <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            {/* The way back, in the same corner as the way out. Closed cases
+                are only listed when somebody has asked for them by name, so
+                this is the one place it can be reached without opening the
+                record first. */}
+            {onReopenCase && !selectionMode && isCaseClosed(client) && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-muted-foreground hover:bg-green-50 hover:text-green-700"
+                title="Reopen this case"
+                aria-label={`Reopen the case for ${client.first_name} ${client.last_name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReopenCase(client);
+                }}
+              >
+                <RotateCcw className="h-4 w-4" />
               </Button>
             )}
             {selectionMode && (

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -17,7 +18,7 @@ import {
   resyncDerivedSchedules,
   syncAuthorizationsFromLegacyColumns,
 } from '@/lib/authorizations';
-import { addDays } from '@/lib/billing';
+import { reopenCaseFields } from '@/lib/reopenCase';
 
 interface Props {
   open: boolean;
@@ -28,12 +29,21 @@ interface Props {
 }
 
 /**
- * Open a closed case again, with a new authorization.
+ * Open a closed case again.
  *
- * A client who comes back is the same person with a second referral: the old
- * forms, documents and billing stay exactly where they are, and the new round
- * is a new 30-day authorization on top of them. Nothing is overwritten and
- * nothing is deleted, which is the whole reason a closed case is kept.
+ * Two different things are called reopening. Usually the case was closed by
+ * mistake, or closed early, and reopening it should put it back exactly as it
+ * was — same authorizations, same stage, same forms owed. Sometimes the client
+ * has genuinely come back on a second referral, and that round starts with a
+ * new 30-day authorization.
+ *
+ * This asked for the new authorization every time, so undoing a misclick meant
+ * inventing a start date, and inventing one moved the case back to intake and
+ * put the HSP back on the list. Now the authorization is the thing you opt
+ * into; without it nothing but the closure itself is undone.
+ *
+ * Either way the old forms, documents and billing stay exactly where they are,
+ * which is the whole reason a closed case is kept.
  */
 export const ReopenCaseDialog: React.FC<Props> = ({
   open,
@@ -43,52 +53,57 @@ export const ReopenCaseDialog: React.FC<Props> = ({
   onReopened,
 }) => {
   const { toast } = useToast();
+  const [newRound, setNewRound] = useState(false);
   const [start, setStart] = useState('');
   const [number, setNumber] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const close = (next: boolean) => {
+    if (!next) {
+      setNewRound(false);
+      setStart('');
+      setNumber('');
+    }
+    onOpenChange(next);
+  };
+
   const reopen = async () => {
-    if (!start) {
+    if (newRound && !start) {
       toast({ title: 'Enter the new 30-day start date', variant: 'destructive' });
       return;
     }
     setSaving(true);
     try {
+      const reopened = reopenCaseFields(
+        newRound ? { startDate: start, authorizationNumber: number } : null,
+      );
+
       const { error } = await supabase
         .from('clients')
-        .update({
-          status: 'active',
-          workflow_stage: 'intake',
-          closed_date: null,
-          reason_closed: null,
-          workflow_stage_updated_at: new Date().toISOString(),
-          // The second round starts here. The plan has to go in again, so the
-          // flag is cleared rather than carried over from the first.
-          hsp_submitted: false,
-          auth_30_start: start,
-          auth_30_end: addDays(start, 29),
-          auth_30_number: number.trim() || null,
-          iat_date: start,
-        } as never)
+        .update(reopened as never)
         .eq('id', clientId);
       if (error) throw error;
 
-      // A new period, numbered after the old ones rather than replacing them.
-      await recordAuthorization({
-        clientId,
-        type: 'initial_30',
-        startDate: start,
-        authorizationNumber: number.trim() || null,
-      }).catch(() => undefined);
+      if (newRound) {
+        // A new period, numbered after the old ones rather than replacing them.
+        await recordAuthorization({
+          clientId,
+          type: 'initial_30',
+          startDate: start,
+          authorizationNumber: number.trim() || null,
+        }).catch(() => undefined);
 
-      await syncAuthorizationsFromLegacyColumns(clientId);
-      await resyncDerivedSchedules(clientId);
+        await syncAuthorizationsFromLegacyColumns(clientId);
+        await resyncDerivedSchedules(clientId);
+      }
 
       toast({
         title: 'Case reopened',
-        description: `${clientName} is active again. Their earlier forms and billing are unchanged.`,
+        description: newRound
+          ? `${clientName} is active again on a new 30-day authorization. Their earlier forms and billing are unchanged.`
+          : `${clientName} is back exactly as they were.`,
       });
-      onOpenChange(false);
+      close(false);
       onReopened();
     } catch (err: any) {
       toast({ title: 'Could not reopen the case', description: err.message, variant: 'destructive' });
@@ -98,45 +113,64 @@ export const ReopenCaseDialog: React.FC<Props> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={close}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Reopen {clientName}</DialogTitle>
           <DialogDescription>
-            Their earlier forms, documents and billing stay as they are. This starts a new
-            30-day authorization on top of them.
+            This puts the case back as it was. Their authorizations, forms, documents and
+            billing are untouched.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="reopen-start">New 30-day start date</Label>
-            <Input
-              id="reopen-start"
-              type="date"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
+          <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
+            <Checkbox
+              checked={newRound}
+              onCheckedChange={(v) => setNewRound(v === true)}
+              className="mt-0.5"
             />
-            <p className="text-xs text-muted-foreground">
-              The IAT date for this round. Billing cycles and touchpoints are counted from it.
-            </p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="reopen-number">30-day authorization number</Label>
-            <Input
-              id="reopen-number"
-              value={number}
-              onChange={(e) => setNumber(e.target.value)}
-              placeholder="Add it later if you do not have it yet"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            A new IAT, LON and HSP are needed for this round. Add them on the Forms tab.
-          </p>
+            <span>
+              They have come back on a new referral
+              <span className="block text-xs text-muted-foreground">
+                Starts a second 30-day authorization on top of the old ones. Leave this alone
+                if the case was closed by mistake or closed early.
+              </span>
+            </span>
+          </label>
+
+          {newRound && (
+            <div className="space-y-3 rounded-md border border-dashed p-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="reopen-start">New 30-day start date</Label>
+                <Input
+                  id="reopen-start"
+                  type="date"
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  The IAT date for this round. Billing cycles and touchpoints are counted from it.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="reopen-number">30-day authorization number</Label>
+                <Input
+                  id="reopen-number"
+                  value={number}
+                  onChange={(e) => setNumber(e.target.value)}
+                  placeholder="Add it later if you do not have it yet"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                A new IAT, LON and HSP are needed for this round. Add them on the Forms tab.
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button variant="outline" onClick={() => close(false)} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={reopen} disabled={saving}>

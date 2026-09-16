@@ -48,6 +48,7 @@ import {
   writeThroughPlan,
 } from '@/lib/clientIntake';
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
+import { nextFormTitle } from '@/lib/formTitles';
 import { fitMultilineText, relaxPdfFormFields } from '@/lib/pdfFormFields';
 import { wireAutoGrowFields } from '@/lib/pdfAutoGrow';
 import { loadBlankTemplate } from '@/lib/formTemplates';
@@ -457,13 +458,21 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         if (error) throw error;
         formId = existing.id;
       } else {
+        // A second form of a kind is filed beside the first, not over it, so
+        // it needs a name of its own to be told apart by.
+        const { data: sameType } = await supabase
+          .from('client_forms')
+          .select('title')
+          .eq('client_id', clientId)
+          .eq('form_type', formType);
+
         const { data: inserted, error } = await supabase
           .from('client_forms')
           .insert({
             client_id: clientId,
             employee_id: profileId,
             form_type: formType,
-            title: formType,
+            title: nextFormTitle(formType, (sameType ?? []).map((f) => f.title)),
             file_path: filePath,
             original_file_path: filePath,
             file_size: blob.size,

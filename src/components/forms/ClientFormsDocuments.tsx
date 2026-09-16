@@ -15,13 +15,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Check, ChevronDown, ChevronRight, Download, FileText, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Download, FileText, Plus, Upload, X } from 'lucide-react';
 import { EXTERNAL_STATUS_LABEL, FORM_SOURCE_LABEL, goesToMco } from '@/lib/formSigning';
 import { formDownloadName } from '@/lib/formAutofill';
 import { recordFormVersion } from '@/lib/formVersions';
 import { CHECKLIST_TYPES, loadManualTicks } from '@/lib/formChecklist';
 import { FORM_LIST_COLUMNS, type FormRow } from '@/components/forms/FormsHub';
 import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
+import {
+  PDF_TEMPLATES,
+  TemplateFillDialog,
+  type PdfTemplate,
+} from '@/components/forms/TemplateFillDialog';
+import { nextFormTitle } from '@/lib/formTitles';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
@@ -141,6 +147,9 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const [confirmDelete, setConfirmDelete] = useState<DocumentRow | null>(null);
   /** The form type a document is being uploaded for, from a checklist row. */
   const [uploadFor, setUploadFor] = useState<string | null>(null);
+  /** The blank template being filled in, from a checklist row. */
+  const [filling, setFilling] = useState<PdfTemplate | null>(null);
+  const [signerName, setSignerName] = useState('Case manager');
   const [preview, setPreview] = useState<{
     id: string;
     file_name: string;
@@ -177,6 +186,21 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   useEffect(() => {
     load();
   }, [load, refreshKey]);
+
+  // Whose name goes on a form begun from here.
+  useEffect(() => {
+    if (!profileId) return;
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, email')
+        .eq('id', profileId)
+        .maybeSingle();
+      setSignerName(
+        `${data?.first_name ?? ''} ${data?.last_name ?? ''}`.trim() || data?.email || 'Case manager',
+      );
+    })();
+  }, [profileId]);
 
   const download = async (form: DocumentRow) => {
     if (!form.file_path) return;
@@ -252,7 +276,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       client_id: clientId,
       employee_id: profileId,
       form_type: formType,
-      title: formType,
+      title: nextFormTitle(formType, forms.filter((f) => f.form_type === formType).map((f) => f.title)),
       status: 'approved',
       source: 'created_in_app',
       external_status: 'not_applicable',
@@ -268,6 +292,10 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     load();
     onChanged?.();
   };
+
+  /** The blank template this app ships for a checklist form, where it has one. */
+  const templateFor = (formType: string): PdfTemplate | undefined =>
+    PDF_TEMPLATES.find((t) => t.formType === formType && !t.mco);
 
   const byType = useMemo(() => {
     const map = new Map<string, DocumentRow[]>();
@@ -374,8 +402,9 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     title: string,
     items: DocumentRow[],
     lead: React.ReactNode,
-    /** Set on a checklist row with nothing filed: offer a way to fix that. */
-    uploadFor?: string,
+    /** Ways to add another of this form. Checklist rows have them; the
+        collections of documents that simply arrive do not. */
+    actions?: React.ReactNode,
   ) => {
     const isOpen = open.has(title);
     return (
@@ -400,25 +429,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                 ))}
             </span>
           </button>
-          {uploadFor && (
-            <div className="flex shrink-0 items-center gap-1.5">
-              <Button
-                variant="ghost"
-                size="sm"
-                title={`Upload a ${uploadFor}`}
-                aria-label={`Upload a ${uploadFor}`}
-                onClick={() => setUploadFor(uploadFor)}
-              >
-                <Upload className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setUploadFor(uploadFor)}>
-                Begin
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => markComplete(uploadFor)}>
-                Mark as complete
-              </Button>
-            </div>
-          )}
+          {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
         </div>
         {isOpen && items.length > 0 && <div className="divide-y border-t">{items.map(documentRow)}</div>}
       </div>
@@ -467,7 +478,47 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                   ) : (
                     <X className="h-5 w-5 text-destructive" aria-label="Not filed" />
                   ),
-                  ticked ? undefined : type,
+                  // A filed form used to take these away, which left replacing
+                  // it as the only way to record a second one. A client can
+                  // need the same form twice — a continuation's plan, a level
+                  // of need redone — so the row keeps offering another.
+                  <>
+                    {templateFor(type) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setFilling(templateFor(type) as PdfTemplate)}
+                        title={
+                          hasDocument
+                            ? `Fill in another ${type}, filed alongside the one already here`
+                            : `Fill in the ${type}`
+                        }
+                      >
+                        {hasDocument ? (
+                          <>
+                            <Plus className="mr-1 h-4 w-4" />
+                            Add another
+                          </>
+                        ) : (
+                          'Begin'
+                        )}
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title={`Upload a completed ${type}`}
+                      aria-label={`Upload a completed ${type}`}
+                      onClick={() => setUploadFor(type)}
+                    >
+                      <Upload className="h-4 w-4" />
+                    </Button>
+                    {!ticked && (
+                      <Button variant="ghost" size="sm" onClick={() => markComplete(type)}>
+                        Mark as complete
+                      </Button>
+                    )}
+                  </>,
                 );
               })}
             </div>
@@ -492,12 +543,28 @@ export const ClientFormsDocuments: React.FC<Props> = ({
           open
           onClose={() => setUploadFor(null)}
           profileId={profileId}
-          signerName={`${clientFirstName} ${clientLastName}`.trim()}
+          signerName={signerName}
           initialFormType={uploadFor}
           initialClientId={clientId}
           onSubmitted={() => {
             setUploadFor(null);
             load();
+          }}
+        />
+      )}
+
+      {filling && profileId && (
+        <TemplateFillDialog
+          template={filling}
+          profileId={profileId}
+          signerName={signerName}
+          lockedClientId={clientId}
+          lockedClientName={`${clientLastName}, ${clientFirstName}`}
+          onClose={() => setFilling(null)}
+          onSubmitted={() => {
+            setFilling(null);
+            load();
+            onChanged?.();
           }}
         />
       )}

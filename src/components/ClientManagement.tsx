@@ -16,6 +16,7 @@ import { AddTouchpointDialog } from '@/components/AddTouchpointDialog';
 import { STAGE_LABEL, WORKFLOW_STAGES, displayStage, isCaseClosed, isSetupComplete } from '@/lib/workflow';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
+import { ReopenCaseDialog } from '@/components/ReopenCaseDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useMyCompliance } from '@/hooks/useMyCompliance';
 import { useViewAs } from '@/components/ViewAsProvider';
@@ -121,6 +122,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   /** The client just created, waiting for their first touchpoint. */
   /** The client whose case the list is closing, if any. */
   const [closingClient, setClosingClient] = useState<Client | null>(null);
+  const [reopeningClient, setReopeningClient] = useState<Client | null>(null);
   const [touchpointFor, setTouchpointFor] = useState<
     { id: string; name: string; levelOfNeed: string | null } | null
   >(null);
@@ -634,6 +636,10 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               showManager={isAdmin}
               documentCount={documentCounts.get(client.id) ?? 0}
               onCloseCase={isViewingAs ? undefined : setClosingClient}
+              // Closed cases only appear on an administrator's own filter, and
+              // reopening one is an administrator's update, so the button is
+              // never offered to somebody who could not carry it out.
+              onReopenCase={isAdmin && !isViewingAs ? setReopeningClient : undefined}
               assignedManagerName={
                 client.assigned_employee_id
                   ? managerMap.get(client.assigned_employee_id) ?? null
@@ -707,6 +713,19 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           clientName={`${closingClient.first_name} ${closingClient.last_name}`}
           onClosed={() => {
             setClosingClient(null);
+            fetchClients();
+          }}
+        />
+      )}
+
+      {reopeningClient && (
+        <ReopenCaseDialog
+          open
+          onOpenChange={(o) => !o && setReopeningClient(null)}
+          clientId={reopeningClient.id}
+          clientName={`${reopeningClient.first_name} ${reopeningClient.last_name}`}
+          onReopened={() => {
+            setReopeningClient(null);
             fetchClients();
           }}
         />
