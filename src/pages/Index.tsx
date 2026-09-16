@@ -143,7 +143,12 @@ const Index = () => {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    // Carry where they were, so signing in — or a session that took a moment
+    // to come back — returns them to it rather than to a bare "/". Landing
+    // there is what sent somebody refreshing the Forms page to the client
+    // list: the section lives in the query string, and the round trip through
+    // /auth dropped it.
+    return <Navigate to="/auth" replace state={{ from: `${location.pathname}${location.search}` }} />;
   }
 
   return (
