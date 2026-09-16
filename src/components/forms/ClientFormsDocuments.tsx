@@ -490,14 +490,14 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                         onClick={() => setFilling(templateFor(type) as PdfTemplate)}
                         title={
                           hasDocument
-                            ? `Fill in another ${type}, filed alongside the one already here`
+                            ? `Fill in an additional ${type}, filed alongside the one already here`
                             : `Fill in the ${type}`
                         }
                       >
                         {hasDocument ? (
                           <>
                             <Plus className="mr-1 h-4 w-4" />
-                            Add another
+                            Add additional
                           </>
                         ) : (
                           'Begin'

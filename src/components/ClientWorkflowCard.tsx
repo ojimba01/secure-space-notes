@@ -15,7 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { useViewAs } from '@/components/ViewAsProvider';
-import { CheckCircle2, ClipboardList, FileText, Upload } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FileText, Plus, Upload } from 'lucide-react';
 import {
   INTAKE_STATUS_LABEL,
   PACKAGE_STATE_CLASS,
@@ -451,6 +451,21 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
                           ? 'Started'
                           : 'Completed'}
                     </Badge>
+                    {/* One already filed, and room for another beside it: a
+                        continuation's plan, a level of need redone, an intake
+                        retaken. Redo replaces what is there; this does not. */}
+                    {f && templateFor(type) && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        title={`Add an additional ${type}`}
+                        aria-label={`Add an additional ${type}`}
+                        onClick={() => setFilling(templateFor(type) ?? null)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    )}
                     {(!f || f.status === 'changes_requested') && (
                       <>
                         <Button
