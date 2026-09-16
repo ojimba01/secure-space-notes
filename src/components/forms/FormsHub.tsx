@@ -385,17 +385,22 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
                     <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
                   </div>
                 </div>
-                <div className="mt-auto flex gap-2">
+                {/* The card above already says which form this is, so the
+                    action does not have to say it again — but a plus on its
+                    own says nothing to somebody who cannot see it, which is
+                    what the label is for. */}
+                <div className="mt-auto flex items-center gap-2">
                   <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
+                    size="icon"
+                    className="h-8 w-8 bg-green-600 text-white hover:bg-green-700"
                     onClick={() => setFillingTemplate(t)}
                     disabled={!profileId}
+                    title={`Fill out and submit the ${t.label}`}
+                    aria-label={`Fill out and submit the ${t.label}`}
                   >
-                    Fill out &amp; submit
+                    <Plus className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
                     <a href={t.file} download aria-label={`Download blank ${t.label}`}>
                       <Download className="h-4 w-4" />
                     </a>
