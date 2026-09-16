@@ -3,7 +3,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { PenLine } from 'lucide-react';
+import { PenLine, Plus } from 'lucide-react';
 import { SignatureManager } from '@/components/SignatureManager';
 import {
   loadSignatures,
@@ -23,9 +23,11 @@ interface Props {
  * Sign the form you are filling in.
  *
  * Every press adds a mark; none of them replaces the one before it, because a
- * form can want a signature on one line and initials on another. Where more
- * than one mark is saved, the press asks which — a drawn signature, a typed
- * one and a photograph of the one signed on paper are all in the same list.
+ * form can want a signature on one line and initials on another. The press asks
+ * which — a drawn signature, a typed one and a photograph of the one signed on
+ * paper are all in the same list — and making a new one is an answer to that
+ * question rather than a second button standing beside it, which is where it
+ * used to be and where it took up as much room as signing did.
  */
 export const SignOnForm: React.FC<Props> = ({ onSign, count = 0 }) => {
   const { toast } = useToast();
@@ -77,12 +79,9 @@ export const SignOnForm: React.FC<Props> = ({ onSign, count = 0 }) => {
       setMaking(true);
       return;
     }
-    // One saved mark is not a choice worth asking about. More than one is,
-    // every time: the second mark on a form is rarely the same as the first.
-    if (list.length === 1) {
-      await apply(list[0]);
-      return;
-    }
+    // Otherwise ask, even about a single saved mark. The list is also the only
+    // way to reach a new one, and the second mark on a form is rarely the same
+    // as the first.
     setPicking(true);
   };
 
@@ -92,11 +91,6 @@ export const SignOnForm: React.FC<Props> = ({ onSign, count = 0 }) => {
         <PenLine className="h-4 w-4 mr-2" />
         {count > 0 ? 'Add another signature' : 'Add signature'}
       </Button>
-      {(saved?.length ?? 0) > 0 && (
-        <Button type="button" variant="outline" onClick={() => setMaking(true)} disabled={busy}>
-          Make a new one
-        </Button>
-      )}
       {count > 0 && (
         <span className="text-xs text-muted-foreground">
           {count === 1 ? '1 signature on the form.' : `${count} signatures on the form.`}
@@ -131,16 +125,21 @@ export const SignOnForm: React.FC<Props> = ({ onSign, count = 0 }) => {
               </button>
             ))}
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setPicking(false);
-              setMaking(true);
-            }}
-          >
-            Make a new one
-          </Button>
+          <div className="flex">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs text-muted-foreground"
+              onClick={() => {
+                setPicking(false);
+                setMaking(true);
+              }}
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              New signature
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
