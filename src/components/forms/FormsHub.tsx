@@ -22,6 +22,7 @@ import {
   FileText,
   Plus,
   Search,
+  Upload,
 } from 'lucide-react';
 import {
   EXTERNAL_STATUS_CLASS,
@@ -147,6 +148,8 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [uploadOpen, setUploadOpen] = useState(false);
+  /** Pre-selects the kind of form being uploaded, when it is already known. */
+  const [uploadType, setUploadType] = useState<string | null>(null);
   const [fillingTemplate, setFillingTemplate] = useState<PdfTemplate | null>(null);
   const [editingForm, setEditingForm] = useState<FormRow | null>(null);
   const [detail, setDetail] = useState<FormRow | null>(null);
@@ -355,7 +358,14 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
               : 'Upload and track your completed forms.'}
           </p>
         </div>
-        <Button variant="outline" onClick={() => setUploadOpen(true)} disabled={!profileId}>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setUploadType(null);
+            setUploadOpen(true);
+          }}
+          disabled={!profileId}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Upload Form
         </Button>
@@ -400,10 +410,23 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                    <a href={t.file} download aria-label={`Download blank ${t.label}`}>
-                      <Download className="h-4 w-4" />
-                    </a>
+                  {/* The other way a form of this kind arrives: already
+                      filled in, on paper or in Availity, and scanned. Outlined
+                      rather than bare, so the pair reads as two buttons rather
+                      than one button and a loose icon. */}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      setUploadType(t.formType);
+                      setUploadOpen(true);
+                    }}
+                    disabled={!profileId}
+                    title={`Upload a completed ${t.label}`}
+                    aria-label={`Upload a completed ${t.label}`}
+                  >
+                    <Upload className="h-4 w-4" />
                   </Button>
                 </div>
               </Card>
@@ -604,6 +627,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
           onClose={() => setUploadOpen(false)}
           profileId={profileId}
           signerName={signerName}
+          initialFormType={uploadType ?? undefined}
           onSubmitted={fetchForms}
         />
       )}
