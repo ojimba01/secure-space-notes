@@ -102,7 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         <div className="p-1.5 bg-medical-blue rounded-md">
           <Stethoscope className="w-4 h-4 text-white" />
         </div>
-        <span className="font-semibold truncate">Case Notes</span>
+        <span className="font-semibold truncate">Clinical Notes</span>
       </div>
       <Button
         variant="ghost"
@@ -154,7 +154,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
                 <Stethoscope className="w-5 h-5 text-white" />
               </div>
               <div className="min-w-0">
-                <h2 className="font-semibold text-lg">Case Notes</h2>
+                <h2 className="font-semibold text-lg">Clinical Notes</h2>
                 <p className="text-sm text-muted-foreground">HIPAA Compliant</p>
               </div>
             </button>

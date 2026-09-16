@@ -1,6 +1,6 @@
 // The one place a touchpoint is recorded.
 //
-// Left: the Case Notes record that counts toward the 30-day cycle.
+// Left: the Clinical Notes record that counts toward the 30-day cycle.
 // Right: the NJHMIS progress note, staged internally so it can be keyed in or
 // exported later. Nothing here is sent to NJHMIS.
 //
@@ -130,7 +130,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
   const [caseloadClients, setCaseloadClients] = useState<PickerClient[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // --- Case Notes touchpoint details -----------------------------------
+  // --- Clinical Notes touchpoint details -----------------------------------
   const [clientId, setClientId] = useState('');
   const [date, setDate] = useState(today);
   const [contactMethod, setContactMethod] = useState('in_person');
@@ -300,7 +300,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     }
     setSaving(true);
 
-    // 1. The Case Notes touchpoint record — this is what the cycle counts.
+    // 1. The Clinical Notes touchpoint record — this is what the cycle counts.
     const { data: contact, error } = await supabase
       .from('client_contacts')
       .insert({
@@ -382,7 +382,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
           {/* ---------------- Section 1 ---------------- */}
           <section className="space-y-3 rounded-lg border p-4 lg:col-span-2">
-            <h3 className="text-sm font-semibold">Case Notes touchpoint details</h3>
+            <h3 className="text-sm font-semibold">Clinical Notes touchpoint details</h3>
 
             <div className="space-y-1.5">
               <FieldLabel>Client</FieldLabel>

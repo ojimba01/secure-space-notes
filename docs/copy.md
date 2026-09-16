@@ -24,7 +24,7 @@ called **Scheduled work** and not "client calendar".
 
 | Where | Words |
 |---|---|
-| Product name | **Case Notes** |
+| Product name | **Clinical Notes** |
 | Footer mark | HIPAA Compliant |
 | Sidebar | Admin Dashboard · Clients · Forms · Billing · Team touchpoints / My touchpoints · Calendar · Help guide |
 | Account button | Your account |
