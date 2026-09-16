@@ -36,9 +36,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
 import { FormDetailDialog } from '@/components/forms/FormDetailDialog';
 import {
@@ -48,6 +50,7 @@ import {
 } from '@/components/forms/TemplateFillDialog';
 import { formDownloadName } from '@/lib/formAutofill';
 import { isCaseClosed } from '@/lib/workflow';
+import { loadBlankTemplate } from '@/lib/formTemplates';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -150,6 +153,10 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   const [uploadOpen, setUploadOpen] = useState(false);
   /** Pre-selects the kind of form being uploaded, when it is already known. */
   const [uploadType, setUploadType] = useState<string | null>(null);
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  /** Templates ticked for download, keyed by the file that identifies each. */
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [downloading, setDownloading] = useState(false);
   const [fillingTemplate, setFillingTemplate] = useState<PdfTemplate | null>(null);
   const [editingForm, setEditingForm] = useState<FormRow | null>(null);
   const [detail, setDetail] = useState<FormRow | null>(null);
@@ -316,6 +323,51 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
     setPage(0);
   }, [search, statusFilter, typeFilter]);
 
+  /** `Initial_Assessment_Tool_IAT_blank.pdf` — a blank, so no client's name. */
+  const blankFileName = (label: string) =>
+    `${label.replace(/[^\w]+/g, '_').replace(/^_|_$/g, '')}_blank.pdf`;
+
+  /**
+   * Hand over the blank templates that were ticked.
+   *
+   * Each comes from the registry rather than straight off the build, so what
+   * gets printed is the version the app itself would open — an admin who has
+   * uploaded a reissued form has replaced this one too. They are fetched one
+   * at a time: a browser asked for six downloads at once starts dropping them.
+   */
+  const downloadPicked = async () => {
+    const wanted = PDF_TEMPLATES.filter((t) => picked.has(t.file));
+    if (!wanted.length) return;
+
+    setDownloading(true);
+    const failed: string[] = [];
+    for (const t of wanted) {
+      try {
+        const bytes = await loadBlankTemplate(t.formType, t.mco, t.file);
+        const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = blankFileName(t.label);
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch {
+        failed.push(t.label);
+      }
+    }
+    setDownloading(false);
+
+    if (failed.length) {
+      toast({
+        title: failed.length === wanted.length ? 'Could not download' : 'Some did not download',
+        description: `${failed.join(', ')} could not be fetched. Try again in a moment.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    setDownloadOpen(false);
+    setPicked(new Set());
+  };
+
   const handleDownload = async (form: FormRow) => {
     if (!form.file_path) return;
     try {
@@ -431,6 +483,15 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
                 </div>
               </Card>
             ))}
+          </div>
+
+          {/* Filling one in is one thing; taking the blank to a meeting on
+              paper is another, and it is rarely just one form. */}
+          <div className="flex justify-end border-t pt-3">
+            <Button variant="outline" size="sm" onClick={() => setDownloadOpen(true)}>
+              <Download className="h-4 w-4 mr-2" />
+              Download Forms
+            </Button>
           </div>
         </div>
       </div>
@@ -620,6 +681,77 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
           onSubmitted={fetchForms}
         />
       )}
+
+      <Dialog
+        open={downloadOpen}
+        onOpenChange={(o) => {
+          setDownloadOpen(o);
+          if (!o) setPicked(new Set());
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Download Forms</DialogTitle>
+            <DialogDescription>
+              Select which form template(s) you would like to download.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="divide-y rounded-md border">
+            {PDF_TEMPLATES.map((t) => (
+              <label
+                key={t.file}
+                className="flex cursor-pointer items-start gap-3 p-2.5 hover:bg-muted/50"
+              >
+                <Checkbox
+                  className="mt-0.5"
+                  checked={picked.has(t.file)}
+                  onCheckedChange={(v) =>
+                    setPicked((current) => {
+                      const next = new Set(current);
+                      if (v === true) next.add(t.file);
+                      else next.delete(t.file);
+                      return next;
+                    })
+                  }
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm">{t.label}</span>
+                  <span className="block text-xs text-muted-foreground">{t.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="self-start text-xs text-muted-foreground underline-offset-2 hover:underline"
+            onClick={() =>
+              setPicked((current) =>
+                current.size === PDF_TEMPLATES.length
+                  ? new Set()
+                  : new Set(PDF_TEMPLATES.map((t) => t.file)),
+              )
+            }
+          >
+            {picked.size === PDF_TEMPLATES.length ? 'Clear all' : 'Select all'}
+          </button>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDownloadOpen(false)}
+              disabled={downloading}
+            >
+              Cancel
+            </Button>
+            <Button onClick={downloadPicked} disabled={picked.size === 0 || downloading}>
+              <Download className="h-4 w-4 mr-2" />
+              {downloading ? 'Downloading...' : 'Download'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {uploadOpen && profileId && (
         <UploadFormDialog
