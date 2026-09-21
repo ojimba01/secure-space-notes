@@ -45,6 +45,40 @@ PAGE_4_BOXES = [
 ]
 
 
+# A name derived from the label beside a blank is good enough to tell two
+# grocery boxes apart, but the fields the client record reads and writes need
+# names that will not move when the form is re-rendered. These are those.
+RENAMES = {
+    # Three pages ask for the member's name. They are named apart rather than
+    # together: giving them one name here produces three separate fields that
+    # merely look alike, which share no value and leave the form ambiguous
+    # about which is which. The app fills all three when it pre-fills, so
+    # nobody types it three times anyway.
+    'member': 'member_name',
+    'member_name': 'member_name_remediation',
+    'member_name_2': 'member_name_allergy',
+    'member_s_height_and_weight': 'member_height_weight',
+    'member_s_street': 'new_street_address',
+    'city_town_and_zip_code': 'new_city_town_zip',
+    'apartment': 'apartment_complex_name',
+    'name': 'provider_contact_name',
+    'telephone_number': 'provider_contact_phone',
+    'email_address': 'provider_contact_email',
+    'name_2': 'mco_housing_specialist_name',
+    'name_3': 'key_contact_name',
+    'telephone_number_2': 'key_contact_phone',
+    'name_of_representative': 'landlord_representative_name',
+    'telephone_number_3': 'landlord_phone',
+    'email_address_2': 'landlord_email',
+    'name_of_representative_2': 'realtor_representative_name',
+    'telephone_number_4': 'realtor_phone',
+    'email_address_3': 'realtor_email',
+    'name_of_representative_3': 'mover_representative_name',
+    'telephone_number_5': 'mover_phone',
+    'email_address_4': 'mover_email',
+}
+
+
 def slug(s):
     s = re.sub(r'\(.*?\)', ' ', s).replace('&', ' and ').replace('#', ' number ')
     # The footnote marks on "Application Fee¹" number the instructions at the
@@ -254,6 +288,13 @@ def build(source=SOURCE, out=OUT):
             continue
         blanks_and_squares(sheet)
         ticked_lists(sheet)
+
+    for page in doc:
+        for widget in page.widgets():
+            better = RENAMES.get(widget.field_name)
+            if better:
+                widget.field_name = better
+                widget.update()
 
     doc.save(out)
     return doc

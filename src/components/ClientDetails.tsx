@@ -28,6 +28,7 @@ import { ClientFormsDocuments } from '@/components/forms/ClientFormsDocuments';
 import { DocumentIntakeDialog } from '@/components/DocumentIntakeDialog';
 import { HmisDialog } from '@/components/HmisDialog';
 import { ReopenCaseDialog } from '@/components/ReopenCaseDialog';
+import { MoveInDetailsCard } from '@/components/MoveInDetailsCard';
 import { useViewAs } from '@/components/ViewAsProvider';
 
 interface Client {
@@ -272,6 +273,14 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             onSaved={recordChanged}
             caseManagerName={caseManagerName}
             showCaseManager={isAdmin}
+          />
+
+          {/* Where they are moving to, which a submitted Move-in Supports
+              Request fills in and anybody can write in by hand. */}
+          <MoveInDetailsCard
+            clientId={client.id}
+            refreshKey={recordVersion}
+            readOnly={isViewingAs}
           />
 
           <ClientWorkflowCard
