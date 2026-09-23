@@ -109,7 +109,9 @@ export async function loadCaseLog(
     .eq('month', month)
     .maybeSingle();
   if (error) throw error;
-  return (data as CaseLogRow | null) ?? null;
+  // The column is jsonb, so the client hands back `Json`. `entries` is the
+  // narrow shape this app writes into it — see saveCaseLog.
+  return (data as unknown as CaseLogRow | null) ?? null;
 }
 
 /**
