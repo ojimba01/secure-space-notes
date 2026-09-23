@@ -6,31 +6,32 @@
 // fields that are already there. This one has to grow its own.
 //
 // Fields are added at fill time rather than baked into the shipped PDF, and
-// that is the whole reason the design works: a month that runs past thirty
+// that is the whole reason the design works: a week that runs past thirty
 // touchpoints needs a second page, a second page needs its own thirty fields,
 // and two pages carrying the same field names would collide. Adding them here
 // means page two's rows are Row_31 upward and nothing overlaps.
 //
-// Geometry was measured off the original with pdfjs, not guessed — the numbers
-// below are the table's own rules. If the state reissues the form, re-measure
-// before touching anything else.
+// Geometry was measured off the original, not guessed — the numbers below are
+// the table's own rules. If the form is reissued, re-measure before touching
+// anything else. The weekly form of September 2026 arrived with fields of its
+// own; they were taken off the shipped copy, because a second page built from
+// it would have carried the same names twice.
 import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib';
 
-export const CASE_LOG_TEMPLATE = '/form-templates/hmis-case-log-monthly.pdf';
+export const CASE_LOG_TEMPLATE = '/form-templates/hmis-case-log-weekly.pdf';
 
 /** Vertical rules, left to right. The gaps between them are the columns. */
 const COL = {
-  num: [28, 55],
-  client: [55, 347],
-  phone: [347, 449],
-  done: [449, 515],
-  date: [515, 591],
+  num: [73, 104],
+  client: [104, 399],
+  done: [399, 465],
+  date: [465, 540],
 } as const;
 
 /** Horizontal rules below the header, top to bottom: 31 rules, 30 rows. */
 const RULES = [
-  829, 804, 778, 753, 728, 702, 677, 652, 627, 601, 576, 551, 526, 500, 475,
-  450, 425, 400, 374, 349, 324, 299, 273, 248, 223, 198, 172, 147, 122, 96, 71,
+  829, 804, 779, 753, 728, 703, 678, 653, 627, 602, 577, 552, 526, 501, 476,
+  450, 425, 400, 375, 349, 324, 299, 274, 248, 223, 198, 173, 147, 122, 97, 72,
 ] as const;
 
 export const ROWS_PER_PAGE = RULES.length - 1;
@@ -39,7 +40,6 @@ export interface CaseLogEntry {
   /** The client met. Held so a row can be traced back to a record. */
   clientId?: string | null;
   clientName: string;
-  phone?: string | null;
   /** ISO date of the touchpoint. */
   date?: string | null;
   completed: boolean;
@@ -47,8 +47,8 @@ export interface CaseLogEntry {
 
 export interface CaseLogHeader {
   caseManager: string;
-  /** Already formatted for a person to read, e.g. "September 2026". */
-  month: string;
+  /** The Sunday the week ends on, as the form writes a date: "09/27/2026". */
+  weekEnding: string;
 }
 
 const PAD = 2;
@@ -84,14 +84,14 @@ function layPage(
 
   // The two blanks in the header sit on the underscores already printed there.
   // Repeated on every page, because a page that travels alone still has to say
-  // whose month it is.
+  // whose week it is.
   const cm = form.createTextField(`Case_Manager${suffix}`);
   cm.addToPage(page, { x: 150, y: 868, width: 197, height: 15, borderWidth: 0 });
   cm.setText(header.caseManager);
 
-  const month = form.createTextField(`Month${suffix}`);
-  month.addToPage(page, { x: 440, y: 868, width: 96, height: 15, borderWidth: 0 });
-  month.setText(header.month);
+  const week = form.createTextField(`Week_Ending${suffix}`);
+  week.addToPage(page, { x: 443, y: 868, width: 96, height: 15, borderWidth: 0 });
+  week.setText(header.weekEnding);
 
   for (let i = 0; i < ROWS_PER_PAGE; i++) {
     const n = offset + i + 1;
@@ -109,10 +109,6 @@ function layPage(
     const name = form.createTextField(`Row_${n}_Client_Name`);
     name.addToPage(page, { ...cell(COL.client, top, bottom), borderWidth: 0 });
     if (entry) name.setText(entry.clientName);
-
-    const phone = form.createTextField(`Row_${n}_Phone`);
-    phone.addToPage(page, { ...cell(COL.phone, top, bottom), borderWidth: 0 });
-    if (entry?.phone) phone.setText(entry.phone);
 
     // Completed is a tick because the column is a tick on the paper form.
     const done = form.createCheckBox(`Row_${n}_Completed`);
@@ -174,7 +170,7 @@ export async function buildCaseLogPdf(
  * Several built logs as one document.
  *
  * Field names repeat across the parts — every log has a `Row_1_Client_Name` —
- * so the forms are flattened on the way in. A run of months is read and
+ * so the forms are flattened on the way in. A run of weeks is read and
  * printed, never typed into, and flattening is what makes it open the same way
  * everywhere rather than depending on the reader's form support.
  */
@@ -194,5 +190,5 @@ export async function mergeCaseLogPdfs(parts: Uint8Array[]): Promise<Uint8Array>
 }
 
 /** The file name a downloaded log should carry. */
-export const caseLogFileName = (caseManager: string, month: string): string =>
-  `HMIS Case Log — ${caseManager} — ${month}.pdf`.replace(/[/\\]/g, '-');
+export const caseLogFileName = (caseManager: string, weekEnding: string): string =>
+  `HMIS Case Log — ${caseManager} — week ending ${weekEnding}.pdf`.replace(/[/\\]/g, '-');

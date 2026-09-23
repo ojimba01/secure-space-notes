@@ -264,8 +264,8 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         </CardContent>
       </Card>
 
-      {/* The month's log, filled from the touchpoints above it. It sits last
-          because it is the end of the month's work, and it is here rather than
+      {/* The week's log, filled from the touchpoints above it. It sits last
+          because it is the end of the week's work, and it is here rather than
           on its own screen so nobody has to go looking for a form that is
           already written. */}
       {effectiveProfileId && (
@@ -273,7 +273,7 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
           <CardHeader>
             <CardTitle className="text-lg">HMIS case log</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Filled from what you have logged. Check it, then submit it at the end of the month.
+              Filled from what you have logged. Check it, then submit it at the end of each work week.
             </p>
           </CardHeader>
           <CardContent>

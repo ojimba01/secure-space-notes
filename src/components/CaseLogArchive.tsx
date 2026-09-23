@@ -1,7 +1,7 @@
 // Case logs, looked up after the fact.
 //
-// A month at a time is how the log is filed; a range is how it gets asked
-// about. Somebody wants September, or September through November, for one case
+// A week at a time is how the log is filed; a range is how it gets asked
+// about. Somebody wants one week, or all of September's, for one case
 // manager or for everybody, and they want the forms — not a count. So the range
 // and the people are both filters, the people optional, and every log that
 // falls inside comes back as something you can open and print.
@@ -30,8 +30,9 @@ import { CaseLog } from '@/components/CaseLog';
 import {
   caseLogEntries,
   loadCaseLog,
-  monthLabel,
-  monthsAvailable,
+  weekEndingText,
+  weekLabel,
+  weeksAvailable,
 } from '@/lib/caseLog';
 import {
   CASE_LOG_TEMPLATE,
@@ -48,14 +49,16 @@ interface Props {
 interface Found {
   employeeId: string;
   name: string;
-  month: string;
+  week: string;
   entries: CaseLogEntry[];
 }
 
 export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
-  const months = useMemo(() => monthsAvailable(), []);
-  const [from, setFrom] = useState(months[months.length - 1]);
-  const [to, setTo] = useState(months[0]);
+  const weeks = useMemo(() => weeksAvailable(), []);
+  // Four weeks back by default: a month's worth, which is what is usually
+  // asked for, without making somebody scroll to find this week.
+  const [from, setFrom] = useState(weeks[Math.min(3, weeks.length - 1)]);
+  const [to, setTo] = useState(weeks[0]);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<Found[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,8 +68,8 @@ export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
   // A range typed backwards is a slip, not a question. Read it either way.
   const span = useMemo(() => {
     const [lo, hi] = from <= to ? [from, to] : [to, from];
-    return months.filter((m) => m >= lo && m <= hi);
-  }, [from, to, months]);
+    return weeks.filter((w) => w >= lo && w <= hi);
+  }, [from, to, weeks]);
 
   // No one ticked means everyone, which is why the boxes are not required.
   const chosen = useMemo(
@@ -87,16 +90,16 @@ export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
     try {
       const found: Found[] = [];
       for (const m of chosen) {
-        for (const month of span) {
-          const stored = await loadCaseLog(m.id, month);
-          const entries = await caseLogEntries(m.id, month, stored);
-          // A month with no touchpoints has no log worth showing. Listing it
+        for (const week of span) {
+          const stored = await loadCaseLog(m.id, week);
+          const entries = await caseLogEntries(m.id, week, stored);
+          // A week with no touchpoints has no log worth showing. Listing it
           // would pad the results with blank forms nobody filed.
           if (entries.length === 0) continue;
-          found.push({ employeeId: m.id, name: m.name, month, entries });
+          found.push({ employeeId: m.id, name: m.name, week, entries });
         }
       }
-      found.sort((a, b) => b.month.localeCompare(a.month) || a.name.localeCompare(b.name));
+      found.sort((a, b) => b.week.localeCompare(a.week) || a.name.localeCompare(b.name));
       setResults(found);
     } catch (e) {
       toast({
@@ -122,7 +125,7 @@ export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
         parts.push(
           await buildCaseLogPdf(
             blank.slice(0),
-            { caseManager: r.name, month: monthLabel(r.month) },
+            { caseManager: r.name, weekEnding: weekEndingText(r.week) },
             r.entries,
           ),
         );
@@ -131,8 +134,8 @@ export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
       const url = URL.createObjectURL(new Blob([merged as BlobPart], { type: 'application/pdf' }));
       const a = document.createElement('a');
       const range = span.length === 1
-        ? monthLabel(span[0])
-        : `${monthLabel(span[span.length - 1])} to ${monthLabel(span[0])}`;
+        ? `week ending ${weekEndingText(span[0])}`
+        : `weeks ending ${weekEndingText(span[span.length - 1])} to ${weekEndingText(span[0])}`;
       a.href = url;
       a.download = `HMIS Case Logs — ${range}.pdf`.replace(/[/\\]/g, '-');
       a.click();
@@ -156,7 +159,7 @@ export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
       <CardHeader>
         <CardTitle className="text-lg">Past logs</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Pick a month, or a run of them. Tick case managers to narrow it — leave
+          Pick a week, or a run of them. Tick case managers to narrow it — leave
           them all clear for everybody.
         </p>
       </CardHeader>
@@ -165,18 +168,18 @@ export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
           <div>
             <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">From</p>
             <Select value={from} onValueChange={setFrom}>
-              <SelectTrigger className="h-9 w-[170px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-[220px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {months.map((m) => <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>)}
+                {weeks.map((w) => <SelectItem key={w} value={w}>{weekLabel(w)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
             <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">To</p>
             <Select value={to} onValueChange={setTo}>
-              <SelectTrigger className="h-9 w-[170px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-[220px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {months.map((m) => <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>)}
+                {weeks.map((w) => <SelectItem key={w} value={w}>{weekLabel(w)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -205,8 +208,8 @@ export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-muted-foreground">
                 {results.length === 0
-                  ? `No touchpoints logged in ${span.length === 1 ? monthLabel(span[0]) : 'that range'}.`
-                  : `${results.length} ${results.length === 1 ? 'log' : 'logs'} across ${span.length} ${span.length === 1 ? 'month' : 'months'}.`}
+                  ? `No touchpoints logged ${span.length === 1 ? weekLabel(span[0]) : 'in that range'}.`
+                  : `${results.length} ${results.length === 1 ? 'log' : 'logs'} across ${span.length} ${span.length === 1 ? 'week' : 'weeks'}.`}
               </p>
               {results.length > 0 && (
                 <Button size="sm" variant="outline" disabled={busy} onClick={() => void downloadAll()}>
@@ -218,14 +221,14 @@ export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
 
             {results.map((r) => (
               <button
-                key={`${r.employeeId}-${r.month}`}
+                key={`${r.employeeId}-${r.week}`}
                 onClick={() => setOpen(r)}
                 className="flex w-full items-center justify-between gap-3 rounded-md border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
               >
                 <div className="flex min-w-0 items-center gap-2">
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="truncate font-medium">{r.name}</span>
-                  <span className="text-sm text-muted-foreground">{monthLabel(r.month)}</span>
+                  <span className="text-sm text-muted-foreground">{weekLabel(r.week)}</span>
                 </div>
                 <Badge variant="secondary" className="shrink-0 font-normal">
                   {r.entries.length} {r.entries.length === 1 ? 'entry' : 'entries'}
@@ -240,7 +243,7 @@ export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
         <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>
-              HMIS Case Log — {open?.name} — {open && monthLabel(open.month)}
+              HMIS Case Log — {open?.name} — {open && `week ending ${weekEndingText(open.week)}`}
             </DialogTitle>
           </DialogHeader>
           {open && (
@@ -248,7 +251,7 @@ export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
               <CaseLog
                 employeeId={open.employeeId}
                 caseManagerName={open.name}
-                initialMonth={open.month}
+                initialWeek={open.week}
                 readOnly
               />
             </div>

@@ -1,8 +1,8 @@
-// One case manager's month, as the HMIS Case Log asks for it.
+// One case manager's week, as the HMIS Case Log asks for it.
 //
 // The rows come from touchpoints already logged in the app, so the form opens
 // filled in. A case manager checks it rather than writes it — which is the
-// only reason a monthly paper form is worth having in software at all.
+// only reason a weekly paper form is worth having in software at all.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Document, Page } from 'react-pdf';
 import '@/lib/pdfWorker';
@@ -30,9 +30,10 @@ import { useToast } from '@/hooks/use-toast';
 import {
   caseLogEntries,
   loadCaseLog,
-  monthLabel,
-  monthsAvailable,
   saveCaseLog,
+  weekEndingText,
+  weekLabel,
+  weeksAvailable,
   type CaseLogRow,
 } from '@/lib/caseLog';
 import {
@@ -49,20 +50,20 @@ interface Props {
   caseManagerName: string;
   /** An admin reads someone else's log; only its author edits it. */
   readOnly?: boolean;
-  /** Open on this month rather than the current one, for a look-up. */
-  initialMonth?: string;
+  /** Open on this week (its Sunday) rather than the current one, for a look-up. */
+  initialWeek?: string;
 }
 
-const blank = (): CaseLogEntry => ({ clientName: '', phone: '', date: '', completed: false });
+const blank = (): CaseLogEntry => ({ clientName: '', date: '', completed: false });
 
 export const CaseLog: React.FC<Props> = ({
   employeeId,
   caseManagerName,
   readOnly = false,
-  initialMonth,
+  initialWeek,
 }) => {
-  const months = useMemo(() => monthsAvailable(), []);
-  const [month, setMonth] = useState(initialMonth ?? months[0]);
+  const weeks = useMemo(() => weeksAvailable(), []);
+  const [week, setWeek] = useState(initialWeek ?? weeks[0]);
   const [stored, setStored] = useState<CaseLogRow | null>(null);
   const [entries, setEntries] = useState<CaseLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +73,7 @@ export const CaseLog: React.FC<Props> = ({
   const [scale, setScale] = useState(1);
   const { toast } = useToast();
 
-  // A Blob URL leaks until it is revoked, and a month switch builds a new one.
+  // A Blob URL leaks until it is revoked, and a week switch builds a new one.
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
   const editable = !readOnly;
@@ -80,9 +81,9 @@ export const CaseLog: React.FC<Props> = ({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const row = await loadCaseLog(employeeId, month);
+      const row = await loadCaseLog(employeeId, week);
       setStored(row);
-      setEntries(await caseLogEntries(employeeId, month, row));
+      setEntries(await caseLogEntries(employeeId, week, row));
     } catch (e) {
       toast({
         title: 'Could not open the log',
@@ -92,7 +93,7 @@ export const CaseLog: React.FC<Props> = ({
     } finally {
       setLoading(false);
     }
-  }, [employeeId, month, toast]);
+  }, [employeeId, week, toast]);
 
   useEffect(() => {
     void load();
@@ -104,7 +105,7 @@ export const CaseLog: React.FC<Props> = ({
   const persist = async (rows: CaseLogEntry[]) => {
     setBusy(true);
     try {
-      await saveCaseLog(employeeId, month, rows);
+      await saveCaseLog(employeeId, week, rows);
       await load();
       toast({ title: 'Log saved' });
     } catch (e) {
@@ -124,7 +125,7 @@ export const CaseLog: React.FC<Props> = ({
     if (!res.ok) throw new Error(`Could not load the blank form (${res.status}).`);
     return await buildCaseLogPdf(
       await res.arrayBuffer(),
-      { caseManager: caseManagerName, month: monthLabel(month) },
+      { caseManager: caseManagerName, weekEnding: weekEndingText(week) },
       entries.filter((e) => e.clientName.trim()),
     );
   };
@@ -158,7 +159,7 @@ export const CaseLog: React.FC<Props> = ({
       const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = caseLogFileName(caseManagerName, monthLabel(month));
+      a.download = caseLogFileName(caseManagerName, weekEndingText(week));
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -181,13 +182,13 @@ export const CaseLog: React.FC<Props> = ({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Select value={month} onValueChange={setMonth}>
-            <SelectTrigger className="h-9 w-[180px]">
+          <Select value={week} onValueChange={setWeek}>
+            <SelectTrigger className="h-9 w-[220px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {months.map((m) => (
-                <SelectItem key={m} value={m}>{monthLabel(m)}</SelectItem>
+              {weeks.map((w) => (
+                <SelectItem key={w} value={w}>{weekLabel(w)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -224,7 +225,6 @@ export const CaseLog: React.FC<Props> = ({
                 <tr className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="w-10 px-3 py-2 text-center">#</th>
                   <th className="px-3 py-2">Client name</th>
-                  <th className="w-40 px-3 py-2">Phone</th>
                   <th className="w-24 px-3 py-2 text-center">Completed</th>
                   <th className="w-36 px-3 py-2">Date</th>
                   {editable && <th className="w-10 px-3 py-2" />}
@@ -232,12 +232,12 @@ export const CaseLog: React.FC<Props> = ({
               </thead>
               <tbody>
                 {loading && (
-                  <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">Opening the log…</td></tr>
+                  <tr><td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">Opening the log…</td></tr>
                 )}
                 {!loading && entries.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-sm text-muted-foreground">
-                      No touchpoints logged in {monthLabel(month)}. Rows appear here as
+                    <td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                      No touchpoints logged {weekLabel(week)}. Rows appear here as
                       they are logged, or add one by hand.
                     </td>
                   </tr>
@@ -251,13 +251,6 @@ export const CaseLog: React.FC<Props> = ({
                           onFocus={(ev) => ev.target.select()}
                           onChange={(ev) => edit(i, { clientName: ev.target.value })} />
                       ) : e.clientName}
-                    </td>
-                    <td className="px-3 py-1.5">
-                      {editable ? (
-                        <Input className="h-8" value={e.phone ?? ''}
-                          onFocus={(ev) => ev.target.select()}
-                          onChange={(ev) => edit(i, { phone: ev.target.value })} />
-                      ) : (e.phone || '—')}
                     </td>
                     <td className="px-3 py-1.5 text-center">
                       <Checkbox checked={e.completed} disabled={!editable}
@@ -320,7 +313,7 @@ export const CaseLog: React.FC<Props> = ({
         <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between gap-3 pr-8">
-              <span>HMIS Case Log — {caseManagerName} — {monthLabel(month)}</span>
+              <span>HMIS Case Log — {caseManagerName} — week ending {weekEndingText(week)}</span>
               <span className="flex items-center gap-1">
                 <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Zoom out"
                   onClick={() => setScale((z) => Math.max(0.5, z - 0.25))}>

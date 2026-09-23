@@ -129,14 +129,19 @@ and has to go through `close_case()`. Case manager is a dropdown calling
 `reassign_client` directly; the Reassign button in the header still works and
 was left alone.
 
-## The monthly case log
+## The weekly case log
 
-**The form had to grow its own fields.** `public/form-templates/hmis-case-log-monthly.pdf`
-is the state's PDF exactly as issued: 152 places to write and not one AcroForm
-field, which is why nobody could type into it. Every other template in that
+It was monthly until September 2026, when staff were handed a weekly form
+("Week Ending", no phone column). A week runs Monday to Sunday and a log is
+named for its Sunday, `case_logs.week_ending`; the old monthly rows are kept
+and hand-edited ones were split into their weeks by `docs/weekly-case-logs.sql`.
+
+**The form had to grow its own fields.** `public/form-templates/hmis-case-log-weekly.pdf`
+is the form as issued with its own fields taken off — it arrived with 122 that
+would have collided on a second page. The monthly one had none: which is why nobody could type into it. Every other template in that
 folder is a real form and `formAutofill.ts` writes into the fields already
 there. This one is different, and the difference is load-bearing: fields are
-added at **fill time**, in `src/lib/caseLogForm.ts`, because a month past thirty
+added at **fill time**, in `src/lib/caseLogForm.ts`, because a week past thirty
 touchpoints needs a second page and two pages carrying the same field names
 would collide. Page two's rows are `Row_31` upward.
 
@@ -245,7 +250,7 @@ asked about admin-to-staff reminders; that is a real feature, not a fix.
 | The client record and its section bar | `src/components/ClientDetails.tsx` |
 | Agency calendar, search, day dialog | `src/components/CaseManagerCalendar.tsx` |
 | The 30-day cycle list | `src/components/TouchpointCycles.tsx` |
-| The monthly case log, and its PDF | `src/components/CaseLog.tsx`, `src/lib/caseLog.ts`, `src/lib/caseLogForm.ts` |
+| The weekly case log, and its PDF | `src/components/CaseLog.tsx`, `src/lib/caseLog.ts`, `src/lib/caseLogForm.ts` |
 | Team touchpoints (admin) | `src/components/SuperadminTouchpoints.tsx` |
 | My touchpoints (staff) | `src/components/StaffTouchpoints.tsx` |
 | Case history | `src/components/CaseHistory.tsx` |

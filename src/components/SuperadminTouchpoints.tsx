@@ -4,7 +4,7 @@
 // that answers no question a supervisor actually has: they want to know who is
 // behind and how their month is going, and "11 overdue" names nobody. So the
 // case managers are the page now, the totals are a strip above them, and
-// pressing a name opens that person's monthly HMIS Case Log.
+// pressing a name opens that person's weekly HMIS Case Log.
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -103,7 +103,7 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
       <div>
         <h1 className="text-2xl font-bold">Team touchpoints</h1>
         <p className="text-sm text-muted-foreground">
-          Every case manager, their month, and the log they hand in at the end of it.
+          Every case manager, their month, and the log they hand in each week.
         </p>
       </div>
 
@@ -119,7 +119,7 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         <CardHeader>
           <CardTitle className="text-lg">Case managers</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Press a name to open their {monthLabel(month)} case log.
+            Press a name to open their case log for this week.
           </p>
         </CardHeader>
         <CardContent className="space-y-2">
