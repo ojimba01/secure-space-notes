@@ -15,10 +15,14 @@ Work in progress. Neither form is wired into the app yet.
 445 fields: 299 tick boxes and 146 typing boxes.
 
 - **Pages 5–9**: every tick box — 262 of them, matching the Word original page
-  for page — and the 53 "# of Each" boxes beside the furniture and essentials.
+  for page — and the 21 grey "# of Each" boxes.
   Names come from the label beside each box (`ketchup`, `lunch_meat_ham`,
   `1_twin_bed_set_qty`), taken from the innermost table that holds the box, so
   a grocery item is not named after the notice printed across the top of it.
+- **"# of Each"**: Horizon shades the cells that take a number grey and fills
+  the rest black. The grey ones are Word text inputs; the black ones have
+  nothing in them. So a box goes only where Word has an input — 21 of them,
+  one per cell, shaded grey as Word shows it — and a black cell stays black.
 - **Pages 1–3**: every typing blank, found as the run of en-spaces that Word's
   text inputs render as rather than guessed at from labels, and every tick box
   drawn as a little square. A box is named from whichever side its words are
@@ -33,8 +37,13 @@ viewer that redraws the appearance instead of using the one it was given.
 
 ## What is not done
 
-- **The corrected variant.** Two versions are wanted: Horizon's layout
-  untouched, which is what this builds, and one with the page 7/8 break fixed.
+- **A PDF saved from Word.** The blank here was rendered by LibreOffice
+  (`producer: LibreOffice 24.2`), and it paginates differently from Word:
+  Bathroom Needs runs onto page 6 here but fits on page 5 in Word, which is
+  also where the page 7/8 break below comes from. One version is wanted, as
+  close to Horizon's as possible, so the fix is to replace the blank with a
+  PDF saved from Word itself and re-run the script — not to build a second,
+  corrected form.
 - **A few names.** The blank under a tall cell takes its label from the line
   above, which gives `member` where `member_name` was meant. The handful that
   the client record maps onto are worth setting by hand.
@@ -47,8 +56,8 @@ Found in the Word file itself, not in the rendering:
 
 - `Coffe e` and `Bee f` — a stray space inside each word.
 
-Found in the rendering, and probably but not certainly in Word too (Word
-reports the same nine pages, but the exact break may differ):
+Found in the LibreOffice rendering, and probably not in Word — the Word
+screenshots paginate differently:
 
 - **Meats** is headed on page 7 and continues on page 8 with no heading, which
   is why `Lunch Meat / Ham or Salami or Turkey` sits on its own at the top

@@ -29,6 +29,7 @@ OUT = 'public/form-templates/move-in-supports-request.pdf'
 BOX = '☐'
 BLUE = (0.933333, 0.952941, 0.976471)   # the pale fill the other templates use
 GREY = (0.541176, 0.541176, 0.541176)
+FIELD_GREY = (0.85, 0.85, 0.85)          # Word's shading for a form field
 LINE = 0.9
 RIGHT_MARGIN = 558.0
 
@@ -95,6 +96,7 @@ class Sheet:
         self.page = page
         self.seen = seen
         self.taken = []
+        self.qty = []   # "# of Each" cells, which own the blanks inside them
 
     def free(self, rect):
         for x, y in self.taken:
@@ -128,7 +130,7 @@ class Sheet:
         cross(self.page.parent, annot, rect)
         return True
 
-    def text(self, rect, label, multiline=False, maxlen=None):
+    def text(self, rect, label, multiline=False, maxlen=None, fill=BLUE):
         if not self.free(rect):
             return False
         w = pymupdf.Widget()
@@ -139,7 +141,7 @@ class Sheet:
         # 0 is "size it to fit", which is what keeps a long answer on the page.
         w.text_fontsize = 0 if multiline else 10
         w.text_color = (0, 0, 0)
-        w.fill_color = BLUE
+        w.fill_color = fill
         w.border_color = GREY
         w.border_width = LINE
         w.border_style = 'u'
@@ -207,11 +209,14 @@ def ticked_lists(sheet):
                             nm = f'{parent}_{nm}'[:44]
                         sheet.check(pymupdf.Rect(hit.x0, hit.y0 + 1,
                                                  hit.x0 + 10, hit.y0 + 11), nm)
-                elif (not cell and label and ci == len(row) - 1
-                      and all(c for c in row[:-1]) and ' or' not in label.lower()
-                      and r.width > 18 and r.height > 8):
-                    sheet.text(pymupdf.Rect(r.x0 + 1, r.y0 + 1, r.x1 - 1, r.y1 - 1),
-                               slug(label) + '_qty', maxlen=6)
+                elif ci == len(row) - 1 and not cell and label and r.width > 18:
+                    # "# of Each": Horizon shades the cells that take a number
+                    # grey — those are Word text inputs, and render as a blank —
+                    # and fills the rest black. Only a grey one gets a box.
+                    if any(is_blank(w[4]) for w in page.get_text('words', clip=r)):
+                        sheet.qty.append(r)
+                        sheet.text(pymupdf.Rect(r.x0 + 1, r.y0 + 1, r.x1 - 1, r.y1 - 1),
+                                   slug(label) + '_qty', maxlen=6, fill=FIELD_GREY)
 
 
 def blanks_and_squares(sheet):
@@ -223,6 +228,10 @@ def blanks_and_squares(sheet):
 
     for b in (w for w in words if is_blank(w[4])):
         cy = (b[1] + b[3]) / 2
+        # A "# of Each" input is one box for its cell, placed by ticked_lists,
+        # however many lines its en-spaces happened to wrap onto.
+        if any(q.contains(pymupdf.Point((b[0] + b[2]) / 2, cy)) for q in sheet.qty):
+            continue
         line = [w for w in real if abs((w[1] + w[3]) / 2 - cy) < 6]
         left = sorted([w for w in line if w[2] <= b[0] + 1], key=lambda w: w[2])
         right = sorted([w for w in line if w[0] >= b[2] - 1], key=lambda w: w[0])
@@ -286,8 +295,8 @@ def build(source=SOURCE, out=OUT):
             for name, top, bottom in PAGE_4_BOXES:
                 sheet.text(pymupdf.Rect(36, top, 572, bottom), name, multiline=True)
             continue
-        blanks_and_squares(sheet)
         ticked_lists(sheet)
+        blanks_and_squares(sheet)
 
     for page in doc:
         for widget in page.widgets():
