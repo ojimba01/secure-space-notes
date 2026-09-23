@@ -1454,6 +1454,7 @@ export type Database = {
       clients: {
         Row: {
           address: string | null
+          apartment_complex_name: string | null
           approval_status: string | null
           assessment_due_date: string | null
           assigned_employee_id: string | null
@@ -1491,16 +1492,25 @@ export type Database = {
           intake_completed_at: string | null
           intake_date: string | null
           intake_status: string
+          landlord_email: string | null
+          landlord_name: string | null
+          landlord_phone: string | null
           last_name: string
           level_of_need: string | null
           lon_score: number | null
           mco_housing_manager: string | null
           medicaid_id: string | null
           member_id: string | null
+          move_in_date: string | null
+          new_address: string | null
+          new_city_state_zip: string | null
           next_action_due_date: string | null
           njhmis_id: string | null
           notes: string | null
           phone: string | null
+          realtor_email: string | null
+          realtor_name: string | null
+          realtor_phone: string | null
           reason_closed: string | null
           referral_channel: string | null
           referral_received_date: string | null
@@ -1515,6 +1525,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          apartment_complex_name?: string | null
           approval_status?: string | null
           assessment_due_date?: string | null
           assigned_employee_id?: string | null
@@ -1552,16 +1563,25 @@ export type Database = {
           intake_completed_at?: string | null
           intake_date?: string | null
           intake_status?: string
+          landlord_email?: string | null
+          landlord_name?: string | null
+          landlord_phone?: string | null
           last_name: string
           level_of_need?: string | null
           lon_score?: number | null
           mco_housing_manager?: string | null
           medicaid_id?: string | null
           member_id?: string | null
+          move_in_date?: string | null
+          new_address?: string | null
+          new_city_state_zip?: string | null
           next_action_due_date?: string | null
           njhmis_id?: string | null
           notes?: string | null
           phone?: string | null
+          realtor_email?: string | null
+          realtor_name?: string | null
+          realtor_phone?: string | null
           reason_closed?: string | null
           referral_channel?: string | null
           referral_received_date?: string | null
@@ -1576,6 +1596,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          apartment_complex_name?: string | null
           approval_status?: string | null
           assessment_due_date?: string | null
           assigned_employee_id?: string | null
@@ -1613,16 +1634,25 @@ export type Database = {
           intake_completed_at?: string | null
           intake_date?: string | null
           intake_status?: string
+          landlord_email?: string | null
+          landlord_name?: string | null
+          landlord_phone?: string | null
           last_name?: string
           level_of_need?: string | null
           lon_score?: number | null
           mco_housing_manager?: string | null
           medicaid_id?: string | null
           member_id?: string | null
+          move_in_date?: string | null
+          new_address?: string | null
+          new_city_state_zip?: string | null
           next_action_due_date?: string | null
           njhmis_id?: string | null
           notes?: string | null
           phone?: string | null
+          realtor_email?: string | null
+          realtor_name?: string | null
+          realtor_phone?: string | null
           reason_closed?: string | null
           referral_channel?: string | null
           referral_received_date?: string | null

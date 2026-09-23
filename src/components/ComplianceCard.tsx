@@ -16,6 +16,7 @@ import {
   firstOfMonth, todayAgency, daysBetween, ENFORCEMENT_START, ContactRow,
   currentBillingWindow, contactsInWindow, windowProgress,
   windowStatus, suggestTouchpointType,
+  type Modality,
 } from '@/lib/compliance';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
 import { AddTouchpointDialog } from '@/components/AddTouchpointDialog';

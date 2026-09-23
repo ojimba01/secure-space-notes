@@ -17,6 +17,7 @@
 // case_logs still carries status/submitted_at columns from the first cut of
 // this; nothing reads them.
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import type { CaseLogEntry } from '@/lib/caseLogForm';
 
 /** The first of a month, as the database stores it. */
@@ -109,7 +110,9 @@ export async function loadCaseLog(
     .eq('month', month)
     .maybeSingle();
   if (error) throw error;
-  return (data as CaseLogRow | null) ?? null;
+  // The column is jsonb, so the client hands back `Json`. `entries` is the
+  // narrow shape this app writes into it — see saveCaseLog.
+  return (data as unknown as CaseLogRow | null) ?? null;
 }
 
 /**
@@ -133,7 +136,13 @@ export async function saveCaseLog(
 ): Promise<void> {
   const { error } = await supabase
     .from('case_logs')
-    .upsert({ employee_id: employeeId, month, entries }, { onConflict: 'employee_id,month' });
+    // `entries` is a jsonb column, so the client types it as `Json`. The shape
+    // written here is exactly CaseLogEntry[] — the same shape loadCaseLog reads
+    // back and caseLogEntries hands to the form.
+    .upsert(
+      { employee_id: employeeId, month, entries: entries as unknown as Json },
+      { onConflict: 'employee_id,month' },
+    );
   if (error) throw error;
 }
 
