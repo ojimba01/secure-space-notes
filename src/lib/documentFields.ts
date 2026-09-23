@@ -333,6 +333,9 @@ type FieldKey = keyof Pick<
  * person, often a parent. Taking that one would file the form under the wrong
  * name, so only the specific label is ever read.
  *
+ * The same goes for `5 Phone Number` and `6 Email address` beside it: they
+ * are the requester's — on our IATs, the agency's own — and never the member's.
+ *
  * `Last name1`…`Last name7` on the IAT and `First nameRow1`… on the LON are
  * household members, and are deliberately absent for the same reason.
  */
@@ -371,10 +374,8 @@ const FORM_FIELD_RULES: { key: FieldKey; match: RegExp }[] = [
 
   // The IAT asks for these and nothing was reading them.
   { key: 'phone', match: /^3 phone number/ },
-  { key: 'phone', match: /^5 phone number/ },
   { key: 'phone', match: /^phone$/ },
   { key: 'email', match: /^4 email address/ },
-  { key: 'email', match: /^6 email address/ },
   { key: 'email', match: /^email( if applicable)?$/ },
   { key: 'mco', match: /^6 managed care organization/ },
   { key: 'mco', match: /^managed care organization/ },
