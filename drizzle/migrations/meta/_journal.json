@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790193461654,
+      "tag": "0000_add_client_move_in_and_landlord_columns",
+      "breakpoints": true
+    }
+  ]
+}
