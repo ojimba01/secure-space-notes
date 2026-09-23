@@ -274,36 +274,33 @@ export type Database = {
           employee_id: string
           entries: Json | null
           id: string
-          month: string | null
+          month: string
           status: string
           submitted_at: string | null
           submitted_by: string | null
           updated_at: string
-          week_ending: string | null
         }
         Insert: {
           created_at?: string
           employee_id: string
           entries?: Json | null
           id?: string
-          month?: string | null
+          month: string
           status?: string
           submitted_at?: string | null
           submitted_by?: string | null
           updated_at?: string
-          week_ending?: string | null
         }
         Update: {
           created_at?: string
           employee_id?: string
           entries?: Json | null
           id?: string
-          month?: string | null
+          month?: string
           status?: string
           submitted_at?: string | null
           submitted_by?: string | null
           updated_at?: string
-          week_ending?: string | null
         }
         Relationships: [
           {
