@@ -1,15 +1,15 @@
 """Make Horizon's Move-in Supports Request Form fillable.
 
-The Word original is already a Word form — 269 text inputs, 74 check boxes and
-524 check-box content controls — but a PDF export carries only 49 of them over,
-so the fields are placed onto the rendered page here instead.
+The Word original is a Word form, but its fields do not survive the trip to
+PDF, so they are placed onto the page here instead. The page is Word's own
+printout (`move-in-supports-request-blank.pdf`), so the layout is Horizon's,
+page for page.
 
-Two things in the rendering make that reliable rather than guesswork:
-
-  * every typing blank is a run of en-spaces, which is what Word's text inputs
-    render as, so the blanks are found rather than inferred from labels;
+  * a typing blank is the room after a label ending in a colon, up to the next
+    words on the line, the cell's edge or the margin;
   * every tick box on the grocery and furniture pages is the character U+2610,
-    and every tick box on the front pages is a little drawn square.
+    and every tick box on the front pages is a little drawn square;
+  * a "# of Each" cell takes a number unless Horizon filled it black.
 
 A ticked box shows an X, which is how the form is filled in by hand.
 
@@ -33,16 +33,11 @@ FIELD_GREY = (0.85, 0.85, 0.85)          # Word's shading for a form field
 LINE = 0.9
 RIGHT_MARGIN = 558.0
 
-is_blank = lambda t: bool(t) and t.strip('   ') == ''
 
-# Page 4 asks three questions and leaves the rest of the sheet empty. In Word
-# the answer fields grow; on a fixed page they cannot, so each question gets a
-# box in the space beneath it. The third gets what is left, which is most of
-# the page — that is Horizon's layout, not a choice made here.
-PAGE_4_BOXES = [
-    ('remediation_description', 116.0, 142.0),
-    ('alternatives_exhausted', 172.0, 198.0),
-    ('landlord_response', 214.0, 714.0),
+PAGE_4_QUESTIONS = [
+    ('remediation_description', 'Description of Requested Remediation'),
+    ('alternatives_exhausted', 'What alternatives were exhausted'),
+    ('landlord_response', "Housing Specialist"),
 ]
 
 
@@ -55,13 +50,12 @@ RENAMES = {
     # merely look alike, which share no value and leave the form ambiguous
     # about which is which. The app fills all three when it pre-fills, so
     # nobody types it three times anyway.
-    'member': 'member_name',
-    'member_name': 'member_name_remediation',
-    'member_name_2': 'member_name_allergy',
+    'member_name_2': 'member_name_remediation',
+    'member_name_3': 'member_name_allergy',
     'member_s_height_and_weight': 'member_height_weight',
-    'member_s_street': 'new_street_address',
+    'street_address_and_apt': 'new_street_address',
     'city_town_and_zip_code': 'new_city_town_zip',
-    'apartment': 'apartment_complex_name',
+    'apartment_complex_name': 'apartment_complex_name',
     'name': 'provider_contact_name',
     'telephone_number': 'provider_contact_phone',
     'email_address': 'provider_contact_email',
@@ -77,6 +71,22 @@ RENAMES = {
     'name_of_representative_3': 'mover_representative_name',
     'telephone_number_5': 'mover_phone',
     'email_address_4': 'mover_email',
+    'i_have_the_following_known_food_allergie': 'known_food_allergies',
+    'other': 'extermination_other',
+    # Page 3's mover questions, named for what they ask rather than how.
+    '1_tentative_move_date': 'tentative_move_date',
+    'a': 'mover_window_1',
+    'b': 'mover_window_2',
+    'c': 'mover_window_3',
+    '3_address_mover_is_picking_up_from': 'mover_pickup_address',
+    'responsible_party_at_pickup': 'mover_pickup_contact',
+    'backup_party': 'mover_pickup_backup',
+    'no_drop_off_at_storage_units': 'mover_drop_off_address',
+    'responsible_party_at_drop_off_location': 'mover_drop_off_contact',
+    'backup_party_2': 'mover_drop_off_backup',
+    'a_2': 'items_being_moved',
+    '6_do_any_items_being_moved_need_to_be_as': 'items_need_assembly',
+    'list_out_items_that_require_assembly': 'items_requiring_assembly',
 }
 
 
@@ -177,7 +187,11 @@ def cross(doc, annot, rect):
 def tables_innermost_first(page):
     """A grocery table sits inside a banner table; the inner one knows what a
     box is actually for, so it gets to claim the box and name it."""
-    return sorted(page.find_tables().tables,
+    # The default reading drops a table's last row when its bottom rule is
+    # drawn apart from the rest; the strict one keeps it but merges others.
+    # Both are read, and a box that both find is placed once.
+    tables = page.find_tables().tables + page.find_tables(strategy='lines_strict').tables
+    return sorted(tables,
                   key=lambda t: (t.bbox[2] - t.bbox[0]) * (t.bbox[3] - t.bbox[1]))
 
 
@@ -186,11 +200,20 @@ def cells_of(page):
             for row in t.rows for c in row.cells if c]
 
 
+def dark_boxes(page):
+    """The cells Horizon filled black, which take nothing."""
+    return [dr['rect'] for dr in page.get_drawings()
+            if dr.get('fill') and max(dr['fill']) < 0.2
+            and dr['rect'].width > 8 and dr['rect'].height > 6]
+
+
 def ticked_lists(sheet):
     """Pages of tick boxes with a label each, and a "# of Each" beside some."""
     page = sheet.page
+    dark = dark_boxes(page)
     for t in tables_innermost_first(page):
         rows = t.extract()
+        tx1 = t.bbox[2]
         for ri, row in enumerate(rows):
             labels = [c for c in row if c and BOX not in c]
             label = max(labels, key=len) if labels else ''
@@ -209,51 +232,57 @@ def ticked_lists(sheet):
                             nm = f'{parent}_{nm}'[:44]
                         sheet.check(pymupdf.Rect(hit.x0, hit.y0 + 1,
                                                  hit.x0 + 10, hit.y0 + 11), nm)
-                elif ci == len(row) - 1 and not cell and label and r.width > 18:
-                    # "# of Each": Horizon shades the cells that take a number
-                    # grey — those are Word text inputs, and render as a blank —
-                    # and fills the rest black. Only a grey one gets a box.
-                    if any(is_blank(w[4]) for w in page.get_text('words', clip=r)):
-                        sheet.qty.append(r)
-                        sheet.text(pymupdf.Rect(r.x0 + 1, r.y0 + 1, r.x1 - 1, r.y1 - 1),
-                                   slug(label) + '_qty', maxlen=6, fill=FIELD_GREY)
+
+            # "# of Each": the room between a row's last words and the table's
+            # right edge. Horizon fills it black where no number is wanted and
+            # leaves it for a number where one is — grey in Word, white here.
+            cells = [pymupdf.Rect(c) for c in t.rows[ri].cells if c]
+            lead = [c for c in cells if BOX in page.get_textbox(c)]
+            if not label or not lead or lead[0].x0 - t.bbox[0] > 30:
+                continue
+            worded = [c for c in cells if page.get_textbox(c).strip()]
+            box = pymupdf.Rect(max(c.x1 for c in worded), t.rows[ri].bbox[1],
+                               tx1, t.rows[ri].bbox[3])
+            if not 18 <= box.width <= 50:
+                continue
+            centre = pymupdf.Point((box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2)
+            if any(q.contains(centre) for q in sheet.qty):
+                continue
+            if any(d.contains(pymupdf.Point((box.x0 + box.x1) / 2, (box.y0 + box.y1) / 2))
+                   for d in dark):
+                continue
+            sheet.qty.append(box)
+            sheet.text(pymupdf.Rect(box.x0 + 2, box.y0 + 2, box.x1 - 2, box.y1 - 2),
+                       slug(label) + '_qty', maxlen=6, fill=FIELD_GREY)
+
+
+# A label is the words up to a colon; its blank is the room after it, up to the
+# next words on the line, the cell's edge or the margin. Word's typing blanks
+# are invisible in a printed PDF, so this is where a person would write.
+LABEL_END = re.compile(r'[:?]$')
+LETTER = re.compile(r'^[a-z]\.$')      # "a." "b." "c." — a list to write into
+MIN_BLANK = 40
+# Headings and instructions that end in a colon without asking for an answer.
+NOT_BLANKS = {'remediation_service_requested', 'move_in_supports_requested',
+              'please_check_the_appropriate_box'}
+
+
+def lines_of(words):
+    lines = []
+    for w in sorted(words, key=lambda w: ((w[1] + w[3]) / 2, w[0])):
+        cy = (w[1] + w[3]) / 2
+        if lines and abs(lines[-1][0] - cy) < 4:
+            lines[-1][1].append(w)
+        else:
+            lines.append((cy, [w]))
+    return [sorted(ws, key=lambda w: w[0]) for _, ws in lines]
 
 
 def blanks_and_squares(sheet):
     """The front pages: labelled blanks, and tick boxes drawn as squares."""
     page = sheet.page
-    words = page.get_text('words')
-    real = [w for w in words if not is_blank(w[4])]
+    words = [w for w in page.get_text('words') if w[4].strip()]
     cells = cells_of(page)
-
-    for b in (w for w in words if is_blank(w[4])):
-        cy = (b[1] + b[3]) / 2
-        # A "# of Each" input is one box for its cell, placed by ticked_lists,
-        # however many lines its en-spaces happened to wrap onto.
-        if any(q.contains(pymupdf.Point((b[0] + b[2]) / 2, cy)) for q in sheet.qty):
-            continue
-        line = [w for w in real if abs((w[1] + w[3]) / 2 - cy) < 6]
-        left = sorted([w for w in line if w[2] <= b[0] + 1], key=lambda w: w[2])
-        right = sorted([w for w in line if w[0] >= b[2] - 1], key=lambda w: w[0])
-
-        phrase = []
-        for w in reversed(left):
-            phrase.insert(0, w[4])
-            if len(phrase) > 1 and w[4].endswith(':'):
-                phrase.pop(0)
-                break
-        # A tall cell puts the label on the line above its blank.
-        if not phrase:
-            above = [w for w in real if w[3] <= b[1] and b[1] - w[3] < 22
-                     and w[0] < b[2] and w[2] > b[0] - 60]
-            phrase = [w[4] for w in sorted(above, key=lambda w: (w[1], w[0]))[-4:]]
-
-        edge = min([w[0] - 2 for w in right] + [RIGHT_MARGIN])
-        for c in cells:
-            if c.x0 - 1 <= b[0] <= c.x1 and c.y0 - 1 <= cy <= c.y1 + 1:
-                edge = min(edge, c.x1 - 1)
-        sheet.text(pymupdf.Rect(b[0], b[1] - 1, max(edge, b[0] + 20), b[3] + 1),
-                   ' '.join(phrase))
 
     squares = []
     for dr in page.get_drawings():
@@ -261,6 +290,38 @@ def blanks_and_squares(sheet):
         if (7 < r.width < 14 and 7 < r.height < 14 and abs(r.width - r.height) < 3
                 and not any(abs(s.x0 - r.x0) < 2 and abs(s.y0 - r.y0) < 2 for s in squares)):
             squares.append(r)
+
+    for line in lines_of(words):
+        start = 0
+        for i, w in enumerate(line):
+            nxt = line[i + 1] if i + 1 < len(line) else None
+            if nxt and nxt[0] - w[2] > 30:
+                ended = LABEL_END.search(w[4]) or LETTER.match(w[4])
+            else:
+                ended = (LABEL_END.search(w[4]) or (LETTER.match(w[4]) and i == start)) and True
+            if not ended:
+                if nxt and nxt[0] - w[2] > 30:
+                    start = i + 1
+                continue
+            phrase = [x[4] for x in line[start:i + 1]]
+            start = i + 1
+            cy = (w[1] + w[3]) / 2
+            edge = min([RIGHT_MARGIN]
+                       + ([nxt[0] - 6] if nxt else [])
+                       + [s.x0 - 4 for s in squares if s.x0 > w[2] and abs((s.y0 + s.y1) / 2 - cy) < 6])
+            for c in cells:
+                if c.x0 - 1 <= w[2] <= c.x1 and c.y0 - 1 <= cy <= c.y1 + 1:
+                    edge = min(edge, c.x1 - 2)
+            x0 = w[2] + 4
+            if edge - x0 < MIN_BLANK:
+                continue
+            if any(q.contains(pymupdf.Point(x0 + 2, cy)) for q in sheet.qty):
+                continue
+            if slug(' '.join(phrase)) in NOT_BLANKS:
+                continue
+            sheet.text(pymupdf.Rect(x0, w[1] - 1.5, edge, w[3] + 1.5), ' '.join(phrase))
+
+    real = words
     for s in squares:
         cy = (s.y0 + s.y1) / 2
         line = [w for w in real if abs((w[1] + w[3]) / 2 - cy) < 6]
@@ -286,13 +347,32 @@ def blanks_and_squares(sheet):
         sheet.check(s, label or 'box')
 
 
+def page_4_boxes(page):
+    """Page 4 asks three questions into empty space. Each gets a box beneath
+    it; the last gets the rest of the sheet, which is Horizon's layout."""
+    starts = []
+    for needle in PAGE_4_QUESTIONS:
+        hit = page.search_for(needle[1])
+        starts.append((needle[0], hit[0]))
+    footer = page.search_for('This Document is Proprietary')[0].y0
+    out = []
+    for i, (name, hit) in enumerate(starts):
+        # The question may wrap; its box starts under its last line.
+        top = max(w[3] for w in page.get_text('words')
+                  if hit.y0 - 1 <= w[1] and w[3] <= (starts[i + 1][1].y0 if i + 1 < len(starts) else footer)
+                  and w[1] < hit.y0 + 30) + 3
+        bottom = (starts[i + 1][1].y0 - 6) if i + 1 < len(starts) else footer - 12
+        out.append((name, top, bottom))
+    return out
+
+
 def build(source=SOURCE, out=OUT):
     doc = pymupdf.open(source)
     seen = set()
     for page in doc:
         sheet = Sheet(page, seen)
         if page.number == 3:
-            for name, top, bottom in PAGE_4_BOXES:
+            for name, top, bottom in page_4_boxes(page):
                 sheet.text(pymupdf.Rect(36, top, 572, bottom), name, multiline=True)
             continue
         ticked_lists(sheet)
