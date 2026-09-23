@@ -153,6 +153,8 @@ export async function loadCaseLog(
     .eq('week_ending', week)
     .maybeSingle();
   if (error) throw error;
+  // The column is jsonb, so the client hands back `Json`. `entries` is the
+  // narrow shape this app writes into it — see saveCaseLog.
   return (data as unknown as CaseLogRow | null) ?? null;
 }
 
@@ -177,6 +179,9 @@ export async function saveCaseLog(
 ): Promise<void> {
   const { error } = await supabase
     .from('case_logs')
+    // `entries` is a jsonb column, so the client types it as `Json`. The shape
+    // written here is exactly CaseLogEntry[] — the same shape loadCaseLog reads
+    // back and caseLogEntries hands to the form.
     .upsert(
       { employee_id: employeeId, week_ending: week, entries: entries as unknown as Json },
       { onConflict: 'employee_id,week_ending' },
