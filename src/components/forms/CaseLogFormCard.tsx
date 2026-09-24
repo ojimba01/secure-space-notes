@@ -21,7 +21,7 @@ import { loadCaseLog, today, weekKey, weekLabel, type CaseLogRow } from '@/lib/c
 
 export const CASE_LOG_LABEL = 'HMIS Weekly Case Log';
 export const CASE_LOG_DESCRIPTION =
-  'Your touchpoints for the week, Monday to Sunday. The same log as on Touchpoints.';
+  'Your touchpoints for the week, Monday to Sunday.';
 
 interface Props {
   profileId: string | null;
@@ -75,9 +75,7 @@ export const CaseLogFormCard: React.FC<Props> = ({ profileId, caseManagerName })
                   {savedAt && ` · saved ${savedAt}`}
                 </span>
               ) : (
-                <span className="text-muted-foreground">
-                  {weekLabel(week)} · filling from your touchpoints
-                </span>
+                <span className="text-muted-foreground">{weekLabel(week)}</span>
               )}
             </p>
           </div>
@@ -107,7 +105,17 @@ export const CaseLogFormCard: React.FC<Props> = ({ profileId, caseManagerName })
         </div>
       </Card>
 
-      <Dialog open={!!open} onOpenChange={(o) => !o && close()}>
+      {/* The view button: the form on its own, and closing it is closing it. */}
+      {open === 'form' && profileId && (
+        <CaseLog
+          employeeId={profileId}
+          caseManagerName={caseManagerName}
+          formOnly
+          onClose={() => setOpen(null)}
+        />
+      )}
+
+      <Dialog open={open === 'log'} onOpenChange={(o) => !o && close()}>
         <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>HMIS Case Log — {caseManagerName}</DialogTitle>
@@ -116,12 +124,11 @@ export const CaseLogFormCard: React.FC<Props> = ({ profileId, caseManagerName })
               Touchpoints — it is the same log in both places.
             </DialogDescription>
           </DialogHeader>
-          {open && profileId && (
+          {open === 'log' && profileId && (
             <div className="max-h-[70vh] overflow-y-auto pr-1">
               <CaseLog
                 employeeId={profileId}
                 caseManagerName={caseManagerName}
-                openFormOnLoad={open === 'form'}
                 onDirtyChange={setDirty}
                 onSaved={() => void refresh()}
               />

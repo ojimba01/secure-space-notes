@@ -54,11 +54,13 @@ interface Props {
   /** Open on this week (its Sunday) rather than the current one, for a look-up. */
   initialWeek?: string;
   /**
-   * Show the filled form as soon as the rows are in, rather than waiting for
-   * View form to be pressed. The Forms page's View form button opens the log
-   * this way, so it lands on the same form Touchpoints shows.
+   * Show nothing but the filled form, built as soon as the rows are in — the
+   * same preview View form opens. The Forms page's view button uses this, so
+   * it lands on the form alone rather than on the log with the form on top.
+   * `onClose` is told when that form is closed.
    */
-  openFormOnLoad?: boolean;
+  formOnly?: boolean;
+  onClose?: () => void;
   /** Told whether there are rows on screen that have not been saved. */
   onDirtyChange?: (dirty: boolean) => void;
   /** Told after a save, so a summary elsewhere can refresh. */
@@ -72,7 +74,8 @@ export const CaseLog: React.FC<Props> = ({
   caseManagerName,
   readOnly = false,
   initialWeek,
-  openFormOnLoad = false,
+  formOnly = false,
+  onClose,
   onDirtyChange,
   onSaved,
 }) => {
@@ -176,19 +179,20 @@ export const CaseLog: React.FC<Props> = ({
         description: e instanceof Error ? e.message : String(e),
         variant: 'destructive',
       });
+      if (formOnly) onClose?.();
     } finally {
       setBusy(false);
     }
   };
 
-  // Once only: closing the form should leave the log open, not reopen it.
-  const openedOnLoad = useRef(false);
+  // Once only, as soon as the rows are in.
+  const builtOnLoad = useRef(false);
   useEffect(() => {
-    if (!openFormOnLoad || loading || openedOnLoad.current) return;
-    openedOnLoad.current = true;
+    if (!formOnly || loading || builtOnLoad.current) return;
+    builtOnLoad.current = true;
     void view();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openFormOnLoad, loading]);
+  }, [formOnly, loading]);
 
   const download = async () => {
     setBusy(true);
@@ -212,6 +216,77 @@ export const CaseLog: React.FC<Props> = ({
   };
 
 
+
+  const previewDialog = (
+    <>
+      {/* The same react-pdf viewer the other templates use, so the log is read
+          on the site rather than only in whatever opens a download. */}
+      <Dialog
+        open={formOnly || !!preview}
+        onOpenChange={(o) => {
+          if (o) return;
+          setPreview((old) => { if (old) URL.revokeObjectURL(old); return null; });
+          setScale(1);
+          onClose?.();
+        }}
+      >
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between gap-3 pr-8">
+              <span>HMIS Case Log — {caseManagerName} — week ending {weekEndingText(week)}</span>
+              <span className="flex items-center gap-1">
+                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Zoom out"
+                  onClick={() => setScale((z) => Math.max(0.5, z - 0.25))}>
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </Button>
+                <span className="w-12 text-center text-xs font-normal text-muted-foreground">
+                  {Math.round(scale * 100)}%
+                </span>
+                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Zoom in"
+                  onClick={() => setScale((z) => Math.min(2, z + 0.25))}>
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="outline" className="ml-2" onClick={() => void download()}>
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                  Download
+                </Button>
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[72vh] overflow-auto rounded-md border bg-muted/30 p-3">
+            {!preview && (
+              <div className="p-8 text-center text-sm text-muted-foreground">Building the form…</div>
+            )}
+            {preview && (
+              <Document
+                file={preview}
+                onLoadSuccess={(doc) => setPreviewPages(doc.numPages)}
+                loading={<div className="p-8 text-center text-sm text-muted-foreground">Building the form…</div>}
+                error={<div className="p-8 text-center text-sm text-destructive">Could not display the form. Download it instead.</div>}
+              >
+                <div className="flex flex-col items-center gap-4">
+                  {Array.from({ length: previewPages }, (_, i) => (
+                    <div key={i} className="shadow-sm">
+                      <Page
+                        pageNumber={i + 1}
+                        width={760 * scale}
+                        renderTextLayer={false}
+                        renderAnnotationLayer
+                        renderForms
+                      />
+                    </div>
+                  ))}
+                </div>
+              </Document>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+
+  // The Forms page's view button: the form and nothing else.
+  if (formOnly) return previewDialog;
 
   const filled = entries.filter((e) => e.clientName.trim()).length;
   const pages = pagesNeeded(filled);
@@ -338,65 +413,7 @@ export const CaseLog: React.FC<Props> = ({
         )}
       </div>
 
-      {/* The same react-pdf viewer the other templates use, so the log is read
-          on the site rather than only in whatever opens a download. */}
-      <Dialog
-        open={!!preview}
-        onOpenChange={(o) => {
-          if (o) return;
-          setPreview((old) => { if (old) URL.revokeObjectURL(old); return null; });
-          setScale(1);
-        }}
-      >
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between gap-3 pr-8">
-              <span>HMIS Case Log — {caseManagerName} — week ending {weekEndingText(week)}</span>
-              <span className="flex items-center gap-1">
-                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Zoom out"
-                  onClick={() => setScale((z) => Math.max(0.5, z - 0.25))}>
-                  <ZoomOut className="h-3.5 w-3.5" />
-                </Button>
-                <span className="w-12 text-center text-xs font-normal text-muted-foreground">
-                  {Math.round(scale * 100)}%
-                </span>
-                <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Zoom in"
-                  onClick={() => setScale((z) => Math.min(2, z + 0.25))}>
-                  <ZoomIn className="h-3.5 w-3.5" />
-                </Button>
-                <Button size="sm" variant="outline" className="ml-2" onClick={() => void download()}>
-                  <Download className="mr-1.5 h-3.5 w-3.5" />
-                  Download
-                </Button>
-              </span>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="max-h-[72vh] overflow-auto rounded-md border bg-muted/30 p-3">
-            {preview && (
-              <Document
-                file={preview}
-                onLoadSuccess={(doc) => setPreviewPages(doc.numPages)}
-                loading={<div className="p-8 text-center text-sm text-muted-foreground">Building the form…</div>}
-                error={<div className="p-8 text-center text-sm text-destructive">Could not display the form. Download it instead.</div>}
-              >
-                <div className="flex flex-col items-center gap-4">
-                  {Array.from({ length: previewPages }, (_, i) => (
-                    <div key={i} className="shadow-sm">
-                      <Page
-                        pageNumber={i + 1}
-                        width={760 * scale}
-                        renderTextLayer={false}
-                        renderAnnotationLayer
-                        renderForms
-                      />
-                    </div>
-                  ))}
-                </div>
-              </Document>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {previewDialog}
     </div>
   );
 };
