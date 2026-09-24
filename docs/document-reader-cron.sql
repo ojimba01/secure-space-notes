@@ -5,7 +5,8 @@
 -- about 1,700 in a couple of hours, and after that reads each new upload
 -- within seconds whether or not anybody has the app open.
 --
--- An empty queue costs one count query per call and nothing else.
+-- docs/document-reader-idle.sql replaces the caller so that an empty queue
+-- costs one indexed lookup every 10 seconds and no function call at all.
 --
 -- To stop it:   select cron.unschedule('document-reader');
 --
