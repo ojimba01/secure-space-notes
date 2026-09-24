@@ -124,6 +124,22 @@ export const PDF_TEMPLATES: PdfTemplate[] = [
     label: 'Wellpoint Authorization Request',
     description: 'Wellpoint authorization request. Provider details already filled in.',
   },
+  {
+    // Horizon's form is a Word form whose fields do not survive the trip to
+    // PDF; scripts/move-in/place-fields.py puts them back, on Word's own pages.
+    formType: 'Move-In Supports Request',
+    mco: 'Horizon',
+    file: '/form-templates/move-in-supports-request.pdf',
+    label: 'Horizon Move-in Supports Request',
+    description: 'Deposits, fees, moving costs, furniture and groceries for a member moving in.',
+  },
+  {
+    formType: 'Move-In Supports Request',
+    mco: 'Wellpoint',
+    file: '/form-templates/wellpoint-move-in-supports-request.pdf',
+    label: 'Wellpoint Move-in Supports Request',
+    description: 'Wellpoint request for one-time transitional move-in expenses.',
+  },
 ];
 
 const BASE_PAGE_WIDTH = 820;
@@ -254,7 +270,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         const { data: client, error } = await supabase
           .from('clients')
           .select(
-            'id, first_name, last_name, date_of_birth, phone, email, member_id, medicaid_id, address, insurance, county, njhmis_id',
+            'id, first_name, last_name, date_of_birth, phone, email, member_id, medicaid_id, address, insurance, county, njhmis_id, move_in_date, new_address, new_city_state_zip, apartment_complex_name, landlord_name, landlord_phone, landlord_email, realtor_name, realtor_phone, realtor_email',
           )
           .eq('id', clientId)
           .maybeSingle();

@@ -23,6 +23,17 @@ export interface AutofillClient {
   insurance?: string | null; // MCO
   county?: string | null;
   njhmis_id?: string | null;
+  // Where the member is moving to, for the Move-in Supports forms.
+  move_in_date?: string | null;
+  new_address?: string | null;
+  new_city_state_zip?: string | null;
+  apartment_complex_name?: string | null;
+  landlord_name?: string | null;
+  landlord_phone?: string | null;
+  landlord_email?: string | null;
+  realtor_name?: string | null;
+  realtor_phone?: string | null;
+  realtor_email?: string | null;
 }
 
 export interface AutofillCaseManager {
@@ -115,6 +126,46 @@ export function templateFieldValues(
         'Email if applicable': client.email ?? '',
         'NJ HMIS ID': client.njhmis_id ?? '',
       });
+    // Horizon's and Wellpoint's forms share a document type, and a field one
+    // of them lacks is skipped, so one mapping serves both. Horizon's names
+    // are pinned in scripts/move-in/place-fields.py, and the move-in ones are
+    // the same map src/lib/moveIn.ts reads a submitted form back with.
+    case 'Move-In Supports Request': {
+      const newAddress = [client.new_address, client.new_city_state_zip]
+        .map((s) => (s ?? '').trim()).filter(Boolean).join(', ');
+      return prune({
+        // Horizon: the member's name is asked for on pages 1, 3 and 9.
+        member_name: fullName(client),
+        member_name_remediation: fullName(client),
+        member_name_allergy: fullName(client),
+        member_id_number: client.member_id ?? '',
+        member_hnjh_id_number: client.member_id ?? '',
+        member_telephone_number: client.phone ?? '',
+        contact_phone_number: client.phone ?? '',
+        // Remediation is done where the member lives now.
+        street_address: client.address ?? '',
+        county: client.county ?? '',
+        provider_contact_name: cm?.name ?? '',
+        anticipated_move_in_date: mmddyyyy(client.move_in_date),
+        new_street_address: client.new_address ?? '',
+        new_city_town_zip: client.new_city_state_zip ?? '',
+        apartment_complex_name: client.apartment_complex_name ?? '',
+        name_of_landlord: client.landlord_name ?? '',
+        landlord_phone: client.landlord_phone ?? '',
+        landlord_email: client.landlord_email ?? '',
+        name_of_realtor: client.realtor_name ?? '',
+        realtor_phone: client.realtor_phone ?? '',
+        realtor_email: client.realtor_email ?? '',
+        // Wellpoint
+        'Member name head of household': fullName(client),
+        'Member ID Medicaid ID': client.medicaid_id ?? client.member_id ?? '',
+        'Anticipated movein date': mmddyyyy(client.move_in_date),
+        'Members cellphone': client.phone ?? '',
+        'Members current complete mailing address': client.address ?? '',
+        "Member's new address": newAddress,
+        'Aptcomplex': client.apartment_complex_name ?? '',
+      });
+    }
     default:
       return {};
   }
