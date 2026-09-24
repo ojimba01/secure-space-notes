@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { visibleProfiles } from '@/lib/testAccounts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -117,7 +118,8 @@ const Admin = () => {
       });
 
       // Defense-in-depth: never list hidden super-admin accounts
-      const visibleEmployees = employeesWithRoles.filter(
+      // ...and the test account, unless it has been turned on in Advanced tools.
+      const visibleEmployees = visibleProfiles(employeesWithRoles).filter(
         (e) => !e.user_roles?.some((r) => r.role === 'superadmin'),
       );
 

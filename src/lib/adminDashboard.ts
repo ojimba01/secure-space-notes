@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { visibleProfiles } from '@/lib/testAccounts';
 import { todayAgency } from '@/lib/compliance';
 import { OPEN_CASE_STAGE_FILTER } from '@/lib/workflow';
 
@@ -198,7 +199,7 @@ export async function loadStaffTouchpointRows(
     caseload.set(id, (caseload.get(id) ?? 0) + 1);
   }
 
-  return ((profiles ?? []) as any[])
+  return visibleProfiles(profiles as any[])
     .map((p) => ({
       profileId: p.id,
       name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || p.email,

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { setShowTestAccounts, showTestAccounts, visibleProfiles } from '@/lib/testAccounts';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
@@ -10,6 +11,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Settings2, Eye, FolderUp, History, FileStack, FileSearch, UploadCloud } from 'lucide-react';
 
 interface Employee {
@@ -91,7 +93,7 @@ export const AdvancedTools: React.FC = () => {
 
       const { data: me } = await supabase.auth.getUser();
       setEmployees(
-        profs
+        visibleProfiles(profs)
           .filter((p) => p.user_id !== me?.user?.id) // previewing yourself is pointless
           .map((p) => ({
             id: p.id,
@@ -212,6 +214,22 @@ export const AdvancedTools: React.FC = () => {
               }}
             />
           </div>
+        )}
+
+        {/* Hidden everywhere by default; this brings it back, in this browser. */}
+        {(isAdmin || isSuperadmin) && (
+          <label className="flex items-center justify-between gap-3 border-t pt-3 text-sm">
+            <span>
+              <span className="block font-medium">Show test account</span>
+              <span className="block text-xs text-muted-foreground">
+                In staff lists, case logs and Team touchpoints.
+              </span>
+            </span>
+            <Switch
+              checked={showTestAccounts()}
+              onCheckedChange={(on) => setShowTestAccounts(on)}
+            />
+          </label>
         )}
       </PopoverContent>
     </Popover>

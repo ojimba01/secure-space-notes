@@ -7,6 +7,7 @@
 // touchpoints that came in.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { hiddenProfileIds } from '@/lib/testAccounts';
 import { endOfWeek, startOfWeek, todayAgency } from '@/lib/compliance';
 
 export interface TeamContact {
@@ -67,8 +68,10 @@ export function useTeamWeek(): TeamWeekData {
         clients: { first_name: string; last_name: string } | null;
       };
 
+      // The test account's touchpoints are not the team's week.
+      const hidden = hiddenProfileIds(staff as { id: string }[] | null);
       setContacts(
-        ((rows ?? []) as unknown as Joined[]).map((r) => ({
+        ((rows ?? []) as unknown as Joined[]).filter((r) => !hidden.has(r.employee_id)).map((r) => ({
           id: r.id,
           date: r.contact_date,
           clientId: r.client_id,

@@ -5,6 +5,7 @@
 // that spans the whole team answers neither question.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { visibleProfiles } from '@/lib/testAccounts';
 import { monthKey } from '@/lib/caseLog';
 
 /** Last day of the month a key names, so a query can bound itself. */
@@ -106,7 +107,7 @@ export function useCaseManagers(month: string = monthKey(new Date())): CaseManag
       };
 
       setRows(
-        (staff ?? [])
+        visibleProfiles(staff)
           .filter((p) => isCaseManager(p.user_id as string, p.id as string))
           .map((p) => {
             return {

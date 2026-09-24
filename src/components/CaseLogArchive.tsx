@@ -157,7 +157,7 @@ export const CaseLogArchive: React.FC<Props> = ({ managers }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Past logs</CardTitle>
+        <CardTitle className="text-lg">Past case logs</CardTitle>
         <p className="text-sm text-muted-foreground">
           Pick a week, or a run of them. Tick case managers to narrow it — leave
           them all clear for everybody.

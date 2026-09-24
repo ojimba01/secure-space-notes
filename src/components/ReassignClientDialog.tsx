@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
+import { visibleProfiles } from '@/lib/testAccounts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -86,7 +87,7 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
         .eq('role', 'superadmin');
       const superIds = new Set((superRoles || []).map((r) => r.user_id));
 
-      let availableEmployees: Employee[] = (activeProfiles || []).filter(
+      let availableEmployees: Employee[] = visibleProfiles(activeProfiles).filter(
         (emp) => emp.id !== currentEmployeeId && !superIds.has((emp as any).user_id)
       );
 

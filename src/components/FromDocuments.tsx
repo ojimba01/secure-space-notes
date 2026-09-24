@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowRight, FileText, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import {
   applyAuthorizationProposals,
   loadAuthorizationProposals,
@@ -51,7 +52,7 @@ const Change: React.FC<{ previous: React.ReactNode; updated: React.ReactNode }> 
 }) => (
   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
     <span className="text-muted-foreground">
-      {previous ?? <span className="italic">nothing on the record</span>}
+      {previous ?? <span className="italic">Not on record</span>}
     </span>
     <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
     <span className="font-medium">{updated}</span>
@@ -64,17 +65,25 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  /** Stored files on this client, so an empty list can say which empty it is. */
+  const [documentCount, setDocumentCount] = useState<number | null>(null);
   const { toast } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [a, f] = await Promise.all([
+      const [a, f, docs] = await Promise.all([
         loadAuthorizationProposals(clientId),
         loadFieldProposals(clientId),
+        supabase
+          .from('client_forms')
+          .select('id', { count: 'exact', head: true })
+          .eq('client_id', clientId)
+          .not('file_path', 'is', null),
       ]);
       setAuthSet(a);
       setFields(f);
+      setDocumentCount(docs.count ?? null);
       setChosen(new Set());
     } catch (e) {
       toast({
@@ -114,7 +123,7 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
       if (acceptedFields.length) await applyFieldProposals(clientId, acceptedFields);
       await load();
       onApplied?.();
-      toast({ title: 'Changes accepted' });
+      toast({ title: 'Record updated' });
     } catch (e) {
       toast({
         title: 'Could not accept the changes',
@@ -147,7 +156,7 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
         {children}
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
           <FileText className="h-3 w-3 shrink-0" />
-          Read from {source}
+          Source: {source}
         </p>
         {note}
       </label>
@@ -157,7 +166,7 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
   if (loading) {
     return (
       <Card>
-        <CardContent className="p-6 text-sm text-muted-foreground">Reading the documents…</CardContent>
+        <CardContent className="p-6 text-sm text-muted-foreground">Checking documents…</CardContent>
       </Card>
     );
   }
@@ -165,18 +174,22 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">From documents</CardTitle>
+        <CardTitle className="text-lg">Document edits</CardTitle>
         <p className="text-sm text-muted-foreground">
-          What the uploaded files say that this record does not. Tick what is right,
-          then accept — nothing is written until you do.
+          Select the correct details from your uploaded files and click Accept to save them.
+          Your record won't change until you confirm.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
         {total === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Nothing to change. Every value the documents carry already matches this
-            record, or no document has been read yet — uploads are read under Forms.
-          </p>
+          <div className="rounded-md border border-dashed p-4">
+            <p className="text-sm font-medium">No changes detected</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {documentCount === 0
+                ? 'No documents have been uploaded yet.'
+                : 'Every value in your documents already matches this record.'}
+            </p>
+          </div>
         )}
 
         {authChanges.map((p) => {
@@ -190,7 +203,7 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
               note={
                 p.currentStart !== null ? (
                   <p className="text-xs text-amber-700">
-                    Accepting this replaces those dates and every cycle counted from them.
+                    Accepting replaces the current dates and recalculates the billing cycles based on them.
                   </p>
                 ) : undefined
               }
@@ -229,8 +242,8 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
           <div className="rounded-md border p-3 text-xs text-muted-foreground">
             {authSet?.unrecognised.map((u) => (
               <p key={`${u.documentName}-${u.start}`}>
-                {u.documentName} covers {u.days} days, which is not a 30, 150 or
-                180-day period. Nothing is proposed from it.
+                {u.documentName} covers {u.days} days, which does not match a 30, 150 or
+                180-day authorization, so no change is suggested from it.
               </p>
             ))}
           </div>
@@ -244,7 +257,7 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
                 Saving
               </>
             ) : (
-              'Accept changes'
+              chosen.size > 0 ? `Accept ${chosen.size} selected` : 'Accept selected'
             )}
           </Button>
         )}

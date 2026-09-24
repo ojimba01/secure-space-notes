@@ -25,30 +25,52 @@ const isView = (v: string | null): v is View => !!v && (VIEWS as string[]).inclu
 const TouchpointViews: React.FC<{ onOpenClient: (id: string) => void }> = ({ onOpenClient }) => {
   const [view, setView] = useState<'oversight' | 'mine'>('oversight');
 
-  const Tab: React.FC<{ id: 'oversight' | 'mine'; label: string; hint: string }> = ({ id, label, hint }) => (
-    <button
-      onClick={() => setView(id)}
-      aria-pressed={view === id}
-      className={`rounded-md px-3 py-1.5 text-left transition-colors ${
-        view === id ? 'bg-background shadow-sm' : 'hover:bg-background/60'
-      }`}
-    >
-      <div className="text-sm font-medium">{label}</div>
-      <div className="text-[11px] text-muted-foreground">{hint}</div>
-    </button>
-  );
+  // A switch rather than two buttons: the coloured pill slides under the side
+  // that is chosen, and the page below slides in from that side, so it is
+  // plain which of the two you are looking at and that you have moved.
+  const options: { id: 'oversight' | 'mine'; label: string }[] = [
+    { id: 'oversight', label: 'All cases' },
+    { id: 'mine', label: 'My cases' },
+  ];
+  const mine = view === 'mine';
 
   return (
     <div>
-      <div className="px-6 pt-6">
-        <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
-          <Tab id="oversight" label="All cases" hint="Every case manager" />
-          <Tab id="mine" label="My cases" hint="Assigned to me" />
+      <div className="px-4 pt-6 md:px-8">
+        <div
+          role="tablist"
+          aria-label="Whose cases"
+          className="relative inline-grid grid-cols-2 rounded-full bg-muted p-1"
+        >
+          <span
+            aria-hidden
+            className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-primary shadow-sm transition-transform duration-300 ease-out ${
+              mine ? 'translate-x-full' : 'translate-x-0'
+            }`}
+          />
+          {options.map((o) => (
+            <button
+              key={o.id}
+              role="tab"
+              aria-selected={view === o.id}
+              onClick={() => setView(o.id)}
+              className={`relative z-10 w-32 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-300 ${
+                view === o.id ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
         </div>
       </div>
-      {view === 'oversight'
-        ? <SuperadminTouchpoints onOpenClient={onOpenClient} />
-        : <StaffTouchpoints onOpenClient={onOpenClient} />}
+      <div
+        key={view}
+        className={`duration-300 animate-in fade-in-0 ${mine ? 'slide-in-from-right-8' : 'slide-in-from-left-8'}`}
+      >
+        {view === 'oversight'
+          ? <SuperadminTouchpoints onOpenClient={onOpenClient} />
+          : <StaffTouchpoints onOpenClient={onOpenClient} />}
+      </div>
     </div>
   );
 };

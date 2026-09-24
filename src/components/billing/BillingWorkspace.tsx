@@ -258,12 +258,22 @@ export function BillingWorkspace() {
   // Every client with something left to bill, most urgent first. There is one
   // ordering rather than four filters, because the deadline is the only thing
   // that decides what to do next.
+  //
+  // A client's expired cycles and their live ones are two rows, not one. The
+  // row used to take the client's most overdue cycle as its deadline, so one
+  // cycle past its window put the whole client under Missed deadlines — and
+  // with them a later cycle days from its own deadline, which then appeared in
+  // no list of work at all and could expire unseen too.
   const queue=useMemo(()=>eligible
       .filter(c=>matches(c,query)&&toBillOf(c).length>0)
-      .map(c=>{
+      .flatMap(c=>{
         const open=toBillOf(c);
-        const days=Math.min(...open.map(x=>daysToFinalDeadline(x)));
-        return { client:c, cycles:open, days, band:bandOf(days) };
+        const expired=open.filter(x=>daysToFinalDeadline(x)<0);
+        const live=open.filter(x=>daysToFinalDeadline(x)>=0);
+        return [expired,live].filter(set=>set.length>0).map(set=>{
+          const days=Math.min(...set.map(x=>daysToFinalDeadline(x)));
+          return { client:c, cycles:set, days, band:bandOf(days) };
+        });
       })
       .sort((a,b)=>a.days-b.days),
   [eligible,query,cycleByClient]);
@@ -629,10 +639,10 @@ export function BillingWorkspace() {
                 </span>
               </button>
               {closedClient===r.client.id && <div className="space-y-2 border-t p-2.5">
-                <CycleGrid client={r.client} cycles={cycleByClient.get(r.client.id)??[]} updateCycle={cycleWriter} practice={!!practice}/>
                 <Button variant="outline" size="sm" onClick={()=>{setBillingClientId(r.client.id);window.scrollTo({top:0,behavior:'smooth'});}}>
-                  Open in Availity
+                  Open billing details
                 </Button>
+                <CycleGrid client={r.client} cycles={cycleByClient.get(r.client.id)??[]} updateCycle={cycleWriter} practice={!!practice}/>
               </div>}
             </div>
           ))}

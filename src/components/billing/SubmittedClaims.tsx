@@ -124,7 +124,7 @@ export const SubmittedClaims: React.FC<Props> = ({ clients, cycles, updateCycle 
             </>
           ) : (
             <>
-              <Badge variant="secondary" className="bg-blue-100 text-blue-900">Pending</Badge>
+              <Badge variant="secondary" className="bg-amber-100 text-amber-900">Pending</Badge>
               <Button size="sm" disabled={busy === c.id} onClick={() => markPaid(c)}>
                 Paid
               </Button>
@@ -147,11 +147,11 @@ export const SubmittedClaims: React.FC<Props> = ({ clients, cycles, updateCycle 
   return (
     <div className="space-y-4">
       <Card className="p-4">
-        <h2 className="text-lg font-semibold">Claims that have been filed</h2>
+        <h2 className="text-lg font-semibold">Filed Claims</h2>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          Record what the MCO did with each claim. Until a claim is marked paid it counts as pending
-          in Revenue, not collected. A denied claim goes back to Clients to bill so it can be filed
-          again.
+          Log the MCO's action for each submitted claim. Claims will remain under pending revenue
+          until they are marked as paid. Denied claims will be routed back to the client billing
+          queue for correction and resubmission.
         </p>
         <div className="relative mt-3">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -178,14 +178,14 @@ export const SubmittedClaims: React.FC<Props> = ({ clients, cycles, updateCycle 
       ) : (
         <>
           <Card className="overflow-hidden">
-            <div className="bg-blue-50 p-4">
-              <h3 className="font-semibold text-blue-900">Waiting on the MCO ({awaiting.length})</h3>
-              <p className="mt-1 text-sm text-blue-900/80">
+            <div className="bg-amber-50 p-4">
+              <h3 className="font-semibold text-amber-900">Pending ({awaiting.length})</h3>
+              <p className="mt-1 text-sm text-amber-900/80">
                 Filed, with no payment recorded yet.
               </p>
             </div>
             {awaiting.length ? awaiting.map(row) : (
-              <p className="border-t p-4 text-sm text-muted-foreground">Nothing is waiting.</p>
+              <p className="border-t p-4 text-sm text-muted-foreground">No pending claims.</p>
             )}
           </Card>
 

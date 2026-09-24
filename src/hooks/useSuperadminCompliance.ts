@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { hiddenProfileIds } from '@/lib/testAccounts';
 import { serviceStartDate, isSetupComplete, missingSetupParts, OPEN_CASE_STAGE_FILTER } from '@/lib/workflow';
 import { loadTouchpointSettings } from '@/lib/touchpointSettings';
 import {
@@ -84,7 +85,9 @@ export function useSuperadminCompliance(): SuperadminComplianceData {
       .eq('status', 'active')
       .or(OPEN_CASE_STAGE_FILTER)
       .not('assigned_employee_id', 'is', null);
-    const list = cls ?? [];
+    // Clients held by the test account are not anybody's overdue work.
+    const hidden = hiddenProfileIds(profiles as { id: string }[] | null);
+    const list = (cls ?? []).filter((c) => !hidden.has(c.assigned_employee_id as string));
     const ids = list.map((c) => c.id);
 
     const contactsByClient: Record<string, ContactRow[]> = {};

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { isTestAccount, showTestAccounts } from '@/lib/testAccounts';
 import { ClientCard } from '@/components/ClientCard';
 import { ClientDetails } from '@/components/ClientDetails';
 import { Button } from '@/components/ui/button';
@@ -191,8 +192,11 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           .forEach((p) => {
             const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
             if (name) {
+              // Still named on a card it holds; just not offered as a filter.
               map.set(p.id, name);
-              options.push({ id: p.id, name, active: p.active });
+              if (showTestAccounts() || !isTestAccount(p)) {
+                options.push({ id: p.id, name, active: p.active });
+              }
             }
           });
         options.sort((a, b) => a.name.localeCompare(b.name));

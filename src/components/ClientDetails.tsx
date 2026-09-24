@@ -183,7 +183,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
     { value: 'authorizations', label: 'Authorizations' },
     { value: 'touchpoints', label: 'Touchpoints' },
     { value: 'forms', label: 'Forms' },
-    { value: 'documents', label: 'From documents' },
+    { value: 'documents', label: 'Document edits' },
     { value: 'calendar', label: 'Calendar' },
     { value: 'history', label: 'History' },
     ...(isSuperadmin ? [{ value: 'billing', label: 'Billing' }] : []),

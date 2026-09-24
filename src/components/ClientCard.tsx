@@ -5,7 +5,7 @@ import { formatDay } from '@/lib/dates';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle, Paperclip, RotateCcw, Trash2 } from 'lucide-react';
-import { isCaseClosed, isSetupComplete, missingSetupShort } from '@/lib/workflow';
+import { displayStage, isCaseClosed, isSetupComplete, missingSetupShort } from '@/lib/workflow';
 
 interface Client {
   id: string;
@@ -22,6 +22,15 @@ interface Client {
   iat_date?: string | null;
   hsp_150_date?: string | null;
   hsp_180_date?: string | null;
+  // What displayStage reads to tell a pending client from an authorized one.
+  // The list loads every column, so these are always here.
+  workflow_stage?: string | null;
+  auth_30_start?: string | null;
+  auth_30_number?: string | null;
+  auth_150_start?: string | null;
+  auth_150_number?: string | null;
+  auth_180_start?: string | null;
+  auth_180_number?: string | null;
 }
 
 const addDays = (dateStr: string, days: number) => {
@@ -135,6 +144,9 @@ export const ClientCard: React.FC<ClientCardProps> = ({
       return { label: m.label, due, status };
     });
 
+  const pendingApproval =
+    !isCaseClosed(client) && displayStage(client) === 'initial_auth_pending';
+
   return (
     <Card
       className={`hover:shadow-md transition-shadow cursor-pointer ${
@@ -143,20 +155,18 @@ export const ClientCard: React.FC<ClientCardProps> = ({
       onClick={handleClick}
     >
       <CardHeader className="pb-3">
+        {/* The name on one line with the card's own buttons beside it, and the
+            badges on a row of their own underneath. Beside the name, a long
+            badge like "Next action overdue" pushed the trash can off the card
+            and broke the name over two lines. */}
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-lg">
+          <CardTitle
+            className="min-w-0 truncate text-lg"
+            title={`${client.first_name} ${client.last_name}`}
+          >
             {client.first_name} {client.last_name}
           </CardTitle>
-          <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
-              {client.status}
-            </Badge>
-            {pendingNext && (
-              <Badge variant="destructive" className="gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                Next action overdue
-              </Badge>
-            )}
+          <div className="-mr-1 -mt-1 flex shrink-0 items-center gap-1">
             {/* Not while picking clients to reassign: a small button beside a
                 checkbox, on a card whose whole surface is already a target, is
                 a misclick with consequences. */}
@@ -203,6 +213,26 @@ export const ClientCard: React.FC<ClientCardProps> = ({
               />
             )}
           </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Nothing authorized yet reads as pending, in the amber the rest of
+              the app uses for that stage — not the blue of an active case,
+              which made pending clients impossible to pick out. */}
+          {pendingApproval ? (
+            <Badge className="border-transparent bg-amber-500 text-white hover:bg-amber-500">
+              Pending approval
+            </Badge>
+          ) : (
+            <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
+              {client.status}
+            </Badge>
+          )}
+          {pendingNext && (
+            <Badge variant="destructive" className="gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              Next action overdue
+            </Badge>
+          )}
         </div>
         {/* What this client still needs, on its own line and one badge each.
             Beside the name they ran together and pushed it along; a client

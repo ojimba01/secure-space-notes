@@ -29,6 +29,7 @@ import { saveClientEdit, type ClientEditValues } from '@/lib/saveClientEdit';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
 import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 import { supabase } from '@/integrations/supabase/client';
+import { visibleProfiles } from '@/lib/testAccounts';
 import {
   editAuthorizationDates,
   editAuthorizationNumbers,
@@ -196,7 +197,7 @@ export const ClientOverview: React.FC<{
         .order('first_name');
       if (cancelled) return;
       setManagers(
-        (data ?? []).map((p) => ({
+        visibleProfiles(data).map((p) => ({
           id: p.id as string,
           name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || (p.email as string),
         })),

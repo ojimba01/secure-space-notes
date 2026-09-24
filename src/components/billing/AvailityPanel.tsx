@@ -143,7 +143,18 @@ const CopyField: React.FC<AvailityField & { control?: React.ReactNode }> = ({
       ) : (
       <div className="flex gap-2">
         {control ? (
-          <div className="flex-1">{control}</div>
+          // A dropdown or box answered here is marked the same as a copied
+          // one. It was left white, so the fields most in need of a look —
+          // gender and the diagnosis — were the ones that looked settled.
+          <div
+            className={`flex-1 ${
+              source
+                ? '[&_[role=combobox]]:border-orange-400 [&_[role=combobox]]:bg-orange-50 [&_[role=combobox]]:text-orange-900 [&_input]:border-orange-400 [&_input]:bg-orange-50 [&_input]:text-orange-900'
+                : ''
+            }`}
+          >
+            {control}
+          </div>
         ) : (
           <div
             className={`flex min-h-10 flex-1 items-center rounded-md border px-3 py-2 text-sm ${
@@ -486,7 +497,18 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
         </div>
         <div className="grid gap-4 p-4 sm:grid-cols-2">
           {section.fields.map((f) => (
-            <CopyField key={f.label} {...f} control={f.edit ? controlFor(f.edit) : undefined} />
+            <CopyField
+              key={f.label}
+              {...f}
+              note={
+                f.edit === 'gender' && !extras.gender
+                  ? gender
+                    ? `Not recorded on the intake, so this defaulted to ${gender}. Check it before you submit.`
+                    : 'Not recorded on the intake.'
+                  : f.note
+              }
+              control={f.edit ? controlFor(f.edit) : undefined}
+            />
           ))}
         </div>
       </Card>

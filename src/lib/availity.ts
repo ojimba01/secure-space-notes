@@ -218,6 +218,7 @@ export function eligibilitySections({
           label: 'Payer',
           required: true,
           value: payer ?? mco ?? '',
+          source: 'piped',
           note: payer
             ? `${mco} appears more than once in the list — this is the entry that works.`
             : mco
@@ -277,6 +278,7 @@ export function eligibilitySections({
           value: gender,
           edit: 'gender',
           source: 'judgement',
+          note: 'From the client intake, where it was recorded.',
         },
         {
           label: "Patient's Relationship to Subscriber",
@@ -541,6 +543,7 @@ export function claimSections({
           label: 'Address',
           required: true,
           value: client.address?.trim() ?? '',
+          source: 'piped',
           edit: 'address',
           note: client.address?.trim()
             ? 'One line on the client record. Availity splits address, city, state and ZIP — separate them as you paste.'
@@ -557,6 +560,7 @@ export function claimSections({
           label: 'Subscriber / Insured ID',
           required: true,
           value: client.member_id ?? '',
+          source: 'piped',
           edit: 'memberId',
         },
         { label: 'Group Number', value: '' },
@@ -690,11 +694,13 @@ export function claimSections({
           label: 'Service From Date',
           required: true,
           value: usDate(selected.cycle.cycle_start),
+          source: 'piped',
           note: 'From the cycle selected above.',
         },
         {
           label: 'Service To Date',
           value: usDate(selected.cycle.cycle_end),
+          source: 'piped',
           note: 'From the cycle selected above.',
         },
         { label: 'Place of Service', value: PLACE_OF_SERVICE },
@@ -712,11 +718,18 @@ export function claimSections({
             : 'The default. An authorization can override it.',
           missing: modifier ? undefined : 'No modifier set in the agency boxes above',
         },
-        { label: 'Diagnosis Code Pointer 1', required: true, value: diagnosisCode },
+        {
+          label: 'Diagnosis Code Pointer 1',
+          required: true,
+          value: diagnosisCode,
+          source: 'piped',
+          note: 'The same code as the principal diagnosis above.',
+        },
         {
           label: 'Charge Amount',
           required: true,
           value: charge === null ? '' : charge.toFixed(2),
+          source: 'piped',
           note:
             charge === null
               ? undefined

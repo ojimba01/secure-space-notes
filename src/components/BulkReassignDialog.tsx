@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
+import { visibleProfiles } from '@/lib/testAccounts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -74,7 +75,7 @@ export const BulkReassignDialog: React.FC<BulkReassignDialogProps> = ({
         .eq('role', 'superadmin');
       const superIds = new Set((superRoles || []).map((r) => r.user_id));
 
-      let avail: Employee[] = (activeProfiles || []).filter((p) => !superIds.has(p.user_id));
+      let avail: Employee[] = visibleProfiles(activeProfiles).filter((p) => !superIds.has(p.user_id));
 
       const { data: currentProfile } = await supabase
         .from('profiles')
