@@ -703,6 +703,7 @@ export type Database = {
           field_member_dob: string | null
           field_member_id: string | null
           field_member_name: string | null
+          field_njhmis_id: string | null
           field_notice_date: string | null
           field_service_end: string | null
           field_service_start: string | null
@@ -757,6 +758,7 @@ export type Database = {
           field_member_dob?: string | null
           field_member_id?: string | null
           field_member_name?: string | null
+          field_njhmis_id?: string | null
           field_notice_date?: string | null
           field_service_end?: string | null
           field_service_start?: string | null
@@ -811,6 +813,7 @@ export type Database = {
           field_member_dob?: string | null
           field_member_id?: string | null
           field_member_name?: string | null
+          field_njhmis_id?: string | null
           field_notice_date?: string | null
           field_service_end?: string | null
           field_service_start?: string | null
