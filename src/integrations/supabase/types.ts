@@ -700,7 +700,6 @@ export type Database = {
           field_authorization_number: string | null
           field_icd10_code: string | null
           field_medicaid_id: string | null
-          field_njhmis_id: string | null
           field_member_dob: string | null
           field_member_id: string | null
           field_member_name: string | null
@@ -755,7 +754,6 @@ export type Database = {
           field_authorization_number?: string | null
           field_icd10_code?: string | null
           field_medicaid_id?: string | null
-          field_njhmis_id?: string | null
           field_member_dob?: string | null
           field_member_id?: string | null
           field_member_name?: string | null
@@ -810,7 +808,6 @@ export type Database = {
           field_authorization_number?: string | null
           field_icd10_code?: string | null
           field_medicaid_id?: string | null
-          field_njhmis_id?: string | null
           field_member_dob?: string | null
           field_member_id?: string | null
           field_member_name?: string | null
