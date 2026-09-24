@@ -47,6 +47,8 @@ export interface OverviewClient {
   phone?: string;
   address?: string;
   member_id?: string;
+  medicaid_id?: string | null;
+  njhmis_id?: string | null;
   insurance?: string;
   mco_housing_manager?: string | null;
   level_of_need?: string;
@@ -141,9 +143,10 @@ const initialValues = (c: OverviewClient): Values => ({
   phone: c.phone ?? '',
   address: c.address ?? '',
   member_id: c.member_id ?? '',
+  medicaid_id: c.medicaid_id ?? '',
+  njhmis_id: c.njhmis_id ?? '',
   insurance: c.insurance ?? '',
   level_of_need: c.level_of_need ?? '',
-  lon_score: c.lon_score === null || c.lon_score === undefined ? '' : String(c.lon_score),
   county: c.county ?? '',
   mco_housing_manager: c.mco_housing_manager ?? '',
   date_of_birth: c.date_of_birth ?? '',
@@ -334,6 +337,8 @@ export const ClientOverview: React.FC<{
           </Row>
           <Row label="Last name">{text('last_name', client.last_name, !isAdmin)}</Row>
           <Row label="Member ID">{text('member_id', client.member_id)}</Row>
+          <Row label="Medicaid ID">{text('medicaid_id', client.medicaid_id)}</Row>
+          <Row label="NJ HMIS ID">{text('njhmis_id', client.njhmis_id)}</Row>
           <Row label="Date of birth">{date('date_of_birth')}</Row>
           {/* Phone before email on purpose. An email address runs long enough
               to crowd the field beside it; a phone number never does. */}
@@ -382,9 +387,6 @@ export const ClientOverview: React.FC<{
           )}
           <Row label="Level of need">
             {choice('level_of_need', ['Low Level', 'High Level'], client.level_of_need)}
-          </Row>
-          <Row label="LoN score">
-            {text('lon_score', client.lon_score ?? null)}
           </Row>
           {showCaseManager && (
             <Row

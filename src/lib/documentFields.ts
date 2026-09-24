@@ -20,6 +20,8 @@ export interface DocumentFields {
   memberName: string | null;
   memberId: string | null;
   medicaidId: string | null;
+  /** The member's NJ HMIS client ID, asked for on the HSP and Wellpoint's request. */
+  njhmisId: string | null;
   memberDob: string | null;
   icd10Code: string | null;
   noticeDate: string | null;
@@ -46,6 +48,7 @@ export const NO_FIELDS: DocumentFields = {
   memberName: null,
   memberId: null,
   medicaidId: null,
+  njhmisId: null,
   memberDob: null,
   icd10Code: null,
   noticeDate: null,
@@ -181,6 +184,18 @@ export function extractDocumentFields(rawText: string): DocumentFields {
     ]),
   );
 
+  // Read from the text with its line breaks kept, and held to one line with
+  // [ \t]: the blank forms print the label with nothing after it, and reading
+  // on would take whatever number starts the next line — a question number, a
+  // page number. Fewer than four digits is one of those, not an ID.
+  const njhmisDigits = digitsOnly(
+    first(rawText, [
+      /NJ[ \t]*HMIS[ \t]*(?:Client[ \t]*)?(?:ID|Number|No\.?|#)[ \t]*[:#\-]?[ \t]*([0-9][0-9 \t-]{2,14})/i,
+      /\bHMIS[ \t]*(?:Client[ \t]*)?(?:ID|Number|No\.?|#)[ \t]*[:#\-]?[ \t]*([0-9][0-9 \t-]{2,14})/i,
+    ]),
+  );
+  const njhmisId = njhmisDigits && njhmisDigits.length >= 4 ? njhmisDigits : null;
+
   // Housing-related Z-codes. The dot is optional because OCR loses it, and
   // the code is normalised back to the written form.
   const icdRaw = first(text, [/\b(Z\s?59\.?\s?\d{1,3})\b/i]);
@@ -229,6 +244,7 @@ export function extractDocumentFields(rawText: string): DocumentFields {
     memberName: memberName ? memberName.replace(/\s+/g, ' ').trim() : null,
     memberId,
     medicaidId,
+    njhmisId,
     memberDob,
     icd10Code,
     noticeDate,
@@ -313,6 +329,7 @@ type FieldKey = keyof Pick<
   | 'memberName'
   | 'memberId'
   | 'medicaidId'
+  | 'njhmisId'
   | 'memberDob'
   | 'authorizationNumber'
   | 'icd10Code'
@@ -349,6 +366,11 @@ const FORM_FIELD_RULES: { key: FieldKey; match: RegExp }[] = [
   { key: 'medicaidId', match: /^5 medicaid id$/ },
   { key: 'medicaidId', match: /^3 medicaid id not scored/ },
   { key: 'medicaidId', match: /^medicaid id$/ },
+
+  // NJ HMIS ID: the HSP's and Wellpoint's request's own field, by that name.
+  { key: 'njhmisId', match: /^nj hmis id$/ },
+  { key: 'njhmisId', match: /^nj hmis id number$/ },
+  { key: 'njhmisId', match: /^hmis id$/ },
 
   // MCO member ID
   { key: 'memberId', match: /^7 mco member id/ },
@@ -422,7 +444,10 @@ export function fieldsFromFormValues(values: Record<string, string>): Partial<Do
       if (rule.key === 'memberDob') {
         const iso = toIso(value);
         if (iso) out.memberDob = iso;
-      } else if (rule.key === 'medicaidId' || rule.key === 'memberId' || rule.key === 'authorizationNumber') {
+      } else if (
+        rule.key === 'medicaidId' || rule.key === 'njhmisId'
+        || rule.key === 'memberId' || rule.key === 'authorizationNumber'
+      ) {
         const digits = digitsOnly(value);
         if (digits) out[rule.key] = digits;
       } else if (rule.key === 'lonScore') {

@@ -80,6 +80,7 @@ export interface ProposedValue {
 const FIELD_TO_COLUMN: { key: keyof DocumentFields; column: string; label: string }[] = [
   { key: 'memberId', column: 'member_id', label: 'Member ID' },
   { key: 'medicaidId', column: 'medicaid_id', label: 'Medicaid ID' },
+  { key: 'njhmisId', column: 'njhmis_id', label: 'NJ HMIS ID' },
   { key: 'memberDob', column: 'date_of_birth', label: 'Date of birth' },
   { key: 'icd10Code', column: 'diagnosis_code', label: 'Diagnosis' },
   // The IAT asks for all four of these and holds them in its form fields.

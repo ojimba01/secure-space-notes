@@ -103,6 +103,7 @@ async function applyFields(
     field_member_name: fields.memberName,
     field_member_id: fields.memberId,
     field_medicaid_id: fields.medicaidId,
+    field_njhmis_id: fields.njhmisId,
     field_member_dob: fields.memberDob,
     field_icd10_code: fields.icd10Code,
     field_notice_date: fields.noticeDate,
@@ -115,7 +116,7 @@ async function applyFields(
   const { data: client } = await supabase
     .from('clients')
     .select(
-      'id, first_name, last_name, date_of_birth, member_id, medicaid_id, diagnosis_code, hsp_submitted, auth_150_number, auth_180_number',
+      'id, first_name, last_name, date_of_birth, member_id, medicaid_id, njhmis_id, diagnosis_code, hsp_submitted, auth_150_number, auth_180_number',
     )
     .eq('id', clientId)
     .maybeSingle();
@@ -144,6 +145,7 @@ async function applyFields(
   consider('date_of_birth', fields.memberDob, client.date_of_birth);
   consider('member_id', fields.memberId, client.member_id, sameId);
   consider('medicaid_id', fields.medicaidId, client.medicaid_id, sameId);
+  consider('njhmis_id', fields.njhmisId, client.njhmis_id, sameId);
   consider('diagnosis_code', fields.icd10Code, client.diagnosis_code);
 
   // A 150-day or 180-day authorization number can only exist once the plan has

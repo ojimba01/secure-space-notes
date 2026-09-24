@@ -35,6 +35,7 @@ export const FIELD_SPECS: FieldSpec[] = [
   { from: 'field_member_dob', to: 'date_of_birth', label: 'Date of birth', kind: 'date' },
   { from: 'field_member_id', to: 'member_id', label: 'Member ID', kind: 'text' },
   { from: 'field_medicaid_id', to: 'medicaid_id', label: 'Medicaid number', kind: 'text' },
+  { from: 'field_njhmis_id', to: 'njhmis_id', label: 'NJ HMIS ID', kind: 'text' },
 ];
 
 export interface FieldProposal {

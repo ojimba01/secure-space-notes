@@ -17,8 +17,15 @@ export interface ClientEditValues {
   phone?: string;
   address?: string;
   member_id?: string;
+  medicaid_id?: string;
+  njhmis_id?: string;
   insurance?: string;
   level_of_need?: string;
+  /**
+   * Left out, the column is left alone. The record no longer shows a LoN
+   * score, and writing an absent one as null would erase every score on the
+   * next save of a phone number.
+   */
   lon_score?: string;
   county?: string;
   mco_housing_manager?: string;
@@ -90,9 +97,15 @@ export async function saveClientEdit(
       phone: data.phone || null,
       address: data.address || null,
       member_id: data.member_id || null,
+      // The same rule for these two, so a caller that does not show them
+      // cannot blank them.
+      ...(data.medicaid_id !== undefined ? { medicaid_id: data.medicaid_id || null } : {}),
+      ...(data.njhmis_id !== undefined ? { njhmis_id: data.njhmis_id || null } : {}),
       insurance: data.insurance || null,
       level_of_need: data.level_of_need || null,
-      lon_score: data.lon_score ? Number(data.lon_score) : null,
+      ...(data.lon_score !== undefined
+        ? { lon_score: data.lon_score ? Number(data.lon_score) : null }
+        : {}),
       county: data.county || null,
       date_of_birth: data.date_of_birth || null,
       intake_date: data.intake_date || null,
