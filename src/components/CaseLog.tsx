@@ -3,7 +3,7 @@
 // The rows come from touchpoints already logged in the app, so the form opens
 // filled in. A case manager checks it rather than writes it — which is the
 // only reason a weekly paper form is worth having in software at all.
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Document, Page } from 'react-pdf';
 import '@/lib/pdfWorker';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   caseLogEntries,
   loadCaseLog,
+  resetCaseLog,
   saveCaseLog,
   weekEndingText,
   weekLabel,
@@ -52,6 +53,16 @@ interface Props {
   readOnly?: boolean;
   /** Open on this week (its Sunday) rather than the current one, for a look-up. */
   initialWeek?: string;
+  /**
+   * Show the filled form as soon as the rows are in, rather than waiting for
+   * View form to be pressed. The Forms page's View form button opens the log
+   * this way, so it lands on the same form Touchpoints shows.
+   */
+  openFormOnLoad?: boolean;
+  /** Told whether there are rows on screen that have not been saved. */
+  onDirtyChange?: (dirty: boolean) => void;
+  /** Told after a save, so a summary elsewhere can refresh. */
+  onSaved?: () => void;
 }
 
 const blank = (): CaseLogEntry => ({ clientName: '', date: '', completed: false });
@@ -61,11 +72,16 @@ export const CaseLog: React.FC<Props> = ({
   caseManagerName,
   readOnly = false,
   initialWeek,
+  openFormOnLoad = false,
+  onDirtyChange,
+  onSaved,
 }) => {
   const weeks = useMemo(() => weeksAvailable(), []);
   const [week, setWeek] = useState(initialWeek ?? weeks[0]);
   const [stored, setStored] = useState<CaseLogRow | null>(null);
   const [entries, setEntries] = useState<CaseLogEntry[]>([]);
+  /** The rows as last loaded or saved, to tell an unsaved edit from none. */
+  const [loadedEntries, setLoadedEntries] = useState<CaseLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -78,12 +94,20 @@ export const CaseLog: React.FC<Props> = ({
 
   const editable = !readOnly;
 
+  const dirty = useMemo(
+    () => JSON.stringify(entries) !== JSON.stringify(loadedEntries),
+    [entries, loadedEntries],
+  );
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const row = await loadCaseLog(employeeId, week);
       setStored(row);
-      setEntries(await caseLogEntries(employeeId, week, row));
+      const rows = await caseLogEntries(employeeId, week, row);
+      setEntries(rows);
+      setLoadedEntries(rows);
     } catch (e) {
       toast({
         title: 'Could not open the log',
@@ -102,12 +126,17 @@ export const CaseLog: React.FC<Props> = ({
   const edit = (i: number, patch: Partial<CaseLogEntry>) =>
     setEntries((rows) => rows.map((r, n) => (n === i ? { ...r, ...patch } : r)));
 
-  const persist = async (rows: CaseLogEntry[]) => {
+  /** Save these rows, or with null, drop the edits and refill from touchpoints. */
+  const persist = async (rows: CaseLogEntry[] | null) => {
     setBusy(true);
     try {
-      await saveCaseLog(employeeId, week, rows);
+      if (rows) await saveCaseLog(employeeId, week, rows);
+      else await resetCaseLog(employeeId, week);
       await load();
-      toast({ title: 'Log saved' });
+      onSaved?.();
+      toast(rows
+        ? { title: 'Draft saved', description: 'It is the same log on Touchpoints and on Forms.' }
+        : { title: 'Refilled from your touchpoints' });
     } catch (e) {
       toast({
         title: 'Could not save the log',
@@ -151,6 +180,15 @@ export const CaseLog: React.FC<Props> = ({
       setBusy(false);
     }
   };
+
+  // Once only: closing the form should leave the log open, not reopen it.
+  const openedOnLoad = useRef(false);
+  useEffect(() => {
+    if (!openFormOnLoad || loading || openedOnLoad.current) return;
+    openedOnLoad.current = true;
+    void view();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openFormOnLoad, loading]);
 
   const download = async () => {
     setBusy(true);
@@ -201,7 +239,7 @@ export const CaseLog: React.FC<Props> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           {editable && stored?.entries && (
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => void persist([])}>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => void persist(null)}>
               <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
               Refill from touchpoints
             </Button>
@@ -294,7 +332,7 @@ export const CaseLog: React.FC<Props> = ({
             </Button>
             <Button size="sm" variant="secondary" disabled={busy}
               onClick={() => void persist(entries)}>
-              Save changes
+              Save draft
             </Button>
           </div>
         )}

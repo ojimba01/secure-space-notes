@@ -100,6 +100,8 @@ export interface CaseLogRow {
   employee_id: string;
   week_ending: string;
   entries: CaseLogEntry[] | null;
+  /** When somebody last saved it. The Forms page shows it as the draft's age. */
+  updated_at?: string;
 }
 
 /**
@@ -148,7 +150,7 @@ export async function loadCaseLog(
 ): Promise<CaseLogRow | null> {
   const { data, error } = await supabase
     .from('case_logs')
-    .select('id, employee_id, week_ending, entries')
+    .select('id, employee_id, week_ending, entries, updated_at')
     .eq('employee_id', employeeId)
     .eq('week_ending', week)
     .maybeSingle();
@@ -186,6 +188,21 @@ export async function saveCaseLog(
       { employee_id: employeeId, week_ending: week, entries: entries as unknown as Json },
       { onConflict: 'employee_id,week_ending' },
     );
+  if (error) throw error;
+}
+
+/**
+ * Forget a person's edits, so the week reads from its touchpoints again.
+ *
+ * Null rather than an empty list: an empty list is a person saying the week
+ * had no rows, and is shown as exactly that.
+ */
+export async function resetCaseLog(employeeId: string, week: string): Promise<void> {
+  const { error } = await supabase
+    .from('case_logs')
+    .update({ entries: null })
+    .eq('employee_id', employeeId)
+    .eq('week_ending', week);
   if (error) throw error;
 }
 

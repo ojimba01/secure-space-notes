@@ -49,6 +49,12 @@ import {
   type PdfTemplate,
 } from '@/components/forms/TemplateFillDialog';
 import { formDownloadName } from '@/lib/formAutofill';
+import { CASE_LOG_TEMPLATE, buildCaseLogPdf } from '@/lib/caseLogForm';
+import {
+  CASE_LOG_DESCRIPTION,
+  CASE_LOG_LABEL,
+  CaseLogFormCard,
+} from '@/components/forms/CaseLogFormCard';
 import { isCaseClosed } from '@/lib/workflow';
 import { loadBlankTemplate } from '@/lib/formTemplates';
 import {
@@ -121,6 +127,9 @@ export const FORM_LIST_COLUMNS =
   'text_char_count, page_count, ocr_applied, text_truncated';
 
 const PAGE_SIZE = 10;
+
+/** Everything Download Forms offers, keyed the way `picked` holds it. */
+const DOWNLOADABLE = [...PDF_TEMPLATES.map((t) => t.file), CASE_LOG_TEMPLATE];
 
 const statusVariant = (status: string) => FORM_STATUS_CLASS[status] ?? 'bg-muted text-muted-foreground';
 
@@ -336,14 +345,35 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
    * at a time: a browser asked for six downloads at once starts dropping them.
    */
   const downloadPicked = async () => {
-    const wanted = PDF_TEMPLATES.filter((t) => picked.has(t.file));
+    // The case log is not a registry template: its blank is the weekly form
+    // with its fields laid on, the same builder Touchpoints downloads through.
+    const wanted: { label: string; load: () => Promise<BlobPart> }[] = [
+      ...PDF_TEMPLATES.filter((t) => picked.has(t.file)).map((t) => ({
+        label: t.label,
+        load: () => loadBlankTemplate(t.formType, t.mco, t.file) as Promise<BlobPart>,
+      })),
+      ...(picked.has(CASE_LOG_TEMPLATE)
+        ? [{
+            label: CASE_LOG_LABEL,
+            load: async () => {
+              const res = await fetch(CASE_LOG_TEMPLATE);
+              if (!res.ok) throw new Error(String(res.status));
+              return (await buildCaseLogPdf(
+                await res.arrayBuffer(),
+                { caseManager: '', weekEnding: '' },
+                [],
+              )) as BlobPart;
+            },
+          }]
+        : []),
+    ];
     if (!wanted.length) return;
 
     setDownloading(true);
     const failed: string[] = [];
     for (const t of wanted) {
       try {
-        const bytes = await loadBlankTemplate(t.formType, t.mco, t.file);
+        const bytes = await t.load();
         const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
         const a = document.createElement('a');
         a.href = url;
@@ -483,6 +513,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
                 </div>
               </Card>
             ))}
+            <CaseLogFormCard profileId={profileId} caseManagerName={signerName} />
           </div>
 
           {/* Filling one in is one thing; taking the blank to a meeting on
@@ -721,6 +752,24 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
                 </span>
               </label>
             ))}
+            <label className="flex cursor-pointer items-start gap-3 p-2.5 hover:bg-muted/50">
+              <Checkbox
+                className="mt-0.5"
+                checked={picked.has(CASE_LOG_TEMPLATE)}
+                onCheckedChange={(v) =>
+                  setPicked((current) => {
+                    const next = new Set(current);
+                    if (v === true) next.add(CASE_LOG_TEMPLATE);
+                    else next.delete(CASE_LOG_TEMPLATE);
+                    return next;
+                  })
+                }
+              />
+              <span className="min-w-0">
+                <span className="block text-sm">{CASE_LOG_LABEL}</span>
+                <span className="block text-xs text-muted-foreground">{CASE_LOG_DESCRIPTION}</span>
+              </span>
+            </label>
           </div>
 
           <button
@@ -728,13 +777,11 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
             className="self-start text-xs text-muted-foreground underline-offset-2 hover:underline"
             onClick={() =>
               setPicked((current) =>
-                current.size === PDF_TEMPLATES.length
-                  ? new Set()
-                  : new Set(PDF_TEMPLATES.map((t) => t.file)),
+                current.size === DOWNLOADABLE.length ? new Set() : new Set(DOWNLOADABLE),
               )
             }
           >
-            {picked.size === PDF_TEMPLATES.length ? 'Clear all' : 'Select all'}
+            {picked.size === DOWNLOADABLE.length ? 'Clear all' : 'Select all'}
           </button>
 
           <DialogFooter>
