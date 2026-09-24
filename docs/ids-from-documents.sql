@@ -46,6 +46,15 @@ where f.client_id = c.id
   and lower(coalesce(f.file_path, '')) like '%.pdf'
   and (nullif(trim(c.njhmis_id), '') is null or nullif(trim(c.medicaid_id), '') is null);
 
+-- Anything uploaded after the app started writing field_njhmis_id and before
+-- this ran failed on the missing column. It is read again, not left failed.
+update public.client_forms
+set processing_status = 'pending',
+    processing_started_at = null,
+    processing_error = null
+where processing_status = 'failed'
+  and processing_error ilike '%field_njhmis_id%';
+
 -- ---------------------------------------------------------------------------
 -- What happened. documents_queued is how many the app will now re-read.
 -- ---------------------------------------------------------------------------
