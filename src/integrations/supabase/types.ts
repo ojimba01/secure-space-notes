@@ -703,6 +703,7 @@ export type Database = {
           field_member_dob: string | null
           field_member_id: string | null
           field_member_name: string | null
+          field_njhmis_id: string | null
           field_notice_date: string | null
           field_service_end: string | null
           field_service_start: string | null
@@ -757,6 +758,7 @@ export type Database = {
           field_member_dob?: string | null
           field_member_id?: string | null
           field_member_name?: string | null
+          field_njhmis_id?: string | null
           field_notice_date?: string | null
           field_service_end?: string | null
           field_service_start?: string | null
@@ -811,6 +813,7 @@ export type Database = {
           field_member_dob?: string | null
           field_member_id?: string | null
           field_member_name?: string | null
+          field_njhmis_id?: string | null
           field_notice_date?: string | null
           field_service_end?: string | null
           field_service_start?: string | null
@@ -2294,6 +2297,7 @@ export type Database = {
       activate_user: { Args: { _profile_id: string }; Returns: undefined }
       billing_rate_for_level: { Args: { p_level: string }; Returns: number }
       call_compliance_cron: { Args: { _job: string }; Returns: undefined }
+      call_document_reader: { Args: never; Returns: undefined }
       can_access_client_files: {
         Args: { _client_id: string; _user_id: string }
         Returns: boolean
