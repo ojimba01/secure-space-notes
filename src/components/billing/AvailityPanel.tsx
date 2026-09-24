@@ -229,7 +229,9 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
     // Reopen on whatever was agreed for this client last time.
     setDiagnosisCode(stored ?? DEFAULT_DIAGNOSIS_CODE);
     setCustomCode(stored && !findDiagnosisCode(stored) ? stored : '');
-    setGender(known ?? 'Female');
+    // Blank unless the intake recorded it. A name is not evidence, and a
+    // guessed gender on a claim is worse than a box somebody has to fill.
+    setGender(known ?? '');
     setRelationship((storedRelationship as Relationship) ?? 'Self');
     setAuthorizations(auths);
   }, []);
@@ -503,8 +505,8 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
               note={
                 f.edit === 'gender' && !extras.gender
                   ? gender
-                    ? `Not recorded on the intake, so this defaulted to ${gender}. Check it before you submit.`
-                    : 'Not recorded on the intake.'
+                    ? 'Not recorded on the intake — chosen here. Check it before you submit.'
+                    : 'Not recorded on the intake. Choose one before you submit.'
                   : f.note
               }
               control={f.edit ? controlFor(f.edit) : undefined}
