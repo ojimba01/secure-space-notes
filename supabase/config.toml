@@ -14,3 +14,9 @@ verify_jwt = false
 # per-person token in the query string and hands back only that person's events.
 [functions.calendar-feed]
 verify_jwt = false
+
+# The scheduled document reader. pg_cron calls it, and pg_cron cannot present
+# a user's JWT. It reads only what is already queued and answers with counts,
+# so reaching it can move the queue along and tells nobody anything.
+[functions.document-reader]
+verify_jwt = false

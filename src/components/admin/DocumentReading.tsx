@@ -157,6 +157,15 @@ export const DocumentReading: React.FC = () => {
     load();
   }, [load]);
 
+  // The server reads on its own schedule, so the count moves without anyone
+  // pressing anything. Keep it current while there is something to watch.
+  const waiting = counts.pending + counts.processing;
+  useEffect(() => {
+    if (waiting === 0) return;
+    const timer = setInterval(() => { void load(); }, 15_000);
+    return () => clearInterval(timer);
+  }, [waiting, load]);
+
   const textInput = useRef<HTMLInputElement>(null);
   const [loadingText, setLoadingText] = useState(false);
   const [textLabel, setTextLabel] = useState('');
@@ -275,10 +284,11 @@ export const DocumentReading: React.FC = () => {
           <p className="text-sm text-muted-foreground">
             A document is searchable once its words have been read. Most PDFs carry their text
             already, and those are read in a moment — a six-page form takes well under a second.
+            Documents waiting are read automatically, on the app's own server, every few seconds —
+            nobody needs to keep this page open, and nothing is sent outside the app to be read.
             A document that is only a picture has to be read by optical recognition, which takes
             over a minute a page, so it is offered one document at a time below rather than run
-            over a batch. All of this happens in this browser: no document is sent anywhere to be
-            read, and the reading only runs while this page is open.
+            over a batch.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -326,8 +336,8 @@ export const DocumentReading: React.FC = () => {
           )}
 
           <div className="flex flex-wrap gap-2">
-            <Button onClick={read} disabled={reading || counts.pending === 0}>
-              {reading ? 'Reading documents' : 'Read the documents waiting'}
+            <Button variant="outline" onClick={read} disabled={reading || counts.pending === 0}>
+              {reading ? 'Reading documents' : 'Also read in this browser'}
             </Button>
             {reading && (
               <Button variant="outline" onClick={stopDocumentQueue}>
@@ -363,10 +373,13 @@ export const DocumentReading: React.FC = () => {
             </Button>
           </div>
 
-          {counts.pending > 25 && (
+          {waiting > 0 && (
             <p className="text-xs text-muted-foreground">
-              Documents are read 25 at a time so the page stays usable. Press the button again to
-              carry on; the count is kept in the database, so closing the browser loses nothing.
+              Reading automatically — about 18 documents a minute, so{' '}
+              {Math.max(1, Math.ceil(counts.pending / 18)).toLocaleString()}{' '}
+              {Math.ceil(counts.pending / 18) === 1 ? 'minute' : 'minutes'} for what is waiting.
+              You can close this page. Pressing “Also read in this browser” adds this computer to
+              the work and makes it quicker; the two never read the same document twice.
             </p>
           )}
         </CardContent>
