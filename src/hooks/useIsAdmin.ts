@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsPreviewing } from '@/components/ViewAsProvider';
 
 export const useIsAdmin = () => {
   const { user, loading: authLoading } = useAuth();
@@ -40,5 +41,8 @@ export const useIsAdmin = () => {
     checkAdmin();
   }, [user, authLoading]);
 
-  return { isAdmin, loading };
+  // A preview shows the app as that team member sees their own caseload, so
+  // nothing admin-only shows while it runs.
+  const previewing = useIsPreviewing();
+  return { isAdmin: isAdmin && !previewing, loading };
 };

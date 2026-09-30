@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Settings2, Eye, FolderUp, History, FileStack, FileSearch, UploadCloud } from 'lucide-react';
+import { Settings2, Eye, FolderUp, History, FileStack, FileSearch, UploadCloud, UserX } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface Employee {
   id: string;
@@ -48,28 +49,32 @@ export const AdvancedTools: React.FC = () => {
   const { isSuperadmin } = useIsSuperadmin();
   const { isAdmin } = useIsAdmin();
   const { startViewAs, isViewingAs } = useViewAs();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [search, setSearch] = useState('');
+  const [inactive, setInactive] = useState<Employee[]>([]);
+  const [reactivating, setReactivating] = useState<string | null>(null);
 
+  // Read fresh every time the panel opens, so new, renamed and deactivated
+  // staff show up without reloading the app.
   useEffect(() => {
-    if (!isSuperadmin || !open || employees.length) return;
+    if (!isSuperadmin || !open) return;
+    let cancelled = false;
     (async () => {
-      // Everyone active, not just the employee role. Admins and superadmins
-      // carry caseloads too -- the largest one in the agency belongs to a
-      // superadmin -- and filtering on role='employee' made exactly the people
-      // with the most clients impossible to preview.
-      const { data: profs } = await supabase
+      // Every active team member, admins included: admins carry caseloads too.
+      // Superadmins are not case managers, so there is nothing to preview.
+      const { data: allProfs } = await supabase
         .from('profiles')
-        .select('id, user_id, first_name, last_name')
-        .eq('active', true)
+        .select('id, user_id, first_name, last_name, active')
         .order('last_name');
-      if (!profs?.length) return;
+      if (cancelled || !allProfs?.length) return;
+      const profs = allProfs.filter((p) => p.active !== false);
 
       const { data: roleRows } = await supabase
         .from('user_roles')
         .select('user_id, role')
-        .in('user_id', profs.map((p) => p.user_id));
+        .in('user_id', allProfs.map((p) => p.user_id));
 
       // Someone can hold more than one role; show the highest.
       const rank: Record<string, number> = { superadmin: 3, admin: 2, employee: 1 };
@@ -91,20 +96,40 @@ export const AdvancedTools: React.FC = () => {
         clientCount.set(k, (clientCount.get(k) ?? 0) + 1);
       }
 
-      const { data: me } = await supabase.auth.getUser();
+      if (cancelled) return;
+      const toEmployee = (p: (typeof allProfs)[number]): Employee => ({
+        id: p.id,
+        first_name: p.first_name,
+        last_name: p.last_name,
+        role: bestRole.get(p.user_id) ?? 'employee',
+        clientCount: clientCount.get(p.id) ?? 0,
+      });
+      setInactive(
+        visibleProfiles(allProfs.filter((p) => p.active === false && bestRole.get(p.user_id) !== 'superadmin')).map(toEmployee),
+      );
       setEmployees(
         visibleProfiles(profs)
-          .filter((p) => p.user_id !== me?.user?.id) // previewing yourself is pointless
-          .map((p) => ({
-            id: p.id,
-            first_name: p.first_name,
-            last_name: p.last_name,
-            role: bestRole.get(p.user_id) ?? 'employee',
-            clientCount: clientCount.get(p.id) ?? 0,
-          })),
+          .filter((p) => bestRole.get(p.user_id) !== 'superadmin')
+          .map(toEmployee),
       );
     })();
-  }, [isSuperadmin, open, employees.length]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isSuperadmin, open]);
+
+  const reactivate = async (e: Employee) => {
+    setReactivating(e.id);
+    const { error } = await supabase.rpc('activate_user', { _profile_id: e.id });
+    setReactivating(null);
+    if (error) {
+      toast({ title: 'Unable to reactivate account', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Account reactivated', description: `${e.first_name ?? ''} ${e.last_name ?? ''} can sign in again. Reassign their clients if needed.`.trim() });
+    setInactive((list) => list.filter((x) => x.id !== e.id));
+    setEmployees((list) => [...list, e]);
+  };
 
   // Admins get the migration utilities; previewing as a case manager shows
   // exactly what staff see, which is nothing.
@@ -168,6 +193,23 @@ export const AdvancedTools: React.FC = () => {
               ))}
             </div>
           </>
+        )}
+
+        {isSuperadmin && inactive.length > 0 && (
+          <div className="space-y-1 border-t pt-3">
+            <div className="flex items-center gap-2 text-sm font-medium"><UserX className="h-4 w-4" /> Deactivated staff</div>
+            <p className="text-xs text-muted-foreground">They cannot sign in and are hidden from staff lists.</p>
+            <div className="max-h-40 space-y-1 overflow-y-auto">
+              {inactive.map((e) => (
+                <div key={e.id} className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-sm">
+                  <span className="truncate">{e.first_name} {e.last_name}</span>
+                  <Button size="sm" variant="outline" className="h-7 shrink-0" disabled={reactivating === e.id} onClick={() => void reactivate(e)}>
+                    Reactivate
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {canUseMigration && (

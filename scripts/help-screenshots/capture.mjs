@@ -100,7 +100,7 @@ const SHOTS = {
   'find-your-way': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => p.getByRole('button', { name: 'Clients', exact: true }).first().locator('xpath=..'), label: 'Your work' },
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => p.locator('[aria-label="Your account"]').last(), label: 'Your account' },
-    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'Start walkthrough'), label: 'Start walkthrough' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Help guide'), label: 'Help guide' },
   ],
   account: [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => p.locator('[aria-label="Your account"]').last(), label: 'Your account' },
@@ -240,6 +240,11 @@ const SHOTS = {
   'staff-activity': [
     { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Staff activity'), label: 'Staff activity' },
     { as: 'admin', go: (p) => p.goto(`${BASE}/staff-activity`), target: (p) => p.locator('tbody tr').first(), label: 'Select a staff member' },
+  ],
+  'deactivate-staff': [
+    { as: 'admin', go: (p) => p.goto(`${BASE}/staff-activity`), target: (p) => p.locator('tbody tr').filter({ hasText: 'Taylor Brooks' }).first(), label: 'Select a staff member' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/staff-activity`); await wait(p, 2500); await p.locator('tbody tr').filter({ hasText: 'Taylor Brooks' }).first().click(); await wait(p, 1500); }, target: (p) => btn(p, 'Deactivate account'), label: 'Deactivate account' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2500); await btn(p, 'Advanced Tools').click(); await wait(p, 1500); }, target: (p) => btn(p, 'Reactivate'), label: 'Reactivate' },
   ],
   'support-tickets': [
     { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Support tickets'), label: 'Support tickets' },

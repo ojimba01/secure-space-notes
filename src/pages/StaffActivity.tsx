@@ -24,11 +24,14 @@ import {
   Upload,
   User,
   Users,
+  UserX,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useCanViewStaffActivity } from '@/hooks/useCanViewStaffActivity';
+import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { DeactivateStaffDialog } from '@/components/DeactivateStaffDialog';
 import { visibleProfiles } from '@/lib/testAccounts';
 import { AREA_LABEL } from '@/lib/staffActivity';
 import {
@@ -188,6 +191,10 @@ export default function StaffActivity() {
   const [problem, setProblem] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'changes' | 'pages' | 'tasks'>('all');
+  // Only superadmins can deactivate an account.
+  const { isSuperadmin } = useIsSuperadmin();
+  const [deactivating, setDeactivating] = useState(false);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     if (!canView) return;
@@ -252,7 +259,7 @@ export default function StaffActivity() {
     return () => {
       cancelled = true;
     };
-  }, [range, canView]);
+  }, [range, canView, reload]);
 
   const byUser = useMemo(() => {
     const map = new Map<string, { visits: Visit[]; changes: Change[] }>();
@@ -308,8 +315,29 @@ export default function StaffActivity() {
               </p>
             </div>
           </div>
-          {rangePicker}
+          <div className="flex flex-wrap items-center gap-2">
+            {rangePicker}
+            {person && isSuperadmin && (
+              <Button variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={() => setDeactivating(true)}>
+                <UserX className="mr-1.5 h-4 w-4" />
+                Deactivate account
+              </Button>
+            )}
+          </div>
         </div>
+
+        {person && (
+          <DeactivateStaffDialog
+            open={deactivating}
+            onOpenChange={setDeactivating}
+            profileId={person.id}
+            name={staffName(person)}
+            onDeactivated={() => {
+              setSelected(null);
+              setReload((n) => n + 1);
+            }}
+          />
+        )}
 
         {problem && (
           <Card className="border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">{problem}</Card>

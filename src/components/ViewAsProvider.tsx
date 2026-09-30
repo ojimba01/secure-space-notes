@@ -63,6 +63,9 @@ export const ViewAsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
+/** Whether a preview is running, for hooks that may render outside the provider. */
+export const useIsPreviewing = (): boolean => !!useContext(ViewAsContext)?.isViewingAs;
+
 export const useViewAs = (): ViewAsState => {
   const ctx = useContext(ViewAsContext);
   if (!ctx) {

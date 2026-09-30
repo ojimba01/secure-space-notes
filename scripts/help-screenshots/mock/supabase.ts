@@ -57,7 +57,7 @@ const dataUrlBlob = (url: string) => {
 
 const rpcs: Record<string, (args: any) => any> = {
   can_view_staff_activity: () => who === ADMIN,
-  staff_activity_people: () => db.profiles.filter((p) => p.id !== ADMIN.profile),
+  staff_activity_people: () => db.profiles.filter((p) => p.id !== ADMIN.profile && p.active !== false),
   staff_activity_client_names: ({ _ids }: any) => db.clients.filter((c) => _ids.includes(c.id)).map((c) => ({ id: c.id, name: `${c.first_name} ${c.last_name}` })),
   staff_activity_changes: () => [],
   start_staff_activity: () => null,

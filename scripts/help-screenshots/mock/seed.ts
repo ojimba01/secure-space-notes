@@ -17,6 +17,8 @@ const staff = [
   { id: 'p-staff', user_id: 'u-staff', first_name: 'Taylor', last_name: 'Brooks', email: 'taylor.brooks@example.org', role: 'employee' },
   { id: 'p-riley', user_id: 'u-riley', first_name: 'Riley', last_name: 'Chen', email: 'riley.chen@example.org', role: 'employee' },
   { id: 'p-morgan', user_id: 'u-morgan', first_name: 'Morgan', last_name: 'Diaz', email: 'morgan.diaz@example.org', role: 'employee' },
+  // A deactivated account, for the reactivate guide.
+  { id: 'p-sam', user_id: 'u-sam', first_name: 'Sam', last_name: 'Ellis', email: 'sam.ellis@example.org', role: 'employee', active: false },
 ];
 
 interface C { f: string; l: string; mco: string; mem: string; owner: string; start: number; level?: string; status?: string; approval?: string; lapsed?: boolean }
@@ -160,7 +162,7 @@ export function seed(): Tables {
   }));
 
   return {
-    profiles: staff.map(({ role: _r, ...p }) => ({ ...p, active: true, created_at: at(-400), touchpoint_tutorial_acknowledged_at: at(-300), touchpoint_go_live_date: day(-300) })),
+    profiles: staff.map(({ role: _r, ...p }) => ({ active: true, ...p, created_at: at(-400), touchpoint_tutorial_acknowledged_at: at(-300), touchpoint_go_live_date: day(-300) })),
     user_roles: staff.map((s) => ({ id: `r-${s.id}`, user_id: s.user_id, role: s.role })),
     clients,
     client_authorizations: authorizations,

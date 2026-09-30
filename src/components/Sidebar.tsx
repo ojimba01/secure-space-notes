@@ -9,7 +9,6 @@ import {
   ClipboardList,
   Calendar,
   BookOpen,
-  Play,
   Menu,
   X,
   DollarSign,
@@ -286,17 +285,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
               )}
             </Button>
           )}
-          {/* One walkthrough, not two. The spotlight tour and the new-features
-              steps were separate buttons that a person had to choose between
-              without knowing the difference. */}
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2 text-primary"
-            onClick={() => window.dispatchEvent(new Event('show-new-features'))}
-          >
-            <Play className="h-4 w-4" />
-            Start walkthrough
-          </Button>
         </div>
 
         {/* Security Notice - Compact on mobile */}

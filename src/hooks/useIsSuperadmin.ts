@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsPreviewing } from '@/components/ViewAsProvider';
 
 export const useIsSuperadmin = () => {
   const { user } = useAuth();
@@ -34,5 +35,7 @@ export const useIsSuperadmin = () => {
     check();
   }, [user]);
 
-  return { isSuperadmin, loading };
+  // Nothing superadmin-only shows during a preview; see useIsAdmin.
+  const previewing = useIsPreviewing();
+  return { isSuperadmin: isSuperadmin && !previewing, loading };
 };

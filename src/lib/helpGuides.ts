@@ -251,6 +251,14 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
+    id: 'deactivate-staff', section: 'Managing the team', title: 'Deactivate or reactivate a staff account', audience: 'admins', minutes: 2,
+    steps: [
+      s('Open the staff member', 'In Staff activity, select the staff member.'),
+      s('Select Deactivate account', 'Select Deactivate account, then confirm. They can no longer sign in and are hidden from staff lists. Their open clients become unassigned, so reassign them. Nothing is deleted.'),
+      s('Reactivate an account', 'Open Advanced tools at the bottom of the left panel. Under Deactivated staff, select Reactivate next to their name.'),
+    ],
+  },
+  {
     id: 'support-tickets', section: 'Managing the team', title: 'Answer support tickets', audience: 'admins', minutes: 2,
     steps: [
       s('Open Support tickets', 'Select Support tickets in the left panel. The number shows open tickets.'),
@@ -314,7 +322,7 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Use the left panel', 'Clients, Forms, My touchpoints and Calendar hold your day-to-day work. Help guide is always here.'),
       s('Open your account', 'Select the person icon at the top of the panel to change your password, add a signature or link your calendar.'),
-      s('Take a tour', 'Select Start walkthrough for a short tour of the screen you are on.'),
+      s('Find help', 'Select Help guide for step-by-step instructions. To contact support, select Support in the bottom-right corner.'),
     ],
   },
   {
