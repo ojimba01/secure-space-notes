@@ -447,11 +447,11 @@ export function BillingWorkspace() {
         },
         {
           title:'Understand the Revenue section',
-          body:'The Revenue section shows revenue for the current month and the next five months.\n\nPotential 6 Month Revenue is the amount the agency may bill during this period.\n\nSubmitted is the value of claims that have been submitted.\n\nPending is the value of submitted claims for which payment has not been recorded as received.\n\nCollected is the amount recorded as paid.\n\nThe table shows these amounts by month. If a client’s level of need is missing, the system shows a range using both the Low and High billing rates.\n\nUse Analyze Lost and Pending Income to review billing cycles that have ended but were not submitted.',
+          body:'Revenue shows what this month has billed against what it is expected to bill, what was collected this month, and what is still waiting on the MCO.\n\nThe By month table covers the last two months, this month and the next three. Expected counts every cycle ending in the month at the client\u2019s rate; clients with no level of need are counted at the Low rate.\n\nUse Analyze lost and pending income to review billing cycles that have ended but were not submitted.',
           followUp:'Pending Income shows claims that have not been submitted but can still be submitted before the final authorization deadline.\n\nLost Income shows claims that were not submitted before the final authorization deadline and can no longer be billed.',
           selector:'[data-tour="revenue-section"]',
           done: practiceRevenueView==='recovery',
-          hint:'**Press Analyze Lost and Pending Income to continue.**',
+          hint:'**Press Analyze lost and pending income to continue.**',
           before:()=>{setSection('revenue');setPracticeRevenueView('projection');},
         },
       );

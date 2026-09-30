@@ -8,7 +8,6 @@ import { BillingClient } from '@/hooks/useBilling';
 import {
   BillingCycle,
   RATE_LOW,
-  RATE_HIGH,
   formatMoney,
   monthKey,
   rateForLevel,
@@ -18,7 +17,9 @@ import {
   finalDeadlineFor,
 } from '@/lib/billing';
 
-const REVENUE_MONTHS = 6;
+/** Two months back, this month, and three ahead. */
+const MONTHS_BACK = 2;
+const MONTHS_AHEAD = 3;
 
 const monthLabel = (key: string) =>
   new Date(`${key}-01T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -28,12 +29,14 @@ const dateLabel = (iso: string) =>
 
 interface MonthRow {
   key: string;
-  expectedLow: number;
-  expectedHigh: number;
-  submitted: number;
-  pending: number;
+  /** Every cycle ending in the month, at the client's rate. */
+  expected: number;
+  /** Of those, the ones filed. */
+  billed: number;
+  /** Of those, the ones paid. */
   collected: number;
-  assumedClients: number;
+  /** Filed and not paid yet. */
+  pending: number;
 }
 
 interface RecoveryItem {
@@ -55,13 +58,12 @@ interface MonthGroup {
   clients: ClientGroup[];
 }
 
-// Forward-looking revenue: the current month plus the next five. Historical
-// months are intentionally left out.
+// The months shown: the last two, this one and the next three.
 function monthWindow(today = todayAgency()): string[] {
   const start = toDate(`${monthKey(today)}-01`);
-  return Array.from({ length: REVENUE_MONTHS }, (_, i) => {
+  return Array.from({ length: MONTHS_BACK + 1 + MONTHS_AHEAD }, (_, i) => {
     const d = new Date(start);
-    d.setUTCMonth(d.getUTCMonth() + i);
+    d.setUTCMonth(d.getUTCMonth() + i - MONTHS_BACK);
     return d.toISOString().slice(0, 7);
   });
 }
@@ -117,34 +119,37 @@ export function RevenueTab({ clients, cycles, viewOverride, onViewChange }: {
 
   const clientById = useMemo(() => new Map(clients.map((c) => [c.id, c])), [clients]);
 
-  const { rows, assumedClientCount } = useMemo(() => {
-    const empty = (key: string): MonthRow => ({ key, expectedLow: 0, expectedHigh: 0, submitted: 0, pending: 0, collected: 0, assumedClients: 0 });
-    const byMonth = new Map(months.map((m) => [m, empty(m)]));
-    const inWindow = (key: string) => byMonth.get(key);
-    const assumedIds = new Set<string>();
+  const amountOf = (cycle: BillingCycle) =>
+    cycle.billed_amount ?? rateForLevel(clientById.get(cycle.client_id)?.level_of_need) ?? RATE_LOW;
 
-    // Cycles exist for every client with an approval start date, whether or not
-    // a level of need has been chosen. When it is missing the cycle is counted
-    // at the Low rate and the High rate to give a range.
+  const { rows, assumedClientCount, collectedThisMonth, waiting } = useMemo(() => {
+    const byMonth = new Map(months.map((m) => [m, { key: m, expected: 0, billed: 0, collected: 0, pending: 0 } as MonthRow]));
+    const assumedIds = new Set<string>();
+    const thisMonth = monthKey(today);
+    let collectedThisMonth = 0;
+    let waiting = 0;
+
     for (const cycle of cycles) {
-      const row = inWindow(monthKey(cycle.cycle_end));
-      if (!row) continue;
+      if (cycle.is_active === false) continue;
       const client = clientById.get(cycle.client_id);
-      const known = cycle.billed_amount ?? rateForLevel(client?.level_of_need);
-      const low = known ?? RATE_LOW;
-      const high = known ?? RATE_HIGH;
-      if (known == null && client) { assumedIds.add(client.id); row.assumedClients += 1; }
-      row.expectedLow += low;
-      row.expectedHigh += high;
-      row.collected += cycle.paid_amount ?? 0;
-      if (cycle.billing_status === 'Submitted') {
-        row.submitted += low;
-        // Pending = the claim went out but payment has not been marked received.
-        if (cycle.payment_status !== 'Paid') row.pending += Math.max(low - (cycle.paid_amount ?? 0), 0);
+      const amount = amountOf(cycle);
+      const filed = cycle.billing_status === 'Submitted' || cycle.payment_status === 'Paid';
+      const paid = cycle.payment_status === 'Paid';
+      if (filed && !paid) waiting += amount;
+      if (paid && cycle.paid_date && monthKey(cycle.paid_date) === thisMonth) {
+        collectedThisMonth += cycle.paid_amount || amount;
       }
+      const row = byMonth.get(monthKey(cycle.cycle_end));
+      if (!row) continue;
+      if (cycle.billed_amount == null && rateForLevel(client?.level_of_need) == null && client) assumedIds.add(client.id);
+      row.expected += amount;
+      if (filed) row.billed += amount;
+      if (paid) row.collected += cycle.paid_amount || amount;
+      else if (filed) row.pending += amount;
     }
 
-    return { rows: months.map((m) => byMonth.get(m)!), assumedClientCount: assumedIds.size };
+    return { rows: months.map((m) => byMonth.get(m)!), assumedClientCount: assumedIds.size, collectedThisMonth, waiting };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientById, cycles, months, today]);
 
   // Every cycle whose service window has ended without a submitted claim.
@@ -175,27 +180,6 @@ export function RevenueTab({ clients, cycles, viewOverride, onViewChange }: {
       claimableTotal: claimable.reduce((s, r) => s + r.amount, 0),
     };
   }, [clientById, cycles, today]);
-
-  const total = rows.reduce(
-    (a, r) => ({
-      expectedLow: a.expectedLow + r.expectedLow,
-      expectedHigh: a.expectedHigh + r.expectedHigh,
-      submitted: a.submitted + r.submitted,
-      pending: a.pending + r.pending,
-      collected: a.collected + r.collected,
-    }),
-    { expectedLow: 0, expectedHigh: 0, submitted: 0, pending: 0, collected: 0 },
-  );
-
-  const allLevelsKnown = assumedClientCount === 0;
-  const highCell = (row: MonthRow | null) => {
-    if (allLevelsKnown) return '—';
-    return formatMoney(row ? row.expectedHigh : total.expectedHigh);
-  };
-
-  const rangeLabel = !allLevelsKnown && total.expectedHigh > total.expectedLow
-    ? `${formatMoney(total.expectedLow)} – ${formatMoney(total.expectedHigh)}`
-    : formatMoney(total.expectedLow);
 
   const clientName = (id: string) => {
     const c = clientById.get(id);
@@ -343,79 +327,89 @@ export function RevenueTab({ clients, cycles, viewOverride, onViewChange }: {
 
   }
 
+  const thisMonth = monthKey(today);
+  const current = rows.find((r) => r.key === thisMonth);
+  const max = Math.max(1, ...rows.map((r) => r.expected));
+  const monthName = (key: string) => new Date(`${key}-01T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+
   return <div className="space-y-4" data-tour="revenue-section">
-    <Card className="p-4">
-      <h2 className="font-semibold">Next {REVENUE_MONTHS} months revenue</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Covers {monthLabel(months[0])} through {monthLabel(months[months.length - 1])}. Historical revenue is not included.
-        A Low level cycle bills {formatMoney(RATE_LOW)} and a High level cycle bills {formatMoney(RATE_HIGH)}.
-        {assumedClientCount > 0 && ` ${assumedClientCount} client${assumedClientCount === 1 ? '' : 's'} still ${assumedClientCount === 1 ? 'needs' : 'need'} a level of need. Their cycles are counted at the Low rate in the Low column and the High rate in the High column.`}
-      </p>
-    </Card>
-
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-
+    <div className="grid gap-3 md:grid-cols-3">
       <Card className="p-4">
-        <div className="text-sm text-muted-foreground">Potential 6 month revenue</div>
-        <div className="mt-1 text-2xl font-bold">{rangeLabel}</div>
+        <div className="text-sm text-muted-foreground">{monthName(thisMonth)} so far</div>
+        <div className="mt-1 text-2xl font-bold tabular-nums">
+          {formatMoney(current?.billed ?? 0)} <span className="text-sm font-normal text-muted-foreground">billed</span>
+        </div>
+        <div className="mt-1 text-xs tabular-nums text-muted-foreground">of {formatMoney(current?.expected ?? 0)} expected this month</div>
       </Card>
       <Card className="p-4">
-        <div className="text-sm text-muted-foreground">Submitted</div>
-        <div className="mt-1 text-2xl font-bold text-green-700">{formatMoney(total.submitted)}</div>
+        <div className="text-sm text-muted-foreground">Collected in {monthName(thisMonth)}</div>
+        <div className="mt-1 text-2xl font-bold tabular-nums text-green-700">{formatMoney(collectedThisMonth)}</div>
+        <div className="mt-1 text-xs text-muted-foreground">Claims marked paid this month.</div>
       </Card>
       <Card className="p-4">
-        <div className="text-sm text-muted-foreground">Pending</div>
-        <div className="mt-1 text-2xl font-bold text-amber-700">{formatMoney(total.pending)}</div>
-        <div className="mt-1 text-xs text-muted-foreground">Submitted, payment not marked received.</div>
-      </Card>
-      <Card className="p-4">
-        <div className="text-sm text-muted-foreground">Collected</div>
-        <div className="mt-1 text-2xl font-bold text-green-700">{formatMoney(total.collected)}</div>
+        <div className="text-sm text-muted-foreground">Waiting on the MCO</div>
+        <div className="mt-1 text-2xl font-bold tabular-nums text-amber-700">{formatMoney(waiting)}</div>
+        <div className="mt-1 text-xs text-muted-foreground">Filed, not paid yet, all months.</div>
       </Card>
     </div>
 
-    <Card className="overflow-x-auto">
-      <table className="w-full min-w-[720px] text-sm">
-        <thead className="bg-slate-100 text-left">
-          <tr>
-            <th rowSpan={2} className="p-3 align-bottom font-semibold">Month</th>
-            <th colSpan={2} className="border-b border-slate-200 p-3 text-center font-semibold">Monthly Revenue Range</th>
-            <th rowSpan={2} className="p-3 align-bottom font-semibold">Submitted</th>
-            <th rowSpan={2} className="p-3 align-bottom font-semibold">Pending</th>
-            <th rowSpan={2} className="p-3 align-bottom font-semibold">Collected</th>
-          </tr>
-          <tr>
-            <th className="px-3 pb-2 text-center font-semibold">Low</th>
-            <th className="px-3 pb-2 text-center font-normal text-muted-foreground">High</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(r => <tr key={r.key} className="border-t">
-            <td className="p-3 font-medium">{monthLabel(r.key)}</td>
-            <td className="p-3 text-center">{formatMoney(r.expectedLow)}</td>
-            <td className="p-3 text-center text-muted-foreground">{highCell(r)}</td>
-            <td className="p-3">{formatMoney(r.submitted)}</td>
-            <td className={`p-3 ${r.pending > 0 ? 'font-medium text-amber-700' : ''}`}>{formatMoney(r.pending)}</td>
-            <td className="p-3">{formatMoney(r.collected)}</td>
-          </tr>)}
-          <tr className="border-t bg-slate-50 font-semibold">
-            <td className="p-3">Total</td>
-            <td className="p-3 text-center">{formatMoney(total.expectedLow)}</td>
-            <td className="p-3 text-center font-normal text-muted-foreground">{highCell(null)}</td>
-            <td className="p-3">{formatMoney(total.submitted)}</td>
-            <td className="p-3 text-amber-700">{formatMoney(total.pending)}</td>
-            <td className="p-3">{formatMoney(total.collected)}</td>
-          </tr>
-        </tbody>
-      </table>
+    <Card className="overflow-hidden">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-3">
+        <h2 className="font-semibold">By month</h2>
+        <p className="text-sm text-muted-foreground">Expected revenue includes every cycle ending in the month, at the client's rate.</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 font-medium">Month</th>
+              <th className="px-3 py-2 font-medium">Expected</th>
+              <th className="px-3 py-2"><span className="sr-only">Billed against expected</span></th>
+              <th className="px-3 py-2 font-medium">Billed</th>
+              <th className="px-3 py-2 font-medium">Collected</th>
+              <th className="px-3 py-2 font-medium">Pending</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const future = r.key > thisMonth;
+              const dash = <span className="text-muted-foreground">—</span>;
+              return <tr key={r.key} className="border-t">
+                <td className="whitespace-nowrap px-3 py-2.5 font-semibold">
+                  {monthLabel(r.key)}
+                  {r.key === thisMonth && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">This month</span>}
+                </td>
+                <td className="px-3 py-2.5 tabular-nums">{formatMoney(r.expected)}</td>
+                <td className="px-3 py-2.5">
+                  <div className="h-2 min-w-[120px] overflow-hidden rounded bg-muted" title="Billed against expected">
+                    <div className="h-full bg-primary" style={{ width: `${Math.round((100 * r.billed) / max)}%` }} />
+                  </div>
+                  <div className="mt-1 h-2 min-w-[120px] overflow-hidden rounded bg-muted">
+                    <div className="h-full bg-slate-300" style={{ width: `${Math.round((100 * r.expected) / max)}%` }} />
+                  </div>
+                </td>
+                <td className="px-3 py-2.5 tabular-nums">{future ? dash : formatMoney(r.billed)}</td>
+                <td className="px-3 py-2.5 tabular-nums">{future ? dash : formatMoney(r.collected)}</td>
+                <td className={`px-3 py-2.5 tabular-nums ${!future && r.pending > 0 ? 'font-medium text-amber-700' : ''}`}>{future ? dash : formatMoney(r.pending)}</td>
+              </tr>;
+            })}
+          </tbody>
+        </table>
+      </div>
+      {assumedClientCount > 0 && (
+        <p className="border-t px-4 py-3 text-sm text-muted-foreground">
+          <span className="mr-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+            {assumedClientCount} client{assumedClientCount === 1 ? '' : 's'}
+          </span>
+          {assumedClientCount === 1 ? 'has' : 'have'} no level of need recorded and {assumedClientCount === 1 ? 'is' : 'are'} calculated at the Low rate ({formatMoney(RATE_LOW)} per cycle). Add a level of need for an exact figure.
+        </p>
+      )}
     </Card>
 
     <div className="flex flex-wrap gap-3">
-      <Button data-tour="analyze-income" onClick={() => setView('recovery')} className="bg-blue-600 text-white shadow-sm hover:bg-blue-700">
-        Analyze Lost and Pending Income
+      <Button data-tour="analyze-income" variant="outline" onClick={() => setView('recovery')}>
+        Analyze lost and pending income
       </Button>
-      <Button variant="outline" disabled>Historical income (coming soon)</Button>
     </div>
-
   </div>;
 }
