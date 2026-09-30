@@ -2140,6 +2140,63 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_activity: {
+        Row: {
+          active_seconds: number
+          area: string
+          client_id: string | null
+          id: string
+          kind: string
+          label: string
+          last_seen_at: string
+          outcome: string | null
+          profile_id: string | null
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          active_seconds?: number
+          area: string
+          client_id?: string | null
+          id?: string
+          kind: string
+          label: string
+          last_seen_at?: string
+          outcome?: string | null
+          profile_id?: string | null
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          active_seconds?: number
+          area?: string
+          client_id?: string | null
+          id?: string
+          kind?: string
+          label?: string
+          last_seen_at?: string
+          outcome?: string | null
+          profile_id?: string | null
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_activity_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_activity_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_signatures: {
         Row: {
           created_at: string
@@ -2172,6 +2229,64 @@ export type Database = {
           {
             foreignKeyName: "staff_signatures_profile_id_fkey"
             columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      touchpoint_reminders: {
+        Row: {
+          client_id: string
+          completed_at: string | null
+          completed_how: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          note: string | null
+          sent_by: string | null
+          snoozed_until: string | null
+        }
+        Insert: {
+          client_id: string
+          completed_at?: string | null
+          completed_how?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          note?: string | null
+          sent_by?: string | null
+          snoozed_until?: string | null
+        }
+        Update: {
+          client_id?: string
+          completed_at?: string | null
+          completed_how?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          note?: string | null
+          sent_by?: string | null
+          snoozed_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "touchpoint_reminders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "touchpoint_reminders_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "touchpoint_reminders_sent_by_fkey"
+            columns: ["sent_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2352,6 +2467,29 @@ export type Database = {
         Args: { _make_admin: boolean; _profile_id: string }
         Returns: undefined
       }
+      staff_activity_changes: {
+        Args: { _client_id?: string; _from: string; _to: string }
+        Returns: {
+          action: string
+          changed: string[]
+          client_id: string
+          created_at: string
+          details: Json
+          id: string
+          record_id: string
+          table_name: string
+          user_id: string
+        }[]
+      }
+      start_staff_activity: {
+        Args: {
+          _area: string
+          _client_id?: string
+          _kind: string
+          _label: string
+        }
+        Returns: string
+      }
       sync_client_billing_cycles: {
         Args: { p_client_id: string }
         Returns: number
@@ -2359,6 +2497,10 @@ export type Database = {
       sync_client_billing_cycles_authorized: {
         Args: { p_client_id: string }
         Returns: number
+      }
+      touch_staff_activity: {
+        Args: { _add_seconds: number; _id: string; _outcome?: string }
+        Returns: undefined
       }
     }
     Enums: {
