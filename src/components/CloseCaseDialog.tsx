@@ -107,7 +107,7 @@ export const CloseCaseDialog: React.FC<Props> = ({
       return;
     }
     if (!reason) {
-      toast({ title: 'Choose a reason for closing', variant: 'destructive' });
+      toast({ title: 'Select a reason', variant: 'destructive' });
       return;
     }
     const finalReason = reason === 'Other' ? reasonOther.trim() || 'Other' : reason;
@@ -132,19 +132,19 @@ export const CloseCaseDialog: React.FC<Props> = ({
       // the case back exactly as it was.
       toast({
         title: 'Case closed',
-        description: `${clientName} is no longer an open case. Nothing has been deleted.`,
+        description: `${clientName} has been closed.`,
         action: (
           <ToastAction
-            altText="Undo closing the case"
+            altText="Undo close"
             onClick={async () => {
               try {
                 await restoreClosedCase(clientId);
-                toast({ title: 'Case restored', description: `${clientName} is open again, exactly as before.` });
+                toast({ title: 'Case restored', description: `${clientName} has been reopened.` });
                 onClosed();
               } catch (e) {
                 toast({
-                  title: 'Could not undo',
-                  description: `${e instanceof Error ? e.message : String(e)} An administrator can reopen the case from Clients.`,
+                  title: 'Unable to undo',
+                  description: 'An administrator can reopen the case from Clients.',
                   variant: 'destructive',
                 });
               }
@@ -157,7 +157,7 @@ export const CloseCaseDialog: React.FC<Props> = ({
       onOpenChange(false);
       onClosed();
     } catch (err: any) {
-      toast({ title: 'Could not close the case', description: err.message, variant: 'destructive' });
+      toast({ title: 'Unable to close case', description: err.message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -167,29 +167,26 @@ export const CloseCaseDialog: React.FC<Props> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Close this case?</DialogTitle>
+          <DialogTitle>Close case</DialogTitle>
           <DialogDescription>
-            {clientName} stops appearing as work: no next step, no touchpoints to make. The record,
-            forms, notes and billing history all stay exactly as they are, and an administrator can
-            reopen the case.
+            {clientName}. Touchpoints stop and the case moves to Closed. Records are kept, and an
+            administrator can reopen the case.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {!isAdmin && (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-              <span className="font-medium">This is the last you will see of this client.</span> A
-              closed case is visible to administrators only, so {clientName} leaves your client
-              list, your calendar and your documents as soon as you close it. Nothing is deleted,
-              and an administrator can reopen the case.
+              <span className="font-medium">You will lose access to this client.</span> Closed
+              cases are visible to administrators only.
             </div>
           )}
 
           <div className="space-y-2">
-            <Label>Reason for closing</Label>
+            <Label>Reason</Label>
             <Select value={reason} onValueChange={setReason}>
               <SelectTrigger>
-                <SelectValue placeholder="Choose a reason" />
+                <SelectValue placeholder="Select a reason" />
               </SelectTrigger>
               <SelectContent>
                 {REASON_OPTIONS.map((r) => (
@@ -219,13 +216,13 @@ export const CloseCaseDialog: React.FC<Props> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="close-notes">Closing note (optional)</Label>
+            <Label htmlFor="close-notes">Note</Label>
             <Textarea
               id="close-notes"
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Notes for the record"
+              placeholder="Optional"
             />
           </div>
 
@@ -240,13 +237,12 @@ export const CloseCaseDialog: React.FC<Props> = ({
               {outstanding > 0 ? (
                 <>
                   <span className="font-medium">
-                    {outstanding} billing cycle{outstanding === 1 ? '' : 's'} can still be filed.
+                    {outstanding} billing cycle{outstanding === 1 ? '' : 's'} can still be billed.
                   </span>{' '}
-                  Closing does not change that — they stay in Billing until they are submitted or
-                  their six-month window closes.
+                  {outstanding === 1 ? 'It remains' : 'They remain'} in Billing until submitted or past the filing deadline.
                 </>
               ) : (
-                'No billing cycles are outstanding for this client.'
+                'No outstanding billing cycles.'
               )}
             </div>
           )}

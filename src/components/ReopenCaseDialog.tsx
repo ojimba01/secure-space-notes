@@ -110,11 +110,11 @@ export const ReopenCaseDialog: React.FC<Props> = ({
 
   const reopen = async () => {
     if (newRound && !start) {
-      toast({ title: 'Enter the new 30-day start date', variant: 'destructive' });
+      toast({ title: 'Enter a 30-day start date', variant: 'destructive' });
       return;
     }
     if (!assignee) {
-      toast({ title: 'Choose a case manager', variant: 'destructive' });
+      toast({ title: 'Select a case manager', variant: 'destructive' });
       return;
     }
     setSaving(true);
@@ -171,13 +171,13 @@ export const ReopenCaseDialog: React.FC<Props> = ({
       toast({
         title: 'Case reopened',
         description: newRound
-          ? `${clientName} is active again on a new 30-day authorization. Their earlier forms and billing are unchanged.`
-          : `${clientName} is back exactly as they were.`,
+          ? `${clientName} is active with a new 30-day authorization.`
+          : `${clientName} has been restored.`,
       });
       close(false);
       onReopened();
     } catch (err: any) {
-      toast({ title: 'Could not reopen the case', description: err.message, variant: 'destructive' });
+      toast({ title: 'Unable to reopen case', description: err.message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -187,10 +187,9 @@ export const ReopenCaseDialog: React.FC<Props> = ({
     <Dialog open={open} onOpenChange={close}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Reopen {clientName}</DialogTitle>
+          <DialogTitle>Reopen case</DialogTitle>
           <DialogDescription>
-            Choose who takes the case and why it is being reopened. Their earlier forms,
-            documents and billing are never changed.
+            {clientName}. Select a case manager and a reason.
           </DialogDescription>
         </DialogHeader>
 
@@ -199,7 +198,7 @@ export const ReopenCaseDialog: React.FC<Props> = ({
             <Label htmlFor="reopen-assignee">Case manager</Label>
             <Select value={assignee} onValueChange={setAssignee}>
               <SelectTrigger id="reopen-assignee">
-                <SelectValue placeholder="Choose a case manager" />
+                <SelectValue placeholder="Select a case manager" />
               </SelectTrigger>
               <SelectContent>
                 {managers.map((m) => (
@@ -209,12 +208,12 @@ export const ReopenCaseDialog: React.FC<Props> = ({
             </Select>
             {currentEmployeeId && !managers.some((m) => m.id === currentEmployeeId) && managers.length > 0 && (
               <p className="text-xs text-amber-700">
-                The previous case manager is no longer active. Choose who takes this case.
+                The previous case manager is inactive. Select a new case manager.
               </p>
             )}
           </div>
 
-          <div className="space-y-2" role="radiogroup" aria-label="Why is this case being reopened?">
+          <div className="space-y-2" role="radiogroup" aria-label="Reason for reopening">
             <button
               type="button"
               role="radio"
@@ -222,9 +221,9 @@ export const ReopenCaseDialog: React.FC<Props> = ({
               onClick={() => setNewRound(false)}
               className={`w-full rounded-md border p-3 text-left text-sm ${!newRound ? 'border-primary bg-primary/5' : ''}`}
             >
-              <span className="font-medium">Closed by mistake or too early</span>
+              <span className="font-medium">Closed in error</span>
               <span className="block text-xs text-muted-foreground">
-                Restores the case exactly as it was: same authorizations, dates, forms and billing. Nothing new is needed.
+                Restore the case with its existing authorizations.
               </span>
             </button>
             <button
@@ -234,9 +233,9 @@ export const ReopenCaseDialog: React.FC<Props> = ({
               onClick={() => setNewRound(true)}
               className={`w-full rounded-md border p-3 text-left text-sm ${newRound ? 'border-primary bg-primary/5' : ''}`}
             >
-              <span className="font-medium">Came back on a new referral</span>
+              <span className="font-medium">New referral</span>
               <span className="block text-xs text-muted-foreground">
-                Starts a new 30-day authorization on top of the old ones.
+                Start a new 30-day authorization.
               </span>
             </button>
           </div>
@@ -244,7 +243,7 @@ export const ReopenCaseDialog: React.FC<Props> = ({
           {newRound && (
             <div className="space-y-3 rounded-md border border-dashed p-3">
               <div className="space-y-1.5">
-                <Label htmlFor="reopen-start">New 30-day start date</Label>
+                <Label htmlFor="reopen-start">30-day start date</Label>
                 <Input
                   id="reopen-start"
                   type="date"
@@ -252,20 +251,20 @@ export const ReopenCaseDialog: React.FC<Props> = ({
                   onChange={(e) => setStart(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  The IAT date for this round. Billing cycles and touchpoints are counted from it.
+                  Used for billing cycles and touchpoints.
                 </p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="reopen-number">30-day authorization number</Label>
+                <Label htmlFor="reopen-number">Authorization number</Label>
                 <Input
                   id="reopen-number"
                   value={number}
                   onChange={(e) => setNumber(e.target.value)}
-                  placeholder="Add it later if you do not have it yet"
+                  placeholder="Optional"
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                A new IAT, LON and HSP are needed for this round. Add them on the Forms tab.
+                Submit a new IAT, LON, and HSP on the Forms tab.
               </p>
             </div>
           )}
@@ -276,7 +275,7 @@ export const ReopenCaseDialog: React.FC<Props> = ({
             Cancel
           </Button>
           <Button onClick={reopen} disabled={saving || !assignee}>
-            {saving ? 'Reopening' : 'Reopen case'}
+            {saving ? 'Reopening…' : 'Reopen case'}
           </Button>
         </DialogFooter>
       </DialogContent>
