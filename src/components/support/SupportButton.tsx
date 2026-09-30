@@ -67,6 +67,17 @@ export const SupportButton: React.FC = () => {
     setTickets(await loadMyTickets(user.id));
   }, [user]);
 
+  // Other pages can open the panel, such as Contact support in the Help guide.
+  useEffect(() => {
+    const show = () => {
+      setTab('new');
+      setViewing(null);
+      setOpen(true);
+    };
+    window.addEventListener('open-support', show);
+    return () => window.removeEventListener('open-support', show);
+  }, []);
+
   // Look for replies on load and every few minutes, for the dot on the button.
   useEffect(() => {
     void refresh();

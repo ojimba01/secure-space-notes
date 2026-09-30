@@ -12,7 +12,7 @@ import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import Billing from "./pages/Billing";
 import ResetPassword from "./pages/ResetPassword";
-import Onboarding from "./pages/Onboarding";
+import HelpGuide from "./pages/HelpGuide";
 import NotFound from "./pages/NotFound";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { lazy, Suspense } from "react";
@@ -107,7 +107,7 @@ const App = () => (
                 }
               />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/onboarding" element={<HelpGuide />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             </ErrorBoundary>
