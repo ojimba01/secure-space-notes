@@ -33,7 +33,7 @@ import { useTaskActivity } from '@/hooks/useStaffActivity';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { Download, Maximize2, Minimize2, Upload, X, ZoomIn, ZoomOut } from 'lucide-react';
-import type { FormType } from '@/lib/formSigning';
+import { COMPLETED_STATUS, type FormType } from '@/lib/formSigning';
 import type { FormRow } from '@/components/forms/FormsHub';
 import {
   extractPdfFieldValues,
@@ -472,7 +472,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             file_path: filePath,
             file_size: blob.size,
             file_hash: fileHash,
-            status: asDraft ? 'draft' : 'approved',
+            status: asDraft ? 'draft' : COMPLETED_STATUS,
             signature_name: asDraft ? null : signerName,
             signed_by: asDraft ? null : profileId,
             signed_at: asDraft ? null : new Date().toISOString(),
@@ -500,7 +500,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             original_file_path: filePath,
             file_size: blob.size,
             file_hash: fileHash,
-            status: asDraft ? 'draft' : 'approved',
+            status: asDraft ? 'draft' : COMPLETED_STATUS,
             workflow_purpose: workflowPurpose ?? null,
             authorization_id: authorizationId ?? null,
             signature_name: asDraft ? null : signerName,
@@ -586,8 +586,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       const raw = err?.message ?? '';
       toast({
         title: 'Could not submit the form',
+        // Permission errors used to be reported as the client not being
+        // assigned, whatever the reason. Say what the database said.
         description: raw.includes('row-level security')
-          ? 'You can only submit forms for clients assigned to you. Ask an administrator to assign this client to you first.'
+          ? `You don't have permission to save this form for this client. If this client is assigned to you, report this message using Support. (${raw})`
           : raw,
         variant: 'destructive',
       });

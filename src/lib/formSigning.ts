@@ -49,8 +49,14 @@ export const FORM_STATUS_CLASS: Record<string, string> = {
   changes_requested: 'bg-amber-100 text-amber-900',
 };
 
-/** The value a completed form is saved with. */
-export const COMPLETED_STATUS = 'approved';
+/**
+ * The value a completed form is saved with.
+ *
+ * "submitted", not "approved": the database lets staff save a form as a draft
+ * or submitted, and keeps "approved" for administrators. Both read as
+ * Completed everywhere in the app.
+ */
+export const COMPLETED_STATUS = 'submitted';
 
 /** EXTERNAL status — where the document sits with the MCO. */
 export const EXTERNAL_STATUSES = [

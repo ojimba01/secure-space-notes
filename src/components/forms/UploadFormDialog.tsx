@@ -26,7 +26,7 @@ import { FileDropZone } from '@/components/FileDropZone';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 
-import { FORM_TYPES, STAFF_SELECTABLE_TYPES } from '@/lib/formSigning';
+import { COMPLETED_STATUS, FORM_TYPES, STAFF_SELECTABLE_TYPES } from '@/lib/formSigning';
 import { startDocumentQueue } from '@/lib/documentQueue';
 import { suggestDocumentName, tagsFromFilename, extensionOf } from '@/lib/documentNaming';
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
@@ -262,7 +262,7 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
           original_file_path: filePath,
           file_size: file.size,
           file_hash: fileHash,
-          status: 'approved',
+          status: COMPLETED_STATUS,
           source: 'manual_upload',
           source_filename: saveAs.trim() || file.name,
           signature_name: signerName,
@@ -307,8 +307,10 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
       const raw = err?.message ?? '';
       toast({
         title: 'Could not submit the form',
+        // Permission errors used to be reported as the client not being
+        // assigned, whatever the reason. Say what the database said.
         description: raw.includes('row-level security')
-          ? 'You can only submit forms for clients assigned to you. Ask an administrator to assign this client to you first.'
+          ? `You don't have permission to save this form for this client. If this client is assigned to you, report this message using Support. (${raw})`
           : raw,
         variant: 'destructive',
       });
