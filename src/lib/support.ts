@@ -33,6 +33,8 @@ export interface Attachment {
 export interface Ticket {
   id: string;
   created_by: string;
+  /** Empty on requests sent before titles existed. */
+  title: string | null;
   message: string;
   page_url: string | null;
   status: TicketStatus;
@@ -54,7 +56,7 @@ export interface TicketMessage {
 }
 
 const TICKET_COLUMNS =
-  'id, created_by, message, page_url, status, attachments, created_at, updated_at, requester_seen_at, last_support_reply_at';
+  'id, created_by, title, message, page_url, status, attachments, created_at, updated_at, requester_seen_at, last_support_reply_at';
 
 /** A ticket has a reply the person has not read yet. */
 export const hasNewReply = (t: Ticket) =>
@@ -85,9 +87,17 @@ export async function notifySupport(ticketId: string, messageId?: string): Promi
   }
 }
 
-export async function openTicket(message: string, attachments: Attachment[]): Promise<Ticket> {
+/** The title to show for a ticket: its own, or the start of the message for older ones. */
+export const ticketTitle = (t: Pick<Ticket, 'title' | 'message'>): string => {
+  if (t.title?.trim()) return t.title.trim();
+  const first = t.message.trim().split('\n')[0];
+  return first.length > 60 ? `${first.slice(0, 57)}…` : first;
+};
+
+export async function openTicket(title: string, message: string, attachments: Attachment[]): Promise<Ticket> {
   const { data, error } = await db('support_tickets')
     .insert({
+      title: title.trim(),
       message: message.trim(),
       attachments,
       page_url: window.location.href,

@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
   // Read through the caller's login: a ticket they cannot see is not found.
   const { data: ticket } = await asCaller
     .from('support_tickets')
-    .select('id, created_by, message, page_url, status, attachments, created_at')
+    .select('id, created_by, title, message, page_url, status, attachments, created_at')
     .eq('id', body.ticketId)
     .maybeSingle();
   if (!ticket) return Response.json({ sent: false, reason: 'Not found' }, { status: 404, headers: cors });
@@ -93,10 +93,14 @@ Deno.serve(async (req) => {
   }
 
   const text = message ? message.body : ticket.message;
-  const subject = message ? `Support reply from ${who}` : `New support request from ${who}`;
+  const title = (ticket.title ?? '').trim();
+  const subject = message
+    ? `Support reply from ${who}${title ? `: ${title}` : ''}`
+    : `New support request from ${who}${title ? `: ${title}` : ''}`;
   const html = `
     <div style="font-family:Arial,sans-serif;font-size:14px;color:#111">
       <p><strong>${esc(who)}</strong>${person?.email ? ` (${esc(person.email)})` : ''} ${message ? 'replied to a support request' : 'opened a support request'}.</p>
+      ${title ? `<p style="font-size:16px"><strong>${esc(title)}</strong></p>` : ''}
       <blockquote style="border-left:3px solid #ccc;margin:0;padding:4px 12px;white-space:pre-wrap">${esc(text)}</blockquote>
       ${ticket.page_url ? `<p style="color:#555">Page: ${esc(ticket.page_url)}</p>` : ''}
       ${links.length ? `<p>Attachments (links expire in 7 days):</p><ul>${links.join('')}</ul>` : ''}

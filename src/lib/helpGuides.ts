@@ -328,9 +328,9 @@ export const GUIDES: Guide[] = [
     id: 'support', section: 'Getting started', title: 'Get help from support', audience: 'everyone', minutes: 2,
     steps: [
       s('Select Support', 'The Support button is in the bottom-right corner of every page.'),
-      s('Describe the problem', 'Say what you were trying to do and what happened.'),
+      s('Describe the problem', 'Enter a short title, then describe what you were trying to do and what happened.'),
       s('Show the problem', 'Select Screenshot to circle the problem on the page, Record screen to record up to 3 minutes, or Attach file.'),
-      s('Send it', 'Select Send to support. Replies appear under My requests.'),
+      s('Send it', 'Select Send to support. Your requests are listed by title under My requests, where replies also appear.'),
     ],
   },
 ];

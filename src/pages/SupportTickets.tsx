@@ -28,6 +28,7 @@ import {
   STATUS_LABEL,
   type Ticket,
   type TicketStatus,
+  ticketTitle,
 } from '@/lib/support';
 
 type Filter = 'active' | TicketStatus | 'all';
@@ -159,14 +160,13 @@ export default function SupportTickets() {
                   className={`block w-full p-3 text-left hover:bg-muted/40 ${t.id === selectedId ? 'bg-muted/60' : ''}`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-medium">{names[t.created_by] ?? 'Staff member'}</span>
+                    <span className="truncate text-sm font-medium">{ticketTitle(t)}</span>
                     <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs ${STATUS_CLASS[t.status]}`}>
                       {STATUS_LABEL[t.status]}
                     </span>
                   </div>
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{t.message}</p>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {format(new Date(t.created_at), "MMM d 'at' h:mm a")}
+                    {names[t.created_by] ?? 'Staff member'} · {format(new Date(t.created_at), "MMM d 'at' h:mm a")}
                     {t.attachments.length > 0 && ` · ${t.attachments.length} attachment${t.attachments.length === 1 ? '' : 's'}`}
                   </div>
                 </button>
@@ -182,9 +182,9 @@ export default function SupportTickets() {
                     <ArrowLeft className="mr-1 h-4 w-4" />
                     All tickets
                   </Button>
-                  <div className="font-semibold">{names[selected.created_by] ?? 'Staff member'}</div>
+                  <div className="font-semibold">{ticketTitle(selected)}</div>
                   <div className="text-xs text-muted-foreground">
-                    Sent {format(new Date(selected.created_at), "MMM d, yyyy 'at' h:mm a")}
+                    {names[selected.created_by] ?? 'Staff member'} · Sent {format(new Date(selected.created_at), "MMM d, yyyy 'at' h:mm a")}
                   </div>
                   {selected.page_url && (
                     <div className="mt-1 break-all text-xs text-muted-foreground">Page: {selected.page_url}</div>

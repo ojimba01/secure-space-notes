@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/components/AuthProvider';
@@ -32,6 +33,7 @@ import {
   uploadAttachment,
   type Attachment,
   type Ticket,
+  ticketTitle,
 } from '@/lib/support';
 
 /** Longest recording, so a forgotten one does not run on. */
@@ -51,6 +53,7 @@ export const SupportButton: React.FC = () => {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'new' | 'mine'>('new');
+  const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [pending, setPending] = useState<Pending[]>([]);
   const [sending, setSending] = useState(false);
@@ -161,6 +164,10 @@ export const SupportButton: React.FC = () => {
   };
 
   const send = async () => {
+    if (!title.trim()) {
+      toast({ title: 'Enter a title', variant: 'destructive' });
+      return;
+    }
     if (!message.trim()) {
       toast({ title: 'Describe the issue before sending', variant: 'destructive' });
       return;
@@ -169,9 +176,10 @@ export const SupportButton: React.FC = () => {
     try {
       const attachments: Attachment[] = [];
       for (const p of pending) attachments.push(await uploadAttachment(user.id, p.blob, p.kind, p.name));
-      await openTicket(message, attachments);
+      await openTicket(title, message, attachments);
       pending.forEach((p) => p.preview && URL.revokeObjectURL(p.preview));
       setPending([]);
+      setTitle('');
       setMessage('');
       await refresh();
       setTab('mine');
@@ -249,6 +257,7 @@ export const SupportButton: React.FC = () => {
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
               {viewing ? (
                 <div className="space-y-3">
+                  <h3 className="font-semibold">{ticketTitle(viewing)}</h3>
                   <span className={`rounded-md px-2 py-0.5 text-xs ${STATUS_CLASS[viewing.status]}`}>
                     {STATUS_LABEL[viewing.status]}
                   </span>
@@ -256,7 +265,15 @@ export const SupportButton: React.FC = () => {
                 </div>
               ) : tab === 'new' ? (
                 <div className="space-y-3">
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Title"
+                    aria-label="Title"
+                    maxLength={100}
+                  />
                   <Textarea
+                    aria-label="Description"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Describe the issue. What were you trying to do, and what happened?"
@@ -346,7 +363,7 @@ export const SupportButton: React.FC = () => {
                           {format(new Date(t.created_at), 'MMM d')}
                         </span>
                       </div>
-                      <p className="mt-1.5 line-clamp-2 text-sm">{t.message}</p>
+                      <p className="mt-1.5 truncate text-sm font-medium">{ticketTitle(t)}</p>
                       {hasNewReply(t) && <p className="mt-1 text-xs font-medium text-red-700">New reply from support</p>}
                     </button>
                   ))}
