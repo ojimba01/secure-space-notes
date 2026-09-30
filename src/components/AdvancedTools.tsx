@@ -165,7 +165,13 @@ export const AdvancedTools: React.FC = () => {
           Advanced Tools
         </Button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="start" className="w-72 space-y-3">
+      <PopoverContent
+        side="top"
+        align="start"
+        collisionPadding={8}
+        // Never taller than the screen: the panel scrolls instead of running off the top.
+        className="w-72 space-y-3 overflow-y-auto max-h-[var(--radix-popover-content-available-height)]"
+      >
         {isSuperadmin && (
           <>
             <div className="flex items-center gap-2 text-sm font-medium"><Eye className="h-4 w-4" /> Preview as team member</div>
