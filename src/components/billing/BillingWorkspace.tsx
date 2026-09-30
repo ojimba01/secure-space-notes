@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
+import { ArrowUpDown, FileSpreadsheet, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
@@ -24,6 +24,7 @@ import { SubmittedClaims } from '@/components/billing/SubmittedClaims';
 import { AddTouchpointDialog, type TouchpointContext } from '@/components/AddTouchpointDialog';
 import { AvailityPanel } from '@/components/billing/AvailityPanel';
 import { ToBillSections } from '@/components/billing/ToBillSections';
+import { BillingWorkbook } from '@/components/billing/workbook/BillingWorkbook';
 
 
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
@@ -189,6 +190,7 @@ export function BillingWorkspace() {
   const [billingClientId,setBillingClientId]=useState<string|null>(null);
   // A row on To bill asking for its claim fields, on a particular cycle.
   const [claimRequest,setClaimRequest]=useState<{clientId:string;cycleId:string}|null>(null);
+  const [workbookOpen,setWorkbookOpen]=useState(false);
   const [closedOpen,setClosedOpen]=useState(false);
   const [closing,setClosing]=useState<{id:string;name:string}|null>(null);
   const [closedClient,setClosedClient]=useState<string|null>(null);
@@ -495,6 +497,8 @@ export function BillingWorkspace() {
   if (loading) return <Card className="p-8 text-muted-foreground">Loading billing information…</Card>;
 
   return <div className="space-y-4">
+    {workbookOpen && !practice && <BillingWorkbook cycles={realCycles} onClose={()=>setWorkbookOpen(false)} onChanged={()=>void refreshBilling()}/>}
+
     {tutorial && <BillingTutorial steps={tutorialSteps} completionBody={completionBody} onClose={stopTutorial} onFinish={finishTutorial} />}
 
     <ClientProfileDialog clientId={practice?null:profileId} onClose={()=>setProfileId(null)} />
@@ -561,6 +565,7 @@ export function BillingWorkspace() {
         <StepButton step={1} label="To bill" active={section==='bill'} onClick={()=>setSection('bill')} tour="section-bill"/>
         <StepButton step={2} label="Filed claims" active={section==='submitted'} onClick={()=>setSection('submitted')} tour="section-submitted"/>
         {isSuperadmin && <StepButton step={3} label="Revenue" active={section==='revenue'} onClick={()=>setSection('revenue')} tour="section-revenue"/>}
+        <Button variant="ghost" className="gap-2" onClick={()=>setWorkbookOpen(true)}><FileSpreadsheet className="h-4 w-4"/>Workbook</Button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button data-tour="section-setup" variant="outline" className={section==='data'?'border-indigo-400 bg-indigo-50 text-indigo-900 hover:bg-indigo-100':''} onClick={()=>setSection('data')}><Pencil className="mr-2 h-4 w-4"/>Client information</Button>
