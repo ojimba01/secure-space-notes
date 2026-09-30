@@ -7,8 +7,8 @@
 // and anything the app works out (end dates, billing and payment status) is
 // calculated rather than typed.
 //
-// How each person arranges it (tab names, column order and widths, hidden
-// columns, row order and heights) is remembered in their own browser.
+// How it is arranged (tab names, column order and widths, hidden columns, row
+// order and heights) is shared by the whole team, as the Google Sheet was.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
@@ -77,7 +77,14 @@ const KIND_BAR: Record<Kind, string> = {
   docs: 'bg-orange-400',
 };
 
-// ---- layout, remembered per browser ------------------------------------
+// ---- layout, shared by the whole team ------------------------------------
+//
+// One arrangement for everybody, like the Google Sheet had: tab names, column
+// order, widths and hidden columns, row order and heights. It is kept in the
+// billing_workbook_layout table, read when the Workbook opens (and again when
+// the window comes back into focus), and written a moment after each change.
+// The browser keeps a copy only so the Workbook opens in the right shape
+// before the saved one arrives.
 
 interface Layout {
   sheetNames: Partial<Record<Sheet, string>>;
@@ -90,36 +97,61 @@ interface Layout {
 }
 
 const LAYOUT_KEY = 'billingWorkbookLayout:v1';
+const LAYOUT_ROW = 'team';
 const ALL_GROUPS = Object.keys(GROUP_LABEL) as Group[];
 
-function loadLayout(): Layout {
-  const fallback: Layout = {
-    sheetNames: {},
-    colOrder: COLUMNS.map((c) => c.key),
-    colWidths: {},
-    removed: [],
-    groups: ALL_GROUPS,
-    rowOrder: [],
-    rowHeights: {},
-  };
+const DEFAULT_LAYOUT: Layout = {
+  sheetNames: {},
+  colOrder: COLUMNS.map((c) => c.key),
+  colWidths: {},
+  removed: [],
+  groups: ALL_GROUPS,
+  rowOrder: [],
+  rowHeights: {},
+};
+
+/** A saved layout, made safe for the columns the app has now. */
+function normalize(saved: Partial<Layout> | null | undefined): Layout {
+  if (!saved || typeof saved !== 'object') return DEFAULT_LAYOUT;
+  // Columns added since the layout was saved go on the end.
+  const known = (saved.colOrder ?? []).filter((k) => COLUMNS.some((c) => c.key === k));
+  const colOrder = [...known, ...COLUMNS.map((c) => c.key).filter((k) => !known.includes(k))];
+  return { ...DEFAULT_LAYOUT, ...saved, colOrder };
+}
+
+function cachedLayout(): Layout {
   try {
-    const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? 'null') as Partial<Layout> | null;
-    if (!saved) return fallback;
-    // Columns added since the layout was saved go on the end.
-    const known = (saved.colOrder ?? []).filter((k) => COLUMNS.some((c) => c.key === k));
-    const colOrder = [...known, ...COLUMNS.map((c) => c.key).filter((k) => !known.includes(k))];
-    return { ...fallback, ...saved, colOrder };
+    return normalize(JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? 'null'));
   } catch {
-    return fallback;
+    return DEFAULT_LAYOUT;
   }
 }
 
+// Newer than the generated types.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const layoutTable = () => (supabase.from as any)('billing_workbook_layout');
+
+async function fetchTeamLayout(): Promise<Partial<Layout> | null> {
+  const { data } = await layoutTable().select('layout').eq('id', LAYOUT_ROW).maybeSingle();
+  const layout = data?.layout as Partial<Layout> | undefined;
+  return layout && Object.keys(layout).length ? layout : null;
+}
+
+let pendingSave: number | undefined;
 function saveLayout(layout: Layout) {
   try {
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
   } catch {
-    // Storage refused (private window): the layout lasts until reload.
+    // Storage refused (private window); the team copy is what matters.
   }
+  window.clearTimeout(pendingSave);
+  pendingSave = window.setTimeout(() => {
+    void layoutTable()
+      .upsert({ id: LAYOUT_ROW, layout, updated_at: new Date().toISOString() })
+      .then(({ error }: { error: { message: string } | null }) => {
+        if (error) toast.error('Could not save the layout for the team', { description: error.message });
+      });
+  }, 600);
 }
 
 // ---- one editable cell -------------------------------------------------
@@ -208,7 +240,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
   const [clients, setClients] = useState<WbClient[] | null>(null);
   const [secondAuthIds, setSecondAuthIds] = useState<Set<string>>(new Set());
   const [lastContact, setLastContact] = useState<Map<string, string>>(new Map());
-  const [layout, setLayoutState] = useState<Layout>(loadLayout);
+  const [layout, setLayoutState] = useState<Layout>(cachedLayout);
   const [sheet, setSheet] = useState<Sheet>('master');
   const [renaming, setRenaming] = useState<Sheet | null>(null);
   const [query, setQuery] = useState('');
@@ -258,6 +290,29 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The team's layout: on opening, and whenever the window regains focus, so
+  // a change somebody else made shows up without reopening.
+  useEffect(() => {
+    const pull = async () => {
+      const team = await fetchTeamLayout();
+      if (team) {
+        const next = normalize(team);
+        setLayoutState(next);
+        try {
+          localStorage.setItem(LAYOUT_KEY, JSON.stringify(next));
+        } catch {
+          // Cache only.
+        }
+      } else if (localStorage.getItem(LAYOUT_KEY)) {
+        // Nothing shared yet: the first arrangement made becomes the team's.
+        saveLayout(cachedLayout());
+      }
+    };
+    void pull();
+    window.addEventListener('focus', pull);
+    return () => window.removeEventListener('focus', pull);
+  }, []);
 
   // Escape leaves full screen, unless something inside is being edited.
   useEffect(() => {
@@ -821,8 +876,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
                   <button
                     className="mt-1 border-t pt-2 text-left text-xs text-muted-foreground hover:text-foreground"
                     onClick={() => {
-                      const reset = { ...loadLayout(), colOrder: COLUMNS.map((c) => c.key), colWidths: {}, removed: [], groups: ALL_GROUPS, rowOrder: [], rowHeights: {} };
-                      setLayout(() => ({ ...reset, sheetNames: layout.sheetNames }));
+                      setLayout(() => ({ ...DEFAULT_LAYOUT, sheetNames: layout.sheetNames }));
                     }}
                   >
                     Reset column and row layout
