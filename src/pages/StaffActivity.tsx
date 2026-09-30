@@ -1,6 +1,6 @@
 // Staff activity: how each person on the team spends their time in the app.
 //
-// Superadmins only. Three sources, put side by side:
+// Superadmins and anyone given access to this page alone. Three sources, put side by side:
 //  - staff_activity: every page visit and task, with the time spent actively
 //    working on it (src/lib/staffActivity.ts records these);
 //  - the audit log: every change a person saved, described in plain words
@@ -27,7 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { useCanViewStaffActivity } from '@/hooks/useCanViewStaffActivity';
 import { visibleProfiles } from '@/lib/testAccounts';
 import { AREA_LABEL } from '@/lib/staffActivity';
 import {
@@ -178,7 +178,7 @@ const Tile: React.FC<{ icon: React.ReactNode; label: string; value: string; hint
 
 export default function StaffActivity() {
   const navigate = useNavigate();
-  const { isSuperadmin, loading: roleLoading } = useIsSuperadmin();
+  const { canView, loading: roleLoading } = useCanViewStaffActivity();
   const [range, setRange] = useState<Range>('today');
   const [staff, setStaff] = useState<Staff[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
@@ -190,14 +190,17 @@ export default function StaffActivity() {
   const [filter, setFilter] = useState<'all' | 'changes' | 'pages' | 'tasks'>('all');
 
   useEffect(() => {
-    if (!isSuperadmin) return;
+    if (!canView) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       setProblem(null);
       const { from, to } = rangeBounds(range);
       const [people, activity, changed] = await Promise.all([
-        supabase.from('profiles').select('id, user_id, first_name, last_name, email'),
+        // Through the database rather than the profiles table, which a
+        // viewer who is not an administrator could not read in full.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.rpc as any)('staff_activity_people'),
         // Newer than the generated types.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase.from as any)('staff_activity')
@@ -237,12 +240,10 @@ export default function StaffActivity() {
         ),
       ];
       const names: Record<string, string> = {};
-      for (let i = 0; i < ids.length; i += 200) {
-        const { data } = await supabase
-          .from('clients')
-          .select('id, first_name, last_name')
-          .in('id', ids.slice(i, i + 200));
-        for (const c of data ?? []) names[c.id] = `${c.first_name} ${c.last_name}`.trim();
+      if (ids.length) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase.rpc as any)('staff_activity_client_names', { _ids: ids });
+        for (const c of (data ?? []) as { id: string; name: string }[]) names[c.id] = c.name;
       }
       if (cancelled) return;
       setClientNames(names);
@@ -251,7 +252,7 @@ export default function StaffActivity() {
     return () => {
       cancelled = true;
     };
-  }, [range, isSuperadmin]);
+  }, [range, canView]);
 
   const byUser = useMemo(() => {
     const map = new Map<string, { visits: Visit[]; changes: Change[] }>();
@@ -273,7 +274,7 @@ export default function StaffActivity() {
   );
 
   if (roleLoading) return <div className="min-h-screen grid place-items-center">Loading…</div>;
-  if (!isSuperadmin) return <Navigate to="/" replace />;
+  if (!canView) return <Navigate to="/" replace />;
 
   const person = selected ? staff.find((s) => s.user_id === selected) : undefined;
   const clientLabel = (id: string | null) => (id ? clientNames[id] ?? 'A client' : null);

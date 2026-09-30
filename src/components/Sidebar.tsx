@@ -24,6 +24,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { useCanViewStaffActivity } from '@/hooks/useCanViewStaffActivity';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { AdvancedTools } from '@/components/AdvancedTools';
 import { AccountDialog } from '@/components/AccountDialog';
@@ -53,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   const { isSuperadmin } = useIsSuperadmin();
+  const { canView: canViewActivity } = useCanViewStaffActivity();
   const { isViewingAs } = useViewAs();
 
   useEffect(() => {
@@ -218,7 +220,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
               Billing
             </Button>
           )}
-          {isSuperadmin && !isViewingAs && (
+          {canViewActivity && !isViewingAs && (
             <Button
               variant={routeVariant('/staff-activity')}
               className="w-full justify-start gap-2"
