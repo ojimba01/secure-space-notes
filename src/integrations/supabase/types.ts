@@ -2197,6 +2197,21 @@ export type Database = {
           },
         ]
       }
+      staff_activity_viewers: {
+        Row: {
+          added_at: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       staff_signatures: {
         Row: {
           created_at: string
@@ -2228,6 +2243,100 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "staff_signatures_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_ticket_messages: {
+        Row: {
+          attachments: Json
+          author: string
+          body: string
+          created_at: string
+          from_support: boolean
+          id: string
+          ticket_id: string
+        }
+        Insert: {
+          attachments?: Json
+          author?: string
+          body: string
+          created_at?: string
+          from_support?: boolean
+          id?: string
+          ticket_id: string
+        }
+        Update: {
+          attachments?: Json
+          author?: string
+          body?: string
+          created_at?: string
+          from_support?: boolean
+          id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          attachments: Json
+          created_at: string
+          created_by: string
+          id: string
+          last_support_reply_at: string | null
+          message: string
+          page_url: string | null
+          profile_id: string | null
+          requester_seen_at: string
+          resolved_at: string | null
+          status: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          attachments?: Json
+          created_at?: string
+          created_by?: string
+          id?: string
+          last_support_reply_at?: string | null
+          message: string
+          page_url?: string | null
+          profile_id?: string | null
+          requester_seen_at?: string
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          attachments?: Json
+          created_at?: string
+          created_by?: string
+          id?: string
+          last_support_reply_at?: string | null
+          message?: string
+          page_url?: string | null
+          profile_id?: string | null
+          requester_seen_at?: string
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -2417,6 +2526,7 @@ export type Database = {
         Args: { _client_id: string; _user_id: string }
         Returns: boolean
       }
+      can_view_staff_activity: { Args: { _user_id: string }; Returns: boolean }
       close_case: {
         Args: {
           _client_id: string
@@ -2478,6 +2588,23 @@ export type Database = {
           id: string
           record_id: string
           table_name: string
+          user_id: string
+        }[]
+      }
+      staff_activity_client_names: {
+        Args: { _ids: string[] }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
+      staff_activity_people: {
+        Args: never
+        Returns: {
+          email: string
+          first_name: string
+          id: string
+          last_name: string
           user_id: string
         }[]
       }
