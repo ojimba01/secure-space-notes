@@ -112,6 +112,20 @@ const field = (key: keyof WbClient, label: string, kind: Kind, group: Group, ext
   ...extra,
 });
 
+/**
+ * The ID Availity knows the member by, as the Google Sheet worked it out: the
+ * first letter of the first name and of the last name, then the member ID
+ * without spaces, dashes or dots, all in capitals. Blank without both.
+ */
+export function availityMemberId(fullName: string, memberId: string | null): string {
+  const name = fullName.trim();
+  const id = (memberId ?? '').trim();
+  if (!name || !id) return '';
+  const words = name.split(/\s+/);
+  const initials = words.length > 1 ? words[0][0] + words[words.length - 1][0] : words[0][0];
+  return (initials + id.replace(/[\s.-]/g, '')).toUpperCase();
+}
+
 const billed = (c: BillingCycle) => c.billing_status === 'Submitted' || c.payment_status === 'Paid';
 
 export const COLUMNS: Column[] = [
@@ -140,6 +154,13 @@ export const COLUMNS: Column[] = [
   field('auth_180_number', '180-Day Auth #', 'docs', 'auth'),
   field('auth_180_start', '180 Start Date', 'docs', 'auth', { type: 'date' }),
   { key: 'auth_180_end', label: '180 End Date', kind: 'auto', group: 'auth', type: 'date', value: (c) => endOf(c.auth_180_start, c.auth_180_end, 180) ?? '' },
+  {
+    key: 'availity_member_id',
+    label: 'Availity Member ID',
+    kind: 'auto',
+    group: 'info',
+    value: (c) => availityMemberId(`${c.first_name} ${c.last_name}`, c.member_id),
+  },
 
   field('intake_date', 'Intake Date', 'manual', 'lon', { type: 'date' }),
   field('level_of_need', 'LON Level', 'drop', 'lon', { options: ['Low Level', 'High Level'] }),
