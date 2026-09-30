@@ -68,6 +68,11 @@ interface Props {
   onBilled?: (clientId: string, cycleId: string) => void;
   /** The clients whose filing window closes this month, shown as one-press buttons. */
   shortlist?: { id: string; label: string; note: string; urgent: boolean }[];
+  /**
+   * Open a client on a particular cycle, from the To bill list. A new object
+   * each time, so pressing the same row twice opens it twice.
+   */
+  openRequest?: { clientId: string; cycleId?: string | null } | null;
 }
 
 interface ClientExtras {
@@ -176,7 +181,7 @@ const CopyField: React.FC<AvailityField & { control?: React.ReactNode }> = ({
   );
 };
 
-export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, initialClientId, onBilled, shortlist }) => {
+export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, initialClientId, onBilled, shortlist, openRequest }) => {
   const [query, setQuery] = useState('');
   const [clientId, setClientId] = useState<string | null>(null);
   const [extras, setExtras] = useState<ClientExtras>(NO_EXTRAS);
@@ -200,6 +205,13 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
   useEffect(() => {
     if (initialClientId) setClientId(initialClientId);
   }, [initialClientId]);
+
+  useEffect(() => {
+    if (!openRequest) return;
+    setClientId(openRequest.clientId);
+    setCycleId(openRequest.cycleId ?? null);
+    setPage('claim');
+  }, [openRequest]);
 
   const client = useMemo(() => clients.find((c) => c.id === clientId) ?? null, [clients, clientId]);
 

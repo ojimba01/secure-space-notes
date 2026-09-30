@@ -23,6 +23,7 @@ import { ProviderSetup } from '@/components/billing/ProviderSetup';
 import { SubmittedClaims } from '@/components/billing/SubmittedClaims';
 import { AddTouchpointDialog, type TouchpointContext } from '@/components/AddTouchpointDialog';
 import { AvailityPanel } from '@/components/billing/AvailityPanel';
+import { ToBillSections } from '@/components/billing/ToBillSections';
 
 
 const fmt = (d?: string | null) => d ? format(parseISO(d), 'MMM d, yyyy') : '—';
@@ -186,6 +187,8 @@ export function BillingWorkspace() {
   const [section,setSection]=useState<Section>('bill');
   // The client whose Availity boxes are open. Null means the list is showing.
   const [billingClientId,setBillingClientId]=useState<string|null>(null);
+  // A row on To bill asking for its claim fields, on a particular cycle.
+  const [claimRequest,setClaimRequest]=useState<{clientId:string;cycleId:string}|null>(null);
   const [closedOpen,setClosedOpen]=useState(false);
   const [closing,setClosing]=useState<{id:string;name:string}|null>(null);
   const [closedClient,setClosedClient]=useState<string|null>(null);
@@ -555,8 +558,8 @@ export function BillingWorkspace() {
 
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-white p-1" data-tour="sections">
-        <StepButton step={1} label="Clients to bill" active={section==='bill'} onClick={()=>setSection('bill')} tour="section-bill"/>
-        <StepButton step={2} label="Submitted claims" active={section==='submitted'} onClick={()=>setSection('submitted')} tour="section-submitted"/>
+        <StepButton step={1} label="To bill" active={section==='bill'} onClick={()=>setSection('bill')} tour="section-bill"/>
+        <StepButton step={2} label="Filed claims" active={section==='submitted'} onClick={()=>setSection('submitted')} tour="section-submitted"/>
         {isSuperadmin && <StepButton step={3} label="Revenue" active={section==='revenue'} onClick={()=>setSection('revenue')} tour="section-revenue"/>}
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -607,47 +610,14 @@ export function BillingWorkspace() {
         updateCycle={cycleWriter}
         initialClientId={billingClientId}
         onBilled={handleBilled}
-        shortlist={urgent.map(r=>({ id:r.client.id, label:`${r.client.first_name} ${r.client.last_name}`, note:`${r.days}d`, urgent:r.band==='week' }))}
+        openRequest={claimRequest}
       />
 
-      {/* Closed and out of the way. Nothing here can be filed, so it is a
-          reference rather than work, and it opens only when asked for. */}
-      {closed.length>0 && <Card className="p-4 space-y-2">
-        <button
-          type="button"
-          onClick={()=>setClosedOpen(v=>!v)}
-          className="flex w-full items-center justify-between gap-2 text-left"
-        >
-          <h3 className="font-semibold">Missed deadlines</h3>
-          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            {closed.length} client{closed.length===1?'':'s'}
-            {closedOpen?<ChevronUp className="h-4 w-4"/>:<ChevronDown className="h-4 w-4"/>}
-          </span>
-        </button>
-
-        {closedOpen && <div className="divide-y rounded-md border">
-          {closed.map(r=>(
-            <div key={r.client.id}>
-              <button
-                type="button"
-                onClick={()=>setClosedClient(c=>c===r.client.id?null:r.client.id)}
-                className="flex w-full items-center justify-between gap-2 p-2.5 text-left text-sm hover:bg-muted/50"
-              >
-                <span className="truncate">{r.client.first_name} {r.client.last_name}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {Math.abs(r.days)} days past · {r.cycles.length} cycle{r.cycles.length===1?'':'s'}
-                </span>
-              </button>
-              {closedClient===r.client.id && <div className="space-y-2 border-t p-2.5">
-                <Button variant="outline" size="sm" onClick={()=>{setBillingClientId(r.client.id);window.scrollTo({top:0,behavior:'smooth'});}}>
-                  Open billing details
-                </Button>
-                <CycleGrid client={r.client} cycles={cycleByClient.get(r.client.id)??[]} updateCycle={cycleWriter} practice={!!practice}/>
-              </div>}
-            </div>
-          ))}
-        </div>}
-      </Card>}
+      <ToBillSections
+        clients={clients}
+        cycles={cycles}
+        onOpenClaim={(clientId,cycleId)=>setClaimRequest({clientId,cycleId})}
+      />
 
 
     </>
