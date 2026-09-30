@@ -16,6 +16,7 @@ import {
   FilePlus2,
   UserCircle,
   Activity,
+  LifeBuoy,
 } from "lucide-react";
 import { useTutorial } from '@/components/TutorialProvider';
 import { useAuth } from '@/components/AuthProvider';
@@ -55,6 +56,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   const isMobile = useIsMobile();
   const { isSuperadmin } = useIsSuperadmin();
   const { canView: canViewActivity } = useCanViewStaffActivity();
+  /** Support tickets waiting on an answer, for the count beside the link. */
+  const [openTickets, setOpenTickets] = useState(0);
+  useEffect(() => {
+    if (!isSuperadmin) return;
+    // Newer than the generated types.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    void (supabase.from as any)('support_tickets')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'open')
+      .then(({ count }: { count: number | null }) => setOpenTickets(count ?? 0));
+  }, [isSuperadmin, location.pathname]);
   const { isViewingAs } = useViewAs();
 
   useEffect(() => {
@@ -218,6 +230,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             >
               <DollarSign className="h-4 w-4" />
               Billing
+            </Button>
+          )}
+          {isSuperadmin && !isViewingAs && (
+            <Button
+              variant={routeVariant('/support-tickets')}
+              className="w-full justify-start gap-2"
+              onClick={() => handleNavigate('/support-tickets')}
+            >
+              <LifeBuoy className="h-4 w-4" />
+              Support tickets
+              {openTickets > 0 && (
+                <span className="ml-auto rounded-full bg-red-600 px-2 text-xs text-white">{openTickets}</span>
+              )}
             </Button>
           )}
           {canViewActivity && !isViewingAs && (
