@@ -232,29 +232,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
               Billing
             </Button>
           )}
-          {isSuperadmin && !isViewingAs && (
-            <Button
-              variant={routeVariant('/support-tickets')}
-              className="w-full justify-start gap-2"
-              onClick={() => handleNavigate('/support-tickets')}
-            >
-              <LifeBuoy className="h-4 w-4" />
-              Support tickets
-              {openTickets > 0 && (
-                <span className="ml-auto rounded-full bg-red-600 px-2 text-xs text-white">{openTickets}</span>
-              )}
-            </Button>
-          )}
-          {canViewActivity && !isViewingAs && (
-            <Button
-              variant={routeVariant('/staff-activity')}
-              className="w-full justify-start gap-2"
-              onClick={() => handleNavigate('/staff-activity')}
-            >
-              <Activity className="h-4 w-4" />
-              Staff activity
-            </Button>
-          )}
           <Button
             data-tutorial="touchpoints-nav"
             variant={viewVariant('compliance')}
@@ -286,6 +263,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             <BookOpen className="h-4 w-4" />
             Help guide
           </Button>
+          {canViewActivity && !isViewingAs && (
+            <Button
+              variant={routeVariant('/staff-activity')}
+              className="w-full justify-start gap-2"
+              onClick={() => handleNavigate('/staff-activity')}
+            >
+              <Activity className="h-4 w-4" />
+              Staff activity
+            </Button>
+          )}
+          {isSuperadmin && !isViewingAs && (
+            <Button
+              variant={routeVariant('/support-tickets')}
+              className="w-full justify-start gap-2"
+              onClick={() => handleNavigate('/support-tickets')}
+            >
+              <LifeBuoy className="h-4 w-4" />
+              Support tickets
+              {openTickets > 0 && (
+                <span className="ml-auto rounded-full bg-red-600 px-2 text-xs text-white">{openTickets}</span>
+              )}
+            </Button>
+          )}
           {/* One walkthrough, not two. The spotlight tour and the new-features
               steps were separate buttons that a person had to choose between
               without knowing the difference. */}

@@ -34,6 +34,28 @@ interface Open {
 }
 
 const open = new Set<Open>();
+
+/**
+ * Superadmins are not recorded: they are the ones reading Staff activity, not
+ * the people it is about. Checked once per login.
+ */
+let exemptFor: { userId: string; exempt: Promise<boolean> } | null = null;
+async function isExempt(): Promise<boolean> {
+  const { data } = await supabase.auth.getSession();
+  const userId = data.session?.user.id;
+  if (!userId) return true;
+  if (exemptFor?.userId !== userId) {
+    exemptFor = {
+      userId,
+      exempt: Promise.resolve(
+        supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'superadmin'),
+      )
+        .then(({ data: roles }) => (roles?.length ?? 0) > 0)
+        .catch(() => false),
+    };
+  }
+  return exemptFor.exempt;
+}
 let lastInput = Date.now();
 let started = false;
 
@@ -99,14 +121,17 @@ export function startActivity(
   ensureStarted();
   lastInput = Date.now();
   const entry: Open = {
-    id: Promise.resolve(
-      rpc('start_staff_activity', {
-        _kind: kind,
-        _area: area,
-        _label: label,
-        _client_id: clientId ?? null,
-      }),
-    )
+    id: isExempt()
+      .then((exempt) =>
+        exempt
+          ? { data: null, error: null }
+          : rpc('start_staff_activity', {
+              _kind: kind,
+              _area: area,
+              _label: label,
+              _client_id: clientId ?? null,
+            }),
+      )
       .then(({ data, error }: { data: string | null; error: unknown }) => (error ? null : data))
       .catch(() => null),
     pending: 0,
