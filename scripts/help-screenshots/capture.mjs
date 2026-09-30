@@ -56,6 +56,10 @@ async function closedClient(p) {
 }
 
 // guide id -> one entry per step: { as, go(page), target(page) -> locator, label }
+async function openWorkbook(p) {
+  await p.goto(`${BASE}/workbook`);
+  await wait(p, 3000);
+}
 async function openAccount(p) {
   await p.goto(`${BASE}/?view=clients`);
   await wait(p, 2000);
@@ -266,15 +270,16 @@ const SHOTS = {
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, /Revenue/).click(); await wait(p); }, target: (p) => text(p, 'By month').locator('xpath=ancestor::div[contains(@class,"rounded")][1]'), label: 'By month' },
   ],
   workbook: [
-    { as: 'admin', go: (p) => p.goto(`${BASE}/billing`), target: (p) => btn(p, 'Workbook', true), label: 'Workbook' },
-    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, 'Workbook', true).click(); await wait(p, 2000); }, target: (p) => p.locator('tbody tr').nth(1).locator('td').nth(3), label: 'Select a cell to edit' },
-    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, 'Workbook', true).click(); await wait(p, 2000); }, target: (p) => p.locator('thead th').nth(2), label: 'Drag to move, drag the edge to resize' },
-    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, 'Workbook', true).click(); await wait(p, 2000); }, target: (p) => btn(p, 'Download as Excel'), label: 'Download as Excel' },
+    { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Workbook'), label: 'Workbook' },
+    { as: 'admin', go: openWorkbook, target: (p) => p.locator('tbody tr').nth(1).locator('td').nth(3), label: 'Select a cell to edit' },
+    { as: 'admin', go: openWorkbook, target: (p) => p.locator('thead th').nth(2), label: 'Drag to move, drag the edge to resize' },
+    { as: 'admin', go: async (p) => { await openWorkbook(p); await btn(p, 'Filter', true).click(); await wait(p, 800); }, target: (p) => p.getByLabel('Filter MCO'), label: 'Choose a value' },
+    { as: 'admin', go: openWorkbook, target: (p) => btn(p, 'Download as Excel'), label: 'Download as Excel' },
   ],
   lapsed: [
-    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, 'Workbook', true).click(); await wait(p, 2000); }, target: (p) => p.getByRole('tab', { name: /2nd authorization/ }), label: '2nd authorization' },
-    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, 'Workbook', true).click(); await wait(p, 2000); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); }, target: (p) => btn(p, 'Open client'), label: 'Open client' },
-    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, 'Workbook', true).click(); await wait(p, 2000); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); await btn(p, 'Start 2nd authorization').click(); await wait(p, 800); }, target: (p) => btn(p, 'Start authorization', true), label: 'Start authorization' },
+    { as: 'admin', go: async (p) => { await openWorkbook(p); }, target: (p) => p.getByRole('tab', { name: /2nd authorization/ }), label: '2nd authorization' },
+    { as: 'admin', go: async (p) => { await openWorkbook(p); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); }, target: (p) => btn(p, 'Open client'), label: 'Open client' },
+    { as: 'admin', go: async (p) => { await openWorkbook(p); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); await btn(p, 'Start 2nd authorization').click(); await wait(p, 800); }, target: (p) => btn(p, 'Start authorization', true), label: 'Start authorization' },
   ],
 };
 

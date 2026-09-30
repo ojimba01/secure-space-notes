@@ -31,8 +31,9 @@ export function useBilling() {
   const [deletedClients, setDeletedClients] = useState<BillingClient[]>([]);
   const [cycles, setCycles] = useState<(BillingCycle & { is_active?: boolean })[]>([]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (quiet = false) => {
+    // A quiet refresh keeps what is on screen until the new data arrives.
+    if (!quiet) setLoading(true);
     const [{ data: cls, error: clientError }, { data: cyc, error: cycleError }, { data: profs }] = await Promise.all([
       supabase.from('clients').select(CLIENT_COLUMNS).order('last_name'),
       supabase.from('billing_cycles').select('*').eq('is_active', true).order('cycle_number'),
@@ -56,6 +57,16 @@ export function useBilling() {
   }, []);
 
   useEffect(() => { load().catch((e) => { console.error(e); setLoading(false); }); }, [load]);
+
+  // Coming back to this tab reads everything again, so client details filled
+  // in elsewhere (another tab, another person) show here without a reload.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') load(true).catch((e) => console.error(e));
+    };
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [load]);
 
   const updateClient = async (id: string, patch: Partial<BillingClient>) => {
     const { id: _id, assigned_staff_name: _staff, ...databasePatch } = patch;

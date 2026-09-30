@@ -270,7 +270,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'file-claim', section: 'Billing', title: 'File a claim', audience: 'admins', minutes: 5,
     steps: [
-      s('Open To bill', 'Select Billing. File before the deadline lists the claims closest to their last day to bill.'),
+      s('Open To bill', 'Select Billing. File before the deadline lists the claims closest to their last day to bill, 7 at a time. Use the arrows to see more.'),
       s('Open the cycle', 'Select the client’s row to see every cycle, then select Open billing details.'),
       s('Copy into Availity', 'Copy each box from Eligibility and Benefits, then Claims and Encounters. Check orange boxes first.'),
       s('Mark it billed', 'Select Mark cycle as billed. The claim moves to Filed claims.'),
@@ -293,16 +293,17 @@ export const GUIDES: Guide[] = [
   {
     id: 'workbook', section: 'Billing', title: 'Use the Workbook', audience: 'admins', minutes: 3,
     steps: [
-      s('Open the Workbook', 'In Billing, select Workbook. It opens full screen.'),
+      s('Open the Workbook', 'Select Workbook in the left panel. Select Full screen for more room.'),
       s('Edit a cell', 'Select a cell and type. Grey cells are calculated.'),
       s('Arrange columns and rows', 'Drag headings and row numbers to move them, and drag their edges to resize. The layout is shared with your team.'),
-      s('Filter and export', 'Select Filter to filter each column, or Download as Excel to save every tab.'),
+      s('Filter a column', 'Select Filter, then choose a value from the dropdown under any column heading. Choose All to clear it.'),
+      s('Export', 'Select Download as Excel to save every tab.'),
     ],
   },
   {
     id: 'lapsed', section: 'Billing', title: 'Follow up a lapsed authorization', audience: 'admins', minutes: 2,
     steps: [
-      s('Open 2nd authorization', 'In the Workbook, select the 2nd authorization tab.'),
+      s('Open 2nd authorization', 'Select Workbook in the left panel, then the 2nd authorization tab.'),
       s('Follow up', 'These authorizations ended over 14 days ago with no contact. Select Open client to check on them, or Close case.'),
       s('Start a 2nd authorization', 'If the client has a new authorization, select Start 2nd authorization. Enter the 30-day start date and authorization number, then select Start authorization. Earlier billing cycles stay as they are.'),
     ],

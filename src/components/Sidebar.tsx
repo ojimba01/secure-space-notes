@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   DollarSign,
+  FileSpreadsheet,
   FilePlus2,
   UserCircle,
   Activity,
@@ -210,6 +211,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             >
               <DollarSign className="h-4 w-4" />
               Billing
+            </Button>
+          )}
+          {isAdmin && (
+            <Button
+              variant={routeVariant('/workbook')}
+              className="w-full justify-start gap-2"
+              onClick={() => handleNavigate('/workbook')}
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Workbook
             </Button>
           )}
           <Button

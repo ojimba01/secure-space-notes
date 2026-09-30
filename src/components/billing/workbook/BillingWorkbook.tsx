@@ -22,6 +22,8 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Maximize2,
+  Minimize2,
   Search,
   Trash2,
   X,
@@ -232,12 +234,16 @@ const Cell: React.FC<{
 
 interface Props {
   cycles: BillingCycle[];
-  onClose: () => void;
   /** Billing's own lists need reloading after an edit here. */
   onChanged: () => void;
 }
 
-export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged }) => {
+/** Stands for an empty cell in a column filter. */
+const BLANK = '__blank__';
+
+export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
+  // Its own page beside the left menu, or the whole screen when there is a lot to see.
+  const [fullScreen, setFullScreen] = useState(false);
   const [clients, setClients] = useState<WbClient[] | null>(null);
   const [secondAuthIds, setSecondAuthIds] = useState<Set<string>>(new Set());
   const [lastContact, setLastContact] = useState<Map<string, string>>(new Map());
@@ -291,6 +297,11 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
 
   useEffect(() => {
     void load();
+    // Read again when the window regains focus, so client details filled in
+    // elsewhere show up without reopening the Workbook.
+    const refresh = () => void load();
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
   }, [load]);
 
   // The team's layout: on opening, and whenever the window regains focus, so
@@ -318,13 +329,14 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
 
   // Escape leaves full screen, unless something inside is being edited.
   useEffect(() => {
+    if (!fullScreen) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (e.key === 'Escape' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(t.tagName) && !deleting && !closing && !starting) onClose();
+      if (e.key === 'Escape' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(t.tagName) && !deleting && !closing && !starting) setFullScreen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, deleting, closing, starting]);
+  }, [fullScreen, deleting, closing, starting]);
 
   const cyclesByClient = useMemo(() => {
     const map = new Map<string, BillingCycle[]>();
@@ -373,11 +385,27 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
       if (!f.trim()) continue;
       const col = COLUMNS.find((c) => c.key === key);
       if (!col) continue;
-      list = list.filter((c) => shown(col, col.value(c, extraOf(c))).toLowerCase().includes(f.trim().toLowerCase()));
+      // Picked from the column's dropdown, so it matches a value exactly.
+      list = list.filter((c) => (shown(col, col.value(c, extraOf(c))).trim() || BLANK) === f);
     }
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ordered, sheet, mco, query, filters, extraOf]);
+
+  // Each column's values, for its filter dropdown.
+  const filterOptions = useMemo(() => {
+    if (!showFilters) return {} as Record<string, string[]>;
+    const out: Record<string, string[]> = {};
+    for (const col of columns) {
+      const seen = new Set<string>();
+      for (const c of ordered) seen.add(shown(col, col.value(c, extraOf(c))).trim() || BLANK);
+      out[col.key] = [...seen].sort((a, b) =>
+        a === BLANK ? 1 : b === BLANK ? -1 : a.localeCompare(b, undefined, { numeric: true }),
+      );
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFilters, columns, ordered, extraOf]);
 
   const lapsed = useMemo(() => (clients ? lapsedRows(clients, lastContact) : []), [clients, lastContact]);
   const onSecond = useMemo(() => (clients ?? []).filter((c) => secondAuthIds.has(c.id)), [clients, secondAuthIds]);
@@ -621,13 +649,19 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
                 key={col.key}
                 className={`${th} top-[42px] bg-white font-normal ${col.key === 'name' ? 'sticky left-12 z-20' : ''}`}
               >
-                <input
-                  className="w-full rounded border px-1.5 py-0.5 text-xs"
-                  placeholder="Filter"
+                <select
+                  className={`w-full rounded border bg-white px-1 py-0.5 text-xs ${filters[col.key] ? 'border-primary font-semibold text-primary' : ''}`}
                   aria-label={`Filter ${col.label}`}
                   value={filters[col.key] ?? ''}
                   onChange={(e) => setFilters((f) => ({ ...f, [col.key]: e.target.value }))}
-                />
+                >
+                  <option value="">All</option>
+                  {(filterOptions[col.key] ?? []).map((v) => (
+                    <option key={v} value={v}>
+                      {v === BLANK ? '(Blank)' : v}
+                    </option>
+                  ))}
+                </select>
               </th>
             ))}
           </tr>
@@ -823,7 +857,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
   const master = !['tracker', 'second'].includes(sheet);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white text-slate-900">
+    <div className={`flex flex-col bg-white text-slate-900 ${fullScreen ? 'fixed inset-0 z-50' : 'h-full'}`}>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
         <div className="mr-2 font-semibold">Workbook</div>
@@ -921,9 +955,15 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
             Saving
           </span>
         )}
-        <Button size="sm" className="ml-auto h-8" onClick={onClose} title="Back to Billing (Esc)">
-          <X className="mr-1.5 h-4 w-4" />
-          Exit
+        <Button
+          size="sm"
+          variant={fullScreen ? 'default' : 'outline'}
+          className="ml-auto h-8"
+          onClick={() => setFullScreen((v) => !v)}
+          title={fullScreen ? 'Exit full screen (Esc)' : 'Full screen'}
+        >
+          {fullScreen ? <Minimize2 className="mr-1.5 h-4 w-4" /> : <Maximize2 className="mr-1.5 h-4 w-4" />}
+          {fullScreen ? 'Exit full screen' : 'Full screen'}
         </Button>
       </div>
 

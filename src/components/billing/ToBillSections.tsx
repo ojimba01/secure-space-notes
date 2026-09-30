@@ -5,9 +5,9 @@
 // still running, or its six-month window has closed. Each row says when the
 // cycle ends and the last day it can be billed; pressing it shows the
 // client's whole run of cycles and which of them have been billed.
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ChevronDown, FileSpreadsheet, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, FileSpreadsheet, Search, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,9 @@ import {
 } from '@/lib/billing';
 
 type SectionKey = 'deadline' | 'ready' | 'soon' | 'missed';
+
+/** Rows shown per section before the arrows. */
+const PAGE_SIZE = 7;
 
 const SECTIONS: { key: SectionKey; title: string; help: string; dot: string }[] = [
   {
@@ -121,6 +124,9 @@ export const ToBillSections: React.FC<Props> = ({ clients, cycles, onOpenClaim }
   const [expanded, setExpanded] = useState<string | null>(null);
   const [missedOpen, setMissedOpen] = useState(false);
   const [query, setQuery] = useState('');
+  // Each section shows PAGE_SIZE rows at a time, with arrows for the rest.
+  const [pages, setPages] = useState<Record<SectionKey, number>>({ deadline: 0, ready: 0, soon: 0, missed: 0 });
+  useEffect(() => setPages({ deadline: 0, ready: 0, soon: 0, missed: 0 }), [query]);
 
   const cyclesByClient = useMemo(() => {
     const map = new Map<string, BillingCycle[]>();
@@ -188,6 +194,34 @@ export const ToBillSections: React.FC<Props> = ({ clients, cycles, onOpenClaim }
   const jump = (key: SectionKey) => {
     if (key === 'missed') setMissedOpen(true);
     window.setTimeout(() => document.getElementById(`tobill-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
+
+  const paged = (key: SectionKey, rows: Row[]) => {
+    const last = Math.max(0, Math.ceil(rows.length / PAGE_SIZE) - 1);
+    const page = Math.min(pages[key], last);
+    const go = (to: number) => {
+      setPages((p) => ({ ...p, [key]: to }));
+      setExpanded(null);
+    };
+    const from = page * PAGE_SIZE;
+    return (
+      <>
+        {table(key, rows.slice(from, from + PAGE_SIZE))}
+        {rows.length > PAGE_SIZE && (
+          <div className="flex items-center justify-end gap-2 border-t px-4 py-2 text-sm text-muted-foreground">
+            <span className="tabular-nums">
+              {from + 1}–{Math.min(from + PAGE_SIZE, rows.length)} of {rows.length}
+            </span>
+            <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Previous" disabled={page === 0} onClick={() => go(page - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Next" disabled={page === last} onClick={() => go(page + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </>
+    );
   };
 
   const table = (key: SectionKey, rows: Row[]) => (
@@ -368,7 +402,7 @@ export const ToBillSections: React.FC<Props> = ({ clients, cycles, onOpenClaim }
               {missedOpen && (
                 <>
                   <p className="border-t px-4 py-2.5 text-sm text-muted-foreground">{s.help}</p>
-                  {rows.length ? table(s.key, rows) : <p className="border-t px-4 py-3 text-sm text-muted-foreground">None.</p>}
+                  {rows.length ? paged(s.key, rows) : <p className="border-t px-4 py-3 text-sm text-muted-foreground">None.</p>}
                 </>
               )}
             </Card>
@@ -379,7 +413,7 @@ export const ToBillSections: React.FC<Props> = ({ clients, cycles, onOpenClaim }
             <div className="border-b px-4 py-3">{head}</div>
             <p className="px-4 py-2.5 text-sm text-muted-foreground">{s.help}</p>
             {rows.length ? (
-              table(s.key, rows)
+              paged(s.key, rows)
             ) : (
               <p className="border-t px-4 py-3 text-sm text-muted-foreground">
                 {query ? 'No clients match that filter.' : 'None right now.'}
