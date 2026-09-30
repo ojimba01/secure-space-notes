@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -29,7 +28,6 @@ import {
   EXTERNAL_STATUS_CLASS,
   EXTERNAL_STATUS_LABEL,
   FORM_STATUS_CLASS,
-  FORM_STATUS_LABEL,
   FORM_STATUS_SHORT_LABEL,
   FORM_TYPES,
 } from '@/lib/formSigning';
@@ -310,7 +308,10 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return forms.filter((f) => {
-      if (statusFilter !== 'all' && f.status !== statusFilter) return false;
+      if (statusFilter !== 'all') {
+        const isDraft = f.status === 'draft' || f.status === 'changes_requested';
+        if ((statusFilter === 'draft') !== isDraft) return false;
+      }
       if (typeFilter !== 'all' && f.form_type !== typeFilter) return false;
       if (!term) return true;
       const haystack = [
@@ -325,14 +326,6 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
       return haystack.includes(term) || (textHits?.has(f.id) ?? false);
     });
   }, [forms, search, statusFilter, typeFilter, textHits]);
-
-  /** Submitted and not yet approved, oldest first, so the longest wait is at the top. */
-  const toReview = useMemo(
-    () => forms
-      .filter((f) => f.status === 'submitted')
-      .sort((a, b) => a.created_at.localeCompare(b.created_at)),
-    [forms],
-  );
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
@@ -463,64 +456,6 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
       </div>
 
 
-      {/* What staff have handed in. The full list of every form filed lived
-          only under Advanced Tools, so an administrator opening Forms saw the
-          blank templates and nothing of what their team had completed. */}
-      {reviewMode && view === 'forms' && (
-        <div className="rounded-md border">
-          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-            <div>
-              <div className="text-sm font-medium">
-                Submitted for review {!loading && <span className="text-muted-foreground">({toReview.length})</span>}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Forms submitted by your team. Select Review to read and approve a form.
-              </p>
-            </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/advanced-tools?tab=allforms">Every form filed</Link>
-            </Button>
-          </div>
-          <div className="border-t">
-            {loading ? (
-              <p className="p-4 text-sm text-muted-foreground">Loading…</p>
-            ) : toReview.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">No forms awaiting review.</p>
-            ) : (
-              <div className="divide-y">
-                {toReview.map((form) => (
-                  <div key={form.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
-                    <div className="min-w-0">
-                      <div className="truncate font-medium">
-                        {form.clients ? `${form.clients.first_name} ${form.clients.last_name}` : 'No client'}
-                        <span className="font-normal text-muted-foreground"> · {form.form_type}</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {form.profiles
-                          ? `${form.profiles.first_name ?? ''} ${form.profiles.last_name ?? ''}`.trim()
-                          : 'Unknown staff'}
-                        {' · submitted '}
-                        {new Date(form.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 gap-2">
-                      {form.file_path && (
-                        <Button variant="outline" size="sm" onClick={() => openPreview(form)}>
-                          View
-                        </Button>
-                      )}
-                      <Button size="sm" onClick={() => setDetail(form)}>
-                        Review
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/*
         Secondary route only. Ordinary IAT/LoN/HSP work starts from the
         client's own lifecycle card, which already knows the client and
@@ -617,11 +552,8 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            {Object.entries(FORM_STATUS_LABEL).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
+            <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -705,11 +637,11 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={() => setDetail(form)}>
-                        {reviewMode && form.status !== 'approved' ? 'Review' : 'Details'}
+                        Details
                       </Button>
-                      {!reviewMode && form.status === 'changes_requested' && (
+                      {!reviewMode && (form.status === 'draft' || form.status === 'changes_requested') && (
                         <Button size="sm" onClick={() => setEditingForm(form)}>
-                          Edit & resubmit
+                          Continue
                         </Button>
                       )}
                       <Button variant="outline" size="sm" onClick={() => handleDownload(form)}>

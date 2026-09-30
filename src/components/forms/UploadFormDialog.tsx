@@ -260,7 +260,7 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
           original_file_path: filePath,
           file_size: file.size,
           file_hash: fileHash,
-          status: 'submitted',
+          status: 'approved',
           source: 'manual_upload',
           source_filename: saveAs.trim() || file.name,
           signature_name: signerName,

@@ -26,31 +26,31 @@ export const ASSESSMENT_FORM_TYPES = [
 ] as const;
 
 /**
- * INTERNAL review status. This is our own sign-off chain only — it says nothing
- * about what the MCO has decided. "approved" therefore reads as "internally
- * approved / ready to send", never as an MCO approval.
+ * Whether a form is finished. There are two states: a draft, still being
+ * filled in, and completed. There is no internal sign-off after that — older
+ * rows still hold "submitted", "approved" or "changes_requested" from when
+ * there was, and they read as completed (or, for changes requested, draft).
+ * Where the form sits with the MCO is a separate question: EXTERNAL_STATUSES.
  */
 export const FORM_STATUS_LABEL: Record<string, string> = {
   draft: 'Draft',
-  submitted: 'Ready for review',
-  approved: 'Internally approved (Ready to send)',
-  changes_requested: 'Changes requested',
+  submitted: 'Completed',
+  approved: 'Completed',
+  changes_requested: 'Draft',
 };
 
-/** Compact variant for table cells where the long label does not fit. */
-export const FORM_STATUS_SHORT_LABEL: Record<string, string> = {
-  draft: 'Draft',
-  submitted: 'Ready for review',
-  approved: 'Internally approved',
-  changes_requested: 'Changes requested',
-};
+/** Compact variant for table cells. The labels are already short. */
+export const FORM_STATUS_SHORT_LABEL: Record<string, string> = FORM_STATUS_LABEL;
 
 export const FORM_STATUS_CLASS: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  submitted: 'bg-amber-100 text-amber-900',
+  draft: 'bg-amber-100 text-amber-900',
+  submitted: 'bg-green-100 text-green-800',
   approved: 'bg-green-100 text-green-800',
-  changes_requested: 'bg-red-100 text-red-800',
+  changes_requested: 'bg-amber-100 text-amber-900',
 };
+
+/** The value a completed form is saved with. */
+export const COMPLETED_STATUS = 'approved';
 
 /** EXTERNAL status — where the document sits with the MCO. */
 export const EXTERNAL_STATUSES = [

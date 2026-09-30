@@ -465,7 +465,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             file_path: filePath,
             file_size: blob.size,
             file_hash: fileHash,
-            status: asDraft ? 'draft' : 'submitted',
+            status: asDraft ? 'draft' : 'approved',
             signature_name: asDraft ? null : signerName,
             signed_by: asDraft ? null : profileId,
             signed_at: asDraft ? null : new Date().toISOString(),
@@ -493,7 +493,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             original_file_path: filePath,
             file_size: blob.size,
             file_hash: fileHash,
-            status: asDraft ? 'draft' : 'submitted',
+            status: asDraft ? 'draft' : 'approved',
             workflow_purpose: workflowPurpose ?? null,
             authorization_id: authorizationId ?? null,
             signature_name: asDraft ? null : signerName,
@@ -567,12 +567,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       toast({
         title: asDraft
           ? 'Draft saved'
-          : existing
-            ? 'Form resubmitted'
-            : 'Form submitted',
+          : 'Form completed',
         description: asDraft
-          ? 'Saved to the client record. It has not been submitted for review.'
-          : 'Your form is now awaiting manager approval.',
+          ? 'Saved to the client record as a draft. Open it again to finish it.'
+          : 'Saved to the client record.',
       });
       onSubmitted();
       onClose();
@@ -936,7 +934,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
 
         {existing?.status === 'changes_requested' && existing.review_note && (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
-            <div className="text-xs font-medium">Your manager requested changes</div>
+            <div className="text-xs font-medium">Note on this form</div>
             <p className="text-sm">{existing.review_note}</p>
           </div>
         )}
@@ -997,7 +995,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         ) : (
           <p className="text-xs text-muted-foreground">
             Type directly into the form fields below — including typing names on the signature
-            lines. Your entries stay on this page until you press Submit. If a handwritten
+            lines. Your entries stay on this page until you press Complete form. If a handwritten
             signature is required, use <span className="font-medium">Download copy</span> to
             print and sign, then submit it via Upload Form instead.
           </p>
@@ -1212,7 +1210,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
               disabled={saving || (!numPages && !showReplacementPicker)}
             >
               <Upload className="h-4 w-4 mr-2" />
-              {saving ? 'Submitting...' : existing ? 'Resubmit form' : 'Submit form'}
+              {saving ? 'Saving...' : 'Complete form'}
             </Button>
           </div>
         </DialogFooter>

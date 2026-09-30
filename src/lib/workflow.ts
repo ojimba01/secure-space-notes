@@ -357,7 +357,8 @@ export function continuationPackageState(forms: PackageForm[]): {
   const parts = CONTINUATION_PACKAGE_FORMS.map((type) => ({ type, form: latest(type) }));
 
   const missing = parts
-    .filter(({ form }) => !form || form.status !== 'approved')
+    // Completed is anything past a draft; older rows may still say "submitted".
+    .filter(({ form }) => !form || form.status === 'draft' || form.status === 'changes_requested')
     .map(({ type }) => type);
 
   const externals = parts.map(({ form }) => form?.external_status ?? 'not_sent');

@@ -16,7 +16,15 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Check, ChevronDown, ChevronRight, Download, FileText, Plus, Upload, X } from 'lucide-react';
-import { EXTERNAL_STATUS_LABEL, FORM_SOURCE_LABEL, goesToMco } from '@/lib/formSigning';
+import {
+  EXTERNAL_STATUS_LABEL,
+  FORM_STATUS_CLASS,
+  FORM_STATUS_LABEL,
+  goesToMco,
+} from '@/lib/formSigning';
+
+const isCompleted = (f: { status: string }) =>
+  f.status !== 'draft' && f.status !== 'changes_requested';
 import { formDownloadName } from '@/lib/formAutofill';
 import { recordFormVersion } from '@/lib/formVersions';
 import { CHECKLIST_TYPES, loadManualTicks } from '@/lib/formChecklist';
@@ -157,6 +165,9 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     file_type?: string;
   } | null>(null);
 
+  /** Staff names by profile id, for who filled each form out. */
+  const [staffNames, setStaffNames] = useState<Record<string, string>>({});
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -169,8 +180,25 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         loadManualTicks(clientId).catch(() => new Set<string>()),
       ]);
       if (formsResult.error) throw formsResult.error;
-      setForms((formsResult.data as unknown as DocumentRow[]) ?? []);
+      const rows = (formsResult.data as unknown as DocumentRow[]) ?? [];
+      setForms(rows);
       setManualTicks(ticks);
+
+      const ids = [...new Set(rows.map((f) => f.employee_id).filter((id): id is string => !!id))];
+      if (ids.length) {
+        const { data: people } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, email')
+          .in('id', ids);
+        setStaffNames(
+          Object.fromEntries(
+            (people ?? []).map((p) => [
+              p.id,
+              `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || p.email || 'Unknown',
+            ]),
+          ),
+        );
+      }
     } catch (err: any) {
       toast({
         title: 'Could not load forms and documents',
@@ -344,6 +372,18 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       return next;
     });
 
+  /** "Filled out by Dana Reyes · Sep 30, 2026, 2:14 PM", or uploaded or imported. */
+  const filledOutLine = (form: DocumentRow) => {
+    const who = form.employee_id ? staffNames[form.employee_id] : undefined;
+    const when = new Date(form.created_at).toLocaleString([], {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+    if (form.source === 'bulk_import') return `Imported · ${when}`;
+    const verb = form.source === 'manual_upload' ? 'Uploaded' : 'Filled out';
+    return who ? `${verb} by ${who} · ${when}` : `${verb} · ${when}`;
+  };
+
   const documentRow = (form: DocumentRow) => (
     <div key={form.id} className="flex flex-wrap items-center justify-between gap-2 p-2.5">
       <button
@@ -367,15 +407,20 @@ export const ClientFormsDocuments: React.FC<Props> = ({
             {form.title || form.form_type}
           </div>
           <div className="text-xs text-muted-foreground">
-            {new Date(form.created_at).toLocaleDateString()}
-            {' · '}
-            {FORM_SOURCE_LABEL[form.source ?? 'created_in_app'] ?? 'Created in app'}
+            {filledOutLine(form)}
           </div>
         </div>
       </button>
 
       <div className="flex items-center gap-1.5">
-        {goesToMco(form.form_type) && <McoStep form={form} onSet={setMcoStatus} />}
+        <span
+          className={`rounded-md px-2 py-1 text-xs ${FORM_STATUS_CLASS[form.status] ?? ''}`}
+        >
+          {FORM_STATUS_LABEL[form.status] ?? form.status}
+        </span>
+        {goesToMco(form.form_type) && isCompleted(form) && (
+          <McoStep form={form} onSet={setMcoStatus} />
+        )}
 
         <Button
           variant="ghost"

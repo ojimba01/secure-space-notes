@@ -8,8 +8,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -20,7 +18,7 @@ import {
   WORKFLOW_PURPOSE_LABEL,
   goesToMco,
 } from '@/lib/formSigning';
-import { Check, Download, RotateCcw, Send, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Download, Send, ThumbsDown, ThumbsUp } from 'lucide-react';
 import type { FormRow } from '@/components/forms/FormsHub';
 import { FormVersionHistory } from '@/components/forms/FormVersionHistory';
 import { FormSyncPanel } from '@/components/forms/FormSyncPanel';
@@ -29,12 +27,12 @@ import { recordFormVersion } from '@/lib/formVersions';
 interface FormDetailDialogProps {
   form: FormRow;
   isAdmin: boolean;
-  approverName: string;
+  approverName?: string;
   onClose: () => void;
   onChanged: () => void;
   onDownload: (form: FormRow) => void;
   onPreview: (form: FormRow) => void;
-  /** Employee action: reopen a changes-requested submission for correction. */
+  /** Kept for callers; editing starts from the forms list. */
   onEdit?: (form: FormRow) => void;
 }
 
@@ -42,64 +40,17 @@ interface FormDetailDialogProps {
 export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
   form,
   isAdmin,
-  approverName,
   onClose,
   onChanged,
   onDownload,
   onPreview,
-  onEdit,
 }) => {
   const { toast } = useToast();
-  const [note, setNote] = useState(form.review_note ?? '');
   const [busy, setBusy] = useState(false);
 
   const clientName = form.clients
     ? `${form.clients.first_name} ${form.clients.last_name}`
     : 'Unknown client';
-
-  const approve = async () => {
-    setBusy(true);
-    try {
-      const { error } = await supabase
-        .from('client_forms')
-        .update({ status: 'approved', review_note: note || null })
-        .eq('id', form.id);
-      if (error) throw error;
-
-      toast({
-        title: 'Internally approved — ready to send',
-        description: `${clientName} — ${form.form_type}`,
-      });
-      onChanged();
-      onClose();
-    } catch (err: any) {
-      toast({ title: 'Could not approve', description: err.message, variant: 'destructive' });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const requestChanges = async () => {
-    if (!note.trim()) {
-      toast({ title: 'Add a note explaining what to change', variant: 'destructive' });
-      return;
-    }
-    setBusy(true);
-    try {
-      const { error } = await supabase
-        .from('client_forms')
-        .update({ status: 'changes_requested', review_note: note.trim() })
-        .eq('id', form.id);
-      if (error) throw error;
-      toast({ title: 'Changes requested' });
-      onChanged();
-      onClose();
-    } catch (err: any) {
-      toast({ title: 'Could not update', description: err.message, variant: 'destructive' });
-    } finally {
-      setBusy(false);
-    }
-  };
 
   /** External/MCO status is a separate track from our internal sign-off. */
   const setExternal = async (
@@ -150,7 +101,8 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
   };
 
   const externalStatus = form.external_status ?? 'not_sent';
-  const internallyApproved = form.status === 'approved';
+  // A form is finished once it is completed; there is no sign-off after that.
+  const completed = form.status !== 'draft';
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -170,7 +122,7 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
               <div>{form.form_type}</div>
             </div>
             <div>
-              <div className="text-muted-foreground text-xs">Submitted by</div>
+              <div className="text-muted-foreground text-xs">Filled out by</div>
               <div>
                 {form.profiles
                   ? `${form.profiles.first_name ?? ''} ${form.profiles.last_name ?? ''}`.trim()
@@ -178,7 +130,7 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
               </div>
             </div>
             <div>
-              <div className="text-muted-foreground text-xs">Submitted</div>
+              <div className="text-muted-foreground text-xs">Filled out</div>
               <div>{new Date(form.created_at).toLocaleString()}</div>
             </div>
             {form.workflow_purpose && (
@@ -197,41 +149,11 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
             )}
           </div>
 
-          {/* Internal review — our own sign-off chain only. */}
-          <div className="rounded-md border p-3 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-xs font-semibold uppercase text-muted-foreground">
-                Internal review
-              </div>
-              <Badge variant="secondary" className={FORM_STATUS_CLASS[form.status] ?? ''}>
-                {FORM_STATUS_LABEL[form.status] ?? form.status}
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              This is our sign-off only. It does not mean the MCO has approved anything.
-            </p>
-            {form.approved_at && (
-              <div className="text-xs">
-                Internally approved {new Date(form.approved_at).toLocaleString()}
-              </div>
-            )}
-            {form.review_note && form.status === 'changes_requested' && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
-                <div className="text-xs font-medium">Reviewer note</div>
-                <p className="text-sm">{form.review_note}</p>
-                {!isAdmin && onEdit && (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      onClose();
-                      onEdit(form);
-                    }}
-                  >
-                    Edit &amp; resubmit
-                  </Button>
-                )}
-              </div>
-            )}
+          <div className="flex items-center justify-between gap-2 rounded-md border p-3">
+            <div className="text-xs font-semibold uppercase text-muted-foreground">Status</div>
+            <Badge variant="secondary" className={FORM_STATUS_CLASS[form.status] ?? ''}>
+              {FORM_STATUS_LABEL[form.status] ?? form.status}
+            </Badge>
           </div>
 
           {goesToMco(form.form_type) ? (
@@ -266,7 +188,7 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={busy || !internallyApproved}
+                    disabled={busy || !completed}
                     onClick={() => setExternal('sent_to_mco', 'sent', 'Marked as sent to the MCO')}
                   >
                     <Send className="h-4 w-4 mr-1" />
@@ -300,9 +222,9 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
                   </Button>
                 </div>
               )}
-              {isAdmin && !internallyApproved && (
+              {isAdmin && !completed && (
                 <p className="text-xs text-muted-foreground">
-                  Approve the form internally before marking it sent.
+                  This form is still a draft. It can be marked sent once it is completed.
                 </p>
               )}
             </div>
@@ -331,38 +253,12 @@ export const FormDetailDialog: React.FC<FormDetailDialogProps> = ({
               Download
             </Button>
           </div>
-
-          {isAdmin && form.status !== 'approved' && (
-            <div className="space-y-2 border-t pt-3">
-              <Label htmlFor="review-note">Reviewer note (optional for approval)</Label>
-              <Textarea
-                id="review-note"
-                value={note}
-                maxLength={1000}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="What needs to change?"
-              />
-            </div>
-          )}
         </div>
 
         <DialogFooter>
-          {isAdmin && form.status !== 'approved' ? (
-            <>
-              <Button variant="outline" onClick={requestChanges} disabled={busy}>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Request changes
-              </Button>
-              <Button onClick={approve} disabled={busy}>
-                <Check className="h-4 w-4 mr-2" />
-                {busy ? 'Working...' : 'Approve internally'}
-              </Button>
-            </>
-          ) : (
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          )}
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
