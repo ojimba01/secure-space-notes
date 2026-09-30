@@ -5,7 +5,7 @@
 // behind and how their month is going, and "11 overdue" names nobody. So the
 // case managers are the page now, the totals are a strip above them, and
 // pressing a name opens that person's weekly HMIS Case Log.
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import {
   ClipboardList,
   ChevronRight,
   ChevronDown,
+  BellRing,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useSuperadminCompliance, StaffOverdueRow } from '@/hooks/useSuperadminCompliance';
@@ -30,6 +31,9 @@ import { useTeamWeek } from '@/hooks/useTeamWeek';
 import { CaseLog } from '@/components/CaseLog';
 import { CaseLogArchive } from '@/components/CaseLogArchive';
 import { monthKey, monthLabel } from '@/lib/caseLog';
+import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
+import { SendReminderDialog, type ReminderTarget } from '@/components/SendReminderDialog';
+import { loadOpenReminderDates } from '@/lib/touchpointReminders';
 
 interface Props {
   onOpenClient: (id: string) => void;
@@ -67,6 +71,14 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
   const week = useTeamWeek();
   const [open, setOpen] = useState<CaseManagerRow | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const myProfileId = useEffectiveProfileId();
+  const [reminderTarget, setReminderTarget] = useState<ReminderTarget | null>(null);
+  /** client id -> when an open reminder about them was sent. */
+  const [reminded, setReminded] = useState<Record<string, string>>({});
+  const refreshReminders = useCallback(() => {
+    void loadOpenReminderDates().then(setReminded);
+  }, []);
+  useEffect(refreshReminders, [refreshReminders]);
 
   const overdueByStaffId = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -81,9 +93,9 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
   }, [data.overdueRows]);
 
   const overdueRow = (r: StaffOverdueRow) => (
-    <button key={r.id} onClick={() => onOpenClient(r.id)}
-      className="flex w-full items-start justify-between gap-3 rounded-md border border-red-200 bg-red-50 p-3 text-left hover:bg-red-100">
-      <div>
+    <div key={r.id}
+      className="flex w-full items-start justify-between gap-3 rounded-md border border-red-200 bg-red-50 p-3">
+      <button onClick={() => onOpenClient(r.id)} className="min-w-0 flex-1 text-left hover:underline-offset-2">
         <div className="flex items-center gap-2 font-medium">
           {r.client_name} {lonBadge(r.level_of_need)}
         </div>
@@ -93,18 +105,37 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         <div className="mt-0.5 text-xs text-red-700">
           {r.inPersonDays > 0 ? 'Visit done' : 'No in-person visit this cycle'}
         </div>
-      </div>
-      <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
-    </button>
+        {reminded[r.id] && (
+          <div className="mt-1 text-xs text-amber-700">
+            Reminder sent {format(new Date(reminded[r.id]), 'MMM d, h:mm a')}
+          </div>
+        )}
+      </button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="shrink-0 gap-1.5 bg-white"
+        onClick={() => setReminderTarget({ employeeId: r.staff_id, clientIds: [r.id] })}
+      >
+        <BellRing className="h-4 w-4" />
+        {reminded[r.id] ? 'Remind again' : 'Remind'}
+      </Button>
+    </div>
   );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
-      <div>
-        <h1 className="text-2xl font-bold">Team touchpoints</h1>
-        <p className="text-sm text-muted-foreground">
-          Every case manager, their month, and the log they hand in each week.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Team touchpoints</h1>
+          <p className="text-sm text-muted-foreground">
+            Every case manager, their month, and the log they hand in each week.
+          </p>
+        </div>
+        <Button variant="outline" className="gap-2" onClick={() => setReminderTarget({ employeeId: null, clientIds: [] })}>
+          <BellRing className="h-4 w-4" />
+          Send a reminder
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -193,8 +224,23 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
               const shown = expanded ? rows : rows.slice(0, 3);
               return (
                 <div key={staff} className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-semibold">
-                    {staff} <Badge variant="outline">{rows.length}</Badge>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      {staff} <Badge variant="outline">{rows.length}</Badge>
+                    </div>
+                    {rows.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() =>
+                          setReminderTarget({ employeeId: rows[0].staff_id, clientIds: rows.map((r) => r.id) })
+                        }
+                      >
+                        <BellRing className="h-4 w-4" />
+                        Remind about all {rows.length}
+                      </Button>
+                    )}
                   </div>
                   {shown.map(overdueRow)}
                   {!expanded && rows.length > 3 && (
@@ -212,6 +258,14 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
           </CardContent>
         </Card>
       )}
+
+      <SendReminderDialog
+        target={reminderTarget}
+        managers={managers.rows.map((m) => ({ id: m.id, name: m.name }))}
+        senderId={myProfileId}
+        onClose={() => setReminderTarget(null)}
+        onSent={refreshReminders}
+      />
 
       <Dialog open={!!open} onOpenChange={(o) => { if (!o) { setOpen(null); managers.refresh(); } }}>
         <DialogContent className="max-w-5xl">

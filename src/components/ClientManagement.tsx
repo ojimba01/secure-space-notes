@@ -21,6 +21,8 @@ import { ReopenCaseDialog } from '@/components/ReopenCaseDialog';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useMyCompliance } from '@/hooks/useMyCompliance';
 import { useViewAs } from '@/components/ViewAsProvider';
+import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
+import { TouchpointReminderPopup } from '@/components/TouchpointReminderPopup';
 
 interface Client {
   id: string;
@@ -127,6 +129,10 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   const [touchpointFor, setTouchpointFor] = useState<
     { id: string; name: string; levelOfNeed: string | null } | null
   >(null);
+  const myProfileId = useEffectiveProfileId();
+  /** Bumped after a reminder's touchpoint is handled, so the rest show again. */
+  const [reminderRound, setReminderRound] = useState(0);
+  const [fromReminder, setFromReminder] = useState(false);
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -456,6 +462,14 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
 
   return (
     <div className="p-3 md:p-6 space-y-4 md:space-y-6">
+      <TouchpointReminderPopup
+        key={reminderRound}
+        employeeId={myProfileId}
+        onCompleteNow={(r) => {
+          setFromReminder(true);
+          setTouchpointFor({ id: r.client_id, name: r.clientName, levelOfNeed: r.levelOfNeed });
+        }}
+      />
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h1 className="text-xl md:text-3xl font-bold truncate">Clients</h1>
@@ -687,7 +701,14 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
 
       <AddTouchpointDialog
         open={!!touchpointFor}
-        onOpenChange={(open) => !open && setTouchpointFor(null)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setTouchpointFor(null);
+          if (fromReminder) {
+            setFromReminder(false);
+            setReminderRound((n) => n + 1);
+          }
+        }}
         context={
           touchpointFor
             ? {
@@ -702,6 +723,10 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         }
         onSaved={() => {
           setTouchpointFor(null);
+          if (fromReminder) {
+            setFromReminder(false);
+            setReminderRound((n) => n + 1);
+          }
           fetchClients();
         }}
       />
