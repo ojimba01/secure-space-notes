@@ -88,6 +88,7 @@ export type Database = {
           paid_date: string | null
           payment_status: string
           phase: string
+          round: number
           submitted_date: string | null
           updated_at: string
         }
@@ -114,6 +115,7 @@ export type Database = {
           paid_date?: string | null
           payment_status?: string
           phase?: string
+          round?: number
           submitted_date?: string | null
           updated_at?: string
         }
@@ -140,6 +142,7 @@ export type Database = {
           paid_date?: string | null
           payment_status?: string
           phase?: string
+          round?: number
           submitted_date?: string | null
           updated_at?: string
         }
@@ -159,6 +162,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      billing_workbook_layout: {
+        Row: {
+          id: string
+          layout: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          layout?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          layout?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       calendar_events: {
         Row: {
@@ -1474,6 +1498,7 @@ export type Database = {
           auth_30_end: string | null
           auth_30_number: string | null
           auth_30_start: string | null
+          billing_round: number
           billing_tracking_start: string
           closed_date: string | null
           continuation_authorization_status: string | null
@@ -1545,6 +1570,7 @@ export type Database = {
           auth_30_end?: string | null
           auth_30_number?: string | null
           auth_30_start?: string | null
+          billing_round?: number
           billing_tracking_start?: string
           closed_date?: string | null
           continuation_authorization_status?: string | null
@@ -1616,6 +1642,7 @@ export type Database = {
           auth_30_end?: string | null
           auth_30_number?: string | null
           auth_30_start?: string | null
+          billing_round?: number
           billing_tracking_start?: string
           closed_date?: string | null
           continuation_authorization_status?: string | null
@@ -2301,6 +2328,7 @@ export type Database = {
           requester_seen_at: string
           resolved_at: string | null
           status: string
+          title: string | null
           updated_at: string
           user_agent: string | null
         }
@@ -2316,6 +2344,7 @@ export type Database = {
           requester_seen_at?: string
           resolved_at?: string | null
           status?: string
+          title?: string | null
           updated_at?: string
           user_agent?: string | null
         }
@@ -2331,6 +2360,7 @@ export type Database = {
           requester_seen_at?: string
           resolved_at?: string | null
           status?: string
+          title?: string | null
           updated_at?: string
           user_agent?: string | null
         }
