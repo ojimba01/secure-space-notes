@@ -21,54 +21,21 @@ export interface Guide {
   steps: GuideStep[];
 }
 
+// Getting started comes last: it is the section people need least once they are
+// using the app every day.
 export const SECTIONS = [
-  'Getting started',
   'Clients',
   'Forms and documents',
   'Touchpoints',
   'Calendar',
   'Managing the team',
   'Billing',
+  'Getting started',
 ] as const;
 
 const s = (title: string, text: string): GuideStep => ({ title, text });
 
 export const GUIDES: Guide[] = [
-  // ---- Getting started
-  {
-    id: 'sign-in', section: 'Getting started', title: 'Sign in', audience: 'everyone', minutes: 1,
-    steps: [
-      s('Enter your details', 'Enter your work email and password, then select Sign in.'),
-      s('Forgot your password?', 'Select Forgot password? on the sign-in page.'),
-      s('Reset it', 'Enter your email and select Send reset instructions. Open the link in the email to choose a new password.'),
-    ],
-  },
-  {
-    id: 'find-your-way', section: 'Getting started', title: 'Find your way around', audience: 'everyone', minutes: 1,
-    steps: [
-      s('Use the left panel', 'Clients, Forms, My touchpoints and Calendar hold your day-to-day work. Help guide is always here.'),
-      s('Open your account', 'Select the person icon at the top of the panel to change your password, add a signature or link your calendar.'),
-      s('Take a tour', 'Select Start walkthrough for a short tour of the screen you are on.'),
-    ],
-  },
-  {
-    id: 'account', section: 'Getting started', title: 'Change your password or signature', audience: 'everyone', minutes: 1,
-    steps: [
-      s('Open your account', 'Select the person icon at the top of the left panel.'),
-      s('Change your password', 'Enter a new password and select Change password.'),
-      s('Save a signature', 'Select Add a signature to draw or type one. It is used when you sign forms.'),
-    ],
-  },
-  {
-    id: 'support', section: 'Getting started', title: 'Get help from support', audience: 'everyone', minutes: 2,
-    steps: [
-      s('Select Support', 'The Support button is in the bottom-right corner of every page.'),
-      s('Describe the problem', 'Say what you were trying to do and what happened.'),
-      s('Show the problem', 'Select Screenshot to circle the problem on the page, Record screen to record up to 3 minutes, or Attach file.'),
-      s('Send it', 'Select Send to support. Replies appear under My requests.'),
-    ],
-  },
-
   // ---- Clients
   {
     id: 'find-client', section: 'Clients', title: 'Find a client', audience: 'everyone', minutes: 1,
@@ -146,7 +113,26 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Open the client’s Forms tab', 'Open the client and select Forms.'),
       s('Select Begin', 'Select Begin next to the form: Client Intake, IAT, LON or HSP.'),
-      s('Complete the form', 'The client’s details are already filled in. Type in the boxes, sign, tick the confirmation and select Complete form.'),
+      s('Complete the form', 'The client’s details are already filled in. Type in the boxes, add your signature (see Sign a form), tick the confirmation and select Complete form.'),
+    ],
+  },
+  {
+    id: 'save-signature', section: 'Forms and documents', title: 'Save your signature', audience: 'everyone', minutes: 2,
+    steps: [
+      s('Open your account', 'Select the person icon at the top of the left panel.'),
+      s('Select Add a signature', 'Under Signature, select Add a signature. If you already have one, select Add or change.'),
+      s('Type your signature', 'Type your full name for a signature, or your initials for initials, then select Add.'),
+      s('Or draw or upload it', 'Select Upload or draw signature instead. Draw in the box and select Save, or select Upload a photo of the one you sign on paper.'),
+      s('Choose your default', 'Your saved signatures are listed under Saved. Select Make default next to the one to offer first on forms.'),
+    ],
+  },
+  {
+    id: 'sign-form', section: 'Forms and documents', title: 'Sign a form', audience: 'everyone', minutes: 2,
+    steps: [
+      s('Select Add signature', 'With the form open, select Add signature below it.'),
+      s('Choose a signature', 'Select one of your saved signatures or initials. To make a new one, select New signature.'),
+      s('Move it into place', 'Drag the signature onto the signature line. Pull a corner to resize it, or select the X to remove it.'),
+      s('Sign again if needed', 'Select Add another signature for each line that needs a signature or initials, then select Complete form.'),
     ],
   },
   {
@@ -306,10 +292,45 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
-    id: 'lapsed', section: 'Billing', title: 'Follow up a lapsed authorization', audience: 'admins', minutes: 1,
+    id: 'lapsed', section: 'Billing', title: 'Follow up a lapsed authorization', audience: 'admins', minutes: 2,
     steps: [
       s('Open 2nd authorization', 'In the Workbook, select the 2nd authorization tab.'),
-      s('Follow up', 'These authorizations ended over 14 days ago with no contact. Select Open client or Close case.'),
+      s('Follow up', 'These authorizations ended over 14 days ago with no contact. Select Open client to check on them, or Close case.'),
+      s('Start a 2nd authorization', 'If the client has a new authorization, select Start 2nd authorization. Enter the 30-day start date and authorization number, then select Start authorization. Earlier billing cycles stay as they are.'),
+    ],
+  },
+
+  // ---- Getting started
+  {
+    id: 'sign-in', section: 'Getting started', title: 'Sign in', audience: 'everyone', minutes: 1,
+    steps: [
+      s('Enter your details', 'Enter your work email and password, then select Sign in.'),
+      s('Forgot your password?', 'Select Forgot password? on the sign-in page.'),
+      s('Reset it', 'Enter your email and select Send reset instructions. Open the link in the email to choose a new password.'),
+    ],
+  },
+  {
+    id: 'find-your-way', section: 'Getting started', title: 'Find your way around', audience: 'everyone', minutes: 1,
+    steps: [
+      s('Use the left panel', 'Clients, Forms, My touchpoints and Calendar hold your day-to-day work. Help guide is always here.'),
+      s('Open your account', 'Select the person icon at the top of the panel to change your password, add a signature or link your calendar.'),
+      s('Take a tour', 'Select Start walkthrough for a short tour of the screen you are on.'),
+    ],
+  },
+  {
+    id: 'account', section: 'Getting started', title: 'Change your password', audience: 'everyone', minutes: 1,
+    steps: [
+      s('Open your account', 'Select the person icon at the top of the left panel.'),
+      s('Change your password', 'Enter a new password and select Change password.'),
+    ],
+  },
+  {
+    id: 'support', section: 'Getting started', title: 'Get help from support', audience: 'everyone', minutes: 2,
+    steps: [
+      s('Select Support', 'The Support button is in the bottom-right corner of every page.'),
+      s('Describe the problem', 'Say what you were trying to do and what happened.'),
+      s('Show the problem', 'Select Screenshot to circle the problem on the page, Record screen to record up to 3 minutes, or Attach file.'),
+      s('Send it', 'Select Send to support. Replies appear under My requests.'),
     ],
   },
 ];

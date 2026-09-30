@@ -181,7 +181,7 @@ export async function loadStaffTouchpointRows(
 ): Promise<StaffTouchpointRow[]> {
   const { data: profiles, error } = await loosely
     .from('profiles')
-    .select('id, first_name, last_name, email, active, touchpoint_go_live_date, touchpoint_tutorial_acknowledged_at')
+    .select('id, user_id, first_name, last_name, email, active, touchpoint_go_live_date, touchpoint_tutorial_acknowledged_at')
     .eq('active', true);
   if (error) throw new Error(error.message);
 
@@ -199,7 +199,12 @@ export async function loadStaffTouchpointRows(
     caseload.set(id, (caseload.get(id) ?? 0) + 1);
   }
 
+  // Superadmins are not case managers.
+  const { data: superRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'superadmin');
+  const superIds = new Set((superRoles ?? []).map((r) => r.user_id as string));
+
   return visibleProfiles(profiles as any[])
+    .filter((p) => !superIds.has(p.user_id))
     .map((p) => ({
       profileId: p.id,
       name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || p.email,

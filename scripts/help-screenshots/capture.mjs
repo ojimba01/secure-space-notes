@@ -56,6 +56,41 @@ async function closedClient(p) {
 }
 
 // guide id -> one entry per step: { as, go(page), target(page) -> locator, label }
+async function openAccount(p) {
+  await p.goto(`${BASE}/?view=clients`);
+  await wait(p, 2000);
+  await p.locator('[aria-label="Your account"]').last().click();
+  await wait(p, 1200);
+}
+async function openSignatures(p) {
+  await openAccount(p);
+  await btn(p, 'Add or change').click();
+  await wait(p, 1500);
+  await p.locator('#sig-typed').fill('Taylor Brooks');
+  await wait(p, 500);
+}
+async function drawOn(p) {
+  const box = await dialog(p).locator('canvas').first().boundingBox();
+  await p.mouse.move(box.x + 40, box.y + 90);
+  await p.mouse.down();
+  for (let i = 0; i <= 40; i++) await p.mouse.move(box.x + 40 + i * 9, box.y + 80 - Math.sin(i / 3) * 30, { steps: 2 });
+  await p.mouse.up();
+}
+async function openForm(p) {
+  await openClient(p, 'c-2', 'Forms');
+  await btn(p, 'Begin', true).click();
+  await wait(p, 4000);
+  await btn(p, 'Add signature', true).scrollIntoViewIfNeeded();
+}
+async function signForm(p) {
+  await openForm(p);
+  await btn(p, 'Add signature', true).click();
+  await wait(p, 1200);
+  await dialog(p).getByRole('button', { name: /Taylor Brooks/ }).first().click();
+  await wait(p, 2500);
+  await p.locator('[title^="Drag to move it"]').first().scrollIntoViewIfNeeded();
+}
+
 const SHOTS = {
   'sign-in': [
     { as: 'signedout', go: (p) => p.goto(`${BASE}/auth`), target: (p) => p.getByRole('button', { name: 'Sign in', exact: true }).last(), label: 'Sign in' },
@@ -70,7 +105,6 @@ const SHOTS = {
   account: [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => p.locator('[aria-label="Your account"]').last(), label: 'Your account' },
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await p.locator('[aria-label="Your account"]').last().click(); }, target: (p) => btn(p, 'Change password'), label: 'Change password' },
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await p.locator('[aria-label="Your account"]').last().click(); }, target: (p) => btn(p, 'Add a signature'), label: 'Add a signature' },
   ],
   support: [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'Support', true), label: 'Support' },
@@ -126,6 +160,19 @@ const SHOTS = {
     { as: 'staff', go: (p) => openClient(p, 'c-2'), target: (p) => tab(p, 'Forms'), label: 'Forms' },
     { as: 'staff', go: (p) => openClient(p, 'c-2', 'Forms'), target: (p) => btn(p, 'Begin', true), label: 'Begin' },
     { as: 'staff', go: async (p) => { await openClient(p, 'c-2', 'Forms'); await btn(p, 'Begin', true).click(); await wait(p, 4000); }, target: (p) => btn(p, 'Complete form'), label: 'Complete form' },
+  ],
+  'save-signature': [
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => p.locator('[aria-label="Your account"]').last(), label: 'Your account' },
+    { as: 'staff', go: openAccount, target: (p) => btn(p, 'Add or change'), label: 'Add or change' },
+    { as: 'staff', go: openSignatures, target: (p) => btn(p, 'Add', true), label: 'Add' },
+    { as: 'staff', go: async (p) => { await openSignatures(p); await btn(p, 'Upload or draw signature instead').click(); await wait(p, 600); await drawOn(p); }, target: (p) => btn(p, 'Save', true), label: 'Save' },
+    { as: 'staff', go: openSignatures, target: (p) => btn(p, 'Make default'), label: 'Make default' },
+  ],
+  'sign-form': [
+    { as: 'staff', go: openForm, target: (p) => btn(p, 'Add signature', true), label: 'Add signature' },
+    { as: 'staff', go: async (p) => { await openForm(p); await btn(p, 'Add signature', true).click(); await wait(p, 1200); }, target: (p) => dialog(p).getByRole('button', { name: /Taylor Brooks/ }).first(), label: 'Choose a signature' },
+    { as: 'staff', go: signForm, target: (p) => p.locator('[title^="Drag to move it"]').first(), label: 'Drag it into place' },
+    { as: 'staff', go: signForm, target: (p) => btn(p, 'Add another signature'), label: 'Add another signature' },
   ],
   drafts: [
     { as: 'staff', go: async (p) => { await openClient(p, 'c-2', 'Forms'); await btn(p, 'Begin', true).click(); await wait(p, 4000); }, target: (p) => btn(p, 'Save draft'), label: 'Save draft' },
@@ -222,6 +269,7 @@ const SHOTS = {
   lapsed: [
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, 'Workbook', true).click(); await wait(p, 2000); }, target: (p) => p.getByRole('tab', { name: /2nd authorization/ }), label: '2nd authorization' },
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, 'Workbook', true).click(); await wait(p, 2000); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); }, target: (p) => btn(p, 'Open client'), label: 'Open client' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, 'Workbook', true).click(); await wait(p, 2000); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); await btn(p, 'Start 2nd authorization').click(); await wait(p, 800); }, target: (p) => btn(p, 'Start authorization', true), label: 'Start authorization' },
   ],
 };
 

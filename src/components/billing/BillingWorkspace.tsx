@@ -396,12 +396,12 @@ export function BillingWorkspace() {
 
   const tutorialSteps: BillingTutorialStep[] = useMemo(()=>{
     const sectionsList = isSuperadmin
-      ? 'Billing runs in order.\n\nBilling Details holds the agency\u2019s own information, added once.\n\nClients To Bill lists who to file for, soonest deadline first.\n\nRevenue shows what has been billed and collected.\n\nClient Information is where you add or correct the client details used to build billing cycles.'
-      : 'Billing runs in order.\n\nBilling Details holds the agency\u2019s own information, added once.\n\nClients To Bill lists who to file for, soonest deadline first.\n\nClient Information is where you add or correct the client details used to build billing cycles.';
+      ? 'To bill lists who to file for, soonest deadline first.\n\nFiled claims lists claims sent to the MCO and what each one returned.\n\nRevenue shows what has been billed and collected.\n\nWorkbook shows every client and cycle in one sheet.'
+      : 'To bill lists who to file for, soonest deadline first.\n\nFiled claims lists claims sent to the MCO and what each one returned.\n\nWorkbook shows every client and cycle in one sheet.';
 
     const steps: BillingTutorialStep[] = [
       {
-        title: isSuperadmin ? 'Understand the three Billing sections' : 'Understand the two Billing sections',
+        title: 'The Billing sections',
         body: sectionsList,
         selector:'[data-tour="sections"]',
         before:()=>{setSection('bill');setQuery('');setOpen(null);setBillingClientId(null);},
@@ -459,40 +459,12 @@ export function BillingWorkspace() {
       );
     }
 
-    steps.push(
-      {
-        title:'Open the client billing setup section',
-        body: isSuperadmin
-          ? 'You have finished reviewing Revenue. Use Add or Set Up Client Billing to add a client or correct the information used to create billing cycles.\n\nYou can save the information you have even when some information is still missing.'
-          : 'You have finished reviewing Current Billing Deadlines. Use Add or Set Up Client Billing to add a client or correct the information used to create billing cycles.\n\nYou can save the information you have even when some information is still missing.',
-        selector:'[data-tour="sections"]',
-        done: section==='data',
-        hint:'**Press Add or Set Up Client Billing to continue.**',
-        before:()=>{setSection(isSuperadmin?'revenue':'bill');},
-      },
-      {
-        title:'Review the client setup groups',
-        body:'These buttons organize clients by their current place in the billing setup process.\n\nNeeds Setup includes clients whose billing cycles cannot be created because required information or an action is still missing. The available filters explain what is needed, including No Authorization Start Date.\n\nThe 150-Day Authorization group shows clients whose initial authorization information has been completed.\n\nThe 180-Day Extension group shows clients whose extension information has been completed or needs to be reviewed.\n\nThe number in parentheses shows how many clients are in each group.',
-        selector:'[data-tour="stage-setup"]',
-        done: setupReason==='start',
-        hint:'**Press No Authorization Start Date to continue.**',
-        before:()=>{setSection('data');setSetupReason('all');setQuery('');},
-      },
-      {
-        title:'Add a client',
-        body:'Add Client Row creates a blank row at the top of the table. Enter the information you currently have, then press Save. You can complete the remaining information later.\n\nA partially completed client remains saved in the appropriate setup group. The client must not appear under Current Billing Deadlines until the information required to calculate billing cycles has been entered.\n\nWhen an authorization start date is entered, the system creates the billing cycles: the initial 30-day authorization first, then the 150-day authorization. If a 180-day extension is approved later, the system adds the extension cycles. The level of need is only needed to price them.',
-        selector:'[data-tour="add-client"]',
-        done: (practice?.clients.length ?? 0) > 1,
-        hint:'**Press Add Client Row to complete the tutorial.**',
-        before:()=>{setSection('data');setSetupReason('start');setQuery('');removePracticeRows();},
-      },
-    );
     return steps;
   },[isSuperadmin,section,setupReason,open,query,practice,practiceClient,practiceCycle,practiceRevenueView]);
 
   const completionBody = isSuperadmin
-    ? ['You have completed the Billing tutorial.','Add the agency details once under Billing Details. Work through Clients To Bill from the top. Use Revenue to review what has been billed and collected, and Client Information to add or correct client details.','You can restart this at any time by pressing How Billing Works.']
-    : ['You have completed the Billing tutorial.','Add the agency details once under Billing Details. Work through Clients To Bill from the top. Use Client Information to add or correct client details.','You can restart this at any time by pressing How Billing Works.'];
+    ? ['You have completed the Billing tutorial.','Work through To bill from the top. Use Revenue to review what has been billed and collected.','Select How billing works to see this again.']
+    : ['You have completed the Billing tutorial.','Work through To bill from the top.','Select How billing works to see this again.'];
 
   if (loading) return <Card className="p-8 text-muted-foreground">Loading billing information…</Card>;
 
@@ -568,24 +540,10 @@ export function BillingWorkspace() {
         <Button variant="ghost" className="gap-2" onClick={()=>setWorkbookOpen(true)}><FileSpreadsheet className="h-4 w-4"/>Workbook</Button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button data-tour="section-setup" variant="outline" className={section==='data'?'border-indigo-400 bg-indigo-50 text-indigo-900 hover:bg-indigo-100':''} onClick={()=>setSection('data')}><Pencil className="mr-2 h-4 w-4"/>Client information</Button>
         <Button variant="ghost" onClick={startTutorial}><HelpCircle className="mr-2 h-4 w-4"/>How billing works</Button>
       </div>
     </div>
 
-    {section==='data' && <Card className="p-4" data-tour="search">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input className="pl-9" placeholder="Search clients by name, member ID, or MCO…" value={query} onChange={e=>setQuery(e.target.value)} />
-        {query && <button className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={()=>setQuery('')}><X className="h-4 w-4"/></button>}
-      </div>
-      {searchResults.length>0 && <div className="mt-3 divide-y rounded-md border">
-        {searchResults.map(c=><button key={c.id} className="flex w-full items-center justify-between gap-3 p-3 text-left text-sm hover:bg-slate-50" onClick={()=>setProfileId(c.id)}>
-          <span><b>{c.first_name} {c.last_name}</b><span className="text-muted-foreground"> · {c.member_id ?? 'No member ID'} · {c.insurance ?? 'No MCO'}</span></span>
-          <span className="flex items-center gap-1 text-xs font-medium text-primary"><UserRound className="h-3.5 w-3.5"/>View profile</span>
-        </button>)}
-      </div>}
-    </Card>}
 
     {section==='revenue' ? <RevenueTab clients={clients} cycles={cycles} viewOverride={practice?practiceRevenueView:undefined} onViewChange={practice?setPracticeRevenueView:undefined}/>
     : section==='submitted' ? <SubmittedClaims clients={clients} cycles={cycles} updateCycle={cycleWriter}/>
@@ -624,68 +582,8 @@ export function BillingWorkspace() {
         onOpenClaim={(clientId,cycleId)=>setClaimRequest({clientId,cycleId})}
       />
 
-
-    </>
-    : <>
-      <Card className="p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-semibold">Billing cycles due</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Ordered by submission deadline, soonest first. Select a client to view their cycles.</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={()=>setEditData(v=>!v)}>
-            <Pencil className="mr-2 h-4 w-4"/>{editData?'Hide client data':'Edit client data'}
-          </Button>
-        </div>
-      </Card>
-
-      {!editData && <>
-        {queue.length===0 && <Card className="p-10 text-center">
-          <h3 className="font-semibold">{query.trim()?'No clients match that search':'No claims are outstanding'}</h3>
-        </Card>}
-
-        {BANDS.filter(b=>b.key!=='later').map(b=>byBand[b.key].length>0?<section key={b.key} className="space-y-3">
-          <div>
-            <h3 className="font-semibold">{b.heading} ({byBand[b.key].length})</h3>
-            {b.note && <p className="text-sm text-muted-foreground">{b.note}</p>}
-          </div>
-          {byBand[b.key].map(row=>clientRow(row,false))}
-        </section>:null)}
-
-        {byBand.later.length>0 && <section className="space-y-3">
-          <button className="flex w-full items-center justify-between rounded-md border bg-white p-3 text-left text-sm hover:bg-slate-50" onClick={()=>setShowLater(v=>!v)}>
-            <span><b>Not yet due ({byBand.later.length})</b></span>
-            {showLater?<ChevronDown className="h-4 w-4"/>:<ChevronRight className="h-4 w-4"/>}
-          </button>
-          {showLater && <div className="space-y-3">
-            <Pager page={page} setPage={setPage} total={byBand.later.length} label="clients"/>
-            {laterPaged.map(row=>clientRow(row,false))}
-            <Pager page={page} setPage={setPage} total={byBand.later.length} label="clients"/>
-          </div>}
-        </section>}
-
-        {lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
-        {extensionClients.length>0 && <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>}
-      </>}
-
-      {editData && <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/60 p-4 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 font-semibold text-indigo-900"><Pencil className="h-4 w-4"/>Edit mode — add or set up client billing</h2>
-          <p className="mt-1 text-sm text-indigo-900/70">Everything on this screen is editable and saves as you go. Partial information is kept without creating overdue warnings.</p>
-        </div>
-        <Button data-tour="add-client" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>clientAdder().then(id=>{setSetupReason('all');setNewRowIds(x=>[id,...x]);toast.success(practice?'Practice row added at the top.':'New client row added at the top.');}).catch(e=>toast.error(e.message))}><Plus className="mr-2 h-4 w-4"/>Add client row</Button>
-      </div>
-
-      <div className="flex flex-wrap gap-2" data-tour="stage-setup">
-        <Button size="sm" variant={setupReason==='all'?'secondary':'outline'} className={setupReason!=='all'?'bg-white':''} onClick={()=>setSetupReason('all')}>All clients ({clients.filter(c=>c.status==='active').length})</Button>
-        <Button size="sm" onClick={()=>setSetupReason('start')} className={setupReason==='start'?'bg-orange-600 text-white hover:bg-orange-700':'border border-orange-300 bg-white text-orange-800 hover:bg-orange-50'}>No authorization start date ({countBlocked('start')})</Button>
-        <Button size="sm" onClick={()=>setSetupReason('lon')} className={setupReason==='lon'?'bg-red-600 text-white hover:bg-red-700':'border border-red-300 bg-white text-red-700 hover:bg-red-50'}>Missing level of need ({countBlocked('lon')})</Button>
-      </div>
-
-      <ClientGrid clients={setupRows.filter(c=>matches(c,query))} save={saveClient} openProfile={setProfileId} onDelete={setDeleteTarget}/>
-
-
+      {lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
+      {extensionClients.length>0 && <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>}
       {deletedClients.length>0 && <Card className="p-4">
         <h3 className="font-semibold">Recently deleted</h3>
         <p className="mt-1 text-sm text-muted-foreground">Deleted clients can be recovered for {RECOVERY_WINDOW_DAYS} days.</p>
@@ -696,8 +594,8 @@ export function BillingWorkspace() {
           </div>)}
         </div>
       </Card>}
-    </div>}
-    </>}
+    </>
+    : null}
   </div>;
 }
 

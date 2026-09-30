@@ -1107,7 +1107,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                               width: `${sig.placement.width * 100}%`,
                               height: `${sig.placement.height * 100}%`,
                             }}
-                            className={`absolute cursor-move touch-none rounded border border-dashed outline-none ${
+                            className={`absolute z-20 cursor-move touch-none rounded border border-dashed outline-none ${
                               selected
                                 ? 'border-primary bg-primary/10'
                                 : 'border-primary/60 bg-primary/5'

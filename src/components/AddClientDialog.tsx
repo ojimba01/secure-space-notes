@@ -263,7 +263,11 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
           ? data.assigned_employee_id
           : data.assigned_employee_id === '__none__'
             ? null
-            : profile?.id ?? null;
+            : // Their own caseload when they are a case manager; a superadmin
+              // is not one, so the client stays unassigned.
+              caseManagers.some((cm) => cm.id === profile?.id)
+              ? profile!.id
+              : null;
 
       const clientData = {
         first_name: data.first_name,

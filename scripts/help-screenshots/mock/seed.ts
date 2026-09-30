@@ -184,6 +184,10 @@ export function seed(): Tables {
     staff_activity: [],
     audit_logs: [],
     signatures: [],
+    staff_signatures: [
+      { id: 'sig-1', profile_id: STAFF.profile, label: 'Taylor Brooks', kind: 'signature', image_path: 'p-staff/sig-1.png', is_default: true, created_at: '2026-05-01T12:00:00Z' },
+      { id: 'sig-2', profile_id: STAFF.profile, label: 'TB', kind: 'initial', image_path: 'p-staff/sig-2.png', is_default: false, created_at: '2026-05-02T12:00:00Z' },
+    ],
     form_template_registry: [],
     client_form_checklist: [],
     client_intakes: [],

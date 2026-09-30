@@ -6,8 +6,9 @@
 //  - the audit log: every change a person saved, described in plain words
 //    (src/lib/changeDescriptions.ts);
 //  - the clients those point at, for names.
+import { PageShell } from '@/components/PageShell';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import {
   Activity,
   ArrowLeft,
@@ -177,7 +178,6 @@ const Tile: React.FC<{ icon: React.ReactNode; label: string; value: string; hint
 );
 
 export default function StaffActivity() {
-  const navigate = useNavigate();
   const { canView, loading: roleLoading } = useCanViewStaffActivity();
   const [range, setRange] = useState<Range>('today');
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -290,18 +290,15 @@ export default function StaffActivity() {
   );
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <PageShell>
       <div className="mx-auto max-w-[1300px] space-y-5 p-4 md:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Back"
-              onClick={() => (person ? setSelected(null) : navigate('/'))}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+            {person && (
+              <Button variant="ghost" size="icon" aria-label="Back" onClick={() => setSelected(null)}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            )}
             <div>
               <h1 className="text-2xl font-bold">{person ? staffName(person) : 'Staff activity'}</h1>
               <p className="text-sm text-muted-foreground">
@@ -337,7 +334,7 @@ export default function StaffActivity() {
           mouse or keyboard input, time stops counting until the person returns.
         </p>
       </div>
-    </main>
+    </PageShell>
   );
 }
 

@@ -5,8 +5,8 @@
 // that they could not already see. Screenshots and recordings are linked, not
 // attached, through signed links that expire after seven days.
 //
-// Needs RESEND_API_KEY (already used by compliance-cron). SUPPORT_EMAIL is who
-// receives it, comma-separated; without it, every superadmin.
+// Needs RESEND_API_KEY (already used by compliance-cron). Emails go to
+// mdajimba@gmail.com unless SUPPORT_EMAIL (comma-separated) says otherwise.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const cors = {
@@ -108,22 +108,26 @@ Deno.serve(async (req) => {
     console.log('RESEND_API_KEY not set; support email not sent:', subject);
     return Response.json({ sent: false, reason: 'Email is not set up' }, { headers: cors });
   }
-  let to = (Deno.env.get('SUPPORT_EMAIL') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  if (!to.length) {
-    // No address set: every superadmin.
-    const { data: roles } = await admin.from('user_roles').select('user_id').eq('role', 'superadmin');
-    const { data: profs } = await admin
-      .from('profiles')
-      .select('email')
-      .in('user_id', (roles ?? []).map((r) => r.user_id));
-    to = (profs ?? []).map((p) => p.email).filter(Boolean) as string[];
-  }
+  // SUPPORT_EMAIL overrides who receives it (comma-separated).
+  const to = (Deno.env.get('SUPPORT_EMAIL') ?? 'mdajimba@gmail.com')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (!to.length) return Response.json({ sent: false, reason: 'No recipient' }, { headers: cors });
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: 'Clinical Notes Support <onboarding@resend.dev>', to, subject, html }),
-  });
-  if (!res.ok) console.error('support email failed', res.status, await res.text());
-  return Response.json({ sent: res.ok }, { headers: cors });
+  // One email per address, so an address the mail service refuses does not
+  // stop the others.
+  const results = await Promise.all(
+    to.map(async (address) => {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: 'Clinical Notes Support <onboarding@resend.dev>', to: [address], subject, html }),
+      });
+      const detail = res.ok ? '' : await res.text();
+      if (!res.ok) console.error('support email failed', address, res.status, detail);
+      return { address, sent: res.ok, status: res.status, detail };
+    }),
+  );
+  return Response.json({ sent: results.some((r) => r.sent), results }, { headers: cors });
+});
 });

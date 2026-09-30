@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
+import { StartAuthorizationDialog } from '@/components/StartAuthorizationDialog';
 import {
   resyncDerivedSchedules,
   syncAuthorizationsFromLegacyColumns,
@@ -252,6 +253,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<WbClient | null>(null);
   const [closing, setClosing] = useState<WbClient | null>(null);
+  const [starting, setStarting] = useState<WbClient | null>(null);
   const dragCol = useRef<string | null>(null);
   const dragRow = useRef<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -318,11 +320,11 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (e.key === 'Escape' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(t.tagName) && !deleting && !closing) onClose();
+      if (e.key === 'Escape' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(t.tagName) && !deleting && !closing && !starting) onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, deleting, closing]);
+  }, [onClose, deleting, closing, starting]);
 
   const cyclesByClient = useMemo(() => {
     const map = new Map<string, BillingCycle[]>();
@@ -785,6 +787,9 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
                   <ExternalLink className="mr-1 h-3.5 w-3.5" />
                   Open client
                 </Button>
+                <Button size="sm" className="mr-1.5 h-7" onClick={() => setStarting(r.client)}>
+                  Start 2nd authorization
+                </Button>
                 <Button size="sm" variant="outline" className="h-7" onClick={() => setClosing(r.client)}>
                   Close case
                 </Button>
@@ -1013,6 +1018,22 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onClose, onChanged })
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {starting && (
+        <StartAuthorizationDialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setStarting(null);
+          }}
+          clientId={starting.id}
+          clientName={`${starting.first_name} ${starting.last_name}`}
+          onStarted={() => {
+            setStarting(null);
+            void load();
+            onChanged();
+          }}
+        />
+      )}
 
       {closing && (
         <CloseCaseDialog

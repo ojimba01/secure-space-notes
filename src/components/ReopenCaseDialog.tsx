@@ -12,14 +12,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  recordAuthorization,
-  resyncDerivedSchedules,
-  syncAuthorizationsFromLegacyColumns,
-} from '@/lib/authorizations';
-import { reopenCaseFields, STAGE_COLUMNS, type StageFields } from '@/lib/reopenCase';
+import { resyncDerivedSchedules } from '@/lib/authorizations';
+import { reopenCaseFields, startNewAuthorizationRound, STAGE_COLUMNS, type StageFields } from '@/lib/reopenCase';
 import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 import { visibleProfiles } from '@/lib/testAccounts';
+import { caseManagerName, fetchActiveCaseManagers } from '@/lib/billingSync';
 import {
   Select,
   SelectContent,
@@ -74,19 +71,10 @@ export const ReopenCaseDialog: React.FC<Props> = ({
     if (!open) return;
     let cancelled = false;
     (async () => {
-      // Everyone active, superadmins included: they carry caseloads too, and
-      // leaving them out meant a case of theirs could not go back to them.
-      const { data: profs } = await supabase
-        .from('profiles')
-        .select('id, user_id, first_name, last_name, email')
-        .eq('active', true)
-        .order('first_name');
+      // Active case managers. Superadmins are never assignable.
+      const profs = await fetchActiveCaseManagers();
       if (cancelled) return;
-      const list = visibleProfiles(profs)
-        .map((p) => ({
-          id: p.id as string,
-          name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || (p.email as string),
-        }));
+      const list = visibleProfiles(profs).map((p) => ({ id: p.id, name: caseManagerName(p) }));
       setManagers(list);
       // The case manager they had, if they can still take it; otherwise blank,
       // so a case never reopens onto somebody who is no longer here.
@@ -124,11 +112,8 @@ export const ReopenCaseDialog: React.FC<Props> = ({
         .select(STAGE_COLUMNS)
         .eq('id', clientId)
         .maybeSingle();
-      const reopened = reopenCaseFields(
-        newRound ? { startDate: start, authorizationNumber: number } : null,
-        new Date(),
-        (current ?? {}) as StageFields,
-      );
+      // A new referral's authorization is started below, after the case is open.
+      const reopened = reopenCaseFields(null, new Date(), (current ?? {}) as StageFields);
 
       const { error } = await supabase
         .from('clients')
@@ -156,16 +141,9 @@ export const ReopenCaseDialog: React.FC<Props> = ({
       }
 
       if (newRound) {
-        // A new period, numbered after the old ones rather than replacing them.
-        await recordAuthorization({
-          clientId,
-          type: 'initial_30',
-          startDate: start,
-          authorizationNumber: number.trim() || null,
-        }).catch(() => undefined);
-
-        await syncAuthorizationsFromLegacyColumns(clientId);
-        await resyncDerivedSchedules(clientId);
+        // The next authorization round: its own billing cycles, numbered after
+        // the earlier ones, which stay as they are.
+        await startNewAuthorizationRound(clientId, { startDate: start, authorizationNumber: number });
       }
 
       toast({

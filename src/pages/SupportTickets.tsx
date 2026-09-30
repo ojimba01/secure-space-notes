@@ -3,8 +3,9 @@
 // The list on the left, the selected ticket on the right: who sent it, from
 // which page, what they attached, and the conversation. Replies appear under
 // Support for the person who asked; the status tells them where it stands.
+import { PageShell } from '@/components/PageShell';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowLeft, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,6 @@ const FILTER_LABEL: Record<Filter, string> = {
 };
 
 export default function SupportTickets() {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { isSuperadmin, loading: roleLoading } = useIsSuperadmin();
   const [params, setParams] = useSearchParams();
@@ -114,13 +114,10 @@ export default function SupportTickets() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <PageShell>
       <div className="mx-auto max-w-[1300px] space-y-5 p-4 md:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" aria-label="Back" onClick={() => navigate('/')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
             <div>
               <h1 className="text-2xl font-bold">Support tickets</h1>
               <p className="text-sm text-muted-foreground">
@@ -223,6 +220,6 @@ export default function SupportTickets() {
           )}
         </div>
       </div>
-    </main>
+    </PageShell>
   );
 }

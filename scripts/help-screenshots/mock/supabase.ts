@@ -31,9 +31,33 @@ const blankPdf = () =>
     { type: 'application/pdf' },
   );
 
+/** A handwritten-looking signature, so saved signatures have something to show. */
+const signaturePng = (path: string) => {
+  const text = path.endsWith('sig-2.png') ? 'TB' : 'Taylor Brooks';
+  const font = 'italic 600 64px "Brush Script MT", "Segoe Script", cursive';
+  const c = document.createElement('canvas');
+  const m = c.getContext('2d')!;
+  m.font = font;
+  // Cropped close to the ink, as a saved signature is.
+  c.width = Math.ceil(m.measureText(text).width) + 8;
+  c.height = 76;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#1e3a8a';
+  g.font = font;
+  g.textBaseline = 'middle';
+  g.fillText(text, 4, 40);
+  return c.toDataURL('image/png');
+};
+const dataUrlBlob = (url: string) => {
+  const bin = atob(url.split(',')[1]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: 'image/png' });
+};
+
 const rpcs: Record<string, (args: any) => any> = {
   can_view_staff_activity: () => who === ADMIN,
-  staff_activity_people: () => db.profiles,
+  staff_activity_people: () => db.profiles.filter((p) => p.id !== ADMIN.profile),
   staff_activity_client_names: ({ _ids }: any) => db.clients.filter((c) => _ids.includes(c.id)).map((c) => ({ id: c.id, name: `${c.first_name} ${c.last_name}` })),
   staff_activity_changes: () => [],
   start_staff_activity: () => null,
@@ -56,10 +80,12 @@ export const supabase: any = {
     updateUser: () => Promise.resolve({ data: {}, error: null }),
   },
   storage: {
-    from: () => ({
-      download: () => Promise.resolve({ data: blankPdf(), error: null }),
+    from: (bucket: string) => ({
+      download: (path: string) =>
+        Promise.resolve({ data: bucket === 'signatures' ? dataUrlBlob(signaturePng(path)) : blankPdf(), error: null }),
       upload: () => Promise.resolve({ data: { path: 'x' }, error: null }),
-      createSignedUrl: () => Promise.resolve({ data: { signedUrl: 'about:blank' }, error: null }),
+      createSignedUrl: (path: string) =>
+        Promise.resolve({ data: { signedUrl: bucket === 'signatures' ? signaturePng(path) : 'about:blank' }, error: null }),
       getPublicUrl: () => ({ data: { publicUrl: 'about:blank' } }),
       list: () => Promise.resolve({ data: [], error: null }),
       remove: () => Promise.resolve({ data: [], error: null }),

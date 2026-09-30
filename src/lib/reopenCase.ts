@@ -1,7 +1,7 @@
 import { addDays } from '@/lib/billing';
 import { supabase } from '@/integrations/supabase/client';
 import { displayStage } from '@/lib/workflow';
-import { resyncDerivedSchedules } from '@/lib/authorizations';
+import { recordAuthorization, resyncDerivedSchedules } from '@/lib/authorizations';
 
 /**
  * What reopening a closed case writes.
@@ -89,4 +89,54 @@ export async function restoreClosedCase(clientId: string): Promise<void> {
   if (error) throw new Error(error.message);
   // Billing cycles and touchpoints, rebuilt for an open case again.
   await resyncDerivedSchedules(clientId).catch(() => undefined);
+}
+
+/**
+ * Start a client's next authorization: a new 30-day authorization after the
+ * last one lapsed, or a new referral when a case is reopened.
+ *
+ * The client moves to the next billing round. The earlier authorizations'
+ * billing cycles stay as they are, billed or not, and the new round's cycles
+ * are numbered after them. The 150-day and 180-day fields are cleared, since
+ * they belonged to the earlier round; its dates stay in the authorization
+ * history.
+ */
+export async function startNewAuthorizationRound(
+  clientId: string,
+  referral: NewReferral,
+): Promise<void> {
+  const { data: current, error: readError } = await supabase
+    .from('clients')
+    .select(`billing_round, ${STAGE_COLUMNS}`)
+    .eq('id', clientId)
+    .maybeSingle();
+  if (readError) throw new Error(readError.message);
+  const round = ((current as { billing_round?: number } | null)?.billing_round ?? 1) + 1;
+
+  const cleared: StageFields & Record<string, unknown> = {
+    auth_150_start: null,
+    auth_150_end: null,
+    auth_150_number: null,
+    hsp_150_date: null,
+    auth_180_start: null,
+    auth_180_end: null,
+    auth_180_number: null,
+    auth_180_approved: false,
+  };
+  const fields = {
+    ...reopenCaseFields(referral, new Date(), { ...(current as StageFields), ...cleared }),
+    ...cleared,
+    billing_round: round,
+  };
+  const { error } = await supabase.from('clients').update(fields as never).eq('id', clientId);
+  if (error) throw new Error(error.message);
+
+  // A new period, numbered after the old ones rather than replacing them.
+  await recordAuthorization({
+    clientId,
+    type: 'initial_30',
+    startDate: referral.startDate,
+    authorizationNumber: referral.authorizationNumber?.trim() || null,
+  });
+  await resyncDerivedSchedules(clientId);
 }

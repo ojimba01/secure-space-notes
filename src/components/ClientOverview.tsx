@@ -30,6 +30,7 @@ import { CloseCaseDialog } from '@/components/CloseCaseDialog';
 import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 import { supabase } from '@/integrations/supabase/client';
 import { visibleProfiles } from '@/lib/testAccounts';
+import { caseManagerName as nameOf, fetchActiveCaseManagers } from '@/lib/billingSync';
 import {
   editAuthorizationDates,
   editAuthorizationNumbers,
@@ -190,18 +191,10 @@ export const ClientOverview: React.FC<{
     if (!editing || !isAdmin) return;
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email')
-        .eq('active', true)
-        .order('first_name');
+      // Superadmins are never assignable.
+      const data = await fetchActiveCaseManagers();
       if (cancelled) return;
-      setManagers(
-        visibleProfiles(data).map((p) => ({
-          id: p.id as string,
-          name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || (p.email as string),
-        })),
-      );
+      setManagers(visibleProfiles(data).map((p) => ({ id: p.id, name: nameOf(p) })));
     })();
     return () => { cancelled = true; };
   }, [editing, isAdmin]);
