@@ -103,8 +103,11 @@ export const ReassignClientDialog: React.FC<ReassignClientDialogProps> = ({
         throw profileError;
       }
 
+      // Only when active: reassign_client refuses an inactive profile, so
+      // offering one here meant a choice that could only fail.
       if (
         currentProfile &&
+        currentProfile.active &&
         currentProfile.id !== currentEmployeeId &&
         !availableEmployees.some((emp) => emp.id === currentProfile.id)
       ) {

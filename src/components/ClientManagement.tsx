@@ -727,6 +727,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           open
           onOpenChange={(o) => !o && setReopeningClient(null)}
           clientId={reopeningClient.id}
+          currentEmployeeId={reopeningClient.assigned_employee_id}
           clientName={`${reopeningClient.first_name} ${reopeningClient.last_name}`}
           onReopened={() => {
             setReopeningClient(null);

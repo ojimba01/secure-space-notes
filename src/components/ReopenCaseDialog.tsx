@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -19,12 +19,23 @@ import {
   syncAuthorizationsFromLegacyColumns,
 } from '@/lib/authorizations';
 import { reopenCaseFields } from '@/lib/reopenCase';
+import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
+import { visibleProfiles } from '@/lib/testAccounts';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string;
   clientName: string;
+  /** Who held the case when it closed. Offered first, if they are still active. */
+  currentEmployeeId?: string | null;
   onReopened: () => void;
 }
 
@@ -50,9 +61,43 @@ export const ReopenCaseDialog: React.FC<Props> = ({
   onOpenChange,
   clientId,
   clientName,
+  currentEmployeeId,
   onReopened,
 }) => {
   const { toast } = useToast();
+  // Who takes the case. Reopening used to hand it back to whoever held it
+  // when it closed, without asking - often someone who had since left or been
+  // moved - and reassigning was a separate trip to another screen.
+  const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
+  const [assignee, setAssignee] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      const [{ data: profs }, { data: supers }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, user_id, first_name, last_name, email')
+          .eq('active', true)
+          .order('first_name'),
+        supabase.from('user_roles').select('user_id').eq('role', 'superadmin'),
+      ]);
+      if (cancelled) return;
+      const superIds = new Set((supers ?? []).map((r) => r.user_id));
+      const list = visibleProfiles(profs)
+        .filter((p) => !superIds.has(p.user_id))
+        .map((p) => ({
+          id: p.id as string,
+          name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || (p.email as string),
+        }));
+      setManagers(list);
+      // The case manager they had, if they can still take it; otherwise blank,
+      // so a case never reopens onto somebody who is no longer here.
+      setAssignee(currentEmployeeId && list.some((m) => m.id === currentEmployeeId) ? currentEmployeeId : '');
+    })();
+    return () => { cancelled = true; };
+  }, [open, currentEmployeeId]);
   const [newRound, setNewRound] = useState(false);
   const [start, setStart] = useState('');
   const [number, setNumber] = useState('');
@@ -72,6 +117,10 @@ export const ReopenCaseDialog: React.FC<Props> = ({
       toast({ title: 'Enter the new 30-day start date', variant: 'destructive' });
       return;
     }
+    if (!assignee) {
+      toast({ title: 'Choose a case manager', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     try {
       const reopened = reopenCaseFields(
@@ -83,6 +132,20 @@ export const ReopenCaseDialog: React.FC<Props> = ({
         .update(reopened as never)
         .eq('id', clientId);
       if (error) throw error;
+
+      // Through reassign_client, as the Reassign button does, so the change of
+      // hands is written to the case's History like any other.
+      if (assignee !== currentEmployeeId) {
+        const { error: reassignError } = await supabase.rpc('reassign_client', {
+          _client_id: clientId,
+          _new_employee_id: assignee,
+          _reason: 'Assigned when the case was reopened',
+        });
+        if (reassignError) throw reassignError;
+        await regenerateTouchpointsForStaff(assignee).catch(() => {});
+        if (currentEmployeeId) await regenerateTouchpointsForStaff(currentEmployeeId).catch(() => {});
+      }
+      await regenerateTouchpointsForClient(clientId).catch(() => {});
 
       if (newRound) {
         // A new period, numbered after the old ones rather than replacing them.
@@ -124,6 +187,25 @@ export const ReopenCaseDialog: React.FC<Props> = ({
         </DialogHeader>
 
         <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="reopen-assignee">Case manager</Label>
+            <Select value={assignee} onValueChange={setAssignee}>
+              <SelectTrigger id="reopen-assignee">
+                <SelectValue placeholder="Choose a case manager" />
+              </SelectTrigger>
+              <SelectContent>
+                {managers.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {currentEmployeeId && !managers.some((m) => m.id === currentEmployeeId) && managers.length > 0 && (
+              <p className="text-xs text-amber-700">
+                The previous case manager is no longer active. Choose who takes this case.
+              </p>
+            )}
+          </div>
+
           <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
             <Checkbox
               checked={newRound}
@@ -173,7 +255,7 @@ export const ReopenCaseDialog: React.FC<Props> = ({
           <Button variant="outline" onClick={() => close(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={reopen} disabled={saving}>
+          <Button onClick={reopen} disabled={saving || !assignee}>
             {saving ? 'Reopening' : 'Reopen case'}
           </Button>
         </DialogFooter>

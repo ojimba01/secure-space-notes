@@ -401,6 +401,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         open={reopenOpen}
         onOpenChange={setReopenOpen}
         clientId={client.id}
+        currentEmployeeId={client.assigned_employee_id}
         clientName={`${client.first_name} ${client.last_name}`.trim()}
         onReopened={onUpdate}
       />

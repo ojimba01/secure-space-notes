@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -325,6 +326,14 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
     });
   }, [forms, search, statusFilter, typeFilter, textHits]);
 
+  /** Submitted and not yet approved, oldest first, so the longest wait is at the top. */
+  const toReview = useMemo(
+    () => forms
+      .filter((f) => f.status === 'submitted')
+      .sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    [forms],
+  );
+
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
@@ -453,6 +462,64 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
         </Button>
       </div>
 
+
+      {/* What staff have handed in. The full list of every form filed lived
+          only under Advanced Tools, so an administrator opening Forms saw the
+          blank templates and nothing of what their team had completed. */}
+      {reviewMode && view === 'forms' && (
+        <div className="rounded-md border">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+            <div>
+              <div className="text-sm font-medium">
+                Submitted for review {!loading && <span className="text-muted-foreground">({toReview.length})</span>}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Forms submitted by your team. Select Review to read and approve a form.
+              </p>
+            </div>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/advanced-tools?tab=allforms">Every form filed</Link>
+            </Button>
+          </div>
+          <div className="border-t">
+            {loading ? (
+              <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+            ) : toReview.length === 0 ? (
+              <p className="p-4 text-sm text-muted-foreground">No forms awaiting review.</p>
+            ) : (
+              <div className="divide-y">
+                {toReview.map((form) => (
+                  <div key={form.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">
+                        {form.clients ? `${form.clients.first_name} ${form.clients.last_name}` : 'No client'}
+                        <span className="font-normal text-muted-foreground"> · {form.form_type}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {form.profiles
+                          ? `${form.profiles.first_name ?? ''} ${form.profiles.last_name ?? ''}`.trim()
+                          : 'Unknown staff'}
+                        {' · submitted '}
+                        {new Date(form.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      {form.file_path && (
+                        <Button variant="outline" size="sm" onClick={() => openPreview(form)}>
+                          View
+                        </Button>
+                      )}
+                      <Button size="sm" onClick={() => setDetail(form)}>
+                        Review
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/*
         Secondary route only. Ordinary IAT/LoN/HSP work starts from the
