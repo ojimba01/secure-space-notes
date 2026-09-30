@@ -469,7 +469,7 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
           <p className="text-muted-foreground">Your scheduled work, by date.</p>
           <p className="text-xs text-muted-foreground">Drag to reschedule. Manual moves are preserved.</p>
         </div>
-        {!isViewingAs && (
+        {(
           <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
             <Plus className="w-4 h-4" />
             Add Event
@@ -725,7 +725,7 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
                     : `${selectedDayEvents.length} ${selectedDayEvents.length === 1 ? 'entry' : 'entries'}`}
                 </DialogDescription>
               </div>
-              {!isViewingAs && (
+              {(
                 <Button
                   size="sm"
                   variant="outline"
@@ -781,7 +781,7 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
                 {/* Only the auto-scheduled ones. Something a person put in the
                     calendar themselves is theirs to open and change, not to
                     lose to a button they were aiming near. */}
-                {event.event_type === 'touch_point' && event.is_auto_generated && !isViewingAs && (
+                {event.event_type === 'touch_point' && event.is_auto_generated && (
                   <button
                     onClick={() => askThenRemove(event)}
                     disabled={deleting}

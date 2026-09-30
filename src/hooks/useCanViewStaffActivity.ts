@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import { usePreview } from '@/components/ViewAsProvider';
 
 /**
  * Whether this person can open Staff activity: superadmins, and anyone given
@@ -34,5 +35,8 @@ export const useCanViewStaffActivity = () => {
     };
   }, [user]);
 
+  // A preview shows the previewed person's access.
+  const { previewing, access } = usePreview();
+  if (previewing) return { canView: !!access?.canViewStaffActivity, loading: !access };
   return { canView, loading };
 };

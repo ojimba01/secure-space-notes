@@ -216,7 +216,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
               Close case
             </Button>
           )}
-          {isAdmin && !isViewingAs && (
+          {isAdmin && (
             <Button variant="outline" onClick={() => setReassignDialogOpen(true)}>
               <UserCog className="h-4 w-4 mr-2" />
               Reassign
@@ -292,7 +292,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             }}
           />
 
-          {isAdmin && !isViewingAs && !editDialogOpen && (
+          {isAdmin && !editDialogOpen && (
             <div className="border-t pt-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>

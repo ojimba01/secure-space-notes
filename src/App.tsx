@@ -33,12 +33,10 @@ const PageActivityTracker = () => {
 
 const queryClient = new QueryClient();
 
-// While a superadmin is previewing as an employee, superadmin-only routes are
-// hidden from the employee view, so navigating to them redirects home.
-const SuperadminRoute = ({ children }: { children: JSX.Element }) => {
-  const { isViewingAs } = useViewAs();
-  return isViewingAs ? <Navigate to="/" replace /> : children;
-};
+// Each of these pages checks access itself, and those checks follow a preview:
+// previewing an admin opens Billing, previewing a case manager is sent home.
+// Nothing is saved during a preview (src/lib/previewGuard.ts).
+const SuperadminRoute = ({ children }: { children: JSX.Element }) => children;
 
 // Migration utilities are Admin/Superadmin only, and are hidden during an
 // employee preview for the same reason.

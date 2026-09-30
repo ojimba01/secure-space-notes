@@ -184,7 +184,7 @@ const Index = () => {
                largest in the agency belong to them -- so they need the
                supervisory view *and* their own work queue, not one or the
                other. Staff see only their own queue, with no switcher. */
-            isAdmin && !isViewingAs
+            isAdmin
               ? <TouchpointViews onOpenClient={handleOpenClient} />
               : <StaffTouchpoints onOpenClient={handleOpenClient} />
           ) : activeView === 'clients' ? (

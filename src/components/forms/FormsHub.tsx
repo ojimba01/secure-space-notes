@@ -182,7 +182,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
 
   // Admins reviewing the queue see everything; employees (and view-as sessions)
   // only ever see their own submissions.
-  const reviewMode = isAdmin && !isViewingAs;
+  const reviewMode = isAdmin;
 
   /**
    * Remove a form and the file behind it.

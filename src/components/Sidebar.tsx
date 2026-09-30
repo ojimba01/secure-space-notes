@@ -24,6 +24,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useCanViewStaffActivity } from '@/hooks/useCanViewStaffActivity';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { AdvancedTools } from '@/components/AdvancedTools';
@@ -50,7 +51,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   const { user, signOut } = useAuth();
   const { startTutorial } = useTutorial();
   const [accountOpen, setAccountOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  // Follows a preview: shows the previewed person's menu.
+  const { isAdmin } = useIsAdmin();
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   const { isSuperadmin } = useIsSuperadmin();
@@ -68,12 +70,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   }, [isSuperadmin, location.pathname]);
   const { isViewingAs } = useViewAs();
 
-  useEffect(() => {
-    if (user) {
-      checkAdminStatus();
-    }
-  }, [user]);
-
   // Close sidebar when view changes on mobile
   const handleViewChange = (view: 'compliance' | 'clients' | 'calendar' | 'forms') => {
     onViewChange(view);
@@ -85,21 +81,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
     if (isMobile) setIsOpen(false);
   };
 
-  const checkAdminStatus = async () => {
-    if (!user) return;
-    
-    try {
-      const { data } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .in('role', ['admin', 'superadmin']);
-      
-      setIsAdmin(!!data && data.length > 0);
-    } catch (error) {
-      setIsAdmin(false);
-    }
-  };
 
   // Mobile toolbar header
   const MobileToolbar = () => (
@@ -191,7 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
 
         {/* Navigation */}
         <div className="space-y-1 md:space-y-2">
-          {isAdmin && !isViewingAs && (
+          {isAdmin && (
             <Button
               variant={routeVariant('/admin')}
               className="w-full justify-start gap-2"
@@ -220,7 +201,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             <FilePlus2 className="h-4 w-4" />
             Forms
           </Button>
-          {isAdmin && !isViewingAs && (
+          {isAdmin && (
             <Button
               data-tutorial="billing-nav"
               variant={routeVariant('/billing')}
@@ -241,7 +222,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             {/* Named for whose work it is. "Touchpoints" alone collided with
                 the Touchpoints section inside a client's record, and staff
                 could not tell which one anybody meant. */}
-            {isAdmin && !isViewingAs ? 'Team touchpoints' : 'My touchpoints'}
+            {isAdmin ? 'Team touchpoints' : 'My touchpoints'}
           </Button>
 
           <Button
@@ -262,7 +243,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             <BookOpen className="h-4 w-4" />
             Help guide
           </Button>
-          {canViewActivity && !isViewingAs && (
+          {canViewActivity && (
             <Button
               variant={routeVariant('/staff-activity')}
               className="w-full justify-start gap-2"

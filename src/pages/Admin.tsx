@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Shield, UserX, UserCheck, Stethoscope } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import { usePreview } from '@/components/ViewAsProvider';
 import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
@@ -43,8 +44,12 @@ const Admin = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { toast } = useToast();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [realAdmin, setIsAdmin] = useState(false);
+  const [realSuperadmin, setIsSuperadmin] = useState(false);
+  // A preview shows the previewed person's access; superadmins are never previewed.
+  const { previewing, access } = usePreview();
+  const isAdmin = previewing ? !!access?.isAdmin : realAdmin;
+  const isSuperadmin = previewing ? false : realSuperadmin;
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showActiveOnly, setShowActiveOnly] = useState(true);

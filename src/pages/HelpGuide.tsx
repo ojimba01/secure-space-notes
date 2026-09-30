@@ -21,7 +21,7 @@ export default function HelpGuide() {
   const { isAdmin } = useIsAdmin();
   const { isViewingAs } = useViewAs();
   const { isSuperadmin } = useIsSuperadmin();
-  const admin = isAdmin && !isViewingAs;
+  const admin = isAdmin;
   // Superadmins can switch between the case manager and admin guides, to see
   // what each group sees.
   const canFilter = isSuperadmin && !isViewingAs;

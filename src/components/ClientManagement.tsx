@@ -475,7 +475,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           <h1 className="text-xl md:text-3xl font-bold truncate">Clients</h1>
           <p className="text-sm text-muted-foreground hidden md:block">View client records, assignments, milestones, and documentation.</p>
         </div>
-        {!selectionMode && !isViewingAs && (
+        {!selectionMode && (
           <div className="flex items-center gap-2 shrink-0">
             {isAdmin && (
               <Button size="sm" variant="outline" onClick={() => setSelectionMode(true)}>
@@ -653,11 +653,11 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               onToggleSelect={toggleSelect}
               showManager={isAdmin}
               documentCount={documentCounts.get(client.id) ?? 0}
-              onCloseCase={isViewingAs ? undefined : setClosingClient}
+              onCloseCase={setClosingClient}
               // Closed cases only appear on an administrator's own filter, and
               // reopening one is an administrator's update, so the button is
               // never offered to somebody who could not carry it out.
-              onReopenCase={isAdmin && !isViewingAs ? setReopeningClient : undefined}
+              onReopenCase={isAdmin ? setReopeningClient : undefined}
               assignedManagerName={
                 client.assigned_employee_id
                   ? managerMap.get(client.assigned_employee_id) ?? null
