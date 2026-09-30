@@ -36,6 +36,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
+import { restoreClosedCase } from '@/lib/reopenCase';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { isStillBillable, todayAgency, type BillingCycle } from '@/lib/billing';
@@ -126,9 +128,31 @@ export const CloseCaseDialog: React.FC<Props> = ({
       });
       if (error) throw error;
 
+      // Closing by mistake is easy, so it can be undone on the spot, putting
+      // the case back exactly as it was.
       toast({
         title: 'Case closed',
         description: `${clientName} is no longer an open case. Nothing has been deleted.`,
+        action: (
+          <ToastAction
+            altText="Undo closing the case"
+            onClick={async () => {
+              try {
+                await restoreClosedCase(clientId);
+                toast({ title: 'Case restored', description: `${clientName} is open again, exactly as before.` });
+                onClosed();
+              } catch (e) {
+                toast({
+                  title: 'Could not undo',
+                  description: `${e instanceof Error ? e.message : String(e)} An administrator can reopen the case from Clients.`,
+                  variant: 'destructive',
+                });
+              }
+            }}
+          >
+            Undo
+          </ToastAction>
+        ),
       });
       onOpenChange(false);
       onClosed();

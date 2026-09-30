@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -18,7 +17,7 @@ import {
   resyncDerivedSchedules,
   syncAuthorizationsFromLegacyColumns,
 } from '@/lib/authorizations';
-import { reopenCaseFields } from '@/lib/reopenCase';
+import { reopenCaseFields, STAGE_COLUMNS, type StageFields } from '@/lib/reopenCase';
 import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 import { visibleProfiles } from '@/lib/testAccounts';
 import {
@@ -75,18 +74,15 @@ export const ReopenCaseDialog: React.FC<Props> = ({
     if (!open) return;
     let cancelled = false;
     (async () => {
-      const [{ data: profs }, { data: supers }] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id, user_id, first_name, last_name, email')
-          .eq('active', true)
-          .order('first_name'),
-        supabase.from('user_roles').select('user_id').eq('role', 'superadmin'),
-      ]);
+      // Everyone active, superadmins included: they carry caseloads too, and
+      // leaving them out meant a case of theirs could not go back to them.
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, user_id, first_name, last_name, email')
+        .eq('active', true)
+        .order('first_name');
       if (cancelled) return;
-      const superIds = new Set((supers ?? []).map((r) => r.user_id));
       const list = visibleProfiles(profs)
-        .filter((p) => !superIds.has(p.user_id))
         .map((p) => ({
           id: p.id as string,
           name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || (p.email as string),
@@ -123,8 +119,15 @@ export const ReopenCaseDialog: React.FC<Props> = ({
     }
     setSaving(true);
     try {
+      const { data: current } = await supabase
+        .from('clients')
+        .select(STAGE_COLUMNS)
+        .eq('id', clientId)
+        .maybeSingle();
       const reopened = reopenCaseFields(
         newRound ? { startDate: start, authorizationNumber: number } : null,
+        new Date(),
+        (current ?? {}) as StageFields,
       );
 
       const { error } = await supabase
@@ -146,6 +149,11 @@ export const ReopenCaseDialog: React.FC<Props> = ({
         if (currentEmployeeId) await regenerateTouchpointsForStaff(currentEmployeeId).catch(() => {});
       }
       await regenerateTouchpointsForClient(clientId).catch(() => {});
+
+      if (!newRound) {
+        // Billing cycles are switched off while a case is closed; bring them back.
+        await resyncDerivedSchedules(clientId).catch(() => undefined);
+      }
 
       if (newRound) {
         // A new period, numbered after the old ones rather than replacing them.
@@ -181,8 +189,8 @@ export const ReopenCaseDialog: React.FC<Props> = ({
         <DialogHeader>
           <DialogTitle>Reopen {clientName}</DialogTitle>
           <DialogDescription>
-            This puts the case back as it was. Their authorizations, forms, documents and
-            billing are untouched.
+            Choose who takes the case and why it is being reopened. Their earlier forms,
+            documents and billing are never changed.
           </DialogDescription>
         </DialogHeader>
 
@@ -206,20 +214,32 @@ export const ReopenCaseDialog: React.FC<Props> = ({
             )}
           </div>
 
-          <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
-            <Checkbox
-              checked={newRound}
-              onCheckedChange={(v) => setNewRound(v === true)}
-              className="mt-0.5"
-            />
-            <span>
-              They have come back on a new referral
+          <div className="space-y-2" role="radiogroup" aria-label="Why is this case being reopened?">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!newRound}
+              onClick={() => setNewRound(false)}
+              className={`w-full rounded-md border p-3 text-left text-sm ${!newRound ? 'border-primary bg-primary/5' : ''}`}
+            >
+              <span className="font-medium">Closed by mistake or too early</span>
               <span className="block text-xs text-muted-foreground">
-                Starts a second 30-day authorization on top of the old ones. Leave this alone
-                if the case was closed by mistake or closed early.
+                Restores the case exactly as it was: same authorizations, dates, forms and billing. Nothing new is needed.
               </span>
-            </span>
-          </label>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={newRound}
+              onClick={() => setNewRound(true)}
+              className={`w-full rounded-md border p-3 text-left text-sm ${newRound ? 'border-primary bg-primary/5' : ''}`}
+            >
+              <span className="font-medium">Came back on a new referral</span>
+              <span className="block text-xs text-muted-foreground">
+                Starts a new 30-day authorization on top of the old ones.
+              </span>
+            </button>
+          </div>
 
           {newRound && (
             <div className="space-y-3 rounded-md border border-dashed p-3">
