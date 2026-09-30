@@ -272,7 +272,7 @@ const SHOTS = {
   workbook: [
     { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Workbook'), label: 'Workbook' },
     { as: 'admin', go: openWorkbook, target: (p) => p.locator('tbody tr').nth(1).locator('td').nth(3), label: 'Select a cell to edit' },
-    { as: 'admin', go: openWorkbook, target: (p) => p.locator('thead th').nth(2), label: 'Drag to move, drag the edge to resize' },
+    { as: 'admin', go: openWorkbook, target: (p) => p.locator('thead tr').nth(1).locator('th').nth(2), label: 'Drag to move, drag the edge to resize' },
     { as: 'admin', go: async (p) => { await openWorkbook(p); await btn(p, 'Filter', true).click(); await wait(p, 800); }, target: (p) => p.getByLabel('Filter MCO'), label: 'Choose a value' },
     { as: 'admin', go: openWorkbook, target: (p) => btn(p, 'Download as Excel'), label: 'Download as Excel' },
   ],

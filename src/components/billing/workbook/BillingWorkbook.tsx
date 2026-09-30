@@ -17,6 +17,7 @@ import {
   Columns3,
   Download,
   ExternalLink,
+  FileSpreadsheet,
   Filter,
   GripVertical,
   Loader2,
@@ -171,14 +172,14 @@ const Cell: React.FC<{
   const tone = col.kind === 'auto' ? 'text-muted-foreground' : '';
 
   if (col.kind === 'auto' || (!col.field && col.key !== 'name')) {
-    return <div className={`min-h-[32px] truncate px-2 py-1.5 ${tone}`} title={shown(col, value)}>{shown(col, value)}</div>;
+    return <div className={`min-h-[26px] truncate px-2 py-1 ${tone}`} title={shown(col, value)}>{shown(col, value)}</div>;
   }
 
   if (col.kind === 'drop') {
     const options = col.options ?? [];
     return (
       <select
-        className="h-full w-full cursor-pointer bg-transparent px-1.5 py-1.5 outline-none focus:ring-2 focus:ring-inset focus:ring-primary"
+        className="h-full w-full cursor-pointer bg-transparent px-1.5 py-1 outline-none focus:ring-2 focus:ring-inset focus:ring-[#1a73e8]"
         value={value}
         onChange={(e) => onSave(e.target.value)}
         aria-label={col.label}
@@ -198,7 +199,7 @@ const Cell: React.FC<{
     return (
       <button
         type="button"
-        className={`block min-h-[32px] w-full cursor-text truncate px-2 py-1.5 text-left hover:ring-1 hover:ring-inset hover:ring-primary/40 ${tone}`}
+        className={`block min-h-[26px] w-full cursor-cell truncate px-2 py-1 text-left ${tone}`}
         title={`${shown(col, value) || ''}${value ? '\n' : ''}${KIND_TIP[col.kind]}`}
         onClick={() => setEditing(true)}
       >
@@ -215,7 +216,7 @@ const Cell: React.FC<{
     <input
       autoFocus
       type={col.type === 'date' ? 'date' : 'text'}
-      className="h-full w-full bg-white px-2 py-1 outline-none ring-2 ring-inset ring-primary"
+      className="h-full w-full bg-white px-2 py-1 outline-none ring-2 ring-inset ring-[#1a73e8]"
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
@@ -238,12 +239,36 @@ interface Props {
   onChanged: () => void;
 }
 
+/** Toolbar buttons: flat and round, as in Google Sheets; TOOL_ON marks one that is switched on. */
+const TOOL = 'h-8 rounded-full px-3 hover:bg-[#dde3ea]';
+const TOOL_ON = 'bg-[#c2e7ff] text-[#001d35] hover:bg-[#b3dcf7]';
+
+/** Google Sheets' default cell font. */
+const SHEET_FONT = 'Arial, Helvetica, sans-serif';
+/** Heights of the letters row and the headings row, which both stay put while scrolling. */
+const LETTER_H = 22;
+const HEAD_H = 44;
+
+/** A, B, … Z, AA, AB, … like a spreadsheet's column letters. */
+function columnLetter(i: number): string {
+  let n = i + 1;
+  let out = '';
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    out = String.fromCharCode(65 + r) + out;
+    n = Math.floor((n - 1) / 26);
+  }
+  return out;
+}
+
 /** Stands for an empty cell in a column filter. */
 const BLANK = '__blank__';
 
 export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
   // Its own page beside the left menu, or the whole screen when there is a lot to see.
   const [fullScreen, setFullScreen] = useState(false);
+  // The selected cell, shown in the name box and formula bar.
+  const [active, setActive] = useState<{ row: string; col: string } | null>(null);
   const [clients, setClients] = useState<WbClient[] | null>(null);
   const [secondAuthIds, setSecondAuthIds] = useState<Set<string>>(new Set());
   const [lastContact, setLastContact] = useState<Map<string, string>>(new Map());
@@ -584,15 +609,45 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
 
   // ---- render --------------------------------------------------------
 
-  const th = 'sticky top-0 z-10 border-b border-r bg-slate-100 px-2 py-1.5 text-left text-xs font-semibold text-slate-700';
-  const td = 'border-b border-r p-0 align-middle';
+  // Google Sheets' look: grey headers and gutter, thin grey gridlines.
+  const th = 'sticky top-0 z-10 border-b border-r border-[#c7c7c7] bg-[#f8f9fa] px-2 py-1 text-left text-xs font-bold text-[#202124]';
+  const td = 'border-b border-r border-[#e2e3e3] p-0 align-middle';
+  const gutter = 'bg-[#f8f9fa] text-center text-[11px] text-[#5f6368]';
+  const picked = 'bg-[#d3e3fd] font-semibold text-[#0b57d0]';
   const us = (v: string | null) => shown({ type: 'date' }, v ?? '');
 
+  // The name box and formula bar: which cell is selected, and what it holds.
+  const activeCol = active ? columns.findIndex((c) => c.key === active.col) : -1;
+  const activeRowIndex = active ? rows.findIndex((c) => c.id === active.row) : -1;
+  const activeRef = activeCol >= 0 && activeRowIndex >= 0 ? `${columnLetter(activeCol)}${activeRowIndex + 1}` : '';
+  const activeValue = (() => {
+    if (!activeRef) return '';
+    const client = rows[activeRowIndex];
+    const col = columns[activeCol];
+    return shown(col, col.value(client, extraOf(client)));
+  })();
+
   const masterGrid = (
-    <table className="border-separate border-spacing-0 text-sm" style={{ tableLayout: 'fixed', width: 'max-content' }}>
+    <table
+      className="border-separate border-spacing-0 text-[13px] text-[#202124]"
+      style={{ tableLayout: 'fixed', width: 'max-content', fontFamily: SHEET_FONT }}
+    >
       <thead>
+        {/* Column letters, as in a spreadsheet. */}
         <tr>
-          <th className={`${th} sticky left-0 z-30 w-[48px] min-w-[48px] max-w-[48px] text-right`} />
+          <th className={`${th} ${gutter} sticky left-0 z-30 w-[48px] min-w-[48px] max-w-[48px] p-0`} style={{ height: LETTER_H }} />
+          {columns.map((col, j) => (
+            <th
+              key={col.key}
+              className={`${th} ${gutter} p-0 font-normal ${col.key === 'name' ? 'sticky left-12 z-20' : ''} ${activeCol === j ? picked : ''}`}
+              style={{ height: LETTER_H }}
+            >
+              {columnLetter(j)}
+            </th>
+          ))}
+        </tr>
+        <tr>
+          <th className={`${th} ${gutter} sticky left-0 z-30 w-[48px] min-w-[48px] max-w-[48px] border-b-2`} style={{ top: LETTER_H, height: HEAD_H }} />
           {columns.map((col) => {
             const w = widthOf(col);
             const isName = col.key === 'name';
@@ -617,8 +672,8 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
                   setDragOver(null);
                 }}
                 title={`${KIND_TIP[col.kind]}${isName ? '' : '\nDrag to move.'}`}
-                className={`${th} relative ${isName ? 'sticky left-12 z-20' : 'cursor-grab'} ${dragOver === `c:${col.key}` ? 'shadow-[inset_3px_0_0_hsl(var(--primary))]' : ''}`}
-                style={{ width: w, minWidth: w, maxWidth: w }}
+                className={`${th} relative border-b-2 bg-white ${isName ? 'sticky left-12 z-20' : 'cursor-grab'} ${dragOver === `c:${col.key}` ? 'shadow-[inset_3px_0_0_#1a73e8]' : ''}`}
+                style={{ width: w, minWidth: w, maxWidth: w, top: LETTER_H, height: HEAD_H }}
               >
                 <span className="block truncate pr-4">{col.label}</span>
                 <span className={`mt-1 block h-[3px] rounded ${KIND_BAR[col.kind]}`} />
@@ -633,7 +688,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
                   </button>
                 )}
                 <span
-                  className="absolute -right-1 top-0 z-10 h-full w-2 cursor-col-resize hover:bg-primary/40"
+                  className="absolute -right-1 top-0 z-10 h-full w-2 cursor-col-resize hover:bg-[#1a73e8]/50"
                   onPointerDown={(e) => startResize(e, 'col', col.key, w)}
                   title="Drag to resize"
                 />
@@ -643,11 +698,12 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
         </tr>
         {showFilters && (
           <tr>
-            <th className={`${th} sticky left-0 top-[42px] z-30 bg-white`} />
+            <th className={`${th} sticky left-0 z-30 bg-white`} style={{ top: LETTER_H + HEAD_H }} />
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`${th} top-[42px] bg-white font-normal ${col.key === 'name' ? 'sticky left-12 z-20' : ''}`}
+                className={`${th} bg-white font-normal ${col.key === 'name' ? 'sticky left-12 z-20' : ''}`}
+                style={{ top: LETTER_H + HEAD_H }}
               >
                 <select
                   className={`w-full rounded border bg-white px-1 py-0.5 text-xs ${filters[col.key] ? 'border-primary font-semibold text-primary' : ''}`}
@@ -686,10 +742,10 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
                 dragRow.current = null;
                 setDragOver(null);
               }}
-              className={dragOver === `r:${c.id}` ? '[&>td]:shadow-[inset_0_3px_0_hsl(var(--primary))]' : 'hover:bg-sky-50/40'}
+              className={dragOver === `r:${c.id}` ? '[&>td]:shadow-[inset_0_3px_0_#1a73e8]' : ''}
             >
               <td
-                className={`${td} sticky left-0 z-10 w-[48px] min-w-[48px] max-w-[48px] bg-slate-100 text-right text-xs text-muted-foreground`}
+                className={`${td} ${gutter} sticky left-0 z-10 w-[48px] min-w-[48px] max-w-[48px] border-[#c7c7c7] ${active?.row === c.id ? picked : ''}`}
                 draggable={!editMode}
                 onDragStart={() => (dragRow.current = c.id)}
                 onDragEnd={() => {
@@ -698,7 +754,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
                 }}
                 title={editMode ? 'Delete this client' : 'Drag to move this row'}
               >
-                <div className="relative flex h-full items-center justify-end gap-0.5 px-1.5">
+                <div className="relative flex h-full items-center justify-center gap-0.5 px-1.5">
                   {editMode ? (
                     <button
                       className="grid h-5 w-5 place-items-center rounded border border-red-300 bg-red-50 text-red-700"
@@ -709,12 +765,12 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
                     </button>
                   ) : (
                     <>
-                      <GripVertical className="h-3 w-3 cursor-grab opacity-40" />
+                      <GripVertical className="h-3 w-3 cursor-grab opacity-30" />
                       {i + 1}
                     </>
                   )}
                   <span
-                    className="absolute -bottom-1 left-0 right-0 z-10 h-2 cursor-row-resize hover:bg-primary/40"
+                    className="absolute -bottom-1 left-0 right-0 z-10 h-2 cursor-row-resize hover:bg-[#1a73e8]/50"
                     onPointerDown={(e) => startResize(e, 'row', c.id, (e.currentTarget.closest('tr') as HTMLElement).getBoundingClientRect().height)}
                     title="Drag to resize"
                   />
@@ -723,10 +779,13 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
               {columns.map((col) => {
                 const w = widthOf(col);
                 const isName = col.key === 'name';
+                const isActive = active?.row === c.id && active.col === col.key;
                 return (
                   <td
                     key={col.key}
-                    className={`${td} ${isName ? 'sticky left-12 z-10 bg-white font-semibold' : col.kind === 'auto' ? 'bg-slate-50' : col.kind === 'docs' ? 'bg-orange-50/70' : ''}`}
+                    onMouseDown={() => setActive({ row: c.id, col: col.key })}
+                    onFocus={() => setActive({ row: c.id, col: col.key })}
+                    className={`${td} ${isName ? 'sticky left-12 z-10 bg-white font-semibold' : col.kind === 'auto' ? 'bg-[#f8f9fa] text-[#5f6368]' : col.kind === 'docs' ? 'bg-[#fef7e0]' : 'bg-white'} ${isActive ? 'relative shadow-[inset_0_0_0_2px_#1a73e8]' : ''}`}
                     style={{ width: w, minWidth: w, maxWidth: w }}
                   >
                     <Cell col={col} value={col.value(c, x)} onSave={(v) => void save(c, col, v)} />
@@ -857,21 +916,38 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
   const master = !['tracker', 'second'].includes(sheet);
 
   return (
-    <div className={`flex flex-col bg-white text-slate-900 ${fullScreen ? 'fixed inset-0 z-50' : 'h-full'}`}>
+    <div className={`flex flex-col bg-[#f9fbfd] text-[#202124] ${fullScreen ? 'fixed inset-0 z-50' : 'h-full'}`}>
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
-        <div className="mr-2 font-semibold">Workbook</div>
+      <div className="shrink-0 border-b border-[#e2e3e3] px-3 pb-2 pt-2.5">
+        <div className="mb-2 flex items-center gap-2.5 px-1">
+          <span className="grid h-8 w-8 place-items-center rounded-md bg-[#0f9d58] text-white">
+            <FileSpreadsheet className="h-5 w-5" />
+          </span>
+          <span className="text-lg text-[#1f1f1f]">Workbook</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className={`${TOOL} ml-auto ${fullScreen ? TOOL_ON : ''}`}
+            onClick={() => setFullScreen((v) => !v)}
+            title={fullScreen ? 'Exit full screen (Esc)' : 'Full screen'}
+          >
+            {fullScreen ? <Minimize2 className="mr-1.5 h-4 w-4" /> : <Maximize2 className="mr-1.5 h-4 w-4" />}
+            {fullScreen ? 'Exit full screen' : 'Full screen'}
+          </Button>
+        </div>
+        {/* One rounded toolbar, as in Google Sheets. */}
+        <div className="flex flex-wrap items-center gap-1 rounded-3xl bg-[#edf2fa] px-2 py-1">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
-            className="h-8 w-52 rounded-md border pl-8 pr-2 text-sm"
+            className="h-8 w-52 rounded-full border-0 bg-white pl-8 pr-3 text-sm outline-none focus:ring-2 focus:ring-[#1a73e8]"
             placeholder="Search all columns"
             aria-label="Search all columns"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <select className="h-8 rounded-md border px-2 text-sm" value={mco} onChange={(e) => setMco(e.target.value)} aria-label="Filter by MCO">
+        <select className="h-8 rounded-full border-0 bg-transparent px-2 text-sm hover:bg-[#dde3ea]" value={mco} onChange={(e) => setMco(e.target.value)} aria-label="Filter by MCO">
           <option value="">All MCOs</option>
           {MCO_OPTIONS.map((m) => (
             <option key={m}>{m}</option>
@@ -880,7 +956,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
         {master && (
           <>
             <div className="relative">
-              <Button size="sm" variant="outline" className="h-8" onClick={() => setColumnsOpen((v) => !v)} aria-expanded={columnsOpen}>
+              <Button size="sm" variant="ghost" className={TOOL} onClick={() => setColumnsOpen((v) => !v)} aria-expanded={columnsOpen}>
                 <Columns3 className="mr-1.5 h-4 w-4" />
                 Columns
               </Button>
@@ -925,8 +1001,8 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
             </div>
             <Button
               size="sm"
-              variant={showFilters ? 'default' : 'outline'}
-              className="h-8"
+              variant="ghost"
+              className={`${TOOL} ${showFilters ? TOOL_ON : ''}`}
               onClick={() => {
                 if (showFilters) setFilters({});
                 setShowFilters((v) => !v);
@@ -935,17 +1011,17 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
               <Filter className="mr-1.5 h-4 w-4" />
               Filter
             </Button>
-            <Button size="sm" variant={editMode ? 'default' : 'outline'} className="h-8" onClick={() => setEditMode((v) => !v)}>
+            <Button size="sm" variant="ghost" className={`${TOOL} ${editMode ? TOOL_ON : ''}`} onClick={() => setEditMode((v) => !v)}>
               {editMode ? <Check className="mr-1.5 h-4 w-4" /> : <Pencil className="mr-1.5 h-4 w-4" />}
               {editMode ? 'Done editing' : 'Edit'}
             </Button>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => void addClient()}>
+            <Button size="sm" variant="ghost" className={TOOL} onClick={() => void addClient()}>
               <Plus className="mr-1.5 h-4 w-4" />
               Add client
             </Button>
           </>
         )}
-        <Button size="sm" variant="outline" className="h-8" onClick={download} disabled={!clients}>
+        <Button size="sm" variant="ghost" className={TOOL} onClick={download} disabled={!clients}>
           <Download className="mr-1.5 h-4 w-4" />
           Download as Excel
         </Button>
@@ -955,16 +1031,14 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
             Saving
           </span>
         )}
-        <Button
-          size="sm"
-          variant={fullScreen ? 'default' : 'outline'}
-          className="ml-auto h-8"
-          onClick={() => setFullScreen((v) => !v)}
-          title={fullScreen ? 'Exit full screen (Esc)' : 'Full screen'}
-        >
-          {fullScreen ? <Minimize2 className="mr-1.5 h-4 w-4" /> : <Maximize2 className="mr-1.5 h-4 w-4" />}
-          {fullScreen ? 'Exit full screen' : 'Full screen'}
-        </Button>
+        </div>
+      </div>
+
+      {/* Name box and formula bar: the selected cell and what it holds. */}
+      <div className="flex shrink-0 items-center border-b border-[#e2e3e3] text-[13px]" style={{ fontFamily: SHEET_FONT }}>
+        <div className="w-24 shrink-0 border-r border-[#e2e3e3] px-3 py-1 text-[#444746]">{activeRef || '\u00a0'}</div>
+        <div className="px-3 py-1 italic text-[#9aa0a6]">fx</div>
+        <div className="min-w-0 flex-1 truncate py-1 pr-3 text-[#202124]">{activeValue}</div>
       </div>
 
       {sheet === 'tracker' && (
@@ -979,7 +1053,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
       )}
 
       {/* Grid */}
-      <div className="min-h-0 flex-1 overflow-auto" onClick={() => columnsOpen && setColumnsOpen(false)}>
+      <div className="min-h-0 flex-1 overflow-auto bg-white" onClick={() => columnsOpen && setColumnsOpen(false)}>
         {clients === null ? (
           <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -995,13 +1069,13 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
       </div>
 
       {/* Tabs, along the bottom like a spreadsheet. Double-click to rename. */}
-      <div className="flex shrink-0 gap-0.5 overflow-x-auto border-t bg-slate-100 px-2" role="tablist" aria-label="Workbook tabs">
+      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-t border-[#e2e3e3] bg-[#f9fbfd] px-2 py-1" role="tablist" aria-label="Workbook tabs">
         {SHEETS.map((s) =>
           renaming === s.key ? (
             <input
               key={s.key}
               autoFocus
-              className="my-1 w-40 rounded border border-primary px-2 text-sm"
+              className="w-40 rounded-md border border-[#1a73e8] px-2 py-1 text-sm"
               defaultValue={sheetName(s.key)}
               aria-label="Rename tab"
               onFocus={(e) => e.currentTarget.select()}
@@ -1023,7 +1097,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
               title="Double-click to rename"
               onClick={() => setSheet(s.key)}
               onDoubleClick={() => setRenaming(s.key)}
-              className={`whitespace-nowrap border-t-2 px-3 py-2 text-sm ${sheet === s.key ? 'border-primary bg-white font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm ${sheet === s.key ? 'bg-[#e1e9f7] font-medium text-[#0b57d0]' : 'text-[#444746] hover:bg-[#eceff4]'}`}
             >
               {sheetName(s.key)}
               {s.key === 'second' && lapsed.length > 0 && (
