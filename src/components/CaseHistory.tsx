@@ -10,10 +10,15 @@
 // so staff see the assignments plus, when a case is closed right now, the
 // closure itself read off the client record. A case manager who cannot see
 // when it was closed can at least see that it is.
+//
+// Administrators also see every other change to the record — details edited
+// on the overview, documents uploaded or completed, touchpoints edited or
+// removed — each with who made it and when (src/lib/changeDescriptions.ts).
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { History, ArrowRight, Archive, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { History, ArrowRight, Archive, RotateCcw, CheckCircle2, Pencil, FileText, DollarSign, CalendarDays } from 'lucide-react';
+import { describeChange, loadChanges, type ChangeKind } from '@/lib/changeDescriptions';
 import { contactMethodLabel, touchpointTypeLabel } from '@/lib/compliance';
 import { format } from 'date-fns';
 
@@ -26,7 +31,15 @@ interface Person {
 const personName = (p: Person | null | undefined): string =>
   p ? `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || p.email || 'Unknown' : 'Unassigned';
 
-type EntryKind = 'assigned' | 'closed' | 'reopened' | 'touchpoint';
+type EntryKind = 'assigned' | 'closed' | 'reopened' | 'touchpoint' | 'edit' | 'document' | 'billing' | 'calendar';
+
+const CHANGE_ENTRY: Partial<Record<ChangeKind, EntryKind>> = {
+  document: 'document',
+  form: 'document',
+  billing: 'billing',
+  calendar: 'calendar',
+  touchpoint: 'touchpoint',
+};
 
 interface Entry {
   id: string;
@@ -35,6 +48,8 @@ interface Entry {
   /** The sentence itself, already built. */
   summary: React.ReactNode;
   detail?: string | null;
+  /** False for entries that carry a date but no time of day. */
+  timed?: boolean;
 }
 
 const ICON: Record<EntryKind, React.ReactNode> = {
@@ -42,6 +57,10 @@ const ICON: Record<EntryKind, React.ReactNode> = {
   closed: <Archive className="h-4 w-4 text-amber-600" />,
   reopened: <RotateCcw className="h-4 w-4 text-green-600" />,
   touchpoint: <CheckCircle2 className="h-4 w-4 text-blue-600" />,
+  edit: <Pencil className="h-4 w-4 text-slate-500" />,
+  document: <FileText className="h-4 w-4 text-violet-600" />,
+  billing: <DollarSign className="h-4 w-4 text-amber-600" />,
+  calendar: <CalendarDays className="h-4 w-4 text-sky-600" />,
 };
 
 export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
@@ -50,7 +69,7 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [assignments, audits, current, contacts] = await Promise.all([
+      const [assignments, audits, current, contacts, changes] = await Promise.all([
         supabase
           .from('client_assignments_history')
           .select(
@@ -82,10 +101,15 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
           )
           .eq('client_id', clientId)
           .order('contact_date', { ascending: false }),
+        // Every other change to the record. Administrators only, like the
+        // audit trail it is read from; anyone else gets nothing back here.
+        loadChanges(new Date('2000-01-01'), new Date(Date.now() + 86_400_000), clientId),
       ]);
       if (cancelled) return;
 
       const out: Entry[] = [];
+      /** Audit rows already shown as a closure or reopening. */
+      const shown = new Set<string>();
 
       for (const a of (assignments.data ?? []) as unknown as Record<string, unknown>[]) {
         out.push({
@@ -100,6 +124,7 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
             </>
           ),
           detail: (a.reason as string) || null,
+          timed: true,
         });
       }
 
@@ -114,6 +139,7 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
         const was = (row.old_data?.status as string) ?? null;
         const now = (row.new_data?.status as string) ?? null;
         if (!now || was === now) continue;
+        shown.add(row.id);
         if (now === 'closed') {
           out.push({
             id: `closed-${row.id}`,
@@ -121,6 +147,7 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
             kind: 'closed',
             summary: <>Case closed</>,
             detail: (row.new_data?.reason_closed as string) || null,
+            timed: true,
           });
         } else if (was === 'closed') {
           out.push({
@@ -129,6 +156,7 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
             kind: 'reopened',
             summary: <>Case reopened</>,
             detail: null,
+            timed: true,
           });
         }
       }
@@ -166,6 +194,45 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
         });
       }
 
+      // Who made each change, by login.
+      const userIds = [...new Set(changes.rows.map((r) => r.user_id))];
+      const people: Record<string, string> = {};
+      if (userIds.length) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('user_id, first_name, last_name, email')
+          .in('user_id', userIds);
+        for (const p of data ?? []) if (p.user_id) people[p.user_id] = personName(p);
+      }
+      if (cancelled) return;
+
+      for (const row of changes.rows) {
+        if (shown.has(row.id)) continue;
+        // A new touchpoint is already listed above with its notes, and a new
+        // case manager as a reassignment.
+        if (row.table_name === 'client_contacts' && row.action === 'INSERT') continue;
+        if (
+          row.table_name === 'clients' &&
+          row.action === 'UPDATE' &&
+          (row.changed ?? []).every((k) => ['assigned_employee_id', 'updated_at'].includes(k))
+        ) {
+          continue;
+        }
+        const described = describeChange(row);
+        if (!described) continue;
+        out.push({
+          id: `change-${row.id}`,
+          at: row.created_at,
+          kind: CHANGE_ENTRY[described.kind] ?? 'edit',
+          summary: (
+            <>
+              {described.text} by <strong>{people[row.user_id] ?? 'Unknown'}</strong>
+            </>
+          ),
+          timed: true,
+        });
+      }
+
       out.sort((a, b) => b.at.localeCompare(a.at));
       setEntries(out);
     })();
@@ -187,7 +254,7 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
           <p className="text-sm text-muted-foreground">Loading</p>
         ) : entries.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            Nothing has happened to this case yet.
+            No history for this case yet.
           </p>
         ) : (
           <ul className="divide-y">
@@ -199,7 +266,7 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
                   {e.detail && <p className="text-xs text-muted-foreground">{e.detail}</p>}
                 </div>
                 <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                  {format(new Date(e.at), 'MMM d, yyyy')}
+                  {format(new Date(e.at), e.timed ? 'MMM d, yyyy, h:mm a' : 'MMM d, yyyy')}
                 </span>
               </li>
             ))}

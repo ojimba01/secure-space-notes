@@ -16,10 +16,18 @@ import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { lazy, Suspense } from "react";
+import { usePageActivity } from "@/hooks/useStaffActivity";
 
 // The migration tooling pulls in ZIP/spreadsheet parsing, so it is only
 // fetched when an admin actually opens Advanced Tools.
 const AdvancedToolsPage = lazy(() => import("./pages/AdvancedToolsPage"));
+const StaffActivity = lazy(() => import("./pages/StaffActivity"));
+
+/** Records which page each signed-in person has open, for Staff activity. */
+const PageActivityTracker = () => {
+  usePageActivity();
+  return null;
+};
 
 const queryClient = new QueryClient();
 
@@ -48,6 +56,7 @@ const App = () => (
         <BrowserRouter>
           <ViewAsProvider>
             <ViewAsBanner />
+            <PageActivityTracker />
             <ErrorBoundary>
             <Routes>
               <Route path="/" element={<Index />} />
@@ -68,6 +77,18 @@ const App = () => (
                       <AdvancedToolsPage />
                     </Suspense>
                   </AdminRoute>
+                }
+              />
+              <Route
+                path="/staff-activity"
+                element={
+                  <SuperadminRoute>
+                    <Suspense
+                      fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}
+                    >
+                      <StaffActivity />
+                    </Suspense>
+                  </SuperadminRoute>
                 }
               />
               <Route path="/reset-password" element={<ResetPassword />} />

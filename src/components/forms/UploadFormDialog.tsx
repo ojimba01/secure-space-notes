@@ -21,6 +21,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { ClientPicker } from '@/components/ClientPicker';
 import { useToast } from '@/hooks/use-toast';
+import { useTaskActivity } from '@/hooks/useStaffActivity';
 import { FileDropZone } from '@/components/FileDropZone';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
@@ -68,6 +69,7 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
 }) => {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
+  const finishTask = useTaskActivity(open, 'upload', 'Uploading a document', initialClientId);
   const { isViewingAs } = useViewAs();
   const [clients, setClients] = useState<ClientOption[]>([]);
 
@@ -294,9 +296,10 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
       startDocumentQueue();
 
       toast({
-        title: 'Form submitted',
-        description: 'Your form is now awaiting manager approval.',
+        title: 'Document uploaded',
+        description: 'Saved to the client record.',
       });
+      finishTask('completed');
       reset();
       onSubmitted();
       onClose();

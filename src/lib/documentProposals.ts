@@ -150,3 +150,73 @@ export async function applyFieldProposals(
   await syncAuthorizationsFromLegacyColumns(clientId);
   await resyncDerivedSchedules(clientId);
 }
+
+/**
+ * What the record held before a set of document edits was accepted, so the
+ * accept can be undone.
+ *
+ * Accepting writes client columns and then rebuilds the authorizations and
+ * billing cycles from them. Undoing puts the columns back, restores the
+ * authorizations as they were — removing any the accept created — and
+ * rebuilds the cycles again, so everything that followed from the edit is
+ * reversed with it.
+ */
+export interface AcceptSnapshot {
+  clientId: string;
+  columns: Record<string, unknown>;
+  authorizations: {
+    id: string;
+    start_date: string | null;
+    end_date: string | null;
+    authorization_number: string | null;
+    status: string;
+  }[];
+}
+
+export async function snapshotBeforeAccept(
+  clientId: string,
+  columns: string[],
+): Promise<AcceptSnapshot> {
+  const [client, auths] = await Promise.all([
+    supabase.from('clients').select(columns.join(', ')).eq('id', clientId).maybeSingle(),
+    supabase
+      .from('client_authorizations')
+      .select('id, start_date, end_date, authorization_number, status')
+      .eq('client_id', clientId),
+  ]);
+  if (client.error) throw new Error(client.error.message);
+  if (auths.error) throw new Error(auths.error.message);
+  return {
+    clientId,
+    columns: (client.data ?? {}) as unknown as Record<string, unknown>,
+    authorizations: auths.data ?? [],
+  };
+}
+
+export async function undoAccept(snapshot: AcceptSnapshot): Promise<void> {
+  const { clientId } = snapshot;
+  const { error } = await supabase.from('clients').update(snapshot.columns).eq('id', clientId);
+  if (error) throw new Error(error.message);
+
+  const { data: now, error: nowError } = await supabase
+    .from('client_authorizations')
+    .select('id')
+    .eq('client_id', clientId);
+  if (nowError) throw new Error(nowError.message);
+
+  const before = new Map(snapshot.authorizations.map((a) => [a.id, a]));
+  for (const row of now ?? []) {
+    const was = before.get(row.id);
+    if (!was) {
+      // Created by the accept being undone.
+      const { error: delError } = await supabase.from('client_authorizations').delete().eq('id', row.id);
+      if (delError) throw new Error(delError.message);
+      continue;
+    }
+    const { id, ...fields } = was;
+    const { error: upError } = await supabase.from('client_authorizations').update(fields).eq('id', id);
+    if (upError) throw new Error(upError.message);
+  }
+
+  await resyncDerivedSchedules(clientId);
+}

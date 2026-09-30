@@ -9,6 +9,7 @@
 // the progress note is now the single account of what happened and is stored
 // on the contact record too.
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTaskActivity } from '@/hooks/useStaffActivity';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
@@ -121,6 +122,7 @@ const DurationInput: React.FC<{
 };
 
 export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, context, onSaved }) => {
+  const finishTask = useTaskActivity(open, 'touchpoint', 'Logging a touchpoint', context?.clientId);
   const { toast } = useToast();
   const { guardWrite } = useViewAs();
   const myProfileId = useMyProfileId();
@@ -361,6 +363,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     } else {
       toast({ title: 'Touchpoint saved', description: 'An NJHMIS-ready progress note is staged for entry.' });
     }
+    finishTask('completed');
     onOpenChange(false);
     onSaved?.();
   };

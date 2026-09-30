@@ -13,7 +13,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowRight, FileText, Loader2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, FileText, Loader2, Undo2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -25,6 +25,9 @@ import {
 import {
   applyFieldProposals,
   loadFieldProposals,
+  snapshotBeforeAccept,
+  undoAccept,
+  type AcceptSnapshot,
   type FieldProposal,
 } from '@/lib/documentProposals';
 
@@ -67,6 +70,9 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
   const [saving, setSaving] = useState(false);
   /** Stored files on this client, so an empty list can say which empty it is. */
   const [documentCount, setDocumentCount] = useState<number | null>(null);
+  /** The last accept, kept so it can be undone. */
+  const [lastAccept, setLastAccept] = useState<{ snapshot: AcceptSnapshot; labels: string[] } | null>(null);
+  const [undoing, setUndoing] = useState(false);
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -116,11 +122,19 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
     try {
       const acceptedAuth = authChanges.filter((p) => chosen.has(`auth:${p.prefix}`));
       const acceptedFields = fields.filter((f) => chosen.has(`field:${f.key}`));
+      const snapshot = await snapshotBeforeAccept(clientId, [
+        ...acceptedAuth.flatMap((p) => [`${p.prefix}_start`, `${p.prefix}_end`, `${p.prefix}_number`]),
+        ...acceptedFields.map((f) => f.column),
+      ]);
       // Authorizations first: they move the dates every cycle is counted from,
       // and both calls end by rebuilding those cycles. Fields after, so the
       // rebuild that matters runs last.
       if (acceptedAuth.length) await applyAuthorizationProposals(clientId, acceptedAuth);
       if (acceptedFields.length) await applyFieldProposals(clientId, acceptedFields);
+      setLastAccept({
+        snapshot,
+        labels: [...acceptedAuth.map((p) => p.label), ...acceptedFields.map((f) => f.label)],
+      });
       await load();
       onApplied?.();
       toast({ title: 'Record updated' });
@@ -132,6 +146,26 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const undo = async () => {
+    if (!lastAccept) return;
+    setUndoing(true);
+    try {
+      await undoAccept(lastAccept.snapshot);
+      setLastAccept(null);
+      await load();
+      onApplied?.();
+      toast({ title: 'Changes undone', description: 'The record is back to its previous values.' });
+    } catch (e) {
+      toast({
+        title: 'Could not undo the changes',
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setUndoing(false);
     }
   };
 
@@ -181,6 +215,22 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
+        {lastAccept && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-green-200 bg-green-50 p-3">
+            <div className="flex items-start gap-2 text-sm text-green-900">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Saved to the record: {lastAccept.labels.join(', ')}.</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => void undo()} disabled={undoing}>
+              {undoing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Undo2 className="mr-2 h-4 w-4" />
+              )}
+              Undo
+            </Button>
+          </div>
+        )}
         {total === 0 && (
           <div className="rounded-md border border-dashed p-4">
             <p className="text-sm font-medium">No changes detected</p>

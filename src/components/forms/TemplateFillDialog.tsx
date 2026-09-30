@@ -29,6 +29,7 @@ import {
   type SignaturePlacement,
 } from '@/lib/signatureStamp';
 import { useToast } from '@/hooks/use-toast';
+import { useTaskActivity } from '@/hooks/useStaffActivity';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { Download, Maximize2, Minimize2, Upload, X, ZoomIn, ZoomOut } from 'lucide-react';
@@ -188,6 +189,12 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
   const { isViewingAs } = useViewAs();
+  const finishTask = useTaskActivity(
+    true,
+    'form',
+    `Filling out ${template?.formType ?? existing?.form_type ?? "a form"}`,
+    existing?.client_id ?? lockedClientId ?? null,
+  );
   const docRef = useRef<pdfjs.PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [scale, setScale] = useState(1);
@@ -572,6 +579,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           ? 'Saved to the client record as a draft. Open it again to finish it.'
           : 'Saved to the client record.',
       });
+      finishTask(asDraft ? 'draft' : 'completed');
       onSubmitted();
       onClose();
     } catch (err: any) {

@@ -15,6 +15,7 @@ import {
   DollarSign,
   FilePlus2,
   UserCircle,
+  Activity,
 } from "lucide-react";
 import { useTutorial } from '@/components/TutorialProvider';
 import { useAuth } from '@/components/AuthProvider';
@@ -215,6 +216,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             >
               <DollarSign className="h-4 w-4" />
               Billing
+            </Button>
+          )}
+          {isSuperadmin && !isViewingAs && (
+            <Button
+              variant={routeVariant('/staff-activity')}
+              className="w-full justify-start gap-2"
+              onClick={() => handleNavigate('/staff-activity')}
+            >
+              <Activity className="h-4 w-4" />
+              Staff activity
             </Button>
           )}
           <Button
