@@ -64,18 +64,39 @@ export interface DraftNote {
   primary_topic: string | null;
   /** Manual entry: the name typed to organize drafts. Not in the note text. */
   client_label: string | null;
+  /** Backlog notes: the 150-day start, which cycle, and whether the extension is included. */
+  backlog_start: string | null;
+  backlog_cycle: number | null;
+  backlog_extension: boolean;
   composed: ComposedNote;
 }
 
+export interface BacklogRef {
+  start: string;
+  cycle: number;
+  extension: boolean;
+}
+
+export interface DraftOptions {
+  contactMethod: string | null;
+  /** Update this draft instead of adding one. */
+  id?: string;
+  clientLabel?: string | null;
+  contactDate?: string | null;
+  backlog?: BacklogRef | null;
+}
+
 /** Save a draft that belongs to no client yet. */
-export async function saveDraft(
-  c: ComposedNote,
-  contactMethod: string | null,
-  id?: string,
-  clientLabel?: string | null,
-  contactDate?: string | null,
-): Promise<string> {
-  const row = { ...noteRow(c, { contactMethod, contactDate: contactDate || null }), status: 'draft', client_label: clientLabel?.trim() || null };
+export async function saveDraft(c: ComposedNote, o: DraftOptions): Promise<string> {
+  const { id, backlog } = o;
+  const row = {
+    ...noteRow(c, { contactMethod: o.contactMethod, contactDate: o.contactDate || null }),
+    status: 'draft',
+    client_label: o.clientLabel?.trim() || null,
+    backlog_start: backlog?.start ?? null,
+    backlog_cycle: backlog?.cycle ?? null,
+    backlog_extension: backlog?.extension ?? false,
+  };
   if (id) {
     const { error } = await table().update(row).eq('id', id);
     if (error) throw new Error(error.message);
@@ -89,7 +110,7 @@ export async function saveDraft(
 
 export async function loadMyDrafts(userId: string): Promise<DraftNote[]> {
   const { data, error } = await table()
-    .select('id, created_at, updated_at, contact_method, contact_date, final_narrative, generated_narrative, generator, reviewed_at, primary_topic, client_label, selections')
+    .select('id, created_at, updated_at, contact_method, contact_date, final_narrative, generated_narrative, generator, reviewed_at, primary_topic, client_label, backlog_start, backlog_cycle, backlog_extension, selections')
     .eq('status', 'draft')
     .eq('created_by', userId)
     .order('updated_at', { ascending: false });
@@ -104,6 +125,9 @@ export async function loadMyDrafts(userId: string): Promise<DraftNote[]> {
     final_narrative: r.final_narrative ?? '',
     primary_topic: r.primary_topic,
     client_label: r.client_label ?? null,
+    backlog_start: r.backlog_start ?? null,
+    backlog_cycle: r.backlog_cycle ?? null,
+    backlog_extension: !!r.backlog_extension,
     composed: {
       draft: r.selections,
       generated: r.generated_narrative ?? '',
@@ -112,6 +136,23 @@ export async function loadMyDrafts(userId: string): Promise<DraftNote[]> {
       reviewedAt: r.reviewed_at ?? new Date().toISOString(),
     },
   }));
+}
+
+/** For one backlog (name and start date), which cycles have a note, and whether it is assigned yet. */
+export async function loadBacklogNotes(userId: string, clientLabel: string, start: string): Promise<Record<number, { id: string; status: 'draft' | 'saved' }>> {
+  const { data, error } = await table()
+    .select('id, backlog_cycle, status')
+    .eq('created_by', userId)
+    .eq('backlog_start', start)
+    .eq('client_label', clientLabel.trim());
+  if (error) throw new Error(error.message);
+  const out: Record<number, { id: string; status: 'draft' | 'saved' }> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const r of (data ?? []) as any[]) {
+    // An assigned note counts over a draft for the same cycle.
+    if (r.backlog_cycle && out[r.backlog_cycle]?.status !== 'saved') out[r.backlog_cycle] = { id: r.id, status: r.status };
+  }
+  return out;
 }
 
 export async function deleteDraft(id: string): Promise<void> {

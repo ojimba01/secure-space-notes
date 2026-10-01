@@ -210,6 +210,15 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
+    id: 'backlog-notes', section: 'Touchpoints', title: 'Write backlog notes', audience: 'everyone', minutes: 3,
+    steps: [
+      s('Open Manual entry', 'Select Generate Notes in the left panel, select Manual entry, then type the client name.'),
+      s('Select Backlog', 'Select Backlog and enter the 150-day start date. Tick Include 180-day extension if it applies.'),
+      s('Find the cycle', 'One row is listed for each 30-day cycle: five for 150 days, six with the extension. Each row shows whether a note is saved or assigned.'),
+      s('Add the note', 'Select Add note beside a cycle. The contact date is set to the first day of the cycle. Build the note, then select Save draft. Assign it to the client from My drafts.'),
+    ],
+  },
+  {
     id: 'reminders', section: 'Touchpoints', title: 'Respond to a reminder', audience: 'everyone', minutes: 1,
     steps: [
       s('Open Clients', 'Reminders from your manager appear when you open Clients.'),

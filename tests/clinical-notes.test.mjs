@@ -9,7 +9,7 @@ import { build } from 'esbuild';
 
 const bundle = await build({
   stdin: {
-    contents: `export * from './src/lib/clinicalNotes/generate'; export * from './src/lib/clinicalNotes/config';`,
+    contents: `export * from './src/lib/clinicalNotes/generate'; export * from './src/lib/clinicalNotes/config'; export * from './src/lib/clinicalNotes/backlog';`,
     resolveDir: process.cwd(),
     loader: 'ts',
   },
@@ -186,4 +186,16 @@ test('next steps: both parties, no next step, and a specific date', () => {
   d.next = { who: 'None', cm: [], consumer: [], third: [], other: '' };
   assert.match(generateNote(d, { method: 'phone' }), /No (further action|next step) is needed at this time\.$/);
   assert.equal(summarize(d).at(-1).lines[0], 'No next step');
+});
+
+test('backlog: one 30-day cycle per row, five for 150 days, six with the extension', () => {
+  const five = mod.backlogCycles('2026-01-01', false);
+  assert.equal(five.length, 5);
+  assert.deepEqual(five[0], { n: 1, start: '2026-01-01', end: '2026-01-30' });
+  assert.deepEqual(five[1], { n: 2, start: '2026-01-31', end: '2026-03-01' });
+  assert.equal(five[4].end, '2026-05-30');
+  const six = mod.backlogCycles('2026-01-01', true);
+  assert.equal(six.length, 6);
+  assert.deepEqual(six[5], { n: 6, start: '2026-05-31', end: '2026-06-29' });
+  assert.deepEqual(mod.backlogCycles('', false), []);
 });

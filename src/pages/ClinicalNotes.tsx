@@ -6,13 +6,19 @@
 // assign it to a client later, when it becomes that client's touchpoint note.
 // A typed name labels drafts (a backlog for someone not in the app, several
 // notes for one person); it is never written into the note itself.
+//
+// Backlog (under Manual entry) lists one 30-day cycle per row from the 150-day
+// start date, plus the 180-day extension when ticked. Nothing is created ahead
+// of time: a note exists only once someone adds one for a cycle, dated the
+// cycle's first day.
 import React, { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ClipboardCopy, Hand, Trash2, UserRound } from 'lucide-react';
+import { Check, ClipboardCopy, Hand, History, Trash2, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PageShell } from '@/components/PageShell';
 import { ClientPicker } from '@/components/ClientPicker';
 import { AddTouchpointDialog, type TouchpointContext } from '@/components/AddTouchpointDialog';
@@ -25,7 +31,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { CONTACT_METHOD_OPTIONS } from '@/lib/compliance';
 import { isCaseClosed, isSetupComplete } from '@/lib/workflow';
 import { topicById } from '@/lib/clinicalNotes/config';
-import { deleteDraft, loadMyDrafts, saveDraft, type DraftNote } from '@/lib/clinicalNotes/save';
+import { deleteDraft, loadBacklogNotes, loadMyDrafts, saveDraft, type DraftNote } from '@/lib/clinicalNotes/save';
+import { backlogCycles } from '@/lib/clinicalNotes/backlog';
 import { cn } from '@/lib/utils';
 
 interface Pickable {
@@ -83,12 +90,56 @@ export default function ClinicalNotes() {
   const [drafts, setDrafts] = useState<DraftNote[]>([]);
   const [touchpoint, setTouchpoint] = useState<{ context: TouchpointContext; draft?: DraftNote } | null>(null);
   const [assigning, setAssigning] = useState<DraftNote | null>(null);
+  // Backlog: the 150-day start, the extension, the cycle being written, and which cycles have notes.
+  const [backlogOn, setBacklogOn] = useState(false);
+  const [backlogStart, setBacklogStart] = useState('');
+  const [backlogExt, setBacklogExt] = useState(false);
+  const [backlogCycle, setBacklogCycle] = useState<number | null>(null);
+  const [backlogDone, setBacklogDone] = useState<Record<number, { id: string; status: 'draft' | 'saved' }>>({});
+  const cycles = backlogOn ? backlogCycles(backlogStart, backlogExt) : [];
   const [assignTo, setAssignTo] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     if (user) void loadMyDrafts(user.id).then(setDrafts).catch(() => setDrafts([]));
   }, [user]);
   useEffect(refresh, [refresh]);
+
+  const loadBacklog = useCallback(() => {
+    const name = clientLabel.trim();
+    if (!user || !backlogOn || !backlogStart || !name) {
+      setBacklogDone({});
+      return;
+    }
+    void loadBacklogNotes(user.id, name, backlogStart).then(setBacklogDone).catch(() => setBacklogDone({}));
+  }, [user, backlogOn, backlogStart, clientLabel]);
+  useEffect(() => {
+    const t = setTimeout(loadBacklog, 300);
+    return () => clearTimeout(t);
+  }, [loadBacklog]);
+
+  const startCycle = (n: number) => {
+    const c = cycles.find((x) => x.n === n);
+    if (!c) return;
+    setBacklogCycle(n);
+    setContactDate(c.start);
+    setEditingDraft(null);
+    setComposerKey((k) => k + 1);
+    document.getElementById('note-composer')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const editDraft = (d: DraftNote) => {
+    setMode('draft');
+    setMethod(d.contact_method);
+    setClientLabel(d.client_label ?? '');
+    setContactDate(d.contact_date ?? '');
+    setBacklogOn(!!d.backlog_start);
+    setBacklogStart(d.backlog_start ?? '');
+    setBacklogExt(d.backlog_extension);
+    setBacklogCycle(d.backlog_cycle);
+    setEditingDraft(d);
+    setComposerKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Drafts for the same name together, newest first within each; unnamed last.
   const grouped = [...drafts].sort(
@@ -100,6 +151,12 @@ export default function ClinicalNotes() {
     setMode('draft');
     setClientLabel(label);
     setContactDate('');
+    // A name with backlog notes opens its cycle list again.
+    const prior = drafts.find((x) => x.client_label === label && x.backlog_start);
+    setBacklogOn(!!prior);
+    setBacklogStart(prior?.backlog_start ?? '');
+    setBacklogExt(prior?.backlog_extension ?? false);
+    setBacklogCycle(null);
     setEditingDraft(null);
     setComposerKey((k) => k + 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -119,13 +176,16 @@ export default function ClinicalNotes() {
 
   const saveAsDraft = async (c: ComposedNote) => {
     try {
-      await saveDraft(c, method, editingDraft?.id, clientLabel, contactDate);
+      const backlog = backlogOn && backlogStart && backlogCycle ? { start: backlogStart, cycle: backlogCycle, extension: backlogExt } : null;
+      await saveDraft(c, { contactMethod: method, id: editingDraft?.id, clientLabel, contactDate, backlog });
       // The name stays filled in, so several notes for one person go quickly.
       toast({ title: editingDraft ? 'Draft updated' : 'Draft saved', description: clientLabel.trim() ? `Saved under ${clientLabel.trim()}. Start the next note below.` : 'Assign it to a client from My drafts when you are ready.' });
       setEditingDraft(null);
       setContactDate('');
+      setBacklogCycle(null);
       setComposerKey((k) => k + 1);
       refresh();
+      loadBacklog();
     } catch (e) {
       toast({ title: 'Could not save the draft', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     }
@@ -175,6 +235,77 @@ export default function ClinicalNotes() {
           )}
 
           {mode === 'draft' && (
+            <div className="space-y-3">
+              <Chip
+                size="sm"
+                selected={backlogOn}
+                onClick={() => {
+                  setBacklogOn((on) => !on);
+                  setBacklogCycle(null);
+                }}
+              >
+                <History className="mr-1.5 inline h-3.5 w-3.5" />
+                Backlog
+              </Chip>
+              {backlogOn && (
+                <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                  <div className="flex flex-wrap items-end gap-4">
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground">150-day start date</p>
+                      <Input aria-label="150-day start date" type="date" value={backlogStart} onChange={(e) => { setBacklogStart(e.target.value); setBacklogCycle(null); }} className="h-9 w-44" />
+                    </div>
+                    <label className="flex h-9 items-center gap-2 text-sm">
+                      <Checkbox checked={backlogExt} onCheckedChange={(c) => setBacklogExt(c === true)} />
+                      Include 180-day extension
+                    </label>
+                  </div>
+                  {cycles.length > 0 && !clientLabel.trim() && <p className="text-xs text-amber-800">Enter the client name to save backlog notes.</p>}
+                  {cycles.length > 0 && (
+                    <ul className="divide-y rounded-md border bg-white">
+                      {cycles.map((c) => {
+                        const done = backlogDone[c.n];
+                        const draft = done?.status === 'draft' ? drafts.find((d) => d.id === done.id) : undefined;
+                        const writing = backlogCycle === c.n;
+                        return (
+                          <li key={c.n} className={cn('flex flex-wrap items-center gap-3 px-3 py-2 text-sm', writing && 'bg-primary/5')}>
+                            <span className="w-16 font-semibold">Cycle {c.n}</span>
+                            <span className="text-muted-foreground">
+                              {format(new Date(`${c.start}T12:00:00`), 'MMM d')} – {format(new Date(`${c.end}T12:00:00`), 'MMM d, yyyy')}
+                            </span>
+                            <span className="ml-auto flex items-center gap-2">
+                              {writing ? (
+                                <span className="text-xs font-semibold text-primary">Writing</span>
+                              ) : done?.status === 'saved' ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                                  <Check className="h-3.5 w-3.5" />
+                                  Assigned
+                                </span>
+                              ) : done ? (
+                                <>
+                                  <span className="text-xs text-muted-foreground">Draft saved</span>
+                                  {draft && (
+                                    <Button size="sm" variant="outline" className="h-7" onClick={() => editDraft(draft)}>
+                                      Edit
+                                    </Button>
+                                  )}
+                                </>
+                              ) : (
+                                <Button size="sm" className="h-7" disabled={!clientLabel.trim()} onClick={() => startCycle(c.n)}>
+                                  Add note
+                                </Button>
+                              )}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {mode === 'draft' && (
             <div className="space-y-1.5">
               <p className="text-xs text-muted-foreground">How did the contact happen? (optional)</p>
               <div className="flex flex-wrap gap-2">
@@ -189,11 +320,16 @@ export default function ClinicalNotes() {
         </Card>
 
         {mode === 'draft' && (
-          <div className="space-y-2">
+          <div id="note-composer" className="scroll-mt-4 space-y-2">
+            {backlogCycle && !editingDraft && (
+              <p className="rounded-md bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                Note for cycle {backlogCycle}, dated {contactDate ? format(new Date(`${contactDate}T12:00:00`), 'MMM d, yyyy') : 'the cycle start'}.
+              </p>
+            )}
             {editingDraft && (
               <p className="rounded-md bg-sky-50 px-3 py-2 text-sm text-sky-900">
                 Editing a draft from {format(new Date(editingDraft.updated_at), 'MMM d')}.{' '}
-                <button className="underline" onClick={() => { setEditingDraft(null); setComposerKey((k) => k + 1); }}>
+                <button className="underline" onClick={() => { setEditingDraft(null); setBacklogCycle(null); setComposerKey((k) => k + 1); }}>
                   Start a new note instead
                 </button>
               </p>
@@ -244,6 +380,7 @@ export default function ClinicalNotes() {
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {d.client_label && <span className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">{d.client_label}</span>}
                     <span className="font-semibold text-foreground">{topicById(d.primary_topic ?? '')?.label ?? 'Note'}</span>
+                    {d.backlog_cycle && <span className="rounded-full bg-muted px-2 py-0.5 font-medium">Cycle {d.backlog_cycle}</span>}
                     {d.contact_date && <span>Contact {format(new Date(`${d.contact_date}T12:00:00`), 'MMM d, yyyy')}</span>}
                     <span>Saved {format(new Date(d.updated_at), "MMM d 'at' h:mm a")}</span>
                   </div>
@@ -269,15 +406,7 @@ export default function ClinicalNotes() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        setMode('draft');
-                        setMethod(d.contact_method);
-                        setClientLabel(d.client_label ?? '');
-                        setContactDate(d.contact_date ?? '');
-                        setEditingDraft(d);
-                        setComposerKey((k) => k + 1);
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
+                      onClick={() => editDraft(d)}
                     >
                       Edit
                     </Button>

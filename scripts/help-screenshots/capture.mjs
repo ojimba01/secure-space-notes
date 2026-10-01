@@ -122,6 +122,20 @@ async function noteRest(p) {
   await inStep(p, 'Next steps', 'In 1 week').click();
   await wait(p, 400);
 }
+async function backlogOpen(p) {
+  await p.goto(`${BASE}/clinical-notes`);
+  await wait(p, 2500);
+  await btn(p, 'Manual entry', true).click();
+  await p.getByLabel('Client name').fill('Jamie Rivera');
+  await wait(p, 300);
+}
+async function backlogReady(p) {
+  await backlogOpen(p);
+  await btn(p, 'Backlog', true).click();
+  await p.getByLabel('150-day start date').fill('2026-03-02');
+  await p.getByText('Include 180-day extension').click();
+  await wait(p, 800);
+}
 async function draftNoteReady(p) {
   await p.goto(`${BASE}/clinical-notes`);
   await wait(p, 2500);
@@ -273,6 +287,12 @@ const SHOTS = {
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/clinical-notes`); await wait(p, 2500); await btn(p, 'Manual entry', true).click(); await btn(p, 'Phone', true).click(); await wait(p, 300); }, target: (p) => p.locator('section', { hasText: 'What was this meeting about?' }), label: 'Make your selections' },
     { as: 'staff', go: draftNoteReady, target: (p) => btn(p, 'Save draft', true), label: 'Copy note or Save draft' },
     { as: 'staff', go: async (p) => { await draftNoteReady(p); await btn(p, 'Save draft', true).click(); await wait(p, 1500); }, target: (p) => btn(p, 'Assign to client'), label: 'Assign to client' },
+  ],
+  'backlog-notes': [
+    { as: 'staff', go: backlogOpen, target: (p) => p.getByLabel('Client name'), label: 'Client name' },
+    { as: 'staff', go: backlogOpen, target: (p) => btn(p, 'Backlog', true), label: 'Backlog' },
+    { as: 'staff', go: backlogReady, target: (p) => p.locator('ul', { hasText: 'Cycle 1' }), label: 'One row per cycle' },
+    { as: 'staff', go: async (p) => { await backlogReady(p); await btn(p, 'Add note', true).first().click(); await wait(p, 600); }, target: (p) => p.getByText(/^Note for cycle 1/), label: 'Dated the cycle start' },
   ],
   reminders: [
     { as: 'staff', reminders: true, go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'Next reminder'), label: 'Next reminder' },
