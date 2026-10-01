@@ -60,12 +60,14 @@ export interface DraftNote {
   contact_method: string | null;
   final_narrative: string;
   primary_topic: string | null;
+  /** Manual entry: the name typed to organize drafts. Not in the note text. */
+  client_label: string | null;
   composed: ComposedNote;
 }
 
 /** Save a draft that belongs to no client yet. */
-export async function saveDraft(c: ComposedNote, contactMethod: string | null, id?: string): Promise<string> {
-  const row = { ...noteRow(c, { contactMethod }), status: 'draft' };
+export async function saveDraft(c: ComposedNote, contactMethod: string | null, id?: string, clientLabel?: string | null): Promise<string> {
+  const row = { ...noteRow(c, { contactMethod }), status: 'draft', client_label: clientLabel?.trim() || null };
   if (id) {
     const { error } = await table().update(row).eq('id', id);
     if (error) throw new Error(error.message);
@@ -79,7 +81,7 @@ export async function saveDraft(c: ComposedNote, contactMethod: string | null, i
 
 export async function loadMyDrafts(userId: string): Promise<DraftNote[]> {
   const { data, error } = await table()
-    .select('id, created_at, updated_at, contact_method, final_narrative, generated_narrative, generator, reviewed_at, primary_topic, selections')
+    .select('id, created_at, updated_at, contact_method, final_narrative, generated_narrative, generator, reviewed_at, primary_topic, client_label, selections')
     .eq('status', 'draft')
     .eq('created_by', userId)
     .order('updated_at', { ascending: false });
@@ -92,6 +94,7 @@ export async function loadMyDrafts(userId: string): Promise<DraftNote[]> {
     contact_method: r.contact_method,
     final_narrative: r.final_narrative ?? '',
     primary_topic: r.primary_topic,
+    client_label: r.client_label ?? null,
     composed: {
       draft: r.selections,
       generated: r.generated_narrative ?? '',

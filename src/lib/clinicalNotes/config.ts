@@ -143,25 +143,20 @@ function communication(id: string, label: string, party: string): Item {
   });
 }
 
-/** How an area of the consumer's life stands. */
-function areaStatus(id: string, label: string, noun: string): Item {
-  const N = cap(noun);
-  return simple(id, label, 'Status', {
-    'No change': [`No change in ${noun} was noted.`, `${N} is unchanged.`],
-    'New concern': [`A new ${noun} concern was identified.`, `A new concern regarding ${noun} was identified.`],
-    'Ongoing concern': [`The ${noun} concern is ongoing.`, `A ${noun} concern remains ongoing.`],
-    Improved: [`The ${noun} concern has improved.`, `There has been improvement in the ${noun} concern.`],
-    Resolved: [`The ${noun} concern has been resolved.`, `The ${noun} concern is resolved.`],
-  });
-}
-
-const NEW_ISSUE_STATUS = ['New', 'Ongoing', 'Improved', 'Resolved', 'Worsened'];
+const APARTMENT_ISSUES: Record<string, string> = {
+  'Repairs/maintenance': 'repair issue',
+  'Heat, water or power': 'heat, water or power issue',
+  Pests: 'pest issue',
+  Safety: 'safety issue',
+  Accessibility: 'accessibility issue',
+  Other: 'issue',
+};
 
 // ---- topics -------------------------------------------------------------
 
 const checkIn: Topic = {
   id: 'checkin',
-  label: 'Check-in',
+  label: 'General check-in',
   touchpointType: 'general_checkin',
   purpose: 'a housing stability check-in',
   items: [
@@ -196,32 +191,66 @@ const checkIn: Topic = {
     }),
     {
       id: 'unit',
-      label: 'Unit',
+      label: 'Apartment issue',
       questions: [
-        { key: 'concern', label: 'Unit concern', options: ['Maintenance', 'Utilities', 'Safety', 'Accessibility', 'Other'] },
-        { key: 'status', label: 'Status', options: NEW_ISSUE_STATUS },
+        { key: 'concern', label: 'What kind of issue?', options: Object.keys(APARTMENT_ISSUES) },
+        { key: 'status', label: 'Where does it stand?', options: ['New', 'Ongoing', 'Improved', 'Resolved', 'Worse'] },
       ],
       say: (a, v) => {
-        const c = one(a, 'concern').toLowerCase();
-        if (!c) return [];
-        const what = c === 'other' ? 'unit concern' : `unit ${c} concern`;
+        const issue = APARTMENT_ISSUES[one(a, 'concern')];
+        if (!issue) return [];
+        const what = `apartment ${issue}`;
         const s: Record<string, string[]> = {
           New: [`A new ${what} was identified.`, `A new ${what} was noted.`],
-          Ongoing: [`The ${what} is ongoing.`, `A ${what} remains ongoing.`],
+          Ongoing: [`The ${what} is ongoing.`, `An ${what} remains ongoing.`],
           Improved: [`The ${what} has improved.`, `There has been improvement in the ${what}.`],
           Resolved: [`The ${what} has been resolved.`, `The ${what} is resolved.`],
-          Worsened: [`The ${what} has worsened.`, `The ${what} is worse.`],
+          Worse: [`The ${what} has worsened.`, `The ${what} has gotten worse.`],
         };
         const list = s[one(a, 'status')];
         return list ? [choose(v, list)] : [];
       },
     },
-    areaStatus('benefits', 'Benefits', 'benefits'),
-    areaStatus('health', 'Health', 'health'),
-    areaStatus('employment', 'Employment', 'employment'),
-    areaStatus('transportation', 'Transportation', 'transportation'),
-    areaStatus('food', 'Food', 'food'),
-    areaStatus('safety', 'Safety', 'safety'),
+    simple('benefits', 'Benefits', 'Benefits', {
+      Receiving: [`${TERMS.Client} is receiving benefits.`, `${TERMS.Client}'s benefits are in place.`],
+      Stopped: [`${TERMS.Client}'s benefits have stopped.`, `${TERMS.Client}'s benefits were stopped.`],
+      'Change pending': [`A change to the ${TERMS.client}'s benefits is pending.`, `A benefits change is pending.`],
+      'Needs help applying': [`${TERMS.Client} needs help applying for benefits.`, `Help applying for benefits is needed.`],
+    }),
+    simple('health', 'Health', 'Health', {
+      'No new concerns': ['No new health concerns were noted.', 'No new health concerns were identified.'],
+      'New concern': ['A new health concern was noted.', 'A new health concern was identified.'],
+      'Ongoing concern': ['A health concern is ongoing.', 'A health concern remains ongoing.'],
+      'Recent hospital stay': [`${TERMS.Client} had a recent hospital stay.`, `${TERMS.Client} was recently in the hospital.`],
+      'Missed appointments': [`${TERMS.Client} has missed medical appointments.`, 'Medical appointments were missed.'],
+    }),
+    simple('employment', 'Work', 'Work', {
+      Working: [`${TERMS.Client} is working.`, `${TERMS.Client} is currently employed.`],
+      'Looking for work': [`${TERMS.Client} is looking for work.`, `${TERMS.Client} is seeking employment.`],
+      'Not working': [`${TERMS.Client} is not currently working.`, `${TERMS.Client} is not employed at this time.`],
+      'Started a new job': [`${TERMS.Client} started a new job.`, `${TERMS.Client} recently began a new job.`],
+      'Lost a job': [`${TERMS.Client} recently lost a job.`, `${TERMS.Client}'s employment recently ended.`],
+    }),
+    simple('transportation', 'Transportation', 'Transportation', {
+      'Has reliable transportation': [`${TERMS.Client} has reliable transportation.`, 'Transportation is in place.'],
+      'Needs bus pass or fare': [`${TERMS.Client} needs a bus pass or fare.`, 'A bus pass or fare is needed.'],
+      'Needs rides to appointments': [`${TERMS.Client} needs rides to appointments.`, 'Transportation to appointments is needed.'],
+      'No transportation': [`${TERMS.Client} has no transportation.`, `${TERMS.Client} is without transportation.`],
+      'Car or license issue': [`${TERMS.Client} has a car or license issue.`, 'A car or license issue was noted.'],
+    }),
+    simple('food', 'Food access', 'Food access', {
+      'Has enough food': [`${TERMS.Client} has enough food.`, 'Food needs are met.'],
+      'Running low': [`${TERMS.Client} is running low on food.`, 'Food is running low.'],
+      'Out of food': [`${TERMS.Client} is out of food.`, `${TERMS.Client} has no food.`],
+      'Uses a food pantry': [`${TERMS.Client} uses a food pantry.`, `${TERMS.Client} is getting food from a food pantry.`],
+      'Has SNAP': [`${TERMS.Client} receives SNAP.`, `${TERMS.Client} has SNAP benefits.`],
+    }),
+    simple('safety', 'Safety', 'Safety', {
+      'No concerns': ['No safety concerns were noted.', 'No safety concerns were identified.'],
+      'Concern at home': ['A safety concern at home was noted.', 'A safety concern in the home was identified.'],
+      'Concern in the neighborhood': ['A safety concern in the neighborhood was noted.', 'A neighborhood safety concern was identified.'],
+      'Other concern': ['A safety concern was noted.', 'A safety concern was identified.'],
+    }),
     other('Other matters were addressed during the check-in.'),
   ],
 };
@@ -513,12 +542,42 @@ const benefits: Topic = {
   ],
 };
 
-const NEEDS: Record<string, { noun: string; plural?: boolean }> = {
-  Food: { noun: 'food' },
+interface Need {
+  noun: string;
+  plural?: boolean;
+  /** Asked first, when "food" or "transportation" alone is too vague. */
+  kinds?: { label: string; options: Record<string, { noun: string; plural?: boolean }> };
+}
+
+const NEEDS: Record<string, Need> = {
+  Food: {
+    noun: 'food',
+    kinds: {
+      label: 'What kind of food help?',
+      options: {
+        Groceries: { noun: 'groceries', plural: true },
+        'Food pantry': { noun: 'food pantry access' },
+        SNAP: { noun: 'SNAP' },
+        Meals: { noun: 'meals', plural: true },
+      },
+    },
+  },
   Clothing: { noun: 'clothing' },
   Furniture: { noun: 'furniture' },
   Utilities: { noun: 'utilities', plural: true },
-  Transportation: { noun: 'transportation' },
+  Transportation: {
+    noun: 'transportation',
+    kinds: {
+      label: 'Transportation for',
+      options: {
+        'Medical appointment': { noun: 'transportation to a medical appointment' },
+        'Housing appointment': { noun: 'transportation to a housing appointment' },
+        Work: { noun: 'transportation to work' },
+        'Bus pass or fare': { noun: 'a bus pass or fare' },
+        Other: { noun: 'transportation' },
+      },
+    },
+  },
   'Phone/internet': { noun: 'phone/internet service' },
   'Household items': { noun: 'household items', plural: true },
   Identification: { noun: 'identification' },
@@ -530,13 +589,17 @@ const basicNeeds: Topic = {
   label: 'Basic needs',
   touchpointType: 'basic_needs',
   purpose: 'basic needs',
-  items: Object.entries(NEEDS).map(([label, { noun, plural }]) => ({
+  items: Object.entries(NEEDS).map(([label, need]) => ({
     id: label.toLowerCase().replace(/[^a-z]+/g, '_'),
     label,
     questions: [
+      ...(need.kinds ? [{ key: 'kind', label: need.kinds.label, options: Object.keys(need.kinds.options) }] : []),
       { key: 'v', label: 'Assistance', options: ['Discussed', 'Resource provided', 'Referral made', 'Application completed', 'Obtained', 'Pending'] },
     ],
     say: (a: Answers, v: number) => {
+      const kind = need.kinds?.options[one(a, 'kind')];
+      const noun = kind?.noun ?? need.noun;
+      const plural = kind ? kind.plural : need.plural;
       const N = cap(noun);
       const s: Record<string, string[]> = {
         Discussed: [`Needs related to ${noun} were discussed.`, `${N} needs were discussed.`],
@@ -899,8 +962,8 @@ export const BARRIERS: Record<string, string> = {
   Cost: 'cost',
   Transportation: 'transportation',
   Availability: 'availability',
-  'Consumer unavailable': `the ${TERMS.client} was unavailable`,
-  'Consumer declined': `the ${TERMS.client} declined`,
+  'Client unavailable': `the ${TERMS.client} was unavailable`,
+  'Client declined': `the ${TERMS.client} declined`,
   Other: '',
 };
 
@@ -940,12 +1003,24 @@ export const NEXT_CONSUMER: Record<string, string> = {
   Other: '',
 };
 
-export const NEXT_THIRD: Record<string, string> = {
-  Respond: 'a response from the third party',
-  'Make a decision': 'a decision from the third party',
-  'Process application': 'processing of the application',
-  Schedule: 'scheduling by the third party',
-  Other: '',
+/** Who the third party is, as it reads in the note. */
+export const THIRD_PARTIES: Record<string, string> = {
+  'Parent/guardian': `the ${TERMS.client}'s parent or guardian`,
+  'Family member': `a family member`,
+  'Landlord/property': 'the landlord or property',
+  'Housing authority': 'the housing authority',
+  Provider: 'the provider',
+  MCO: `the ${TERMS.client}'s MCO`,
+  'Benefits agency': 'the benefits agency',
+  Other: 'a third party',
+};
+
+export const NEXT_THIRD: Record<string, (party: string) => string> = {
+  Respond: (p) => `a response from ${p}`,
+  'Make a decision': (p) => `a decision from ${p}`,
+  'Process application': (p) => `processing of the application by ${p}`,
+  Schedule: (p) => `scheduling by ${p}`,
+  Other: () => '',
 };
 
 export const TIMING: Record<string, string> = {
@@ -962,11 +1037,11 @@ export const TIMING: Record<string, string> = {
 /** "CM ___ regarding …" for each contact method. */
 export const METHOD_PHRASES: Record<string, string[]> = {
   in_person: [`met with the ${TERMS.client} in person`, `met in person with the ${TERMS.client}`],
-  phone: [`spoke with the ${TERMS.client} by phone`, `had a phone contact with the ${TERMS.client}`],
-  text: [`communicated with the ${TERMS.client} by text`, `exchanged text messages with the ${TERMS.client}`],
-  email: [`corresponded with the ${TERMS.client} by email`, `communicated with the ${TERMS.client} by email`],
-  virtual: [`met with the ${TERMS.client} by video`, `had a video contact with the ${TERMS.client}`],
-  other: [`had contact with the ${TERMS.client}`, `was in contact with the ${TERMS.client}`],
+  phone: [`contacted the ${TERMS.client} by phone`, `spoke with the ${TERMS.client} by phone`],
+  text: [`contacted the ${TERMS.client} by text`, `texted the ${TERMS.client}`],
+  email: [`contacted the ${TERMS.client} by email`, `emailed the ${TERMS.client}`],
+  virtual: [`met with the ${TERMS.client} by video`, `contacted the ${TERMS.client} by video`],
+  other: [`contacted the ${TERMS.client}`, `contacted the ${TERMS.client}`],
 };
 
 /** For care coordination, the contact may not have been with the consumer. */

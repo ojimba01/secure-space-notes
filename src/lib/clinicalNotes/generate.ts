@@ -18,6 +18,7 @@ import {
   RESPONSES,
   RESULTS,
   TERMS,
+  THIRD_PARTIES,
   TIMING,
   choose,
   joinList,
@@ -46,6 +47,8 @@ export interface NoteDraft {
     cm: string[];
     consumer: string[];
     third: string[];
+    /** Who the third party is (Parent/guardian, Provider …). */
+    thirdWho?: string;
     other: string;
     timing?: string;
     date?: string;
@@ -182,7 +185,9 @@ function nextSteps(draft: NoteDraft, v: number): string[] {
     if (p.length) out.push(choose(v + 1, [`${TERMS.Client} will ${joinList(p)}${tail}.`, `${TERMS.Client} is to ${joinList(p)}${tail}.`]));
   }
   if (n.who === 'Third party') {
-    const p = phrases(n.third, NEXT_THIRD);
+    const party = THIRD_PARTIES[n.thirdWho ?? ''] ?? 'a third party';
+    const p = n.third.map((c) => (c === 'Other' ? typed : NEXT_THIRD[c]?.(party) ?? '')).filter(Boolean);
+    if (!p.length && n.thirdWho) p.push(`a response from ${party}`);
     if (p.length) out.push(choose(v, [`Next step is pending ${joinList(p)}${tail}.`, `Awaiting ${joinList(p)}${tail}.`]));
   }
   if (!out.length && timing) out.push(`Next contact is planned ${timing}.`);
@@ -248,13 +253,14 @@ export function summarize(draft: NoteDraft): SummaryLine[] {
       lines: [r.value === 'Barrier' && r.barrier ? `Barrier → ${r.barrier === 'Other' ? r.barrierOther || 'Other' : r.barrier}` : r.value],
     });
   }
-  if (draft.response.length) out.push({ heading: 'Consumer response', lines: [draft.response.join(', ')] });
+  if (draft.response.length) out.push({ heading: 'Client response', lines: [draft.response.join(', ')] });
   if (draft.next) {
     const n = draft.next;
-    const what = [...n.cm, ...n.consumer, ...n.third].filter((x) => x !== 'Other');
+    const what = [...(n.thirdWho ? [n.thirdWho] : []), ...n.cm, ...n.consumer, ...n.third].filter((x) => x !== 'Other');
     if (n.other.trim()) what.push(n.other.trim());
     const t = n.timing === 'Specific date' ? n.date ?? '' : n.timing ?? '';
-    out.push({ heading: 'Next', lines: [[n.who, what.join(', '), t].filter(Boolean).join(' · ')] });
+    const who = n.who === 'Consumer' ? 'Client' : n.who;
+    out.push({ heading: 'Next', lines: [[who, what.join(', '), t].filter(Boolean).join(' · ')] });
   }
   if (draft.freeText.trim()) out.push({ heading: 'Added detail', lines: [draft.freeText.trim()] });
   return out;

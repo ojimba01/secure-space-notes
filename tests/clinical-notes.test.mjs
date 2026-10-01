@@ -78,7 +78,7 @@ test('leaves out sections with nothing selected', () => {
   d.topicContext = { benefits: { type: 'SNAP' } };
   d.items = { benefits: [{ id: 'change', answers: { v: 'Interrupted' } }] };
   const note = generateNote(d, { method: 'phone' }, 0);
-  assert.equal(note, 'CM spoke with the consumer by phone regarding benefits. SNAP benefits were interrupted.');
+  assert.equal(note, 'CM contacted the consumer by phone regarding benefits. SNAP benefits were interrupted.');
 });
 
 test('legal concerns are reported, never concluded', () => {
@@ -95,7 +95,7 @@ test('an unfinished item is not written', () => {
   d.topics = ['application'];
   d.items = { application: [{ id: 'documents', answers: { type: 'Income' } }] };
   assert.equal(canGenerate(d), false);
-  assert.equal(generateNote(d, { method: 'phone' }, 0), 'CM spoke with the consumer by phone regarding the housing application.');
+  assert.equal(generateNote(d, { method: 'phone' }, 0), 'CM contacted the consumer by phone regarding the housing application.');
 });
 
 test('typed detail is tidied, not rewritten', () => {
@@ -106,6 +106,44 @@ test('typed detail is tidied, not rewritten', () => {
 
 test('the summary is short lines, not prose', () => {
   const s = summarize(checkIn());
-  assert.deepEqual(s[0], { heading: 'Check-in (primary)', lines: ['Rent: Current', 'Landlord: No concerns'] });
+  assert.deepEqual(s[0], { heading: 'General check-in (primary)', lines: ['Rent: Current', 'Landlord: No concerns'] });
   assert.deepEqual(s[1].lines, ['Deadline: Upcoming', 'Documents: Income → Needed']);
+});
+
+test('the opening says CM contacted or met with the consumer', () => {
+  const d = emptyDraft();
+  d.topics = ['landlord'];
+  for (const [method, start] of [
+    ['phone', 'CM contacted the consumer by phone'],
+    ['text', 'CM contacted the consumer by text'],
+    ['email', 'CM contacted the consumer by email'],
+    ['in_person', 'CM met with the consumer in person'],
+    ['other', 'CM contacted the consumer'],
+  ]) {
+    assert.ok(generateNote(d, { method }, 0).startsWith(start), method);
+  }
+});
+
+test('a third party next step names who it is', () => {
+  const d = emptyDraft();
+  d.topics = ['application'];
+  d.items = { application: [{ id: 'status', answers: { v: 'Pending' } }] };
+  d.next = { who: 'Third party', cm: [], consumer: [], third: ['Make a decision'], thirdWho: 'Parent/guardian', other: '' };
+  assert.match(generateNote(d, { method: 'phone' }, 0), /(Next step is pending|Awaiting) a decision from the consumer's parent or guardian\./);
+});
+
+test('apartment issues and specific needs read plainly', () => {
+  const d = emptyDraft();
+  d.topics = ['checkin', 'basic_needs'];
+  d.items = {
+    checkin: [
+      { id: 'unit', answers: { concern: 'Heat, water or power', status: 'New' } },
+      { id: 'food', answers: { v: 'Running low' } },
+    ],
+    basic_needs: [{ id: 'transportation', answers: { kind: 'Medical appointment', v: 'Referral made' } }],
+  };
+  const note = generateNote(d, { method: 'in_person' }, 0);
+  assert.match(note, /A new apartment heat, water or power issue was (identified|noted)\./);
+  assert.match(note, /(Consumer is running low on food|Food is running low)\./);
+  assert.match(note, /referral (was made for|for) transportation to a medical appointment/);
 });

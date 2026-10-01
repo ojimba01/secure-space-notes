@@ -1,14 +1,17 @@
 // Clinical Notes: build a note without first opening a client.
 //
 // "Existing client" picks the client and opens the touchpoint with the note
-// builder, so the note is saved as that client's touchpoint. "Draft only"
-// builds a note tied to no one: copy it, or save it as a draft and assign it to
-// a client later, when it becomes that client's touchpoint note.
+// builder, so the note is saved as that client's touchpoint. "Manual entry"
+// builds a note tied to no client record: copy it, or save it as a draft and
+// assign it to a client later, when it becomes that client's touchpoint note.
+// A typed name labels drafts (a backlog for someone not in the app, several
+// notes for one person); it is never written into the note itself.
 import React, { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ClipboardCopy, FileText, Trash2, UserRound } from 'lucide-react';
+import { ClipboardCopy, Hand, Trash2, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { PageShell } from '@/components/PageShell';
 import { ClientPicker } from '@/components/ClientPicker';
@@ -71,6 +74,8 @@ export default function ClinicalNotes() {
   const [mode, setMode] = useState<'client' | 'draft' | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [method, setMethod] = useState<string | null>(null);
+  /** Manual entry: who the note is for, typed. Organizes drafts; not in the note. */
+  const [clientLabel, setClientLabel] = useState('');
   const [composerKey, setComposerKey] = useState(0);
   const [editingDraft, setEditingDraft] = useState<DraftNote | null>(null);
   const [drafts, setDrafts] = useState<DraftNote[]>([]);
@@ -82,6 +87,20 @@ export default function ClinicalNotes() {
     if (user) void loadMyDrafts(user.id).then(setDrafts).catch(() => setDrafts([]));
   }, [user]);
   useEffect(refresh, [refresh]);
+
+  // Drafts for the same name together, newest first within each; unnamed last.
+  const grouped = [...drafts].sort(
+    (a, b) => (a.client_label ?? '\uffff').localeCompare(b.client_label ?? '\uffff') || b.updated_at.localeCompare(a.updated_at),
+  );
+
+  /** Start another manual note for the same name (a backlog, say). */
+  const startNoteFor = (label: string) => {
+    setMode('draft');
+    setClientLabel(label);
+    setEditingDraft(null);
+    setComposerKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const contextFor = (id: string): TouchpointContext | null => {
     const c = caseload.find((x) => x.id === id);
@@ -97,8 +116,9 @@ export default function ClinicalNotes() {
 
   const saveAsDraft = async (c: ComposedNote) => {
     try {
-      await saveDraft(c, method, editingDraft?.id);
-      toast({ title: editingDraft ? 'Draft updated' : 'Draft saved', description: 'Assign it to a client from My drafts when you are ready.' });
+      await saveDraft(c, method, editingDraft?.id, clientLabel);
+      // The name stays filled in, so several notes for one person go quickly.
+      toast({ title: editingDraft ? 'Draft updated' : 'Draft saved', description: clientLabel.trim() ? `Saved under ${clientLabel.trim()}. Start the next note below.` : 'Assign it to a client from My drafts when you are ready.' });
       setEditingDraft(null);
       setComposerKey((k) => k + 1);
       refresh();
@@ -125,8 +145,8 @@ export default function ClinicalNotes() {
               Existing client
             </Chip>
             <Chip selected={mode === 'draft'} onClick={() => setMode('draft')}>
-              <FileText className="mr-1.5 inline h-4 w-4" />
-              Draft only
+              <Hand className="mr-1.5 inline h-4 w-4" />
+              Manual entry
             </Chip>
           </div>
 
@@ -134,6 +154,14 @@ export default function ClinicalNotes() {
             <div className="max-w-md space-y-1.5">
               <p className="text-xs text-muted-foreground">Choose the client. The note is saved as their touchpoint.</p>
               <ClientPicker clients={caseload} value={clientId} onChange={startClientNote} className="h-10 w-full" />
+            </div>
+          )}
+
+          {mode === 'draft' && (
+            <div className="max-w-md space-y-1.5">
+              <p className="text-xs text-muted-foreground">Client name (optional)</p>
+              <Input value={clientLabel} onChange={(e) => setClientLabel(e.target.value)} maxLength={80} placeholder="For your drafts, such as a backlog" className="h-9" />
+              <p className="text-[11px] text-muted-foreground">Groups your saved drafts. It is not written into the note.</p>
             </div>
           )}
 
@@ -185,15 +213,42 @@ export default function ClinicalNotes() {
             <p className="p-4 text-sm text-muted-foreground">No drafts.</p>
           ) : (
             <ul className="divide-y">
-              {drafts.map((d) => (
-                <li key={d.id} className="space-y-2 p-4">
+              {grouped.map((d, i) => (
+                <React.Fragment key={d.id}>
+                {(i === 0 || grouped[i - 1].client_label !== d.client_label) && (
+                  <li className="flex flex-wrap items-center justify-between gap-2 bg-muted/40 px-4 py-2">
+                    <span className="text-sm font-semibold">
+                      {d.client_label ?? 'No name'}{' '}
+                      <span className="font-normal text-muted-foreground">
+                        · {grouped.filter((x) => x.client_label === d.client_label).length} note
+                        {grouped.filter((x) => x.client_label === d.client_label).length === 1 ? '' : 's'}
+                      </span>
+                    </span>
+                    {d.client_label && (
+                      <Button size="sm" variant="ghost" className="h-7" onClick={() => startNoteFor(d.client_label ?? '')}>
+                        + Add a note
+                      </Button>
+                    )}
+                  </li>
+                )}
+                <li className="space-y-2 p-4">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    {d.client_label && <span className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">{d.client_label}</span>}
                     <span className="font-semibold text-foreground">{topicById(d.primary_topic ?? '')?.label ?? 'Note'}</span>
                     <span>Saved {format(new Date(d.updated_at), "MMM d 'at' h:mm a")}</span>
                   </div>
                   <p className="line-clamp-3 text-sm">{d.final_narrative}</p>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" onClick={() => { setAssigning(d); setAssignTo(null); }}>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setAssigning(d);
+                        // A typed name that matches a client in the caseload is picked for you.
+                        const name = (d.client_label ?? '').trim().toLowerCase();
+                        const match = name ? caseload.find((c) => `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim().toLowerCase() === name) : undefined;
+                        setAssignTo(match?.id ?? null);
+                      }}
+                    >
                       <UserRound className="mr-1.5 h-3.5 w-3.5" />
                       Assign to client
                     </Button>
@@ -207,6 +262,7 @@ export default function ClinicalNotes() {
                       onClick={() => {
                         setMode('draft');
                         setMethod(d.contact_method);
+                        setClientLabel(d.client_label ?? '');
                         setEditingDraft(d);
                         setComposerKey((k) => k + 1);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -245,6 +301,7 @@ export default function ClinicalNotes() {
                     </div>
                   )}
                 </li>
+                </React.Fragment>
               ))}
             </ul>
           )}

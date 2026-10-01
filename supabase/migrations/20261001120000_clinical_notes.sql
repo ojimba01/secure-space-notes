@@ -87,3 +87,7 @@ create trigger update_clinical_notes_updated_at
 create trigger audit_clinical_notes
   after insert or update or delete on public.clinical_notes
   for each row execute function public.audit_trigger_function();
+
+-- Manual entry: the name typed to organize drafts (for example a backlog for
+-- someone not in the app). Not part of the note text.
+alter table public.clinical_notes add column if not exists client_label text;
