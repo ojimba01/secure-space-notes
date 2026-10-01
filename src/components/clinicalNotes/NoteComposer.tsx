@@ -673,7 +673,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
               ))}
             </div>
           )}
-          <Button className="mt-3 w-full" disabled={!canGenerate(draft) || working} onClick={generate}>
+          <Button className="mt-3 w-full bg-emerald-600 text-white hover:bg-emerald-700" disabled={!canGenerate(draft) || working} onClick={generate}>
             {working ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
             {note ? (stale ? 'Generate again' : 'Generate note') : 'Generate note'}
           </Button>
