@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
 import Billing from "./pages/Billing";
 import Workbook from "./pages/Workbook";
+import ClinicalNotes from "./pages/ClinicalNotes";
 import ResetPassword from "./pages/ResetPassword";
 import HelpGuide from "./pages/HelpGuide";
 import NotFound from "./pages/NotFound";
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/admin" element={<SuperadminRoute><Admin /></SuperadminRoute>} />
               <Route path="/billing" element={<SuperadminRoute><Billing /></SuperadminRoute>} />
               <Route path="/workbook" element={<SuperadminRoute><Workbook /></SuperadminRoute>} />
+              <Route path="/clinical-notes" element={<ClinicalNotes />} />
               <Route
                 path="/advanced-tools"
                 element={

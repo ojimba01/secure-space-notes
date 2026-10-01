@@ -185,8 +185,28 @@ export const GUIDES: Guide[] = [
     id: 'log-touchpoint', section: 'Touchpoints', title: 'Log a touchpoint', audience: 'everyone', minutes: 2,
     steps: [
       s('Select Add touchpoint', 'On My touchpoints, select Add touchpoint, or select it next to a scheduled visit.'),
-      s('Enter the details', 'Select the client, date, contact method and touchpoint type, then add your notes.'),
+      s('Enter the details', 'Select the client, date, contact method and touchpoint type. Select Build note to write the progress note from a few selections.'),
       s('Save', 'Select Save. A matching NJHMIS progress note is prepared for you.'),
+    ],
+  },
+  {
+    id: 'clinical-note', section: 'Touchpoints', title: 'Write a clinical note', audience: 'everyone', minutes: 2,
+    steps: [
+      s('Select Clinical note', 'Open the client, select the Touchpoints tab, then select Clinical note.'),
+      s('Choose the topic', 'Select what the contact was about. If you choose more than one, the star marks the primary topic.'),
+      s('Say what happened', 'Select each item that applies and answer its questions, one choice at a time. Select a chosen answer to change it.'),
+      s('Add the rest', 'Select what CM did, the result, the consumer response and the next step. Select Skip for anything that does not apply.'),
+      s('Generate the note', 'Select Generate note. It uses only your selections. Select Regenerate wording for different phrasing, or Edit note to change it.'),
+      s('Review and save', 'Tick the confirmation, select Use this note, then select Save touchpoint.'),
+    ],
+  },
+  {
+    id: 'draft-note', section: 'Touchpoints', title: 'Draft a note without a client', audience: 'everyone', minutes: 2,
+    steps: [
+      s('Open Clinical Notes', 'Select Clinical Notes in the left panel, then select Draft only.'),
+      s('Build the note', 'Choose how the contact happened, make your selections and select Generate note.'),
+      s('Copy or save', 'Tick the confirmation, then select Copy note or Save draft.'),
+      s('Assign it later', 'Under My drafts, select Assign to client and choose the client. The note becomes their touchpoint.'),
     ],
   },
   {

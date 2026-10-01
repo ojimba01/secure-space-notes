@@ -14,6 +14,7 @@ import {
   DollarSign,
   FileSpreadsheet,
   FilePlus2,
+  NotebookPen,
   UserCircle,
   Activity,
   LifeBuoy,
@@ -201,6 +202,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           >
             <FilePlus2 className="h-4 w-4" />
             Forms
+          </Button>
+          <Button
+            variant={routeVariant('/clinical-notes')}
+            className="w-full justify-start gap-2"
+            onClick={() => handleNavigate('/clinical-notes')}
+          >
+            <NotebookPen className="h-4 w-4" />
+            Clinical Notes
           </Button>
           {isAdmin && (
             <Button

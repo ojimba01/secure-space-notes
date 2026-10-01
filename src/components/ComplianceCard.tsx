@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Plus, Phone, Video, MapPin, Trash2 } from 'lucide-react';
+import { Plus, Phone, Video, MapPin, Sparkles, Trash2 } from 'lucide-react';
 import { InfoHint } from '@/components/InfoHint';
 import { useComplianceTooltips } from '@/hooks/useComplianceTooltips';
 import { useMyProfileId } from '@/hooks/useMyProfileId';
@@ -49,6 +49,7 @@ export const ComplianceCard: React.FC<Props> = ({
   const [summaryNote, setSummaryNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [logOpen, setLogOpen] = useState(false);
+  const [withBuilder, setWithBuilder] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
 
   const today = todayAgency();
@@ -237,13 +238,20 @@ export const ComplianceCard: React.FC<Props> = ({
               ))}
             </div>
 
-            <Button size="sm" variant="outline" onClick={() => setLogOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Add touchpoint
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {/* The note builder first: most touchpoints start from "what happened?" */}
+              <Button size="sm" onClick={() => { setWithBuilder(true); setLogOpen(true); }}>
+                <Sparkles className="h-4 w-4 mr-1" /> Clinical note
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setWithBuilder(false); setLogOpen(true); }}>
+                <Plus className="h-4 w-4 mr-1" /> Add touchpoint
+              </Button>
+            </div>
 
             <AddTouchpointDialog
               open={logOpen}
               onOpenChange={setLogOpen}
+              startWithBuilder={withBuilder}
               context={{
                 clientId,
                 clientName,

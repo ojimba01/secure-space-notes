@@ -36,7 +36,10 @@ import {
   defaultNjhmisServiceType, defaultNjhmisLocation,
 } from '@/lib/compliance';
 import { format } from 'date-fns';
-import { Check, ClipboardCopy } from 'lucide-react';
+import { Check, ClipboardCopy, Sparkles } from 'lucide-react';
+import { NoteComposer, type ComposedNote } from '@/components/clinicalNotes/NoteComposer';
+import { topicById } from '@/lib/clinicalNotes/config';
+import { saveWithTouchpoint } from '@/lib/clinicalNotes/save';
 
 export interface TouchpointContext {
   clientId: string;
@@ -57,6 +60,10 @@ interface Props {
   /** Omit to let staff pick the client from their caseload. */
   context?: TouchpointContext | null;
   onSaved?: () => void;
+  /** Open the clinical note builder straight away. */
+  startWithBuilder?: boolean;
+  /** A draft note being assigned to this client; it is saved as this touchpoint's note. */
+  fromDraft?: { id: string; composed: ComposedNote; contactMethod?: string | null } | null;
 }
 
 interface PickerClient {
@@ -121,7 +128,7 @@ const DurationInput: React.FC<{
   );
 };
 
-export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, context, onSaved }) => {
+export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, context, onSaved, startWithBuilder, fromDraft }) => {
   const finishTask = useTaskActivity(open, 'touchpoint', 'Logging a touchpoint', context?.clientId);
   const { toast } = useToast();
   const { guardWrite } = useViewAs();
@@ -149,6 +156,9 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
   const [noteType, setNoteType] = useState(NJHMIS_DEFAULT_NOTE_TYPE);
   const [progressNote, setProgressNote] = useState('');
   const [copied, setCopied] = useState(false);
+  // The clinical note builder, and the note it produced (its selections are saved too).
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [composed, setComposed] = useState<ComposedNote | null>(null);
   /**
    * Who had the contact with the client. Normally the person filling this in,
    * but a supervisor entering a visit a case manager made must not have it
@@ -182,10 +192,19 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     setFaceToFace(isInPersonMethod(startMethod) ? 'yes' : 'no');
     setFaceToFaceTouched(false);
     setNoteType(NJHMIS_DEFAULT_NOTE_TYPE);
-    setProgressNote('');
+    setProgressNote(fromDraft?.composed.final ?? '');
+    setComposed(fromDraft?.composed ?? null);
+    if (fromDraft?.contactMethod) {
+      setContactMethod(fromDraft.contactMethod);
+      setLocation(defaultNjhmisLocation(fromDraft.contactMethod));
+      setFaceToFace(isInPersonMethod(fromDraft.contactMethod) ? 'yes' : 'no');
+    }
+    const draftTopic = fromDraft?.composed.draft.topics[0];
+    if (draftTopic) setTouchpointType(topicById(draftTopic)?.touchpointType ?? 'general_checkin');
+    setBuilderOpen(!!startWithBuilder && !fromDraft);
     setCopied(false);
     setContactBy(null);
-  }, [open, context, today]);
+  }, [open, context, today, startWithBuilder, fromDraft]);
 
   /**
    * NJHMIS is keyed in by hand elsewhere, so the note almost always has to be
@@ -326,7 +345,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     }
 
     // 2. The internal NJHMIS-ready entry. Staged only — never submitted.
-    const { error: njError } = await supabase.from('njhmis_progress_notes').insert({
+    const { data: njNote, error: njError } = await supabase.from('njhmis_progress_notes').insert({
       client_id: selectedClient.id,
       contact_id: contact?.id ?? null,
       employee_id: contactBy ?? myProfileId,
@@ -340,7 +359,34 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
       note_type: noteType,
       note_text: progressNote || null,
       entry_status: 'ready',
-    });
+    }).select('id').maybeSingle();
+
+    // 2b. The clinical note's structured selections, kept beside the prose so
+    //     the facts behind it can always be audited.
+    let noteError: string | null = null;
+    if (composed) {
+      try {
+        await saveWithTouchpoint(
+          composed,
+          {
+            clientId: selectedClient.id,
+            contactId: contact?.id ?? null,
+            njhmisNoteId: njNote?.id ?? null,
+            contactDate: date,
+            durationMinutes: njDuration,
+            contactMethod,
+            faceToFace: faceToFace === 'yes',
+            serviceType,
+            location,
+            progressNoteType: noteType,
+          },
+          progressNote,
+          fromDraft?.id ?? null,
+        );
+      } catch (e) {
+        noteError = e instanceof Error ? e.message : String(e);
+      }
+    }
 
     // 3. Close out the scheduled touchpoint this completes, keeping the staff's
     //    own scheduling. Regeneration below preserves manual moves.
@@ -358,6 +404,12 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
       toast({
         title: 'Touchpoint saved, progress note not staged',
         description: njError.message,
+        variant: 'destructive',
+      });
+    } else if (noteError) {
+      toast({
+        title: 'Touchpoint saved, note selections not saved',
+        description: noteError,
         variant: 'destructive',
       });
     } else {
@@ -560,7 +612,13 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
             </div>
 
             <div className="space-y-1.5">
-              <FieldLabel>Progress note</FieldLabel>
+              <div className="flex items-end justify-between gap-2">
+                <FieldLabel>Progress note</FieldLabel>
+                <Button type="button" size="sm" className="h-7 text-xs" onClick={() => setBuilderOpen(true)}>
+                  <Sparkles className="mr-1 h-3.5 w-3.5" />
+                  {composed ? 'Change note' : 'Build note'}
+                </Button>
+              </div>
               <Textarea
                 value={progressNote}
                 onChange={(e) => setProgressNote(e.target.value)}
@@ -590,6 +648,29 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
             </div>
           </section>
         </div>
+
+        <Dialog open={builderOpen} onOpenChange={setBuilderOpen}>
+          <DialogContent className="max-h-[94vh] max-w-6xl overflow-y-auto bg-slate-50">
+            <DialogHeader>
+              <DialogTitle>Clinical note{selectedClient ? `: ${selectedClient.name}` : ''}</DialogTitle>
+              <DialogDescription>Select what happened. The note is written from your selections only.</DialogDescription>
+            </DialogHeader>
+            <NoteComposer
+              method={contactMethod}
+              initial={composed}
+              useLabel="Use this note"
+              onPrimaryTopic={(t) => {
+                const type = t ? topicById(t)?.touchpointType : null;
+                if (type) setTouchpointType(type);
+              }}
+              onUse={(c) => {
+                setComposed(c);
+                setProgressNote(c.final);
+                setBuilderOpen(false);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

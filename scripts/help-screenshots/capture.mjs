@@ -95,6 +95,55 @@ async function signForm(p) {
   await p.locator('[title^="Drag to move it"]').first().scrollIntoViewIfNeeded();
 }
 
+function inStep(p, title, name) {
+  return dialog(p).locator('section', { hasText: title }).getByRole('button', { name, exact: true }).first();
+}
+async function openNoteBuilder(p) {
+  await openClient(p, 'c-2', 'Touchpoints');
+  await btn(p, 'Clinical note', true).click();
+  await wait(p, 1200);
+}
+async function noteTopic(p) {
+  await inStep(p, 'What was the contact about?', 'Benefits').click();
+  await wait(p, 300);
+  await inStep(p, 'What happened?', 'SNAP').click();
+  await inStep(p, 'What happened?', 'Benefits change').click();
+  await wait(p, 300);
+}
+async function noteRest(p) {
+  await inStep(p, 'What happened?', 'Interrupted').click();
+  await inStep(p, 'What did CM do?', 'Assisted').click();
+  await inStep(p, 'What did CM do?', 'Phone call').click();
+  await inStep(p, 'Result', 'Barrier').click();
+  await inStep(p, 'Result', 'Waiting on third party').click();
+  await inStep(p, 'Consumer response', 'Requested help').click();
+  await inStep(p, 'Next step', 'CM').click();
+  await inStep(p, 'Next step', 'Follow up').click();
+  await inStep(p, 'Next step', '1 week').click();
+  await wait(p, 400);
+}
+async function draftNoteReady(p) {
+  await p.goto(`${BASE}/clinical-notes`);
+  await wait(p, 2500);
+  await btn(p, 'Draft only', true).click();
+  await btn(p, 'Phone', true).click();
+  const step = (title, name) => p.locator('section', { hasText: title }).getByRole('button', { name, exact: true }).first();
+  await step('What was the contact about?', 'Landlord').click();
+  await step('What happened?', 'Maintenance').click();
+  await step('What happened?', 'Reported').click();
+  await step('What did CM do?', 'Contacted').click();
+  await step('What did CM do?', 'Landlord').click();
+  await step('Result', 'Pending').click();
+  await step('Consumer response', 'Agreed with plan').click();
+  await step('Next step', 'CM').click();
+  await step('Next step', 'Follow up').click();
+  await step('Next step', '1 week').click();
+  await p.getByRole('button', { name: /Generate note/ }).click();
+  await wait(p, 800);
+  await p.getByRole('checkbox').click();
+  await wait(p, 300);
+}
+
 const SHOTS = {
   'sign-in': [
     { as: 'signedout', go: (p) => p.goto(`${BASE}/auth`), target: (p) => p.getByRole('button', { name: 'Sign in', exact: true }).last(), label: 'Sign in' },
@@ -209,6 +258,20 @@ const SHOTS = {
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=compliance`), target: (p) => btn(p, 'Add touchpoint'), label: 'Add touchpoint' },
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=compliance`); await wait(p, 2200); await btn(p, 'Add touchpoint').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('combobox').first(), label: 'Select the client' },
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=compliance`); await wait(p, 2200); await btn(p, 'Add touchpoint').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: /^Save/ }).last(), label: 'Save' },
+  ],
+  'clinical-note': [
+    { as: 'staff', go: (p) => openClient(p, 'c-2', 'Touchpoints'), target: (p) => btn(p, 'Clinical note', true), label: 'Clinical note' },
+    { as: 'staff', go: openNoteBuilder, target: (p) => inStep(p, 'What was the contact about?', 'Benefits'), label: 'Choose the topic' },
+    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); }, target: (p) => dialog(p).locator('section', { hasText: 'What happened?' }).locator('.rounded-lg').first(), label: 'One choice at a time' },
+    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); }, target: (p) => dialog(p).locator('section', { hasText: 'Next step' }), label: 'Skip what does not apply' },
+    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); }, target: (p) => dialog(p).locator('aside section').last(), label: 'Your note' },
+    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); await dialog(p).getByRole('checkbox').click(); await wait(p, 300); }, target: (p) => btn(p, 'Use this note', true), label: 'Use this note' },
+  ],
+  'draft-note': [
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/clinical-notes`); await wait(p, 2500); }, target: (p) => btn(p, 'Draft only', true), label: 'Draft only' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/clinical-notes`); await wait(p, 2500); await btn(p, 'Draft only', true).click(); await btn(p, 'Phone', true).click(); await wait(p, 300); }, target: (p) => p.locator('section', { hasText: 'What was the contact about?' }), label: 'Make your selections' },
+    { as: 'staff', go: draftNoteReady, target: (p) => btn(p, 'Save draft', true), label: 'Copy note or Save draft' },
+    { as: 'staff', go: async (p) => { await draftNoteReady(p); await btn(p, 'Save draft', true).click(); await wait(p, 1500); }, target: (p) => btn(p, 'Assign to client'), label: 'Assign to client' },
   ],
   reminders: [
     { as: 'staff', reminders: true, go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'Next reminder'), label: 'Next reminder' },
