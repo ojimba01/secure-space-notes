@@ -1,4 +1,4 @@
-// Clinical Notes: build a note without first opening a client.
+// Generate Notes: build a note without first opening a client.
 //
 // "Existing client" picks the client and opens the touchpoint with the note
 // builder, so the note is saved as that client's touchpoint. "Manual entry"
@@ -76,6 +76,8 @@ export default function ClinicalNotes() {
   const [method, setMethod] = useState<string | null>(null);
   /** Manual entry: who the note is for, typed. Organizes drafts; not in the note. */
   const [clientLabel, setClientLabel] = useState('');
+  /** Manual entry: the day the contact happened. Becomes the touchpoint date when assigned. */
+  const [contactDate, setContactDate] = useState('');
   const [composerKey, setComposerKey] = useState(0);
   const [editingDraft, setEditingDraft] = useState<DraftNote | null>(null);
   const [drafts, setDrafts] = useState<DraftNote[]>([]);
@@ -97,6 +99,7 @@ export default function ClinicalNotes() {
   const startNoteFor = (label: string) => {
     setMode('draft');
     setClientLabel(label);
+    setContactDate('');
     setEditingDraft(null);
     setComposerKey((k) => k + 1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -116,10 +119,11 @@ export default function ClinicalNotes() {
 
   const saveAsDraft = async (c: ComposedNote) => {
     try {
-      await saveDraft(c, method, editingDraft?.id, clientLabel);
+      await saveDraft(c, method, editingDraft?.id, clientLabel, contactDate);
       // The name stays filled in, so several notes for one person go quickly.
       toast({ title: editingDraft ? 'Draft updated' : 'Draft saved', description: clientLabel.trim() ? `Saved under ${clientLabel.trim()}. Start the next note below.` : 'Assign it to a client from My drafts when you are ready.' });
       setEditingDraft(null);
+      setContactDate('');
       setComposerKey((k) => k + 1);
       refresh();
     } catch (e) {
@@ -133,7 +137,7 @@ export default function ClinicalNotes() {
     <PageShell>
       <div className="mx-auto max-w-[1300px] space-y-5 p-4 md:p-8">
         <div>
-          <h1 className="text-2xl font-bold">Clinical Notes</h1>
+          <h1 className="text-2xl font-bold">Generate Notes</h1>
           <p className="text-sm text-muted-foreground">Select what happened and get a progress note written from your selections.</p>
         </div>
 
@@ -158,9 +162,15 @@ export default function ClinicalNotes() {
           )}
 
           {mode === 'draft' && (
-            <div className="max-w-md space-y-1.5">
-              <p className="text-xs text-muted-foreground">Client name (optional)</p>
-              <Input aria-label="Client name" value={clientLabel} onChange={(e) => setClientLabel(e.target.value)} maxLength={80} className="h-9" />
+            <div className="flex flex-wrap gap-3">
+              <div className="w-full max-w-md space-y-1.5">
+                <p className="text-xs text-muted-foreground">Client name (optional)</p>
+                <Input aria-label="Client name" value={clientLabel} onChange={(e) => setClientLabel(e.target.value)} maxLength={80} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground">Contact date</p>
+                <Input aria-label="Contact date" type="date" value={contactDate} onChange={(e) => setContactDate(e.target.value)} className="h-9 w-44" />
+              </div>
             </div>
           )}
 
@@ -234,6 +244,7 @@ export default function ClinicalNotes() {
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     {d.client_label && <span className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">{d.client_label}</span>}
                     <span className="font-semibold text-foreground">{topicById(d.primary_topic ?? '')?.label ?? 'Note'}</span>
+                    {d.contact_date && <span>Contact {format(new Date(`${d.contact_date}T12:00:00`), 'MMM d, yyyy')}</span>}
                     <span>Saved {format(new Date(d.updated_at), "MMM d 'at' h:mm a")}</span>
                   </div>
                   <p className="line-clamp-3 text-sm">{d.final_narrative}</p>
@@ -262,6 +273,7 @@ export default function ClinicalNotes() {
                         setMode('draft');
                         setMethod(d.contact_method);
                         setClientLabel(d.client_label ?? '');
+                        setContactDate(d.contact_date ?? '');
                         setEditingDraft(d);
                         setComposerKey((k) => k + 1);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -289,7 +301,8 @@ export default function ClinicalNotes() {
                           disabled={!assignTo}
                           onClick={() => {
                             const ctx = assignTo ? contextFor(assignTo) : null;
-                            if (ctx) setTouchpoint({ context: ctx, draft: d });
+                            // The draft's contact date becomes the touchpoint date.
+                            if (ctx) setTouchpoint({ context: { ...ctx, date: d.contact_date ?? undefined }, draft: d });
                             setAssigning(null);
                           }}
                         >

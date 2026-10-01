@@ -203,10 +203,10 @@ export const GUIDES: Guide[] = [
   {
     id: 'draft-note', section: 'Touchpoints', title: 'Write notes with manual entry', audience: 'everyone', minutes: 2,
     steps: [
-      s('Open Clinical Notes', 'Select Clinical Notes in the left panel, then select Manual entry. Type the client name if you like; it groups your drafts and is not written into the note.'),
+      s('Open Generate Notes', 'Select Generate Notes in the left panel, then select Manual entry. Type the client name if you like; it groups your drafts and is not written into the note. Enter the contact date.'),
       s('Build the note', 'Choose how the contact happened, make your selections and select Generate note.'),
-      s('Copy or save', 'Tick the confirmation, then select Copy note or Save draft. The name stays filled in for the next note.'),
-      s('Assign it later', 'Under My drafts, notes are grouped by name. Select + Add a note for another note, or Assign to client to make one that client’s touchpoint.'),
+      s('Copy or save', 'Tick the confirmation, then select Copy note or Save draft. The name stays filled in for the next note; enter its date.'),
+      s('Assign it later', 'Under My drafts, notes are grouped by name. Select + Add a note for another note, or Assign to client to make one that client’s touchpoint. The contact date becomes the touchpoint date.'),
     ],
   },
   {

@@ -58,6 +58,8 @@ export interface DraftNote {
   created_at: string;
   updated_at: string;
   contact_method: string | null;
+  /** The day the contact happened, when typed. Becomes the touchpoint date. */
+  contact_date: string | null;
   final_narrative: string;
   primary_topic: string | null;
   /** Manual entry: the name typed to organize drafts. Not in the note text. */
@@ -66,8 +68,14 @@ export interface DraftNote {
 }
 
 /** Save a draft that belongs to no client yet. */
-export async function saveDraft(c: ComposedNote, contactMethod: string | null, id?: string, clientLabel?: string | null): Promise<string> {
-  const row = { ...noteRow(c, { contactMethod }), status: 'draft', client_label: clientLabel?.trim() || null };
+export async function saveDraft(
+  c: ComposedNote,
+  contactMethod: string | null,
+  id?: string,
+  clientLabel?: string | null,
+  contactDate?: string | null,
+): Promise<string> {
+  const row = { ...noteRow(c, { contactMethod, contactDate: contactDate || null }), status: 'draft', client_label: clientLabel?.trim() || null };
   if (id) {
     const { error } = await table().update(row).eq('id', id);
     if (error) throw new Error(error.message);
@@ -81,7 +89,7 @@ export async function saveDraft(c: ComposedNote, contactMethod: string | null, i
 
 export async function loadMyDrafts(userId: string): Promise<DraftNote[]> {
   const { data, error } = await table()
-    .select('id, created_at, updated_at, contact_method, final_narrative, generated_narrative, generator, reviewed_at, primary_topic, client_label, selections')
+    .select('id, created_at, updated_at, contact_method, contact_date, final_narrative, generated_narrative, generator, reviewed_at, primary_topic, client_label, selections')
     .eq('status', 'draft')
     .eq('created_by', userId)
     .order('updated_at', { ascending: false });
@@ -92,6 +100,7 @@ export async function loadMyDrafts(userId: string): Promise<DraftNote[]> {
     created_at: r.created_at,
     updated_at: r.updated_at,
     contact_method: r.contact_method,
+    contact_date: r.contact_date ?? null,
     final_narrative: r.final_narrative ?? '',
     primary_topic: r.primary_topic,
     client_label: r.client_label ?? null,

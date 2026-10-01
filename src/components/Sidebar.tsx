@@ -209,7 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             onClick={() => handleNavigate('/clinical-notes')}
           >
             <NotebookPen className="h-4 w-4" />
-            Clinical Notes
+            Generate Notes
           </Button>
           {isAdmin && (
             <Button
