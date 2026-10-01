@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, HelpCircle, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
+import { ArrowUpDown, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
 import { useAuth } from '@/components/AuthProvider';
@@ -18,7 +18,6 @@ import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientProfileDialog } from '@/components/billing/ClientProfileDialog';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
 import { RevenueTab } from '@/components/billing/RevenueTab';
-import { BillingTutorial, BillingTutorialStep } from '@/components/billing/BillingTutorial';
 import { ProviderSetup } from '@/components/billing/ProviderSetup';
 import { SubmittedClaims } from '@/components/billing/SubmittedClaims';
 import { AddTouchpointDialog, type TouchpointContext } from '@/components/AddTouchpointDialog';
@@ -205,7 +204,6 @@ export function BillingWorkspace() {
   const [open,setOpen]=useState<string|null>(null);
   const [query,setQuery]=useState('');
   const [profileId,setProfileId]=useState<string|null>(null);
-  const [tutorial,setTutorial]=useState(false);
   const [practice,setPractice]=useState<{ clients: BillingClient[]; cycles: BillingCycle[] }|null>(null);
   const [practiceRevenueView,setPracticeRevenueView]=useState<'projection'|'recovery'>('projection');
   const [deleteTarget,setDeleteTarget]=useState<BillingClient|null>(null);
@@ -218,19 +216,6 @@ export function BillingWorkspace() {
   const deletedClients = practice ? [] : realDeleted;
   const practiceClient = practice?.clients.find(c=>c.id===PRACTICE_CLIENT_ID) ?? null;
   const practiceCycle = practice?.cycles[0] ?? null;
-
-  const startTutorial=()=>{
-    setPractice(buildPractice());
-    setPracticeRevenueView('projection');
-    setSection('bill'); setBillingClientId(null); setShowLater(false); setSetupReason('all');
-    setQuery(''); setOpen(null); setNewRowIds([]);
-    setTutorial(true);
-  };
-  const stopTutorial=()=>{
-    setTutorial(false); setPractice(null); setNewRowIds([]);
-    setSection('bill'); setBillingClientId(null); setSetupReason('all'); setQuery(''); setOpen(null);
-  };
-  const finishTutorial=async()=>{ if(user) await supabase.from('user_tutorial_progress').upsert({user_id:user.id,current_step:10,completed:true,completed_at:new Date().toISOString()},{onConflict:'user_id'}); stopTutorial(); toast.success('Billing tutorial complete.'); };
 
   // Practice-only writers. Nothing reaches the database.
   const practiceUpdateClient=async(id:string,patch:Partial<BillingClient>)=>{
@@ -392,83 +377,11 @@ export function BillingWorkspace() {
   const resetPracticeCycles=()=>setPractice(p=>p?{...p,cycles:p.cycles.map(c=>({...c,billing_status:'Not Billed' as const}))}:p);
   const removePracticeRows=()=>setPractice(p=>p?{...p,clients:p.clients.filter(c=>c.id===PRACTICE_CLIENT_ID)}:p);
 
-  const tutorialSteps: BillingTutorialStep[] = useMemo(()=>{
-    const sectionsList = isSuperadmin
-      ? 'To bill lists who to file for, soonest deadline first.\n\nFiled claims lists claims sent to the MCO and what each one returned.\n\nRevenue shows what has been billed and collected.'
-      : 'To bill lists who to file for, soonest deadline first.\n\nFiled claims lists claims sent to the MCO and what each one returned.';
-
-    const steps: BillingTutorialStep[] = [
-      {
-        title: 'The Billing sections',
-        body: sectionsList,
-        selector:'[data-tour="sections"]',
-        before:()=>{setSection('bill');setQuery('');setOpen(null);setBillingClientId(null);},
-      },
-      {
-        title:'Find a client',
-        body:`Use the search box to find a specific client. You can search using the client’s name, member ID, or MCO. Only matching clients will appear below the search box.\n\n**Enter ${practiceFullName} in the search box, then press Continue.**`,
-        selector:'[data-tour="search"]',
-        gate: !!query.trim() && !!practiceClient && matches(practiceClient, query),
-        before:()=>{setSection('bill');setQuery('');},
-      },
-      {
-        title:'Read the list',
-        body:'There is one list, ordered by the last day each claim can be filed.\n\nDue This Week comes first, then Due This Month, then Later. Overdue means the six-month window has closed and the claim can no longer be filed.\n\nThe number beside each heading is how many clients are in it.',
-        selector:'[data-tour="filters"]',
-        before:()=>{setSection('bill');setQuery('');setOpen(null);},
-      },
-      {
-        title:'Open a client’s billing cycles',
-        body:'Press a client’s row to see all of that client’s 30-day billing cycles.\n\nThe first five cycles belong to the client’s 150-day authorization. Claims from these cycles can be submitted until the final day of the full 150-day authorization period.\n\nIf a 180-day extension is approved, six additional 30-day billing cycles will appear.',
-        selector:'[data-tour="client-row"]',
-        done: open===PRACTICE_CLIENT_ID,
-        hint:'**Press the highlighted practice client row to continue.**',
-        before:()=>{setSection('bill');setQuery('');setOpen(null);},
-      },
-      {
-        title:'Update a billing cycle',
-        body:'Use the billing-cycle table to record the claim status, payment status, and claim number.\n\nChange the claim status when a claim is submitted. Enter the claim number when it is available. Change the payment status when the claim is paid or denied. **Changes save automatically.**',
-        selector:'[data-tour="claim-status"]',
-        done: practiceCycle?.billing_status==='Submitted',
-        hint:'**Open the highlighted claim status dropdown and select Submitted to continue.**',
-        before:()=>{setSection('bill');setOpen(PRACTICE_CLIENT_ID);resetPracticeCycles();},
-      },
-    ];
-
-    if (isSuperadmin) {
-      steps.push(
-        {
-          title:'Open Revenue',
-          body:'Use Revenue to review the amount the agency may bill, the amount already submitted, the amount awaiting payment, and the amount collected.\n\nOnly superadmins can view this section.',
-          selector:'[data-tour="sections"]',
-          done: section==='revenue',
-          hint:'**Press Revenue to continue.**',
-          before:()=>{setSection('bill');setPracticeRevenueView('projection');},
-        },
-        {
-          title:'Understand the Revenue section',
-          body:'Revenue shows what this month has billed against what it is expected to bill, what was collected this month, and what is still waiting on the MCO.\n\nThe By month table covers the last two months, this month and the next three. Expected counts every cycle ending in the month at the client\u2019s rate; clients with no level of need are counted at the Low rate.\n\nUse Analyze lost and pending income to review billing cycles that have ended but were not submitted.',
-          followUp:'Pending Income shows claims that have not been submitted but can still be submitted before the final authorization deadline.\n\nLost Income shows claims that were not submitted before the final authorization deadline and can no longer be billed.',
-          selector:'[data-tour="revenue-section"]',
-          done: practiceRevenueView==='recovery',
-          hint:'**Press Analyze lost and pending income to continue.**',
-          before:()=>{setSection('revenue');setPracticeRevenueView('projection');},
-        },
-      );
-    }
-
-    return steps;
-  },[isSuperadmin,section,setupReason,open,query,practice,practiceClient,practiceCycle,practiceRevenueView]);
-
-  const completionBody = isSuperadmin
-    ? ['You have completed the Billing tutorial.','Work through To bill from the top. Use Revenue to review what has been billed and collected.','Select How billing works to see this again.']
-    : ['You have completed the Billing tutorial.','Work through To bill from the top.','Select How billing works to see this again.'];
 
   if (loading) return <Card className="p-8 text-muted-foreground">Loading billing information…</Card>;
 
   return <div className="space-y-4">
 
-    {tutorial && <BillingTutorial steps={tutorialSteps} completionBody={completionBody} onClose={stopTutorial} onFinish={finishTutorial} />}
 
     <ClientProfileDialog clientId={practice?null:profileId} onClose={()=>setProfileId(null)} />
 
@@ -534,9 +447,6 @@ export function BillingWorkspace() {
         <StepButton step={1} label="To bill" active={section==='bill'} onClick={()=>setSection('bill')} tour="section-bill"/>
         <StepButton step={2} label="Filed claims" active={section==='submitted'} onClick={()=>setSection('submitted')} tour="section-submitted"/>
         {isSuperadmin && <StepButton step={3} label="Revenue" active={section==='revenue'} onClick={()=>setSection('revenue')} tour="section-revenue"/>}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" onClick={startTutorial}><HelpCircle className="mr-2 h-4 w-4"/>How billing works</Button>
       </div>
     </div>
 
@@ -633,12 +543,12 @@ function LonQueue({clients,save,openProfile}:{clients:BillingClient[];save:(id:s
 function ExtensionQueue({clients,save,openProfile}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;openProfile:(id:string)=>void}){
   const [numbers,setNumbers]=useState<Record<string,string>>({});
   if(!clients.length) return <Card className="p-10 text-center"><h3 className="font-semibold">No extensions are coming up</h3><p className="mt-1 text-sm text-muted-foreground">A client appears here when their 150-day authorization ends within 30 days and the 180-day extension has not been confirmed.</p></Card>;
-  return <Card className="overflow-x-auto">
+  return <Card className="overflow-hidden">
     <div className="border-b bg-amber-50 p-4">
       <h3 className="font-semibold text-amber-900">Confirm a 180-day extension ({clients.length})</h3>
-      <p className="mt-1 text-sm text-amber-900/80">Confirm the 180-day extension before the 150-day authorization ends, so billing continues without a gap. The 180-day start date is worked out for you.</p>
+      <p className="mt-1 text-sm text-amber-900/80">Confirm the 180-day extension before the 150-day authorization ends, so billing continues without a gap. Select ✓ if it was approved or ✗ if it was not. The 180-day start date is worked out for you.</p>
     </div>
-    <table className="w-full min-w-[1000px] text-sm"><thead className="bg-slate-100 text-left"><tr>{['Client','150-day end date','Time left','180-day start (calculated)','180-day auth number','Confirm'].map(x=><th key={x} className="p-3 font-semibold">{x}</th>)}</tr></thead>
+    <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm"><thead className="bg-slate-100 text-left"><tr>{['Client','150-day end date','Time left','180-day start (calculated)','180-day auth number','Confirm'].map(x=><th key={x} className="p-3 font-semibold">{x}</th>)}</tr></thead>
     <tbody>{clients.map(c=>{
       const days=daysUntil150End(c)??0;
       const start=projected180Start(c.auth_150_start);
@@ -648,9 +558,12 @@ function ExtensionQueue({clients,save,openProfile}:{clients:BillingClient[];save
         <td className={`p-3 font-medium ${days<0?'text-red-700':days<=14?'text-amber-700':''}`}>{days<0?`${Math.abs(days)} day${Math.abs(days)===1?'':'s'} past`:days===0?'Ends today':`${days} day${days===1?'':'s'} left`}</td>
         <td className="p-3">{fmt(start)}</td>
         <td className="p-2"><Input className="h-9 w-40 bg-white" placeholder="Enter auth number" value={numbers[c.id] ?? c.auth_180_number ?? ''} onChange={e=>setNumbers(n=>({...n,[c.id]:e.target.value}))}/></td>
-        <td className="p-2"><Button className="bg-emerald-600 text-white hover:bg-emerald-700" size="sm" onClick={()=>save(c.id,{auth_180_approved:true,auth_180_number:(numbers[c.id] ?? c.auth_180_number ?? '')||null})}>Approved</Button></td>
+        <td className="p-2"><div className="flex items-center gap-2">
+          <Button size="icon" className="h-9 w-9 bg-emerald-600 text-white hover:bg-emerald-700" title="Approved" aria-label={`180-day extension approved for ${c.first_name} ${c.last_name}`} onClick={()=>save(c.id,{auth_180_approved:true,auth_180_number:(numbers[c.id] ?? c.auth_180_number ?? '')||null})}><Check className="h-5 w-5"/></Button>
+          <Button size="icon" className="h-9 w-9 bg-red-600 text-white hover:bg-red-700" title="Not approved" aria-label={`180-day extension not approved for ${c.first_name} ${c.last_name}`} onClick={()=>save(c.id,{auth_180_approved:false})}><X className="h-5 w-5"/></Button>
+        </div></td>
       </tr>;
-    })}</tbody></table>
+    })}</tbody></table></div>
   </Card>;
 }
 

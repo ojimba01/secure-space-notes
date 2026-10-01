@@ -65,7 +65,7 @@ export function seed(): Tables {
       auth_180_start: null,
       auth_180_end: null,
       auth_180_number: null,
-      auth_180_approved: false,
+      auth_180_approved: null,
       hsp_submitted: has150,
       intake_date: day(p.start - 2),
       iat_date: day(p.start),

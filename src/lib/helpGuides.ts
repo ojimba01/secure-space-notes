@@ -291,6 +291,13 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
+    id: 'confirm-extension', section: 'Billing', title: 'Confirm a 180-day extension', audience: 'admins', minutes: 1,
+    steps: [
+      s('Find the client', 'At the bottom of To bill, Confirm a 180-day extension lists clients whose 150-day authorization ends within 30 days.'),
+      s('Record the answer', 'Enter the 180-day authorization number, then select the green ✓ if it was approved. Select the red ✗ if it was not approved.'),
+    ],
+  },
+  {
     id: 'workbook', section: 'Billing', title: 'Use the Workbook', audience: 'admins', minutes: 3,
     steps: [
       s('Open the Workbook', 'Select Workbook in the left panel. Select Full screen for more room.'),

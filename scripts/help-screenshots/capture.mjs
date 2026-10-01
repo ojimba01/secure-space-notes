@@ -269,6 +269,10 @@ const SHOTS = {
     { as: 'admin', go: (p) => p.goto(`${BASE}/billing`), target: (p) => btn(p, /Revenue/), label: 'Revenue' },
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, /Revenue/).click(); await wait(p); }, target: (p) => text(p, 'By month').locator('xpath=ancestor::div[contains(@class,"rounded")][1]'), label: 'By month' },
   ],
+  'confirm-extension': [
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2500); await text(p, /Confirm a 180-day extension/).scrollIntoViewIfNeeded(); }, target: (p) => text(p, /Confirm a 180-day extension/), label: 'Confirm a 180-day extension' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2500); await p.getByRole('button', { name: /not approved for/ }).first().scrollIntoViewIfNeeded(); }, target: (p) => p.getByRole('button', { name: /approved for/ }).first().locator('xpath=..'), label: 'Approved or not approved' },
+  ],
   workbook: [
     { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Workbook'), label: 'Workbook' },
     { as: 'admin', go: openWorkbook, target: (p) => p.locator('tbody tr').nth(1).locator('td').nth(3), label: 'Select a cell to edit' },

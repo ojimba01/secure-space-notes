@@ -121,7 +121,8 @@ export async function startNewAuthorizationRound(
     auth_180_start: null,
     auth_180_end: null,
     auth_180_number: null,
-    auth_180_approved: false,
+    // Undecided for the new round, not "not approved".
+    auth_180_approved: null,
   };
   const fields = {
     ...reopenCaseFields(referral, new Date(), { ...(current as StageFields), ...cleared }),

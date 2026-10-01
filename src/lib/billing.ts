@@ -532,6 +532,8 @@ export function needsExtensionReview(
   // arrange an extension they already hold is the kind of warning people learn
   // to ignore.
   if (client.auth_180_approved || (client.auth_180_start ?? '').trim()) return false;
+  // Marked not approved: decided, so nothing left to confirm.
+  if (client.auth_180_approved === false) return false;
   const days = daysUntil150End(client, today);
   if (days == null) return false;
   // Once the 150-day end date is more than six months (about 183 days) past,
