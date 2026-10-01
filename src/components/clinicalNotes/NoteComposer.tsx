@@ -22,8 +22,10 @@ import {
   NEXT_CONSUMER,
   NEXT_THIRD,
   NEXT_WHO,
+  NEXT_WHO_LABELS,
   RESPONSES,
   RESULTS,
+  SPECIFIC_DATE,
   TERMS,
   THIRD_PARTIES,
   TIMING,
@@ -208,7 +210,11 @@ const ItemCard: React.FC<{
       </div>
       {nextQ && (
         <div className="mt-2.5 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">{nextQ.label}</p>
+          <p className="text-xs font-medium text-muted-foreground">
+            {nextQ.label}
+            {nextQ.optional && ' (optional)'}
+            {nextQ.multi && ' Select all that apply.'}
+          </p>
           <QuestionChips
             key={`${itemId}-${nextQ.key}`}
             q={nextQ}
@@ -354,7 +360,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0 space-y-3">
         {/* 1. Topic */}
-        <Step n={1} title="What was the meeting about?" hint={draft.topics.length > 1 ? '★ marks the primary topic' : undefined}>
+        <Step n={1} title="What was this meeting about?" hint={draft.topics.length > 1 ? '★ marks the main focus' : 'Choose one or more'}>
           <div className="flex flex-wrap gap-2">
             {TOPICS.map((t) => {
               const on = draft.topics.includes(t.id);
@@ -393,7 +399,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 2. Details per topic */}
         {stepDone.topic && (
-          <Step n={2} title="What topics did you talk about?" onSkip={hasItem || skipped.details ? undefined : () => setSkipped((s) => ({ ...s, details: true }))}>
+          <Step n={2} title="What topics did you discuss?" hint="Choose all that apply" onSkip={hasItem || skipped.details ? undefined : () => setSkipped((s) => ({ ...s, details: true }))}>
             <div className="space-y-4">
               {draft.topics.map((topicId) => {
                 const topic = topicById(topicId);
@@ -405,7 +411,10 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
                     {draft.topics.length > 1 && <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{topic.label}</p>}
                     {ctxQ && (
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-medium text-muted-foreground">{ctxQ.label}</span>
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {ctxQ.label}
+                          {ctxQ.optional && ' (optional)'}
+                        </span>
                         {ctxQ.options.map((o) => {
                           const cur = draft.topicContext[topicId]?.[ctxQ.key];
                           return (
@@ -426,6 +435,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
                         })}
                       </div>
                     )}
+                    {topic.itemsLabel && <p className="text-xs font-medium text-muted-foreground">{topic.itemsLabel}</p>}
                     <div className="flex flex-wrap gap-2">
                       {topic.items.map((it) => (
                         <Chip key={it.id} selected={picked.some((p) => p.id === it.id)} onClick={() => pickItem(topicId, it.id)}>
@@ -459,7 +469,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 3. What CM did */}
         {stepDone.topic && stepDone.details && (
-          <Step n={3} title={`What did ${TERMS.cm} do?`} onSkip={stepDone.actions ? undefined : () => setSkipped((s) => ({ ...s, actions: true }))}>
+          <Step n={3} title={`What did ${TERMS.cm} do?`} hint="Select all that apply" onSkip={stepDone.actions ? undefined : () => setSkipped((s) => ({ ...s, actions: true }))}>
             <div className="flex flex-wrap gap-2">
               {[...ACTIONS.map((a) => ({ id: a.id, label: a.label })), { id: 'other', label: 'Other' }].map((a) => (
                 <Chip
@@ -480,7 +490,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
               if (a.group === 'other') {
                 return (
                   <div key="other" className="rounded-lg border border-primary/40 bg-primary/5 p-3">
-                    <p className="mb-1.5 text-xs font-medium text-muted-foreground">Other: briefly, what did {TERMS.cm} do?</p>
+                    <p className="mb-1.5 text-xs font-medium text-muted-foreground">What else did {TERMS.cm} do?</p>
                     <Input value={draft.actionsOther} maxLength={200} onChange={(e) => update((d) => ({ ...d, actionsOther: e.target.value }))} className="h-9" />
                   </div>
                 );
@@ -515,7 +525,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 4. Result */}
         {stepDone.topic && stepDone.details && stepDone.actions && (
-          <Step n={4} title="Result" onSkip={stepDone.result ? undefined : () => setSkipped((s) => ({ ...s, result: true }))}>
+          <Step n={4} title="What was the result?" onSkip={stepDone.result ? undefined : () => setSkipped((s) => ({ ...s, result: true }))}>
             <div className="flex flex-wrap gap-2">
               {Object.keys(RESULTS).map((r) => (
                 <Chip
@@ -529,7 +539,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
             </div>
             {draft.result?.value === 'Barrier' && (
               <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Barrier type</p>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">What was the barrier?</p>
                 <div className="flex flex-wrap gap-2">
                   {Object.keys(BARRIERS).map((b) => (
                     <Chip key={b} size="sm" selected={draft.result?.barrier === b} onClick={() => update((d) => ({ ...d, result: { value: 'Barrier', barrier: b, barrierOther: d.result?.barrierOther } }))}>
@@ -553,7 +563,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 5. Consumer response (optional) */}
         {stepDone.topic && stepDone.details && stepDone.actions && stepDone.result && (
-          <Step n={5} title="Client response" hint="Optional" onSkip={stepDone.response ? undefined : () => setSkipped((s) => ({ ...s, response: true }))}>
+          <Step n={5} title="How did the client respond?" hint="Optional" onSkip={stepDone.response ? undefined : () => setSkipped((s) => ({ ...s, response: true }))}>
             <div className="flex flex-wrap gap-2">
               {Object.keys(RESPONSES).map((r) => (
                 <Chip key={r} selected={draft.response.includes(r)} onClick={() => update((d) => ({ ...d, response: toggle(d.response, r) }))}>
@@ -569,8 +579,8 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 6. Next step */}
         {stepDone.topic && stepDone.details && stepDone.actions && stepDone.result && stepDone.response && (
-          <Step n={6} title="Next step" onSkip={stepDone.next ? undefined : () => setSkipped((s) => ({ ...s, next: true }))}>
-            <p className="text-xs font-medium text-muted-foreground">Who does the next step?</p>
+          <Step n={6} title="Next steps" onSkip={stepDone.next ? undefined : () => setSkipped((s) => ({ ...s, next: true }))}>
+            <p className="text-xs font-medium text-muted-foreground">Who is responsible for the next step?</p>
             <div className="flex flex-wrap gap-2">
               {NEXT_WHO.map((w) => (
                 <Chip
@@ -583,22 +593,22 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
                     }))
                   }
                 >
-                  {w === 'Consumer' ? 'Client' : w}
+                  {NEXT_WHO_LABELS[w]}
                 </Chip>
               ))}
             </div>
             {draft.next && draft.next.who !== 'None' && (
               <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
                 {(draft.next.who === 'CM' || draft.next.who === 'Both') && (
-                  <NextChoices label={`${TERMS.cm} will`} options={NEXT_CM} value={draft.next.cm} onChange={(cm) => update((d) => ({ ...d, next: { ...d.next!, cm } }))} />
+                  <NextChoices label={`What will ${TERMS.cm} do?`} options={NEXT_CM} value={draft.next.cm} onChange={(cm) => update((d) => ({ ...d, next: { ...d.next!, cm } }))} />
                 )}
                 {(draft.next.who === 'Consumer' || draft.next.who === 'Both') && (
-                  <NextChoices label="Client will" options={NEXT_CONSUMER} value={draft.next.consumer} onChange={(consumer) => update((d) => ({ ...d, next: { ...d.next!, consumer } }))} />
+                  <NextChoices label="What will the client do?" options={NEXT_CONSUMER} value={draft.next.consumer} onChange={(consumer) => update((d) => ({ ...d, next: { ...d.next!, consumer } }))} />
                 )}
                 {draft.next.who === 'Third party' && (
                   <>
                     <div>
-                      <p className="mb-1.5 text-xs font-medium text-muted-foreground">Who is it?</p>
+                      <p className="mb-1.5 text-xs font-medium text-muted-foreground">Who are you waiting on?</p>
                       <div className="flex flex-wrap gap-2">
                         {Object.keys(THIRD_PARTIES).map((t) => (
                           <Chip key={t} size="sm" selected={draft.next?.thirdWho === t} onClick={() => update((d) => ({ ...d, next: { ...d.next!, thirdWho: d.next?.thirdWho === t ? undefined : t } }))}>
@@ -607,21 +617,21 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
                         ))}
                       </div>
                     </div>
-                    <NextChoices label="Waiting on them to" options={NEXT_THIRD} value={draft.next.third} onChange={(third) => update((d) => ({ ...d, next: { ...d.next!, third } }))} />
+                    <NextChoices label="What are you waiting for them to do?" options={NEXT_THIRD} value={draft.next.third} onChange={(third) => update((d) => ({ ...d, next: { ...d.next!, third } }))} />
                   </>
                 )}
                 {[...draft.next.cm, ...draft.next.consumer, ...draft.next.third].includes('Other') && (
                   <Input className="h-9" placeholder="Briefly, what is next?" maxLength={150} value={draft.next.other} onChange={(e) => update((d) => ({ ...d, next: { ...d.next!, other: e.target.value } }))} />
                 )}
                 <div>
-                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">When (optional)</p>
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">When should it happen?</p>
                   <div className="flex flex-wrap items-center gap-2">
                     {Object.keys(TIMING).map((t) => (
                       <Chip key={t} size="sm" selected={draft.next?.timing === t} onClick={() => update((d) => ({ ...d, next: { ...d.next!, timing: d.next?.timing === t ? undefined : t } }))}>
                         {t}
                       </Chip>
                     ))}
-                    {draft.next.timing === 'Specific date' && (
+                    {draft.next.timing === SPECIFIC_DATE && (
                       <Input type="date" className="h-8 w-40" value={draft.next.date ?? ''} onChange={(e) => update((d) => ({ ...d, next: { ...d.next!, date: e.target.value } }))} />
                     )}
                   </div>
@@ -634,9 +644,9 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
         {/* Free text */}
         {stepDone.topic && (stepDone.next || encourageText) && (
           <section className="space-y-2 rounded-xl border bg-white p-4">
-            <h3 className="font-semibold">Anything important not captured above?</h3>
+            <h3 className="font-semibold">Anything important we haven't captured?</h3>
             <p className="text-xs text-muted-foreground">
-              {encourageText ? 'Add the context that buttons cannot capture. ' : 'Optional. '}One to three sentences. It is tidied, not rewritten.
+              {encourageText ? "Add the context the choices can't capture. " : 'Optional. '}Add 1–3 sentences. We'll tidy the wording without changing what you mean.
             </p>
             <Textarea rows={3} maxLength={600} value={draft.freeText} onChange={(e) => update((d) => ({ ...d, freeText: e.target.value }))} />
           </section>

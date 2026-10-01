@@ -46,6 +46,8 @@ export interface Topic {
   touchpointType: string;
   /** Completes "CM … regarding ___". */
   purpose: string;
+  /** Shown above the item choices, when the items are not plain topics. */
+  itemsLabel?: string;
   /** Asked once for the whole topic, before its items (optional). */
   context?: Question;
   items: Item[];
@@ -72,6 +74,8 @@ export function tidy(text: string | undefined): string {
   return /[.!?]$/.test(capped) ? capped : `${capped}.`;
 }
 
+const slug = (label: string) => label.toLowerCase().replace(/[^a-z]+/g, '_');
+
 const one = (a: Answers, key: string) => (typeof a[key] === 'string' ? (a[key] as string) : '');
 const many = (a: Answers, key: string) => (Array.isArray(a[key]) ? (a[key] as string[]) : []);
 
@@ -89,11 +93,11 @@ function simple(id: string, label: string, question: string, map: Record<string,
 }
 
 /** "Other": an optional few words, or a neutral line when left blank. */
-function other(fallback: string): Item {
+function other(fallback: string, question = 'What else did you discuss?'): Item {
   return {
     id: 'other',
     label: 'Other',
-    questions: [{ key: 'text', label: 'Briefly, what?', options: [], text: true, optional: true }],
+    questions: [{ key: 'text', label: question, options: [], text: true, optional: true }],
     say: (a) => [tidy(one(a, 'text')) || fallback],
   };
 }
@@ -114,8 +118,8 @@ function documents(forWhat: string): Item {
     id: 'documents',
     label: 'Documents',
     questions: [
-      { key: 'type', label: 'Document type', options: Object.keys(DOC_TYPES) },
-      { key: 'status', label: 'Status', options: ['Needed', 'Gathered', 'Submitted', 'Missing'] },
+      { key: 'type', label: 'What type of document?', options: Object.keys(DOC_TYPES) },
+      { key: 'status', label: 'What is its status?', options: ['Needed', 'Gathered', 'Submitted', 'Missing'] },
     ],
     say: (a, v) => {
       const t = DOC_TYPES[one(a, 'type')];
@@ -135,7 +139,7 @@ function documents(forWhat: string): Item {
 
 /** Contact with a party: who did not respond, and so on. */
 function communication(id: string, label: string, party: string): Item {
-  return simple(id, label, 'What happened?', {
+  return simple(id, label, `What happened with the ${party}?`, {
     Contacted: [`The ${party} was contacted.`, `Contact was made with the ${party}.`],
     'Received response': [`A response was received from the ${party}.`, `The ${party} responded.`],
     'No response': [`No response has been received from the ${party}.`, `The ${party} has not responded.`],
@@ -144,8 +148,8 @@ function communication(id: string, label: string, party: string): Item {
 }
 
 const APARTMENT_ISSUES: Record<string, string> = {
-  'Repairs/maintenance': 'repair issue',
-  'Heat, water or power': 'heat, water or power issue',
+  'Repairs or maintenance': 'repair issue',
+  'Heat, water, or power': 'heat, water or power issue',
   Pests: 'pest issue',
   Safety: 'safety issue',
   Accessibility: 'accessibility issue',
@@ -160,30 +164,30 @@ const checkIn: Topic = {
   touchpointType: 'general_checkin',
   purpose: 'a housing stability check-in',
   items: [
-    simple('housing', 'Housing', 'Housing status', {
+    simple('housing', 'Housing', "What is the client's housing status?", {
       Stable: [`${TERMS.Client}'s housing remains stable.`, `${TERMS.Client}'s housing is stable.`],
       Searching: [`${TERMS.Client} is currently searching for housing.`, `${TERMS.Client} is searching for housing.`],
-      Temporary: [`${TERMS.Client} is in temporary housing.`, `${TERMS.Client} is currently in temporary housing.`],
+      'Temporary housing': [`${TERMS.Client} is in temporary housing.`, `${TERMS.Client} is currently in temporary housing.`],
       Shelter: [`${TERMS.Client} is staying in shelter.`, `${TERMS.Client} is currently staying in shelter.`],
-      'With family/friends': [`${TERMS.Client} is staying with family or friends.`, `${TERMS.Client} is currently staying with family or friends.`],
+      'Staying with family or friends': [`${TERMS.Client} is staying with family or friends.`, `${TERMS.Client} is currently staying with family or friends.`],
       'At risk': [`${TERMS.Client}'s housing is at risk.`, `${TERMS.Client}'s current housing is at risk.`],
       Other: ['Housing status was reviewed.', `${TERMS.Client}'s housing status was reviewed.`],
     }),
-    simple('rent', 'Rent', 'Rent', {
+    simple('rent', 'Rent', 'What is the rent status?', {
       Current: ['Rent is current.', 'Rent remains current.'],
       Late: ['Rent is late.', 'Rent is currently late.'],
       'Balance owed': [`${TERMS.Client} has a rent balance owed.`, 'A rent balance is owed.'],
       'Payment plan': [`${TERMS.Client} is on a rent payment plan.`, 'A rent payment plan is in place.'],
       Other: ['Rent was reviewed.', 'Rent was addressed.'],
     }),
-    simple('utilities', 'Utilities', 'Utilities', {
+    simple('utilities', 'Utilities', 'What is the utility status?', {
       Current: ['Utilities are current.', 'Utility accounts are current.'],
       'Past due': ['Utilities are past due.', 'A utility balance is past due.'],
       'Shutoff notice': ['A utility shutoff notice was received.', `${TERMS.Client} has a utility shutoff notice.`],
       Disconnected: ['Utilities are disconnected.', 'A utility service is disconnected.'],
       Other: ['Utilities were reviewed.', 'Utilities were addressed.'],
     }),
-    simple('landlord', 'Landlord', 'Landlord', {
+    simple('landlord', 'Landlord', 'Are there any landlord concerns?', {
       'No concerns': ['No landlord concerns were identified.', 'No concerns regarding the landlord were identified.'],
       'Concern raised': ['A landlord concern was raised.', 'A concern regarding the landlord was raised.'],
       'Contact needed': ['Contact with the landlord is needed.', 'The landlord needs to be contacted.'],
@@ -193,8 +197,8 @@ const checkIn: Topic = {
       id: 'unit',
       label: 'Apartment issue',
       questions: [
-        { key: 'concern', label: 'What kind of issue?', options: Object.keys(APARTMENT_ISSUES) },
-        { key: 'status', label: 'Where does it stand?', options: ['New', 'Ongoing', 'Improved', 'Resolved', 'Worse'] },
+        { key: 'concern', label: 'What type of apartment issue?', options: Object.keys(APARTMENT_ISSUES) },
+        { key: 'status', label: 'What is the status of the issue?', options: ['New', 'Ongoing', 'Improved', 'Resolved', 'Worse'] },
       ],
       say: (a, v) => {
         const issue = APARTMENT_ISSUES[one(a, 'concern')];
@@ -211,41 +215,41 @@ const checkIn: Topic = {
         return list ? [choose(v, list)] : [];
       },
     },
-    simple('benefits', 'Benefits', 'Benefits', {
+    simple('benefits', 'Benefits', 'What is the benefits status?', {
       Receiving: [`${TERMS.Client} is receiving benefits.`, `${TERMS.Client}'s benefits are in place.`],
       Stopped: [`${TERMS.Client}'s benefits have stopped.`, `${TERMS.Client}'s benefits were stopped.`],
       'Change pending': [`A change to the ${TERMS.client}'s benefits is pending.`, `A benefits change is pending.`],
       'Needs help applying': [`${TERMS.Client} needs help applying for benefits.`, `Help applying for benefits is needed.`],
     }),
-    simple('health', 'Health', 'Health', {
+    simple('health', 'Health', 'Are there any health concerns?', {
       'No new concerns': ['No new health concerns were noted.', 'No new health concerns were identified.'],
       'New concern': ['A new health concern was noted.', 'A new health concern was identified.'],
       'Ongoing concern': ['A health concern is ongoing.', 'A health concern remains ongoing.'],
       'Recent hospital stay': [`${TERMS.Client} had a recent hospital stay.`, `${TERMS.Client} was recently in the hospital.`],
       'Missed appointments': [`${TERMS.Client} has missed medical appointments.`, 'Medical appointments were missed.'],
     }),
-    simple('employment', 'Work', 'Work', {
+    simple('employment', 'Work', "What is the client's work status?", {
       Working: [`${TERMS.Client} is working.`, `${TERMS.Client} is currently employed.`],
       'Looking for work': [`${TERMS.Client} is looking for work.`, `${TERMS.Client} is seeking employment.`],
       'Not working': [`${TERMS.Client} is not currently working.`, `${TERMS.Client} is not employed at this time.`],
       'Started a new job': [`${TERMS.Client} started a new job.`, `${TERMS.Client} recently began a new job.`],
       'Lost a job': [`${TERMS.Client} recently lost a job.`, `${TERMS.Client}'s employment recently ended.`],
     }),
-    simple('transportation', 'Transportation', 'Transportation', {
+    simple('transportation', 'Transportation', 'What is the transportation situation?', {
       'Has reliable transportation': [`${TERMS.Client} has reliable transportation.`, 'Transportation is in place.'],
       'Needs bus pass or fare': [`${TERMS.Client} needs a bus pass or fare.`, 'A bus pass or fare is needed.'],
       'Needs rides to appointments': [`${TERMS.Client} needs rides to appointments.`, 'Transportation to appointments is needed.'],
       'No transportation': [`${TERMS.Client} has no transportation.`, `${TERMS.Client} is without transportation.`],
       'Car or license issue': [`${TERMS.Client} has a car or license issue.`, 'A car or license issue was noted.'],
     }),
-    simple('food', 'Food access', 'Food access', {
+    simple('food', 'Food access', "What is the client's food access?", {
       'Has enough food': [`${TERMS.Client} has enough food.`, 'Food needs are met.'],
       'Running low': [`${TERMS.Client} is running low on food.`, 'Food is running low.'],
       'Out of food': [`${TERMS.Client} is out of food.`, `${TERMS.Client} has no food.`],
       'Uses a food pantry': [`${TERMS.Client} uses a food pantry.`, `${TERMS.Client} is getting food from a food pantry.`],
       'Has SNAP': [`${TERMS.Client} receives SNAP.`, `${TERMS.Client} has SNAP benefits.`],
     }),
-    simple('safety', 'Safety', 'Safety', {
+    simple('safety', 'Safety', 'Are there any safety concerns?', {
       'No concerns': ['No safety concerns were noted.', 'No safety concerns were identified.'],
       'Concern at home': ['A safety concern at home was noted.', 'A safety concern in the home was identified.'],
       'Concern in the neighborhood': ['A safety concern in the neighborhood was noted.', 'A neighborhood safety concern was identified.'],
@@ -261,28 +265,28 @@ const housingSearch: Topic = {
   touchpointType: 'housing_application',
   purpose: 'the housing search',
   items: [
-    simple('search', 'Search', 'Search', {
+    simple('search', 'Search', 'What is the search status?', {
       Started: ['The housing search was started.', 'A housing search began.'],
       Ongoing: ['The housing search is ongoing.', 'The housing search continues.'],
       Paused: ['The housing search is paused.', 'The housing search has been paused.'],
     }),
-    simple('listings', 'Listings', 'Listings', {
+    simple('listings', 'Listings', 'What happened with listings?', {
       Reviewed: ['Housing listings were reviewed.', 'Available listings were reviewed.'],
       Shared: [`Housing listings were shared with the ${TERMS.client}.`, `Listings were provided to the ${TERMS.client}.`],
       'Property contacted': ['A property from the listings was contacted.', 'Contact was made with a listed property.'],
     }),
-    simple('viewing', 'Viewing', 'Viewing', {
+    simple('viewing', 'Viewing', 'What is the viewing status?', {
       Scheduled: ['A unit viewing was scheduled.', 'A viewing was scheduled.'],
       Completed: ['A unit viewing was completed.', 'A viewing took place.'],
       Missed: ['A scheduled viewing was missed.', 'A unit viewing was missed.'],
       Rescheduled: ['A unit viewing was rescheduled.', 'A viewing was rescheduled.'],
     }),
-    simple('unit', 'Unit found', 'Unit', {
+    simple('unit', 'Unit found', 'What is the unit status?', {
       Identified: ['A unit was identified.', 'A potential unit was identified.'],
       'Pending approval': ['A unit is pending approval.', 'A unit was identified and is pending approval.'],
       Secured: ['A unit was secured.', 'A unit has been secured.'],
     }),
-    simple('barrier', 'Barrier', 'Barrier', {
+    simple('barrier', 'Barrier', 'What is the barrier?', {
       Cost: ['Cost is a barrier to the housing search.', 'The housing search is limited by cost.'],
       Availability: ['Unit availability is a barrier to the housing search.', 'Limited unit availability is a barrier.'],
       Eligibility: ['Eligibility is a barrier to the housing search.', 'An eligibility barrier was identified in the housing search.'],
@@ -299,13 +303,13 @@ const application: Topic = {
   touchpointType: 'housing_application',
   purpose: 'the housing application',
   items: [
-    simple('work', 'Application work', 'Application', {
+    simple('work', 'Application work', 'What happened with the application?', {
       Started: ['The housing application was started.', 'A housing application was started.'],
       Completed: ['The housing application was completed.', 'The housing application has been completed.'],
       Submitted: ['The housing application was submitted.', 'The housing application has been submitted.'],
       Updated: ['The housing application was updated.', 'Updates were made to the housing application.'],
     }),
-    simple('status', 'Status', 'Application status', {
+    simple('status', 'Status', 'What is the application status?', {
       Pending: ['The housing application is pending.', 'The housing application remains pending.'],
       Approved: ['The housing application was approved.', 'The housing application has been approved.'],
       Denied: ['The housing application was denied.', 'The housing application has been denied.'],
@@ -314,13 +318,13 @@ const application: Topic = {
     }),
     documents('application'),
     communication('property', 'Property contact', 'property'),
-    simple('appointment', 'Appointment', 'Appointment', {
+    simple('appointment', 'Appointment', 'What is the appointment status?', {
       Scheduled: ['An application appointment was scheduled.', 'An appointment for the application was scheduled.'],
       Attended: ['The application appointment was attended.', 'The appointment for the application took place.'],
       Missed: ['The application appointment was missed.', 'The appointment for the application was missed.'],
       Rescheduled: ['The application appointment was rescheduled.', 'The appointment for the application was rescheduled.'],
     }),
-    simple('barrier', 'Barrier', 'Barrier', {
+    simple('barrier', 'Barrier', 'What is the barrier?', {
       'Missing documents': ['Missing documents are a barrier to the application.', 'The application is delayed by missing documents.'],
       Eligibility: ['Eligibility is a barrier to the application.', 'An eligibility barrier to the application was identified.'],
       Cost: ['Cost is a barrier to the application.', 'An application cost is a barrier.'],
@@ -337,39 +341,39 @@ const landlord: Topic = {
   purpose: 'landlord matters',
   items: [
     communication('communication', 'Communication', 'landlord'),
-    simple('rent', 'Rent', 'Rent', {
+    simple('rent', 'Rent', 'What is the rent status?', {
       Current: ['Rent is current.', 'Rent remains current.'],
       Late: ['Rent is late.', 'Rent is currently late.'],
       'Balance owed': ['A rent balance is owed.', `${TERMS.Client} has a rent balance owed.`],
       'Payment plan': ['A rent payment plan is in place.', `${TERMS.Client} is on a rent payment plan.`],
       Resolved: ['The rent issue has been resolved.', 'The rent issue is resolved.'],
     }),
-    simple('maintenance', 'Maintenance', 'Maintenance', {
+    simple('maintenance', 'Maintenance', 'What is the maintenance status?', {
       Reported: ['A maintenance issue was reported to the landlord.', 'A maintenance request was reported.'],
       'Followed up': ['The maintenance request was followed up on.', 'Follow-up was made on the maintenance request.'],
       Scheduled: ['The maintenance repair was scheduled.', 'A maintenance repair has been scheduled.'],
       Completed: ['The maintenance repair was completed.', 'The maintenance request has been completed.'],
       Unresolved: ['The maintenance issue remains unresolved.', 'The maintenance issue is unresolved.'],
     }),
-    simple('lease', 'Lease', 'Lease', {
+    simple('lease', 'Lease', 'What is the lease status?', {
       Reviewed: ['The lease was reviewed.', 'Lease terms were reviewed.'],
       Signed: ['The lease was signed.', 'The lease has been signed.'],
       'Renewal due': ['The lease is due for renewal.', 'A lease renewal is due.'],
       Issue: ['A lease issue was identified.', 'An issue with the lease was identified.'],
     }),
-    simple('complaint', 'Complaint', 'Complaint', {
+    simple('complaint', 'Complaint', 'What is the complaint status?', {
       Received: ['A complaint was received.', 'A complaint has been received.'],
       Discussed: ['The complaint was discussed.', 'The complaint was addressed.'],
       Ongoing: ['The complaint is ongoing.', 'The complaint remains open.'],
       Resolved: ['The complaint was resolved.', 'The complaint has been resolved.'],
     }),
-    simple('accommodation', 'Accommodation', 'Accommodation', {
+    simple('accommodation', 'Accommodation', 'What is the accommodation status?', {
       Requested: ['A reasonable accommodation was requested.', 'An accommodation request was made.'],
       Pending: ['The accommodation request is pending.', 'The accommodation request remains pending.'],
       Approved: ['The accommodation request was approved.', 'The accommodation request has been approved.'],
       Denied: ['The accommodation request was denied.', 'The accommodation request has been denied.'],
     }),
-    simple('movein', 'Move-in', 'Move-in', {
+    simple('movein', 'Move-in', 'What is the move-in status?', {
       Scheduled: ['Move-in was scheduled.', 'A move-in date was scheduled.'],
       Completed: ['Move-in was completed.', 'The move-in has been completed.'],
       Delayed: ['Move-in was delayed.', 'The move-in has been delayed.'],
@@ -384,7 +388,7 @@ const voucher: Topic = {
   touchpointType: 'voucher_support',
   purpose: 'the housing voucher',
   items: [
-    simple('application', 'Application', 'Voucher application', {
+    simple('application', 'Application', 'What is the voucher application status?', {
       Started: ['The voucher application was started.', 'A voucher application was started.'],
       Submitted: ['The voucher application was submitted.', 'The voucher application has been submitted.'],
       Pending: ['The voucher application is pending.', 'The voucher application remains pending.'],
@@ -393,24 +397,24 @@ const voucher: Topic = {
     }),
     documents('voucher'),
     communication('authority', 'Housing authority', 'housing authority'),
-    simple('search', 'Housing search', 'Housing search', {
+    simple('search', 'Housing search', 'What is the housing search status?', {
       Ongoing: ['The voucher housing search is ongoing.', 'The search for a voucher unit continues.'],
       'Unit identified': ['A unit was identified for the voucher.', 'A voucher unit was identified.'],
       Paused: ['The voucher housing search is paused.', 'The search for a voucher unit has been paused.'],
     }),
-    simple('extension', 'Extension', 'Extension', {
+    simple('extension', 'Extension', 'What is the extension status?', {
       Requested: ['A voucher extension was requested.', 'An extension of the voucher was requested.'],
       Pending: ['The voucher extension request is pending.', 'The extension request remains pending.'],
       Approved: ['The voucher extension was approved.', 'The extension of the voucher was approved.'],
       Denied: ['The voucher extension was denied.', 'The extension of the voucher was denied.'],
     }),
-    simple('inspection', 'Inspection', 'Inspection', {
+    simple('inspection', 'Inspection', 'What is the inspection status?', {
       Scheduled: ['The unit inspection was scheduled.', 'A unit inspection has been scheduled.'],
       Passed: ['The unit passed inspection.', 'The unit inspection was passed.'],
       Failed: ['The unit failed inspection.', 'The unit did not pass inspection.'],
       Pending: ['The unit inspection is pending.', 'The inspection remains pending.'],
     }),
-    simple('status', 'Status', 'Voucher status', {
+    simple('status', 'Status', 'What is the voucher status?', {
       Active: ['The voucher is active.', 'The voucher remains active.'],
       Pending: ['The voucher is pending.', 'The voucher remains pending.'],
       Issued: ['The voucher was issued.', 'The voucher has been issued.'],
@@ -426,32 +430,32 @@ const recertification: Topic = {
   touchpointType: 'recertification',
   purpose: 'recertification',
   items: [
-    simple('notice', 'Notice', 'Notice', {
+    simple('notice', 'Notice', 'What happened with the notice?', {
       Received: ['A recertification notice was received.', 'The recertification notice has been received.'],
       Reviewed: ['The recertification notice was reviewed.', 'The recertification notice was gone over.'],
     }),
     documents('recertification'),
-    simple('submission', 'Submission', 'Submission', {
+    simple('submission', 'Submission', 'What is the submission status?', {
       Submitted: ['The recertification was submitted.', 'The recertification has been submitted.'],
       Pending: ['The recertification submission is pending.', 'Submission of the recertification is pending.'],
       'Not yet submitted': ['The recertification has not yet been submitted.', 'The recertification is not yet submitted.'],
     }),
-    simple('deadline', 'Deadline', 'Deadline', {
+    simple('deadline', 'Deadline', 'What is the deadline status?', {
       Upcoming: ['The recertification deadline is upcoming.', 'A recertification deadline is approaching.'],
       Met: ['The recertification deadline was met.', 'The recertification was completed by the deadline.'],
       Missed: ['The recertification deadline was missed.', 'The recertification deadline has passed.'],
     }),
-    simple('lease', 'Lease renewal', 'Lease renewal', {
+    simple('lease', 'Lease renewal', 'What is the lease renewal status?', {
       Pending: ['The lease renewal is pending.', 'Lease renewal remains pending.'],
       Completed: ['The lease renewal was completed.', 'The lease has been renewed.'],
       Issue: ['An issue with the lease renewal was identified.', 'The lease renewal has an issue.'],
     }),
-    simple('subsidy', 'Subsidy renewal', 'Subsidy renewal', {
+    simple('subsidy', 'Subsidy renewal', 'What is the subsidy renewal status?', {
       Pending: ['The subsidy renewal is pending.', 'Subsidy renewal remains pending.'],
       Completed: ['The subsidy renewal was completed.', 'The subsidy has been renewed.'],
       Issue: ['An issue with the subsidy renewal was identified.', 'The subsidy renewal has an issue.'],
     }),
-    simple('status', 'Status', 'Recertification status', {
+    simple('status', 'Status', 'What is the recertification status?', {
       Pending: ['The recertification is pending.', 'The recertification remains pending.'],
       Approved: ['The recertification was approved.', 'The recertification has been approved.'],
       'Issue identified': ['An issue with the recertification was identified.', 'The recertification has an identified issue.'],
@@ -481,7 +485,7 @@ const benefits: Topic = {
   purpose: 'benefits',
   context: {
     key: 'type',
-    label: 'Benefit type (optional)',
+    label: 'Which benefit or income source?',
     options: Object.keys(BENEFIT_NOUNS),
     optional: true,
   },
@@ -505,7 +509,7 @@ const benefits: Topic = {
     {
       id: 'application',
       label: 'Application',
-      questions: [{ key: 'v', label: 'Application', options: ['Started', 'Submitted', 'Pending', 'Approved', 'Denied'] }],
+      questions: [{ key: 'v', label: 'What is the application status?', options: ['Started', 'Submitted', 'Pending', 'Approved', 'Denied'] }],
       say: (a, v, ctx) => {
         const n = benefitNoun(ctx);
         const w = one(a, 'v');
@@ -525,7 +529,7 @@ const benefits: Topic = {
     {
       id: 'eligibility',
       label: 'Eligibility',
-      questions: [{ key: 'v', label: 'Eligibility', options: ['Reviewed', 'Eligible', 'Not eligible', 'Pending'] }],
+      questions: [{ key: 'v', label: 'What is the eligibility status?', options: ['Reviewed', 'Eligible', 'Not eligible', 'Pending'] }],
       say: (a, v, ctx) => {
         const n = benefitNoun(ctx);
         const s: Record<string, string[]> = {
@@ -543,6 +547,8 @@ const benefits: Topic = {
 };
 
 interface Need {
+  /** Kept when the label changes, so saved drafts still match. */
+  id?: string;
   noun: string;
   plural?: boolean;
   /** Asked first, when "food" or "transportation" alone is too vague. */
@@ -553,7 +559,7 @@ const NEEDS: Record<string, Need> = {
   Food: {
     noun: 'food',
     kinds: {
-      label: 'What kind of food help?',
+      label: 'What type of food assistance?',
       options: {
         Groceries: { noun: 'groceries', plural: true },
         'Food pantry': { noun: 'food pantry access' },
@@ -568,7 +574,7 @@ const NEEDS: Record<string, Need> = {
   Transportation: {
     noun: 'transportation',
     kinds: {
-      label: 'Transportation for',
+      label: 'What was transportation needed for?',
       options: {
         'Medical appointment': { noun: 'transportation to a medical appointment' },
         'Housing appointment': { noun: 'transportation to a housing appointment' },
@@ -578,7 +584,7 @@ const NEEDS: Record<string, Need> = {
       },
     },
   },
-  'Phone/internet': { noun: 'phone/internet service' },
+  'Phone or internet': { id: 'phone_internet', noun: 'phone or internet service' },
   'Household items': { noun: 'household items', plural: true },
   Identification: { noun: 'identification' },
   Other: { noun: 'other basic needs', plural: true },
@@ -590,11 +596,11 @@ const basicNeeds: Topic = {
   touchpointType: 'basic_needs',
   purpose: 'basic needs',
   items: Object.entries(NEEDS).map(([label, need]) => ({
-    id: label.toLowerCase().replace(/[^a-z]+/g, '_'),
+    id: need.id ?? slug(label),
     label,
     questions: [
       ...(need.kinds ? [{ key: 'kind', label: need.kinds.label, options: Object.keys(need.kinds.options) }] : []),
-      { key: 'v', label: 'Assistance', options: ['Discussed', 'Resource provided', 'Referral made', 'Application completed', 'Obtained', 'Pending'] },
+      { key: 'v', label: 'What assistance was provided?', options: ['Discussed', 'Resource provided', 'Referral made', 'Application completed', 'Obtained', 'Pending'] },
     ],
     say: (a: Answers, v: number) => {
       const kind = need.kinds?.options[one(a, 'kind')];
@@ -615,16 +621,17 @@ const basicNeeds: Topic = {
   })),
 };
 
-const CARE_PARTIES: Record<string, string> = {
-  MCO: `the ${TERMS.client}'s MCO`,
-  'Medical provider': 'a medical provider',
-  'Behavioral health': 'a behavioral health provider',
-  'Housing provider': 'a housing provider',
-  Shelter: 'the shelter',
-  'Housing authority': 'the housing authority',
-  'Benefits agency': 'the benefits agency',
-  'Family/support': `the ${TERMS.client}'s family or support person`,
-  Other: 'another party',
+/** Label → [item id, how the party reads]. Ids stay put when labels change. */
+const CARE_PARTIES: Record<string, [string, string]> = {
+  MCO: ['mco', `the ${TERMS.client}'s MCO`],
+  'Medical provider': ['medical_provider', 'a medical provider'],
+  'Behavioral health provider': ['behavioral_health', 'a behavioral health provider'],
+  'Housing provider': ['housing_provider', 'a housing provider'],
+  Shelter: ['shelter', 'the shelter'],
+  'Housing authority': ['housing_authority', 'the housing authority'],
+  'Benefits agency': ['benefits_agency', 'the benefits agency'],
+  'Family or support person': ['family_support', `the ${TERMS.client}'s family or support person`],
+  Other: ['other', 'another party'],
 };
 const CARE_PURPOSES: Record<string, string> = {
   'Status update': 'a status update',
@@ -648,15 +655,16 @@ const careCoordination: Topic = {
   label: 'Care coordination',
   touchpointType: 'care_coordination',
   purpose: 'care coordination',
+  itemsLabel: 'Who did you coordinate with?',
   items: Object.keys(CARE_PARTIES).map((label) => ({
-    id: label.toLowerCase().replace(/[^a-z]+/g, '_'),
+    id: CARE_PARTIES[label][0],
     label,
     questions: [
-      { key: 'purpose', label: 'Purpose', options: Object.keys(CARE_PURPOSES) },
-      { key: 'result', label: 'Result', options: Object.keys(CARE_RESULTS) },
+      { key: 'purpose', label: 'What was the purpose?', options: Object.keys(CARE_PURPOSES) },
+      { key: 'result', label: 'What was the result?', options: Object.keys(CARE_RESULTS) },
     ],
     say: (a: Answers, v: number) => {
-      const party = CARE_PARTIES[label];
+      const party = CARE_PARTIES[label][1];
       const purpose = CARE_PURPOSES[one(a, 'purpose')];
       if (!purpose) return [];
       const out = [
@@ -696,10 +704,11 @@ const legal: Topic = {
   label: 'Legal',
   touchpointType: 'legal_aid',
   purpose: 'a legal concern',
+  itemsLabel: 'What legal issue did you discuss?',
   items: Object.keys(LEGAL_ISSUES).map((label) => ({
-    id: label.toLowerCase().replace(/[^a-z]+/g, '_'),
+    id: slug(label),
     label,
-    questions: [{ key: 'actions', label: `${TERMS.cm} action`, options: Object.keys(LEGAL_ACTIONS), multi: true }],
+    questions: [{ key: 'actions', label: `What did ${TERMS.cm} do?`, options: Object.keys(LEGAL_ACTIONS), multi: true }],
     say: (a: Answers, v: number) => {
       // Reported, never concluded: a legal finding is not ours to record.
       const out = [
@@ -721,51 +730,55 @@ const supportiveHousing: Topic = {
   touchpointType: 'supportive_housing',
   purpose: 'supportive housing',
   items: [
-    simple('option', 'Discussed option', 'Option', {
-      Discussed: ['Supportive housing was discussed as an option.', 'Supportive housing options were discussed.'],
-    }),
-    simple('referral', 'Referral', 'Referral', {
+    {
+      // Nothing to ask: picking it is the whole answer.
+      id: 'option',
+      label: 'Discussed option',
+      questions: [],
+      say: (_a, v) => [choose(v, ['Supportive housing was discussed as an option.', 'Supportive housing options were discussed.'])],
+    },
+    simple('referral', 'Referral', 'What is the referral status?', {
       Made: ['A referral for supportive housing was made.', 'A supportive housing referral was made.'],
       Pending: ['The supportive housing referral is pending.', 'The supportive housing referral remains pending.'],
       Accepted: ['The supportive housing referral was accepted.', 'The supportive housing referral has been accepted.'],
       Declined: ['The supportive housing referral was declined.', 'The supportive housing referral has been declined.'],
     }),
-    simple('application', 'Application', 'Application', {
+    simple('application', 'Application', 'What is the application status?', {
       Started: ['A supportive housing application was started.', 'The supportive housing application was started.'],
       Submitted: ['The supportive housing application was submitted.', 'The supportive housing application has been submitted.'],
       Pending: ['The supportive housing application is pending.', 'The supportive housing application remains pending.'],
       Approved: ['The supportive housing application was approved.', 'The supportive housing application has been approved.'],
       Denied: ['The supportive housing application was denied.', 'The supportive housing application has been denied.'],
     }),
-    simple('eligibility', 'Eligibility', 'Eligibility', {
+    simple('eligibility', 'Eligibility', 'What is the eligibility status?', {
       Reviewed: ['Eligibility for supportive housing was reviewed.', 'Supportive housing eligibility was reviewed.'],
       Eligible: [`${TERMS.Client} is eligible for supportive housing.`, 'Eligibility for supportive housing was confirmed.'],
       'Not eligible': [`${TERMS.Client} is not eligible for supportive housing.`, `${TERMS.Client} was found not eligible for supportive housing.`],
       Pending: ['Eligibility for supportive housing is pending.', 'The supportive housing eligibility determination is pending.'],
     }),
-    simple('assessment', 'Assessment', 'Assessment', {
+    simple('assessment', 'Assessment', 'What is the assessment status?', {
       Scheduled: ['A supportive housing assessment was scheduled.', 'An assessment for supportive housing was scheduled.'],
       Completed: ['The supportive housing assessment was completed.', 'The assessment for supportive housing was completed.'],
       Pending: ['The supportive housing assessment is pending.', 'The assessment for supportive housing is pending.'],
     }),
-    simple('interview', 'Interview', 'Interview', {
+    simple('interview', 'Interview', 'What is the interview status?', {
       Scheduled: ['A supportive housing interview was scheduled.', 'An interview for supportive housing was scheduled.'],
       Completed: ['The supportive housing interview was completed.', 'The interview for supportive housing took place.'],
       Missed: ['The supportive housing interview was missed.', 'The interview for supportive housing was missed.'],
     }),
-    simple('status', 'Status', 'Status', {
+    simple('status', 'Status', 'What is the supportive housing status?', {
       Pending: ['Supportive housing status is pending.', 'The supportive housing status remains pending.'],
       Waitlisted: [`The ${TERMS.client} is waitlisted for supportive housing.`, 'The supportive housing application is waitlisted.'],
       Approved: ['Supportive housing was approved.', 'Supportive housing has been approved.'],
       Denied: ['Supportive housing was denied.', 'Supportive housing has been denied.'],
     }),
-    simple('placement', 'Placement', 'Placement', {
+    simple('placement', 'Placement', 'What is the placement status?', {
       Offered: ['A supportive housing placement was offered.', 'A placement was offered.'],
       Accepted: ['The supportive housing placement was accepted.', 'The placement was accepted.'],
       Declined: ['The supportive housing placement was declined.', 'The placement was declined.'],
       Pending: ['The supportive housing placement is pending.', 'The placement remains pending.'],
     }),
-    simple('movein', 'Move-in', 'Move-in', {
+    simple('movein', 'Move-in', 'What is the move-in status?', {
       Scheduled: ['Move-in to supportive housing was scheduled.', 'A supportive housing move-in was scheduled.'],
       Completed: ['Move-in to supportive housing was completed.', 'The supportive housing move-in has been completed.'],
       Delayed: ['Move-in to supportive housing was delayed.', 'The supportive housing move-in has been delayed.'],
@@ -807,12 +820,13 @@ const crisis: Topic = {
   touchpointType: 'crisis_followup',
   purpose: 'crisis follow-up',
   encourageFreeText: true,
+  itemsLabel: 'What situation are you following up on?',
   items: Object.keys(CRISIS_EVENTS).map((label) => ({
-    id: label.toLowerCase().replace(/[^a-z]+/g, '_'),
+    id: slug(label),
     label,
     questions: [
-      { key: 'status', label: 'Current status', options: Object.keys(CRISIS_STATUS) },
-      { key: 'actions', label: `${TERMS.cm} action`, options: Object.keys(CRISIS_ACTIONS), multi: true, optional: true },
+      { key: 'status', label: 'What is the current status?', options: Object.keys(CRISIS_STATUS) },
+      { key: 'actions', label: `What did ${TERMS.cm} do?`, options: Object.keys(CRISIS_ACTIONS), multi: true, optional: true },
     ],
     say: (a: Answers, v: number) => {
       const out = [
@@ -836,7 +850,7 @@ const otherTopic: Topic = {
   touchpointType: 'other',
   purpose: '',
   encourageFreeText: true,
-  items: [other('Other matters were addressed.')],
+  items: [other('Other matters were addressed.', 'What was the meeting about?')],
 };
 
 export const TOPICS: Topic[] = [
@@ -877,7 +891,7 @@ export const ACTIONS: ActionGroup[] = [
   },
   {
     id: 'assisted',
-    label: 'Assisted',
+    label: 'Assisted with',
     options: { Application: 'the application', Documents: 'documents', 'Phone call': 'a phone call', Scheduling: 'scheduling', 'Housing search': 'the housing search' },
     say: (p, v) =>
       choose(v, [
@@ -906,7 +920,7 @@ export const ACTIONS: ActionGroup[] = [
   },
   {
     id: 'referred',
-    label: 'Referred',
+    label: 'Referred to',
     options: {
       'Housing program': 'a housing program',
       Benefits: 'benefits services',
@@ -919,7 +933,7 @@ export const ACTIONS: ActionGroup[] = [
   },
   {
     id: 'coordinated',
-    label: 'Coordinated',
+    label: 'Coordinated with',
     options: { Provider: 'the provider', MCO: `the ${TERMS.client}'s MCO`, 'Housing authority': 'the housing authority', Landlord: 'the landlord', Shelter: 'the shelter', 'Benefits agency': 'the benefits agency' },
     say: (p, v) => choose(v, [`${TERMS.cm} coordinated with ${joinList(p)}.`, `${TERMS.cm} completed coordination with ${joinList(p)}.`]),
   },
@@ -931,14 +945,14 @@ export const ACTIONS: ActionGroup[] = [
   },
   {
     id: 'advocated',
-    label: 'Advocated',
-    options: { 'With landlord': 'the landlord', 'With housing authority': 'the housing authority', 'With provider': 'the provider', 'With benefits agency': 'the benefits agency' },
+    label: 'Advocated with',
+    options: { Landlord: 'the landlord', 'Housing authority': 'the housing authority', Provider: 'the provider', 'Benefits agency': 'the benefits agency' },
     say: (p, v) =>
       choose(v, [`${TERMS.cm} advocated on the ${TERMS.client}'s behalf with ${joinList(p)}.`, `${TERMS.cm} advocated with ${joinList(p)} on the ${TERMS.client}'s behalf.`]),
   },
   {
     id: 'followed_up',
-    label: 'Followed up',
+    label: 'Followed up on',
     options: { Application: 'the application', Referral: 'the referral', Documents: 'documents', Request: 'the request' },
     say: (p, v) => choose(v, [`${TERMS.cm} followed up on ${joinList(p)}.`, `${TERMS.cm} completed follow-up on ${joinList(p)}.`]),
   },
@@ -957,7 +971,7 @@ export const RESULTS: Record<string, string[]> = {
 
 export const BARRIERS: Record<string, string> = {
   'Missing documents': 'missing documents',
-  'Waiting on third party': 'waiting on a third party',
+  'Waiting on a third party': 'waiting on a third party',
   Eligibility: 'eligibility',
   Cost: 'cost',
   Transportation: 'transportation',
@@ -979,10 +993,13 @@ export const RESPONSES: Record<string, string[]> = {
 
 export const NEXT_WHO = ['CM', 'Consumer', 'Both', 'Third party', 'None'] as const;
 
+/** How each NEXT_WHO value is labeled in the builder. The values stay as saved. */
+export const NEXT_WHO_LABELS: Record<string, string> = { CM: TERMS.cm, Consumer: 'Client', Both: 'Both', 'Third party': 'Third party', None: 'No next step' };
+
 export const NEXT_CM: Record<string, string> = {
   'Follow up': 'follow up',
-  'Contact agency/provider': 'contact the agency or provider',
-  'Contact landlord/property': 'contact the landlord or property',
+  'Contact agency or provider': 'contact the agency or provider',
+  'Contact landlord or property': 'contact the landlord or property',
   'Check application': 'check on the application',
   'Submit documents': 'submit documents',
   'Research housing': 'research housing options',
@@ -996,8 +1013,8 @@ export const NEXT_CONSUMER: Record<string, string> = {
   'Submit documents': 'submit documents',
   'Complete application': 'complete the application',
   'Attend appointment': 'attend the appointment',
-  'Contact provider/agency': 'contact the provider or agency',
-  'Contact landlord/property': 'contact the landlord or property',
+  'Contact provider or agency': 'contact the provider or agency',
+  'Contact landlord or property': 'contact the landlord or property',
   'Make payment': 'make a payment',
   'Review options': 'review options',
   Other: '',
@@ -1005,9 +1022,9 @@ export const NEXT_CONSUMER: Record<string, string> = {
 
 /** Who the third party is, as it reads in the note. */
 export const THIRD_PARTIES: Record<string, string> = {
-  'Parent/guardian': `the ${TERMS.client}'s parent or guardian`,
+  'Parent or guardian': `the ${TERMS.client}'s parent or guardian`,
   'Family member': `a family member`,
-  'Landlord/property': 'the landlord or property',
+  'Landlord or property': 'the landlord or property',
   'Housing authority': 'the housing authority',
   Provider: 'the provider',
   MCO: `the ${TERMS.client}'s MCO`,
@@ -1023,13 +1040,15 @@ export const NEXT_THIRD: Record<string, (party: string) => string> = {
   Other: () => '',
 };
 
+export const SPECIFIC_DATE = 'On a specific date';
+
 export const TIMING: Record<string, string> = {
-  '2–3 days': 'within 2–3 days',
-  '1 week': 'within one week',
-  '2 weeks': 'within two weeks',
-  'Next scheduled contact': 'at the next scheduled contact',
-  'After third-party response': 'after a response is received',
-  'Specific date': '',
+  'In 2–3 days': 'within 2–3 days',
+  'In 1 week': 'within one week',
+  'In 2 weeks': 'within two weeks',
+  'At the next scheduled contact': 'at the next scheduled contact',
+  'After a third-party response': 'after a response is received',
+  [SPECIFIC_DATE]: '',
 };
 
 // ---- how the contact happened ---------------------------------------------

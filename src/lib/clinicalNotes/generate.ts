@@ -15,8 +15,10 @@ import {
   NEXT_CM,
   NEXT_CONSUMER,
   NEXT_THIRD,
+  NEXT_WHO_LABELS,
   RESPONSES,
   RESULTS,
+  SPECIFIC_DATE,
   TERMS,
   THIRD_PARTIES,
   TIMING,
@@ -47,7 +49,7 @@ export interface NoteDraft {
     cm: string[];
     consumer: string[];
     third: string[];
-    /** Who the third party is (Parent/guardian, Provider …). */
+    /** Who the third party is (Parent or guardian, Provider …). */
     thirdWho?: string;
     other: string;
     timing?: string;
@@ -158,7 +160,7 @@ function response(draft: NoteDraft, v: number): string[] {
 }
 
 function when(next: NonNullable<NoteDraft['next']>): string {
-  if (next.timing === 'Specific date' && next.date) {
+  if (next.timing === SPECIFIC_DATE && next.date) {
     const d = new Date(`${next.date}T12:00:00`);
     return `by ${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
   }
@@ -236,7 +238,7 @@ export function summarize(draft: NoteDraft): SummaryLine[] {
       const item = topic.items.find((x) => x.id === p.id);
       if (!item) continue;
       const vals = item.questions.map((q) => show(p.answers[q.key])).filter(Boolean);
-      lines.push(vals.length ? `${item.label}: ${vals.join(' → ')}` : `${item.label}: …`);
+      lines.push(vals.length ? `${item.label}: ${vals.join(' → ')}` : item.questions.length ? `${item.label}: …` : item.label);
     }
     out.push({ heading: `${topic.label}${i === 0 && draft.topics.length > 1 ? ' (primary)' : ''}`, lines });
   });
@@ -258,8 +260,8 @@ export function summarize(draft: NoteDraft): SummaryLine[] {
     const n = draft.next;
     const what = [...(n.thirdWho ? [n.thirdWho] : []), ...n.cm, ...n.consumer, ...n.third].filter((x) => x !== 'Other');
     if (n.other.trim()) what.push(n.other.trim());
-    const t = n.timing === 'Specific date' ? n.date ?? '' : n.timing ?? '';
-    const who = n.who === 'Consumer' ? 'Client' : n.who;
+    const t = n.timing === SPECIFIC_DATE ? n.date ?? '' : n.timing ?? '';
+    const who = NEXT_WHO_LABELS[n.who] ?? n.who;
     out.push({ heading: 'Next', lines: [[who, what.join(', '), t].filter(Boolean).join(' · ')] });
   }
   if (draft.freeText.trim()) out.push({ heading: 'Added detail', lines: [draft.freeText.trim()] });

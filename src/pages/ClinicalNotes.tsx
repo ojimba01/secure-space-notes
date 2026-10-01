@@ -160,8 +160,7 @@ export default function ClinicalNotes() {
           {mode === 'draft' && (
             <div className="max-w-md space-y-1.5">
               <p className="text-xs text-muted-foreground">Client name (optional)</p>
-              <Input value={clientLabel} onChange={(e) => setClientLabel(e.target.value)} maxLength={80} placeholder="For your drafts, such as a backlog" className="h-9" />
-              <p className="text-[11px] text-muted-foreground">Groups your saved drafts. It is not written into the note.</p>
+              <Input aria-label="Client name" value={clientLabel} onChange={(e) => setClientLabel(e.target.value)} maxLength={80} className="h-9" />
             </div>
           )}
 

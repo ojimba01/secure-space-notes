@@ -35,7 +35,7 @@ function checkIn() {
   };
   d.actions = [{ group: 'reviewed', options: ['Documents', 'Next steps'] }];
   d.response = ['Agreed with plan'];
-  d.next = { who: 'Both', cm: ['Follow up'], consumer: ['Gather documents'], third: [], other: '', timing: 'Next scheduled contact' };
+  d.next = { who: 'Both', cm: ['Follow up'], consumer: ['Gather documents'], third: [], other: '', timing: 'At the next scheduled contact' };
   return d;
 }
 
@@ -128,7 +128,7 @@ test('a third party next step names who it is', () => {
   const d = emptyDraft();
   d.topics = ['application'];
   d.items = { application: [{ id: 'status', answers: { v: 'Pending' } }] };
-  d.next = { who: 'Third party', cm: [], consumer: [], third: ['Make a decision'], thirdWho: 'Parent/guardian', other: '' };
+  d.next = { who: 'Third party', cm: [], consumer: [], third: ['Make a decision'], thirdWho: 'Parent or guardian', other: '' };
   assert.match(generateNote(d, { method: 'phone' }, 0), /(Next step is pending|Awaiting) a decision from the consumer's parent or guardian\./);
 });
 
@@ -137,7 +137,7 @@ test('apartment issues and specific needs read plainly', () => {
   d.topics = ['checkin', 'basic_needs'];
   d.items = {
     checkin: [
-      { id: 'unit', answers: { concern: 'Heat, water or power', status: 'New' } },
+      { id: 'unit', answers: { concern: 'Heat, water, or power', status: 'New' } },
       { id: 'food', answers: { v: 'Running low' } },
     ],
     basic_needs: [{ id: 'transportation', answers: { kind: 'Medical appointment', v: 'Referral made' } }],
@@ -146,4 +146,44 @@ test('apartment issues and specific needs read plainly', () => {
   assert.match(note, /A new apartment heat, water or power issue was (identified|noted)\./);
   assert.match(note, /(Consumer is running low on food|Food is running low)\./);
   assert.match(note, /referral (was made for|for) transportation to a medical appointment/);
+});
+
+test('every choice in every topic writes a sentence', () => {
+  for (const topic of mod.TOPICS) {
+    for (const item of topic.items) {
+      const qs = item.questions.filter((q) => !q.optional && !q.text);
+      // Try each option of each required question, with the first option elsewhere.
+      const combos = qs.length ? qs.flatMap((q) => q.options.map((o) => ({ ...Object.fromEntries(qs.map((x) => [x.key, x.options[0]])), [q.key]: o }))) : [{}];
+      for (const answers of combos) {
+        const d = emptyDraft();
+        d.topics = [topic.id];
+        d.items = { [topic.id]: [{ id: item.id, answers }] };
+        const note = generateNote(d, { method: 'phone' });
+        const opening = generateNote({ ...emptyDraft(), topics: [topic.id] }, { method: 'phone' });
+        assert.ok(note.length > opening.length, `${topic.id}/${item.id} ${JSON.stringify(answers)} wrote nothing`);
+        assert.doesNotMatch(note, /undefined|null|\s\./, `${topic.id}/${item.id}`);
+      }
+    }
+  }
+});
+
+test('a choice with no follow-up question is complete when picked', () => {
+  const d = emptyDraft();
+  d.topics = ['supportive_housing'];
+  d.items = { supportive_housing: [{ id: 'option', answers: {} }] };
+  assert.match(generateNote(d, { method: 'phone' }), /Supportive housing was discussed as an option\./);
+  assert.deepEqual(summarize(d)[0].lines, ['Discussed option']);
+});
+
+test('next steps: both parties, no next step, and a specific date', () => {
+  const d = emptyDraft();
+  d.topics = ['landlord'];
+  d.items = { landlord: [{ id: 'rent', answers: { v: 'Late' } }] };
+  d.next = { who: 'Both', cm: ['Contact landlord or property'], consumer: ['Make payment'], third: [], other: '', timing: 'On a specific date', date: '2026-10-15' };
+  const note = generateNote(d, { method: 'phone' });
+  assert.match(note, /CM (will|plans to) contact the landlord or property by October 15, 2026\./);
+  assert.match(note, /Consumer (will|is to) make a payment by October 15, 2026\./);
+  d.next = { who: 'None', cm: [], consumer: [], third: [], other: '' };
+  assert.match(generateNote(d, { method: 'phone' }), /No (further action|next step) is needed at this time\.$/);
+  assert.equal(summarize(d).at(-1).lines[0], 'No next step');
 });
