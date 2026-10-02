@@ -254,8 +254,8 @@ export default function ClinicalNotes() {
               {cycleHeader && activeCycle ? (
                 <div className="flex flex-wrap items-center gap-3">
                   <div>
-                    <p className="text-lg font-semibold">{clientLabel.trim()}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-2xl font-bold">{clientLabel.trim()}</p>
+                    <p className="text-base font-medium text-muted-foreground">
                       Cycle {activeCycle.n} · {cycleDates(activeCycle)}
                     </p>
                   </div>
@@ -306,19 +306,19 @@ export default function ClinicalNotes() {
               {mode === 'draft' && visit && (
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="w-full max-w-md space-y-1.5">
-                    <p className="text-xs text-muted-foreground">Client name{visit === 'old' ? '' : ' (optional)'}</p>
-                    <Input id="manual-client-name" aria-label="Client name" value={clientLabel} onChange={(e) => setClientLabel(e.target.value)} maxLength={80} className="h-9" />
+                    <p className="text-base font-semibold text-foreground">Client name{visit === 'old' ? '' : <span className="text-sm font-normal text-muted-foreground"> (optional)</span>}</p>
+                    <Input id="manual-client-name" aria-label="Client name" value={clientLabel} onChange={(e) => setClientLabel(e.target.value)} maxLength={80} className="h-12 text-lg" />
                   </div>
                   {visit === 'recent' && (
                     <div className="space-y-1.5">
-                      <p className="text-xs text-muted-foreground">Contact date</p>
-                      <Input aria-label="Contact date" type="date" value={contactDate} onChange={(e) => setContactDate(e.target.value)} className="h-9 w-44" />
+                      <p className="text-base font-semibold text-foreground">Contact date</p>
+                      <Input aria-label="Contact date" type="date" value={contactDate} onChange={(e) => setContactDate(e.target.value)} className="h-12 w-52 text-lg" />
                     </div>
                   )}
                   {visit === 'old' && (
                     <>
                       <div className="space-y-1.5">
-                        <p className="text-xs text-muted-foreground">150-day start date</p>
+                        <p className="text-base font-semibold text-foreground">150-day start date</p>
                         <Input
                           aria-label="150-day start date"
                           type="date"
@@ -328,10 +328,10 @@ export default function ClinicalNotes() {
                             setBacklogCycle(null);
                             openCycles(e.target.value);
                           }}
-                          className="h-9 w-44"
+                          className="h-12 w-52 text-lg"
                         />
                       </div>
-                      <label className="flex h-9 items-center gap-2 text-sm">
+                      <label className="flex h-12 items-center gap-2 text-base">
                         <Checkbox checked={backlogExt} onCheckedChange={(c) => setBacklogExt(c === true)} />
                         Include 180-day extension
                       </label>

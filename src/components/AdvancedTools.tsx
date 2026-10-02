@@ -12,7 +12,10 @@ import {
 } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Settings2, Eye, FolderUp, History, FileStack, FileSearch, UploadCloud, UserX } from 'lucide-react';
+import { Settings2, Eye, FolderUp, History, FileStack, FileSearch, UploadCloud, UserX, Type } from 'lucide-react';
+import { TEXT_SCALES, loadTextScale, saveTextScale } from '@/lib/textScale';
+import { TEXT_SCALE_CHANGED } from '@/components/TextScale';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 interface Employee {
@@ -55,6 +58,10 @@ export const AdvancedTools: React.FC = () => {
   const [search, setSearch] = useState('');
   const [inactive, setInactive] = useState<Employee[]>([]);
   const [reactivating, setReactivating] = useState<string | null>(null);
+  // Text size: anyone active, superadmins included (it is about eyesight, not role).
+  const [everyone, setEveryone] = useState<{ id: string; name: string }[]>([]);
+  const [sizeFor, setSizeFor] = useState('');
+  const [size, setSize] = useState<number | null>(null);
 
   // Read fresh every time the panel opens, so new, renamed and deactivated
   // staff show up without reloading the app.
@@ -97,6 +104,9 @@ export const AdvancedTools: React.FC = () => {
       }
 
       if (cancelled) return;
+      setEveryone(
+        visibleProfiles(profs).map((p) => ({ id: p.id, name: `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || 'Unnamed' })),
+      );
       const toEmployee = (p: (typeof allProfs)[number]): Employee => ({
         id: p.id,
         first_name: p.first_name,
@@ -117,6 +127,25 @@ export const AdvancedTools: React.FC = () => {
       cancelled = true;
     };
   }, [isSuperadmin, open]);
+
+  useEffect(() => {
+    setSize(null);
+    if (!sizeFor) return;
+    void loadTextScale(sizeFor).then(setSize);
+  }, [sizeFor]);
+
+  const setTextSize = async (value: number) => {
+    const name = everyone.find((x) => x.id === sizeFor)?.name ?? 'This account';
+    try {
+      await saveTextScale(sizeFor, value);
+      setSize(value);
+      // Your own size changes at once; anyone else's on their next page load.
+      window.dispatchEvent(new Event(TEXT_SCALE_CHANGED));
+      toast({ title: 'Text size saved', description: `${name}: ${TEXT_SCALES.find((t) => t.value === value)?.label ?? value}` });
+    } catch (e) {
+      toast({ title: 'Unable to save text size', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    }
+  };
 
   const reactivate = async (e: Employee) => {
     setReactivating(e.id);
@@ -199,6 +228,41 @@ export const AdvancedTools: React.FC = () => {
               ))}
             </div>
           </>
+        )}
+
+        {isSuperadmin && (
+          <div className="space-y-2 border-t pt-3">
+            <div className="flex items-center gap-2 text-sm font-medium"><Type className="h-4 w-4" /> Text size</div>
+            <select
+              aria-label="Account"
+              className="h-9 w-full rounded-md border bg-white px-2 text-sm"
+              value={sizeFor}
+              onChange={(e) => setSizeFor(e.target.value)}
+            >
+              <option value="">Choose an account</option>
+              {everyone.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            {sizeFor && (
+              <div className="grid grid-cols-2 gap-1.5">
+                {TEXT_SCALES.map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    disabled={size === null}
+                    onClick={() => void setTextSize(t.value)}
+                    className={cn(
+                      'rounded-md border px-2 py-1.5 text-sm',
+                      size === t.value ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-accent',
+                    )}
+                  >
+                    {t.label} <span className="text-xs opacity-75">{Math.round(t.value * 100)}%</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {isSuperadmin && inactive.length > 0 && (

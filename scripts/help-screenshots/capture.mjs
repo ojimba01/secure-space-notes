@@ -366,14 +366,18 @@ const SHOTS = {
     { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Staff activity'), label: 'Staff activity' },
     { as: 'admin', go: (p) => p.goto(`${BASE}/staff-activity`), target: (p) => p.locator('tbody tr').first(), label: 'Select a staff member' },
   ],
+  'text-size': [
+    { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'Advanced Tools'), label: 'Advanced Tools' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2500); await btn(p, 'Advanced Tools').click(); await wait(p, 1500); await p.getByRole('combobox', { name: 'Account' }).selectOption({ label: 'Taylor Brooks' }); await wait(p, 600); }, target: (p) => btn(p, 'Larger 130%'), label: 'Choose a size' },
+  ],
   'deactivate-staff': [
     { as: 'admin', go: (p) => p.goto(`${BASE}/staff-activity`), target: (p) => p.locator('tbody tr').filter({ hasText: 'Taylor Brooks' }).first(), label: 'Select a staff member' },
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/staff-activity`); await wait(p, 2500); await p.locator('tbody tr').filter({ hasText: 'Taylor Brooks' }).first().click(); await wait(p, 1500); }, target: (p) => btn(p, 'Deactivate account'), label: 'Deactivate account' },
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2500); await btn(p, 'Advanced Tools').click(); await wait(p, 1500); }, target: (p) => btn(p, 'Reactivate'), label: 'Reactivate' },
   ],
   'support-tickets': [
-    { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Support tickets'), label: 'Support tickets' },
-    { as: 'admin', go: (p) => p.goto(`${BASE}/support-tickets`), target: (p) => p.getByRole('combobox').first(), label: 'Filter by status' },
+    { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => p.getByRole('button', { name: /^Support tickets/ }).first(), label: 'Support tickets' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/support-tickets`); await wait(p, 2500); await p.getByText('Upload button does nothing').first().click(); await wait(p, 1500); }, target: (p) => p.getByTitle('View screenshot').first(), label: 'View a screenshot' },
   ],
 
   'file-claim': [

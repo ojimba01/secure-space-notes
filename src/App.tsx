@@ -1,3 +1,4 @@
+import { TextScale } from "./components/TextScale";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -58,6 +59,7 @@ const App = () => (
         <BrowserRouter>
           <ViewAsProvider>
             <ViewAsBanner />
+            <TextScale />
             <PageActivityTracker />
             <SupportButton />
             <ErrorBoundary>

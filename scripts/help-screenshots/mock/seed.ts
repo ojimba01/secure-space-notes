@@ -179,7 +179,17 @@ export function seed(): Tables {
       { id: 'tr-1', client_id: 'c-1', employee_id: 'p-staff', sent_by: 'p-admin', note: 'Please complete the in-person visit this week.', created_at: at(-1, 16), snoozed_until: null, completed_at: null, completed_how: null },
       { id: 'tr-2', client_id: 'c-2', employee_id: 'p-staff', sent_by: 'p-admin', note: null, created_at: at(-1, 16), snoozed_until: null, completed_at: null, completed_how: null },
     ],
-    support_tickets: [],
+    support_tickets: [
+      {
+        id: 'st-1', created_by: 'u-staff', title: 'Upload button does nothing', message: 'The Upload documents button does nothing on a client’s Forms tab.',
+        page_url: '/?view=clients', status: 'open', created_at: at(-1, 15), updated_at: at(-1, 15), requester_seen_at: at(-1, 15), last_support_reply_at: null,
+        attachments: [
+          { kind: 'screenshot', path: 'st-1/shot-1.png', name: 'Screenshot 1' },
+          { kind: 'screenshot', path: 'st-1/shot-2.png', name: 'Screenshot 2' },
+        ],
+      },
+    ],
+    display_settings: [],
     support_ticket_messages: [],
     client_assignments_history: [],
     case_logs: [],

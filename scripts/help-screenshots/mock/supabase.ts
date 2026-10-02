@@ -85,7 +85,7 @@ export const supabase: any = {
         Promise.resolve({ data: bucket === 'signatures' ? dataUrlBlob(signaturePng(path)) : blankPdf(), error: null }),
       upload: () => Promise.resolve({ data: { path: 'x' }, error: null }),
       createSignedUrl: (path: string) =>
-        Promise.resolve({ data: { signedUrl: bucket === 'signatures' ? signaturePng(path) : 'about:blank' }, error: null }),
+        Promise.resolve({ data: { signedUrl: bucket === 'signatures' || bucket === 'support-attachments' ? signaturePng(path) : 'about:blank' }, error: null }),
       getPublicUrl: () => ({ data: { publicUrl: 'about:blank' } }),
       list: () => Promise.resolve({ data: [], error: null }),
       remove: () => Promise.resolve({ data: [], error: null }),

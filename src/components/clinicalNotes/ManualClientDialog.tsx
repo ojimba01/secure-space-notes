@@ -72,7 +72,7 @@ export const ManualClientDialog: React.FC<Props> = (props) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{label ?? 'Notes without a name'}</DialogTitle>
+          <DialogTitle className="text-2xl">{label ?? 'Notes without a name'}</DialogTitle>
           <DialogDescription className="sr-only">Backlog cycles and generated notes for this name.</DialogDescription>
         </DialogHeader>
 
@@ -81,8 +81,8 @@ export const ManualClientDialog: React.FC<Props> = (props) => {
             <h3 className="font-semibold">Backlog</h3>
             <div className="flex flex-wrap items-end gap-4">
               <div className="space-y-1.5">
-                <p className="text-xs text-muted-foreground">150-day start date</p>
-                <Input aria-label="150-day start date" type="date" value={start} onChange={(e) => setStart(e.target.value)} className="h-9 w-44" />
+                <p className="text-base font-semibold text-foreground">150-day start date</p>
+                <Input aria-label="150-day start date" type="date" value={start} onChange={(e) => setStart(e.target.value)} className="h-12 w-52 text-lg" />
               </div>
               <label className="flex h-9 items-center gap-2 text-sm">
                 <Checkbox checked={ext} onCheckedChange={(c) => setExt(c === true)} />

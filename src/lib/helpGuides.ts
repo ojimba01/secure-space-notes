@@ -292,7 +292,14 @@ export const GUIDES: Guide[] = [
     id: 'support-tickets', section: 'Managing the team', title: 'Answer support tickets', audience: 'admins', minutes: 2,
     steps: [
       s('Open Support tickets', 'Select Support tickets in the left panel. The number shows open tickets.'),
-      s('Reply and update', 'Select a ticket, write a reply and set the status to In progress, Resolved or Closed.'),
+      s('Reply and update', 'Select a ticket. Select a screenshot to view it large, and use the arrows to see the others. Close it, write a reply and set the status to In progress, Resolved or Closed.'),
+    ],
+  },
+  {
+    id: 'text-size', section: 'Managing the team', title: 'Make the text larger for an account', audience: 'admins', minutes: 1,
+    steps: [
+      s('Open Advanced tools', 'Select Advanced tools at the bottom of the left panel.'),
+      s('Choose the account and size', 'Under Text size, choose the account, then Large, Larger or Largest. Everything in the app gets bigger for that person, in the same layout. Standard sets it back.'),
     ],
   },
 
