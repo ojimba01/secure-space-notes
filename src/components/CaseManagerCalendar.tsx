@@ -466,8 +466,6 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold">Calendar</h1>
-          <p className="text-muted-foreground">Your scheduled work, by date.</p>
-          <p className="text-xs text-muted-foreground">Drag to reschedule. Manual moves are preserved.</p>
         </div>
         {(
           <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">

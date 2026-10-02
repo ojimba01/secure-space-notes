@@ -237,7 +237,6 @@ export default function ClinicalNotes() {
       <div className="mx-auto max-w-[1300px] space-y-5 p-4 md:p-8">
         <div>
           <h1 className="text-2xl font-bold">Generate Notes</h1>
-          <p className="text-sm text-muted-foreground">Select what happened and get a progress note written from your selections.</p>
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as 'new' | 'notes')}>
@@ -264,7 +263,6 @@ export default function ClinicalNotes() {
 
               {mode === 'client' && (
                 <div className="max-w-md space-y-1.5">
-                  <p className="text-xs text-muted-foreground">Choose the client. The note is saved as their touchpoint.</p>
                   <ClientPicker clients={caseload} value={clientId} onChange={startClientNote} className="h-10 w-full" />
                 </div>
               )}
@@ -351,7 +349,7 @@ export default function ClinicalNotes() {
             </Card>
 
             {mode === 'draft' && visit === 'old' && !activeCycle && (
-              <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">Enter the client name and 150-day start date, then choose a cycle to start the note.</p>
+              <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">Choose a cycle to start the note.</p>
             )}
             {mode === 'draft' && ready && (
               <div className="space-y-2">
@@ -389,7 +387,7 @@ export default function ClinicalNotes() {
           <Card className="overflow-hidden">
             <div className="border-b px-4 py-3">
               <h2 className="font-semibold">Generated notes</h2>
-              <p className="text-sm text-muted-foreground">Manual entry notes not yet assigned to a client, by name. Only you can see them.</p>
+              
             </div>
             {groups.length === 0 ? (
               <p className="p-4 text-sm text-muted-foreground">No generated notes yet.</p>

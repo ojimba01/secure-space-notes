@@ -209,10 +209,6 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Document edits</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Select the correct details from your uploaded files and click Accept to save them.
-          Your record won't change until you confirm.
-        </p>
       </CardHeader>
       <CardContent className="space-y-3">
         {lastAccept && (

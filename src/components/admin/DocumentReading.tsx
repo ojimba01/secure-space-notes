@@ -281,15 +281,6 @@ export const DocumentReading: React.FC = () => {
           <CardTitle className="flex items-center gap-2">
             <FileSearch className="h-5 w-5" /> Reading stored documents
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            A document is searchable once its words have been read. Most PDFs carry their text
-            already, and those are read in a moment — a six-page form takes well under a second.
-            Documents waiting are read automatically, on the app's own server, every few seconds —
-            nobody needs to keep this page open, and nothing is sent outside the app to be read.
-            A document that is only a picture has to be read by optical recognition, which takes
-            over a minute a page, so it is offered one document at a time below rather than run
-            over a batch.
-          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -445,12 +436,6 @@ export const DocumentReading: React.FC = () => {
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5" /> Documents needing a person
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Documents the app could not read, documents filed as Unsorted because no rule could
-            name them, and documents whose printed name is not the client they are filed under.
-            Nothing here is guessed at — an unnamed document keeps its file and waits, and a
-            document on the wrong client is never allowed to write to that client's record.
-          </p>
         </CardHeader>
         <CardContent>
           {loading ? (

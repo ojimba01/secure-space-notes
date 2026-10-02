@@ -121,10 +121,6 @@ export default function SupportTickets() {
           <div className="flex items-center gap-3">
             <div>
               <h1 className="text-2xl font-bold">Support tickets</h1>
-              <p className="text-sm text-muted-foreground">
-                Requests sent from the Support button. Reply, then set the status so the staff member
-                knows where it stands.
-              </p>
             </div>
           </div>
           <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>

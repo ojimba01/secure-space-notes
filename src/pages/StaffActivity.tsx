@@ -308,11 +308,6 @@ export default function StaffActivity() {
             )}
             <div>
               <h1 className="text-2xl font-bold">{person ? staffName(person) : 'Staff activity'}</h1>
-              <p className="text-sm text-muted-foreground">
-                {person
-                  ? 'Pages visited, time spent, tasks and every change saved.'
-                  : 'How your team spends their time in the app. Select a staff member to see their full activity.'}
-              </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -557,7 +552,7 @@ const PersonDetail: React.FC<{
       <Card className="overflow-x-auto">
         <div className="px-4 py-3">
           <h2 className="text-sm font-semibold">Tasks</h2>
-          <p className="text-xs text-muted-foreground">Forms filled out, documents uploaded and touchpoints logged, with how long each took.</p>
+          
         </div>
         {summary.tasks.length === 0 ? (
           <p className="border-t px-4 py-3 text-sm text-muted-foreground">No tasks in this period.</p>

@@ -242,8 +242,7 @@ export const AccountDialog: React.FC<{
               ) : feed === false ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    See your touchpoints in Outlook, Google or Apple Calendar. Changes appear
-                    within a few hours, so check the app for anything urgent.
+                    See your touchpoints in Outlook, Google or Apple Calendar.
                   </p>
                   <Button size="sm" variant="outline" onClick={turnFeedOn} disabled={busy}>
                     Create my calendar link
@@ -328,8 +327,7 @@ export const AccountDialog: React.FC<{
                   <div className="text-xs">
                     <p className="font-medium">Keep this link private</p>
                     <p className="text-muted-foreground">
-                      Anyone with it can read your calendar without signing in. If needed, press
-                      Replace link and the old link will become inactive.
+                      Anyone with it can read your calendar.
                     </p>
                   </div>
 

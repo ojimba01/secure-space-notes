@@ -187,7 +187,6 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">My touchpoints</h1>
-          <p className="text-muted-foreground">Your work queue and your monthly log.</p>
         </div>
         <Button className="gap-2" onClick={() => openAdd(null)}>
           <Plus className="h-4 w-4" />
@@ -248,8 +247,7 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
             This month
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            {fmtShort(data.monthStart)}–{fmtShort(data.monthEnd)} · {data.completedThisWeek} logged this week.
-            Full detail is on your calendar.
+            {fmtShort(data.monthStart)}–{fmtShort(data.monthEnd)} · {data.completedThisWeek} logged this week
           </p>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -298,7 +296,6 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
               <Label>New date</Label>
               <Input type="date" value={moveDate} min={today} onChange={(e) => setMoveDate(e.target.value)} />
             </div>
-            <p className="text-xs text-muted-foreground">Drag to reschedule. Manual moves are preserved.</p>
           </div>
           <DialogFooter>
             <Button onClick={submitMove}>Save move</Button>

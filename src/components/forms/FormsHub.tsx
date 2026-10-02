@@ -436,11 +436,6 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Forms</h1>
-          <p className="text-sm text-muted-foreground">
-            {reviewMode
-              ? 'Review signed forms submitted by your team.'
-              : 'Upload and track your completed forms.'}
-          </p>
         </div>
         <Button
           variant="outline"

@@ -192,13 +192,6 @@ export const TemplateRegistry: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          Statewide templates apply to every MCO — the Initial Assessment, Level of Need and
-          Housing Stabilization Plan are the state's own forms. Replace a blank form here when the
-          state or a payer reissues it; the copy supplied with the app stays as a fallback. Add an
-          MCO-specific row when a payer requires a
-          supplemental form for a workflow step.
-        </p>
 
         {adding && (
           <div className="rounded-md border p-3 grid gap-3 sm:grid-cols-2">

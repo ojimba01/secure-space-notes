@@ -68,10 +68,6 @@ export const TouchpointSettings: React.FC = () => {
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Launch date</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Touchpoint work begins on this date. Cases that started earlier are kept for reference,
-          but never appear in a staff work queue or count as overdue.
-        </p>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="space-y-2">
@@ -104,8 +100,7 @@ export const TouchpointSettings: React.FC = () => {
           <div>
             <Label htmlFor="show-historical" className="text-sm">Show historical data</Label>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Lists cases that started before {date || 'the launch date'} in Team performance. Off by
-              default — staff should not be chased for work that predates the agency using this.
+              Lists cases that started before {date || 'the launch date'} in Team performance.
             </p>
           </div>
           <Switch

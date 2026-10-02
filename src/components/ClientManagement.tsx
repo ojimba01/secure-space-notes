@@ -473,7 +473,6 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h1 className="text-xl md:text-3xl font-bold truncate">Clients</h1>
-          <p className="text-sm text-muted-foreground hidden md:block">View client records, assignments, milestones, and documentation.</p>
         </div>
         {!selectionMode && (
           <div className="flex items-center gap-2 shrink-0">

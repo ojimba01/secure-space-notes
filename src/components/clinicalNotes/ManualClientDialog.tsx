@@ -72,7 +72,7 @@ export const ManualClientDialog: React.FC<Props> = (props) => {
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{label ?? 'Notes without a name'}</DialogTitle>
-          <DialogDescription>Generated notes from manual entry. Assign a note to make it the client’s touchpoint.</DialogDescription>
+          <DialogDescription className="sr-only">Backlog cycles and generated notes for this name.</DialogDescription>
         </DialogHeader>
 
         {label && (
@@ -179,7 +179,6 @@ export const ManualClientDialog: React.FC<Props> = (props) => {
                   </div>
                   {assigning === d.id && (
                     <div className="max-w-md space-y-2 rounded-lg border bg-muted/30 p-3">
-                      <p className="text-xs text-muted-foreground">Choose the client. The note becomes their touchpoint note.</p>
                       <ClientPicker clients={caseload} value={assignTo} onChange={setAssignTo} className="h-9 w-full" />
                       <div className="flex gap-2">
                         <Button size="sm" disabled={!assignTo} onClick={() => assignTo && props.onAssign(d, assignTo)}>

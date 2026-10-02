@@ -37,11 +37,6 @@ const AdvancedToolsPage: React.FC = () => {
 
       <div>
         <h1 className="text-2xl font-semibold">Advanced Tools</h1>
-        <p className="text-sm text-muted-foreground">
-          Data migration, template administration and the settings that decide how touchpoints are
-          chased. Client documents are uploaded here, inside the app's secure storage — never
-          through an outside chat or shared drive.
-        </p>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>

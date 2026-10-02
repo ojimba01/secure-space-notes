@@ -199,10 +199,6 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
           <CardTitle data-tutorial="staff-touchpoints" className="text-lg">Touchpoints</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Set a date to start counting a case manager's touchpoints. Before that date
-            their clients are not counted as late.
-          </p>
 
           {staff.length === 0 ? (
             <p className="text-sm text-muted-foreground">No case manager has clients.</p>

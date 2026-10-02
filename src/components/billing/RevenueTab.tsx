@@ -356,7 +356,7 @@ export function RevenueTab({ clients, cycles, viewOverride, onViewChange }: {
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-3">
         <h2 className="font-semibold">By month</h2>
-        <p className="text-sm text-muted-foreground">Expected revenue includes every cycle ending in the month, at the client's rate.</p>
+        
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">

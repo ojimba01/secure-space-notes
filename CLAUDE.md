@@ -44,6 +44,11 @@ guides, and superadmins also get the filter buttons.
 ## Other conventions
 
 - UI text is short, standard, professional UI language.
+- Keep subtext to a minimum outside the Help guide: no descriptions under page
+  titles or section headings, and no instructions that repeat what a control
+  already shows. Pages should be clear from their labels and layout. Keep
+  short text only when it carries information (a status, a count, an empty
+  state, a warning).
 - Superadmins are not case managers: they never appear in staff lists or as
   assignable case managers.
 - Database changes: give the full SQL so it can be pasted into Lovable.
