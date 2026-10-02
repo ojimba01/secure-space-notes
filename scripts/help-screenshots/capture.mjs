@@ -256,7 +256,7 @@ const SHOTS = {
     { as: 'staff', go: async (p) => { await openClient(p, 'c-1', 'Forms'); await text(p, 'Initial Assessment (IAT)').click(); await wait(p); }, target: (p) => text(p, 'Accepted by MCO'), label: 'MCO response' },
   ],
   'blank-form': [
-    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Forms'), label: 'Forms' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Blank forms'), label: 'Blank forms' },
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=forms`), target: (p) => text(p, 'Horizon Move-in Supports Request').locator('xpath=ancestor::div[contains(@class,"rounded")][1]').getByRole('button').first(), label: 'Start the form' },
   ],
   'case-log': [

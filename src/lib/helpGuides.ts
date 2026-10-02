@@ -160,7 +160,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'blank-form', section: 'Forms and documents', title: 'Start a blank form', audience: 'everyone', minutes: 3,
     steps: [
-      s('Open Forms', 'Select Forms in the left panel.'),
+      s('Open Blank forms', 'Select Blank forms in the left panel.'),
       s('Choose the form', 'Select + on the form you need, such as a Move-in Supports Request. Select the upload icon to file one you completed elsewhere.'),
     ],
   },
@@ -357,7 +357,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'find-your-way', section: 'Getting started', title: 'Find your way around', audience: 'everyone', minutes: 1,
     steps: [
-      s('Use the left panel', 'Clients, Forms, My touchpoints and Calendar hold your day-to-day work. Help guide is always here.'),
+      s('Use the left panel', 'Clients, Blank forms, My touchpoints and Calendar hold your day-to-day work. Help guide is always here.'),
       s('Open your account', 'Select the person icon at the top of the panel to change your password, add a signature or link your calendar.'),
       s('Find help', 'Select Help guide for step-by-step instructions. To contact support, select Support in the bottom-right corner.'),
     ],

@@ -201,7 +201,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             data-tutorial="forms-nav"
           >
             <FilePlus2 className="h-4 w-4" />
-            Forms
+            Blank forms
           </Button>
           <Button
             variant={routeVariant('/clinical-notes')}
