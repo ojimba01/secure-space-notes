@@ -343,3 +343,48 @@ test('new choices name one thing each', () => {
   ];
   for (const l of labels) assert.doesNotMatch(l, /\bor\b/, l);
 });
+
+test('several activities: one answer for all, or a different one for each', () => {
+  const d = emptyDraft();
+  d.activities = ['lease_review', 'benefits'];
+  mod.syncSections(d);
+  // Applies to all: one sentence for the whole contact.
+  d.actions = [{ group: 'reviewed', options: ['Lease'] }];
+  d.result = { value: 'Completed' };
+  let note = generateNote(d, { method: 'phone' });
+  assert.match(note, /CM (reviewed|went over) the lease\./);
+  assert.doesNotMatch(note, /Regarding/);
+
+  // Different for each: every activity gets its own actions and result.
+  d.split = { actions: true, result: true };
+  d.byActivity = {
+    lease_review: { ...mod.emptyPart(), actions: [{ group: 'reviewed', options: ['Lease'] }], result: { value: 'Completed' } },
+    benefits: { ...mod.emptyPart(), actions: [{ group: 'submitted', options: ['Documents'] }], result: { value: 'Pending' } },
+  };
+  note = generateNote(d, { method: 'phone' });
+  assert.match(note, /Regarding the lease review, CM (reviewed|went over) the lease\. (The task was completed|This was completed)\./);
+  assert.match(note, /Regarding benefits assistance, CM (submitted|completed submission of) documents\. (The matter remains pending|This is pending at this time)\./);
+  // The shared answers are not also written.
+  assert.equal((note.match(/the lease\./g) ?? []).length, 1);
+  const s = summarize(d).map((x) => x.heading);
+  assert.ok(s.includes('CM actions: Lease review') && s.includes('Result: Benefits assistance'), s.join(' | '));
+
+  // Back to one activity: the split no longer applies.
+  d.activities = ['lease_review'];
+  mod.syncSections(d);
+  assert.equal(mod.isSplit(d, 'actions'), false);
+  assert.deepEqual(Object.keys(d.byActivity), ['lease_review']);
+});
+
+test('a barrier for one activity reads under that activity', () => {
+  const d = emptyDraft();
+  d.activities = ['housing_search', 'budgeting'];
+  d.split = { barriers: true };
+  d.byActivity = {
+    housing_search: { ...mod.emptyPart(), barriers: { answer: 'Yes', list: ['Housing availability'], other: '', impact: '' } },
+    budgeting: { ...mod.emptyPart(), barriers: { answer: 'No', list: [], other: '', impact: '' } },
+  };
+  const note = generateNote(d, { method: 'in_person' });
+  assert.match(note, /Regarding housing search assistance, (barriers affecting the housing goal: housing availability|the housing goal was affected by housing availability)\./);
+  assert.match(note, /Regarding budgeting support, no barriers were (identified|noted)\./);
+});

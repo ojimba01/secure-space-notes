@@ -4,7 +4,7 @@
 // written up. Both are kept so the facts behind any note can be audited.
 import { supabase } from '@/integrations/supabase/client';
 import type { ComposedNote } from '@/components/clinicalNotes/NoteComposer';
-import { normalizeDraft } from '@/lib/clinicalNotes/generate';
+import { isSplit, normalizeDraft, partFor, type ActivityPart } from '@/lib/clinicalNotes/generate';
 
 // Newer than the generated types.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,11 +41,18 @@ export function noteRow(c: ComposedNote, contact: NoteContact, finalText?: strin
     primary_topic: d.topics[0] ?? null,
     secondary_topics: d.topics.slice(1),
     selections: d,
-    interventions: d.actions.map((a) => (a.group === 'other' ? { group: 'other', text: d.actionsOther.trim() } : a)),
+    // Answered per activity, each entry names its activity.
+    interventions: (isSplit(d, 'actions') ? d.activities.map((id) => ({ id, p: partFor(d, id) })) : [{ id: null, p: d as ActivityPart }]).flatMap(({ id, p }) =>
+      p.actions.map((a) => ({ ...(id ? { activity: id } : {}), ...(a.group === 'other' ? { group: 'other', text: p.actionsOther.trim() } : a) })),
+    ),
     consumer_response: d.response.map((r) => (r === 'Other' || r === 'Other response' ? { other: d.responseOther.trim() } : r)),
-    outcome: d.result,
-    barriers:
-      d.barriers.answer === 'Yes'
+    outcome: isSplit(d, 'result') ? Object.fromEntries(d.activities.map((id) => [id, partFor(d, id).result])) : d.result,
+    barriers: isSplit(d, 'barriers')
+      ? d.activities.flatMap((id) => {
+          const b = partFor(d, id).barriers;
+          return b.answer === 'Yes' ? b.list.map((x) => (x === 'Other barrier' ? b.other.trim() || x : x)) : [];
+        })
+      : d.barriers.answer === 'Yes'
         ? d.barriers.list.map((x) => (x === 'Other barrier' ? d.barriers.other.trim() || x : x))
         : d.result?.value === 'Barrier' && d.result.barrier
           ? [d.result.barrier === 'Other' ? d.result.barrierOther ?? 'Other' : d.result.barrier]

@@ -51,12 +51,19 @@ import {
   canGenerate,
   generateNote,
   itemComplete,
+  activityLabel,
+  emptyPart,
+  isSplit,
   normalizeDraft,
+  partFor,
   summarize,
   syncSections,
+  type ActivityPart,
   type NextStep,
   type NoteDraft,
+  type SplitStep,
 } from '@/lib/clinicalNotes/generate';
+import { joinList } from '@/lib/clinicalNotes/config';
 import { aiWordingAvailable, rewordWithAi } from '@/lib/clinicalNotes/ai';
 
 export interface ComposedNote {
@@ -323,15 +330,18 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
   // ---- progress: each step shows once the one before is answered or skipped
   const hasItem = draft.topics.some((t) => (draft.items[t] ?? []).some((p) => itemComplete(t, p.id, p.answers)));
   const h = draft.housing;
-  const b = draft.barriers;
+  // Steps 5 to 7 can be answered once for every activity, or separately for each.
+  const partsOf = (step: SplitStep): ActivityPart[] => (isSplit(draft, step) ? draft.activities.map((id) => partFor(draft, id)) : [draft]);
+  const actionsDone = (p: ActivityPart) => p.actions.some((a) => a.group === 'other' || a.options.length > 0);
+  const barriersDone = (p: ActivityPart) => !!p.barriers.answer && (p.barriers.answer !== 'Yes' || p.barriers.list.length > 0);
   const done = {
     activities: draft.activities.length > 0 || draft.topics.length > 0,
     why: !!skipped.why,
     housing: (!!h.status && !!h.changed && (h.changed !== 'Yes' || !!h.change.trim())) || !!skipped.housing,
     details: hasItem || !!skipped.details,
-    actions: draft.actions.some((a) => a.group === 'other' || a.options.length > 0) || !!skipped.actions,
-    result: !!draft.result || !!skipped.result,
-    barriers: (!!b.answer && (b.answer !== 'Yes' || b.list.length > 0)) || !!skipped.barriers,
+    actions: partsOf('actions').every(actionsDone) || !!skipped.actions,
+    result: partsOf('result').every((p) => !!p.result) || !!skipped.result,
+    barriers: partsOf('barriers').every(barriersDone) || !!skipped.barriers,
     response: draft.response.length > 0 || !!skipped.response,
     next: draft.noNextStep || draft.steps.some((s) => !!s.who) || !!draft.next || !!skipped.next,
   };
@@ -392,6 +402,152 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
       else t[itemId] = [];
       return { ...p, [topicId]: t };
     });
+  };
+
+  /** Change the whole contact's answers (null), or one activity's. */
+  const setPart = (activityId: string | null, fn: (p: ActivityPart) => ActivityPart) =>
+    update((d) => {
+      if (!activityId) return { ...d, ...fn(d) };
+      d.byActivity[activityId] = fn(d.byActivity[activityId] ?? emptyPart());
+      return d;
+    });
+
+  /** "Does this apply to all N activities?" — shown with two or more activities. */
+  const splitChoice = (step: SplitStep) =>
+    draft.activities.length > 1 && (
+      <div className="space-y-1.5 rounded-lg bg-muted/30 p-2.5">
+        <p className="text-xs font-medium text-muted-foreground">Does this apply to all {draft.activities.length} activities?</p>
+        <div className="flex flex-wrap gap-2">
+          <Chip size="sm" selected={!isSplit(draft, step)} onClick={() => update((d) => ({ ...d, split: { ...d.split, [step]: false } }))}>
+            Applies to all: {joinList(draft.activities.map((id) => activityLabel(draft, id)))}
+          </Chip>
+          <Chip size="sm" selected={isSplit(draft, step)} onClick={() => update((d) => ({ ...d, split: { ...d.split, [step]: true } }))}>
+            Different for each
+          </Chip>
+        </div>
+      </div>
+    );
+
+  /** The step's questions once, or once per activity with its name on top. */
+  const eachPart = (step: SplitStep, body: (p: ActivityPart, set: (fn: (p: ActivityPart) => ActivityPart) => void, key: string) => React.ReactNode) =>
+    isSplit(draft, step)
+      ? draft.activities.map((id) => (
+          <div key={id} className="space-y-2 rounded-lg border p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">For {activityLabel(draft, id)}</p>
+            {body(partFor(draft, id), (fn) => setPart(id, fn), id)}
+          </div>
+        ))
+      : body(draft, (fn) => setPart(null, fn), 'all');
+
+  const actionsBody = (p: ActivityPart, set: (fn: (p: ActivityPart) => ActivityPart) => void, key: string) => (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {[...ACTIONS.map((a) => ({ id: a.id, label: a.label })), { id: 'other', label: 'Other' }].map((a) => (
+          <Chip
+            key={a.id}
+            selected={p.actions.some((x) => x.group === a.id)}
+            onClick={() =>
+              set((x) => ({
+                ...x,
+                actions: x.actions.some((y) => y.group === a.id) ? x.actions.filter((y) => y.group !== a.id) : [...x.actions, { group: a.id, options: [] }],
+              }))
+            }
+          >
+            {a.label}
+          </Chip>
+        ))}
+      </div>
+      {p.actions.map((a) => {
+        if (a.group === 'other') {
+          return (
+            <div key={`${key}-other`} className="rounded-lg border border-primary/40 bg-primary/5 p-3">
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Please specify what {TERMS.cm} did</p>
+              <Input value={p.actionsOther} maxLength={200} onChange={(e) => set((x) => ({ ...x, actionsOther: e.target.value }))} className="h-9" />
+            </div>
+          );
+        }
+        const g = ACTIONS.find((x) => x.id === a.group);
+        if (!g) return null;
+        return (
+          <div key={`${key}-${a.group}`} className={cn('space-y-2 rounded-lg border p-3', a.options.length ? 'bg-muted/30' : 'border-primary/40 bg-primary/5')}>
+            <p className="text-xs font-medium text-muted-foreground">{g.label}</p>
+            <div className="flex flex-wrap gap-2">
+              {Object.keys(g.options).map((o) => (
+                <Chip
+                  key={o}
+                  size="sm"
+                  selected={a.options.includes(o)}
+                  onClick={() => set((x) => ({ ...x, actions: x.actions.map((y) => (y.group === a.group ? { ...y, options: toggle(y.options, o) } : y)) }))}
+                >
+                  {o}
+                </Chip>
+              ))}
+            </div>
+            {Object.entries(g.detail ?? {})
+              .filter(([o]) => a.options.includes(o))
+              .map(([o, det]) => (
+                <Ask key={o} label={det.label}>
+                  <Input
+                    className="h-9 max-w-md"
+                    maxLength={150}
+                    value={p.actionText[`${a.group}:${o}`] ?? ''}
+                    onChange={(e) => set((x) => ({ ...x, actionText: { ...x.actionText, [`${a.group}:${o}`]: e.target.value } }))}
+                  />
+                </Ask>
+              ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const resultBody = (p: ActivityPart, set: (fn: (p: ActivityPart) => ActivityPart) => void) => (
+    <div className="flex flex-wrap gap-2">
+      {Object.keys(RESULTS).map((r) => (
+        <Chip key={r} selected={p.result?.value === r} onClick={() => set((x) => ({ ...x, result: x.result?.value === r ? null : { value: r } }))}>
+          {r}
+        </Chip>
+      ))}
+    </div>
+  );
+
+  const barriersBody = (p: ActivityPart, set: (fn: (p: ActivityPart) => ActivityPart) => void) => {
+    const bb = p.barriers;
+    const setB = (fn: (b: ActivityPart['barriers']) => ActivityPart['barriers']) => set((x) => ({ ...x, barriers: fn(x.barriers) }));
+    return (
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {BARRIER_ANSWERS.map((x) => (
+            <Chip key={x} selected={bb.answer === x} onClick={() => setB((y) => ({ ...y, answer: y.answer === x ? undefined : x }))}>
+              {x}
+            </Chip>
+          ))}
+        </div>
+        {bb.answer === 'Yes' && (
+          <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+            <Ask label="What barriers affected the housing goal?" hint="Select all that apply.">
+              <div className="flex flex-wrap gap-2">
+                {Object.keys(BARRIER_LIST).map((x) => (
+                  <Chip key={x} size="sm" selected={bb.list.includes(x)} onClick={() => setB((y) => ({ ...y, list: toggle(y.list, x) }))}>
+                    {x}
+                  </Chip>
+                ))}
+              </div>
+            </Ask>
+            {bb.list.includes('Other barrier') && (
+              <Ask label="Please specify">
+                <Input className="h-9 max-w-md" maxLength={150} value={bb.other} onChange={(e) => setB((y) => ({ ...y, other: e.target.value }))} />
+              </Ask>
+            )}
+            {bb.list.length > 0 && (
+              <Ask label="How did the barrier affect the housing goal?" hint="Briefly describe the impact and any action taken.">
+                <Input className="h-9" maxLength={250} value={bb.impact} onChange={(e) => setB((y) => ({ ...y, impact: e.target.value }))} />
+              </Ask>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const setStep = (i: number, fn: (s: NextStep) => NextStep) =>
@@ -572,117 +728,24 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
         {/* 5. What CM did */}
         {shows('actions') && (
           <Step n={5} title={`What actions did ${TERMS.cm} complete during this ${word}?`} hint="Select all that apply. Choose the specific item under each action." onSkip={done.actions ? undefined : () => skip('actions')}>
-            <div className="flex flex-wrap gap-2">
-              {[...ACTIONS.map((a) => ({ id: a.id, label: a.label })), { id: 'other', label: 'Other' }].map((a) => (
-                <Chip
-                  key={a.id}
-                  selected={draft.actions.some((x) => x.group === a.id)}
-                  onClick={() =>
-                    update((d) => {
-                      d.actions = d.actions.some((x) => x.group === a.id) ? d.actions.filter((x) => x.group !== a.id) : [...d.actions, { group: a.id, options: [] }];
-                      return d;
-                    })
-                  }
-                >
-                  {a.label}
-                </Chip>
-              ))}
-            </div>
-            {draft.actions.map((a) => {
-              if (a.group === 'other') {
-                return (
-                  <div key="other" className="rounded-lg border border-primary/40 bg-primary/5 p-3">
-                    <p className="mb-1.5 text-xs font-medium text-muted-foreground">Please specify what {TERMS.cm} did</p>
-                    <Input value={draft.actionsOther} maxLength={200} onChange={(e) => update((d) => ({ ...d, actionsOther: e.target.value }))} className="h-9" />
-                  </div>
-                );
-              }
-              const g = ACTIONS.find((x) => x.id === a.group);
-              if (!g) return null;
-              return (
-                <div key={a.group} className={cn('space-y-2 rounded-lg border p-3', a.options.length ? 'bg-muted/30' : 'border-primary/40 bg-primary/5')}>
-                  <p className="text-xs font-medium text-muted-foreground">{g.label}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.keys(g.options).map((o) => (
-                      <Chip
-                        key={o}
-                        size="sm"
-                        selected={a.options.includes(o)}
-                        onClick={() =>
-                          update((d) => {
-                            d.actions = d.actions.map((x) => (x.group === a.group ? { ...x, options: toggle(x.options, o) } : x));
-                            return d;
-                          })
-                        }
-                      >
-                        {o}
-                      </Chip>
-                    ))}
-                  </div>
-                  {Object.entries(g.detail ?? {})
-                    .filter(([o]) => a.options.includes(o))
-                    .map(([o, det]) => (
-                      <Ask key={o} label={det.label}>
-                        <Input
-                          className="h-9 max-w-md"
-                          maxLength={150}
-                          value={draft.actionText[`${a.group}:${o}`] ?? ''}
-                          onChange={(e) => update((d) => ({ ...d, actionText: { ...d.actionText, [`${a.group}:${o}`]: e.target.value } }))}
-                        />
-                      </Ask>
-                    ))}
-                </div>
-              );
-            })}
+            {splitChoice('actions')}
+            {eachPart('actions', actionsBody)}
           </Step>
         )}
 
         {/* 6. Result */}
         {shows('result') && (
           <Step n={6} title={`What was the result of ${TERMS.cm}’s actions?`} onSkip={done.result ? undefined : () => skip('result')}>
-            <div className="flex flex-wrap gap-2">
-              {Object.keys(RESULTS).map((r) => (
-                <Chip key={r} selected={draft.result?.value === r} onClick={() => update((d) => ({ ...d, result: d.result?.value === r ? null : { value: r } }))}>
-                  {r}
-                </Chip>
-              ))}
-            </div>
+            {splitChoice('result')}
+            {eachPart('result', resultBody)}
           </Step>
         )}
 
         {/* 7. Barriers */}
         {shows('barriers') && (
           <Step n={7} title="Were any barriers identified?" onSkip={done.barriers ? undefined : () => skip('barriers')}>
-            <div className="flex flex-wrap gap-2">
-              {BARRIER_ANSWERS.map((x) => (
-                <Chip key={x} selected={b.answer === x} onClick={() => update((d) => ({ ...d, barriers: { ...d.barriers, answer: d.barriers.answer === x ? undefined : x } }))}>
-                  {x}
-                </Chip>
-              ))}
-            </div>
-            {b.answer === 'Yes' && (
-              <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
-                <Ask label="What barriers affected the housing goal?" hint="Select all that apply.">
-                  <div className="flex flex-wrap gap-2">
-                    {Object.keys(BARRIER_LIST).map((x) => (
-                      <Chip key={x} size="sm" selected={b.list.includes(x)} onClick={() => update((d) => ({ ...d, barriers: { ...d.barriers, list: toggle(d.barriers.list, x) } }))}>
-                        {x}
-                      </Chip>
-                    ))}
-                  </div>
-                </Ask>
-                {b.list.includes('Other barrier') && (
-                  <Ask label="Please specify">
-                    <Input className="h-9 max-w-md" maxLength={150} value={b.other} onChange={(e) => update((d) => ({ ...d, barriers: { ...d.barriers, other: e.target.value } }))} />
-                  </Ask>
-                )}
-                {b.list.length > 0 && (
-                  <Ask label="How did the barrier affect the housing goal?" hint="Briefly describe the impact and any action taken.">
-                    <Input className="h-9" maxLength={250} value={b.impact} onChange={(e) => update((d) => ({ ...d, barriers: { ...d.barriers, impact: e.target.value } }))} />
-                  </Ask>
-                )}
-              </div>
-            )}
+            {splitChoice('barriers')}
+            {eachPart('barriers', barriersBody)}
           </Step>
         )}
 

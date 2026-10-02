@@ -58,6 +58,21 @@ export interface NextStep {
   goal: string;
 }
 
+/** The steps that can be answered once for every activity, or separately for each. */
+export const SPLIT_STEPS = ['actions', 'result', 'barriers'] as const;
+export type SplitStep = (typeof SPLIT_STEPS)[number];
+
+/** What CM did, the result and barriers: for the whole contact, or for one activity. */
+export interface ActivityPart {
+  actions: { group: string; options: string[] }[];
+  actionsOther: string;
+  actionText: Record<string, string>;
+  result: { value: string; barrier?: string; barrierOther?: string } | null;
+  barriers: { answer?: string; list: string[]; other: string; impact: string };
+}
+
+export const emptyPart = (): ActivityPart => ({ actions: [], actionsOther: '', actionText: {}, result: null, barriers: { list: [], other: '', impact: '' } });
+
 export interface NoteDraft {
   /** The housing support activities that took place, in the order picked. */
   activities: string[];
@@ -83,6 +98,10 @@ export interface NoteDraft {
   actionText: Record<string, string>;
   result: { value: string; barrier?: string; barrierOther?: string } | null;
   barriers: { answer?: string; list: string[]; other: string; impact: string };
+  /** Steps answered separately for each activity (only with more than one activity). */
+  split: Partial<Record<SplitStep, boolean>>;
+  /** Per activity: its own actions, result and barriers, for the split steps. */
+  byActivity: Record<string, ActivityPart>;
   response: string[];
   responseOther: string;
   /** Next steps, one per responsible party and action. */
@@ -119,6 +138,8 @@ export const emptyDraft = (): NoteDraft => ({
   actionText: {},
   result: null,
   barriers: { list: [], other: '', impact: '' },
+  split: {},
+  byActivity: {},
   response: [],
   responseOther: '',
   steps: [],
@@ -135,8 +156,21 @@ export function normalizeDraft(d: Partial<NoteDraft> | null | undefined): NoteDr
   x.housing = { ...e.housing, ...(d?.housing ?? {}) };
   x.barriers = { ...e.barriers, ...(d?.barriers ?? {}) };
   x.nextContact = { ...(d?.nextContact ?? {}) };
+  x.split = { ...(d?.split ?? {}) };
+  x.byActivity = Object.fromEntries(
+    Object.entries(d?.byActivity ?? {}).map(([k, p]) => [k, { ...emptyPart(), ...p, barriers: { ...emptyPart().barriers, ...(p?.barriers ?? {}) } }]),
+  );
   return x;
 }
+
+/** Whether a step is answered separately for each activity. Needs two or more activities. */
+export const isSplit = (d: NoteDraft, step: SplitStep) => (d.activities ?? []).length > 1 && !!d.split?.[step];
+
+/** One activity's part (empty until something is picked). */
+export const partFor = (d: NoteDraft, activityId: string): ActivityPart => d.byActivity?.[activityId] ?? emptyPart();
+
+/** How an activity is named on screen. */
+export const activityLabel = (d: NoteDraft, id: string) => (id === 'other' ? d.activityOther.trim() || 'Other activity' : activityById(id)?.label ?? id);
 
 export interface ContactFacts {
   /** client_contacts.modality, when known. */
@@ -175,6 +209,8 @@ export function syncSections(d: NoteDraft): NoteDraft {
     else if (s.items) d.items[t] = d.items[t].filter((p) => s.items!.includes(p.id));
   }
   for (const t of Object.keys(d.topicContext)) if (!secs.some((x) => x.topic === t)) delete d.topicContext[t];
+  // Answers for an activity no longer picked go with it.
+  for (const a of Object.keys(d.byActivity ?? {})) if (!d.activities.includes(a)) delete d.byActivity[a];
   return d;
 }
 
@@ -262,7 +298,7 @@ function updates(draft: NoteDraft, v: number): string[] {
   return out;
 }
 
-function cmActions(draft: NoteDraft, v: number): string[] {
+function cmActions(draft: ActivityPart, v: number): string[] {
   const out: string[] = [];
   for (const [i, a] of draft.actions.entries()) {
     if (a.group === 'other') continue;
@@ -282,7 +318,7 @@ function cmActions(draft: NoteDraft, v: number): string[] {
   return out;
 }
 
-function result(draft: NoteDraft, v: number): string[] {
+function result(draft: ActivityPart, v: number): string[] {
   const r = draft.result;
   if (!r) return [];
   if (r.value === 'Barrier') {
@@ -295,7 +331,7 @@ function result(draft: NoteDraft, v: number): string[] {
   return list?.length ? [choose(v, list)] : [];
 }
 
-function barriers(draft: NoteDraft, v: number): string[] {
+function barriers(draft: ActivityPart, v: number): string[] {
   const b = draft.barriers;
   if (b.answer === 'No') return [choose(v, ['No barriers were identified.', 'No barriers were noted.'])];
   if (b.answer === 'Not assessed') return ['Barriers were not assessed.'];
@@ -385,6 +421,31 @@ function nextContact(draft: NoteDraft): string[] {
   return [];
 }
 
+/** "Regarding the lease review, CM reviewed the lease." The first sentence carries the activity. */
+function regarding(phrase: string, sentences: string[]): string[] {
+  if (!sentences.length || !phrase) return sentences;
+  const p = phrase.replace(/^an? /, 'the ');
+  const [first, ...rest] = sentences;
+  const lead = first.startsWith(`${TERMS.cm} `) ? first : first[0].toLowerCase() + first.slice(1);
+  return [`Regarding ${p}, ${lead}`, ...rest];
+}
+
+/** For each activity, the steps answered separately for it, as one group of sentences. */
+function perActivity(draft: NoteDraft, v: number): string[] {
+  const steps = SPLIT_STEPS.filter((s) => isSplit(draft, s));
+  if (!steps.length) return [];
+  return draft.activities.flatMap((id, i) => {
+    const part = partFor(draft, id);
+    const out = [
+      ...(steps.includes('actions') ? cmActions(part, v + i) : []),
+      ...(steps.includes('result') ? result(part, v + i) : []),
+      ...(steps.includes('barriers') ? barriers(part, v + i) : []),
+    ];
+    const phrase = id === 'other' ? draft.activityOther.trim() : activityById(id)?.phrase ?? '';
+    return regarding(phrase, out);
+  });
+}
+
 /** The note for a draft, in wording `variant`. */
 export function generateNote(input: NoteDraft, contact: ContactFacts, variant = 0): string {
   const draft = normalizeDraft(input);
@@ -392,9 +453,12 @@ export function generateNote(input: NoteDraft, contact: ContactFacts, variant = 
     ...purpose(draft, contact, variant),
     ...housing(draft, variant),
     ...updates(draft, variant),
-    ...cmActions(draft, variant),
-    ...result(draft, variant),
-    ...barriers(draft, variant),
+    // A step answered once for the whole contact reads as before; one answered
+    // per activity reads under that activity.
+    ...(isSplit(draft, 'actions') ? [] : cmActions(draft, variant)),
+    ...perActivity(draft, variant),
+    ...(isSplit(draft, 'result') ? [] : result(draft, variant)),
+    ...(isSplit(draft, 'barriers') ? [] : barriers(draft, variant)),
     ...response(draft, variant),
     tidy(draft.freeText),
     ...nextSteps(draft, variant),
@@ -449,27 +513,38 @@ export function summarize(input: NoteDraft): SummaryLine[] {
     if (!lines.length && draft.activities.length) return;
     out.push({ heading: `${topic.label}${i === 0 && draft.topics.length > 1 && !draft.activities.length ? ' (primary)' : ''}`, lines });
   });
-  const acts = draft.actions.map((a) => {
-    const g = ACTIONS.find((x) => x.id === a.group);
-    if (a.group === 'other') return `Other${draft.actionsOther.trim() ? `: ${draft.actionsOther.trim()}` : ''}`;
-    const opts = a.options.map((o) => {
-      const t = (draft.actionText?.[`${a.group}:${o}`] ?? '').trim();
-      return t ? `${o} (${t})` : o;
-    });
-    return `${g?.label ?? a.group}${opts.length ? ` → ${opts.join(', ')}` : ''}`;
-  });
-  if (acts.length) out.push({ heading: `${TERMS.cm} actions`, lines: acts });
-  if (draft.result) {
-    const r = draft.result;
-    out.push({
-      heading: 'Result',
-      lines: [r.value === 'Barrier' && r.barrier ? `Barrier → ${r.barrier === 'Other' ? r.barrierOther || 'Other' : r.barrier}` : r.value],
-    });
-  }
-  const b = draft.barriers;
-  if (b.answer) {
+  const partLines = (p: ActivityPart, step: SplitStep): string[] => {
+    if (step === 'actions')
+      return p.actions.map((a) => {
+        const g = ACTIONS.find((x) => x.id === a.group);
+        if (a.group === 'other') return `Other${p.actionsOther.trim() ? `: ${p.actionsOther.trim()}` : ''}`;
+        const opts = a.options.map((o) => {
+          const t = (p.actionText?.[`${a.group}:${o}`] ?? '').trim();
+          return t ? `${o} (${t})` : o;
+        });
+        return `${g?.label ?? a.group}${opts.length ? ` → ${opts.join(', ')}` : ''}`;
+      });
+    if (step === 'result') {
+      const r = p.result;
+      if (!r) return [];
+      return [r.value === 'Barrier' && r.barrier ? `Barrier → ${r.barrier === 'Other' ? r.barrierOther || 'Other' : r.barrier}` : r.value];
+    }
+    const b = p.barriers;
+    if (!b.answer) return [];
     const list = b.list.map((x) => (x === 'Other barrier' && b.other.trim() ? b.other.trim() : x));
-    out.push({ heading: 'Barriers', lines: [b.answer === 'Yes' && list.length ? list.join(', ') : b.answer, ...(b.answer === 'Yes' && b.impact.trim() ? [`Impact: ${b.impact.trim()}`] : [])] });
+    return [b.answer === 'Yes' && list.length ? list.join(', ') : b.answer, ...(b.answer === 'Yes' && b.impact.trim() ? [`Impact: ${b.impact.trim()}`] : [])];
+  };
+  const HEAD: Record<SplitStep, string> = { actions: `${TERMS.cm} actions`, result: 'Result', barriers: 'Barriers' };
+  for (const step of SPLIT_STEPS) {
+    if (isSplit(draft, step)) {
+      for (const id of draft.activities) {
+        const lines = partLines(partFor(draft, id), step);
+        if (lines.length) out.push({ heading: `${HEAD[step]}: ${activityLabel(draft, id)}`, lines });
+      }
+    } else {
+      const lines = partLines(draft, step);
+      if (lines.length) out.push({ heading: HEAD[step], lines });
+    }
   }
   if (draft.response.length) out.push({ heading: 'Member response', lines: [draft.response.join(', ')] });
   if (draft.noNextStep) out.push({ heading: 'Next steps', lines: ['No next step identified'] });
