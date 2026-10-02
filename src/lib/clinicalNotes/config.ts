@@ -148,8 +148,11 @@ function communication(id: string, label: string, party: string): Item {
 }
 
 const APARTMENT_ISSUES: Record<string, string> = {
-  'Repairs or maintenance': 'repair issue',
-  'Heat, water, or power': 'heat, water or power issue',
+  Repairs: 'repair issue',
+  Maintenance: 'maintenance issue',
+  Heat: 'heat issue',
+  Water: 'water issue',
+  Power: 'power issue',
   Pests: 'pest issue',
   Safety: 'safety issue',
   Accessibility: 'accessibility issue',
@@ -169,7 +172,8 @@ const checkIn: Topic = {
       Searching: [`${TERMS.Client} is currently searching for housing.`, `${TERMS.Client} is searching for housing.`],
       'Temporary housing': [`${TERMS.Client} is in temporary housing.`, `${TERMS.Client} is currently in temporary housing.`],
       Shelter: [`${TERMS.Client} is staying in shelter.`, `${TERMS.Client} is currently staying in shelter.`],
-      'Staying with family or friends': [`${TERMS.Client} is staying with family or friends.`, `${TERMS.Client} is currently staying with family or friends.`],
+      'Staying with family': [`${TERMS.Client} is staying with family.`, `${TERMS.Client} is currently staying with family.`],
+      'Staying with friends': [`${TERMS.Client} is staying with friends.`, `${TERMS.Client} is currently staying with friends.`],
       'At risk': [`${TERMS.Client}'s housing is at risk.`, `${TERMS.Client}'s current housing is at risk.`],
       Other: ['Housing status was reviewed.', `${TERMS.Client}'s housing status was reviewed.`],
     }),
@@ -237,10 +241,12 @@ const checkIn: Topic = {
     }),
     simple('transportation', 'Transportation', 'What is the transportation situation?', {
       'Has reliable transportation': [`${TERMS.Client} has reliable transportation.`, 'Transportation is in place.'],
-      'Needs bus pass or fare': [`${TERMS.Client} needs a bus pass or fare.`, 'A bus pass or fare is needed.'],
+      'Needs bus pass': [`${TERMS.Client} needs a bus pass.`, 'A bus pass is needed.'],
+      'Needs fare': [`${TERMS.Client} needs transportation fare.`, 'Transportation fare is needed.'],
       'Needs rides to appointments': [`${TERMS.Client} needs rides to appointments.`, 'Transportation to appointments is needed.'],
       'No transportation': [`${TERMS.Client} has no transportation.`, `${TERMS.Client} is without transportation.`],
-      'Car or license issue': [`${TERMS.Client} has a car or license issue.`, 'A car or license issue was noted.'],
+      'Car issue': [`${TERMS.Client} has a car issue.`, 'A car issue was noted.'],
+      'License issue': [`${TERMS.Client} has a license issue.`, 'A license issue was noted.'],
     }),
     simple('food', 'Food access', "What is the client's food access?", {
       'Has enough food': [`${TERMS.Client} has enough food.`, 'Food needs are met.'],
@@ -579,12 +585,14 @@ const NEEDS: Record<string, Need> = {
         'Medical appointment': { noun: 'transportation to a medical appointment' },
         'Housing appointment': { noun: 'transportation to a housing appointment' },
         Work: { noun: 'transportation to work' },
-        'Bus pass or fare': { noun: 'a bus pass or fare' },
+        'Bus pass': { noun: 'a bus pass' },
+        Fare: { noun: 'transportation fare' },
         Other: { noun: 'transportation' },
       },
     },
   },
-  'Phone or internet': { id: 'phone_internet', noun: 'phone or internet service' },
+  Phone: { id: 'phone_internet', noun: 'phone service' },
+  Internet: { noun: 'internet service' },
   'Household items': { noun: 'household items', plural: true },
   Identification: { noun: 'identification' },
   Other: { noun: 'other basic needs', plural: true },
@@ -630,7 +638,8 @@ const CARE_PARTIES: Record<string, [string, string]> = {
   Shelter: ['shelter', 'the shelter'],
   'Housing authority': ['housing_authority', 'the housing authority'],
   'Benefits agency': ['benefits_agency', 'the benefits agency'],
-  'Family or support person': ['family_support', `the ${TERMS.client}'s family or support person`],
+  Family: ['family_support', `the ${TERMS.client}'s family`],
+  'Support person': ['support_person', `the ${TERMS.client}'s support person`],
   Other: ['other', 'another party'],
 };
 const CARE_PURPOSES: Record<string, string> = {
@@ -850,7 +859,7 @@ const otherTopic: Topic = {
   touchpointType: 'other',
   purpose: '',
   encourageFreeText: true,
-  items: [other('Other matters were addressed.', 'What was the meeting about?')],
+  items: [other('Other matters were addressed.', 'What was the visit about?')],
 };
 
 export const TOPICS: Topic[] = [
@@ -999,8 +1008,10 @@ export const NEXT_WHO_LABELS: Record<string, string> = { CM: TERMS.cm, Consumer:
 
 export const NEXT_CM: Record<string, string> = {
   'Follow up': 'follow up',
-  'Contact agency or provider': 'contact the agency or provider',
-  'Contact landlord or property': 'contact the landlord or property',
+  'Contact agency': 'contact the agency',
+  'Contact provider': 'contact the provider',
+  'Contact landlord': 'contact the landlord',
+  'Contact property': 'contact the property',
   'Check application': 'check on the application',
   'Submit documents': 'submit documents',
   'Research housing': 'research housing options',
@@ -1014,8 +1025,10 @@ export const NEXT_CONSUMER: Record<string, string> = {
   'Submit documents': 'submit documents',
   'Complete application': 'complete the application',
   'Attend appointment': 'attend the appointment',
-  'Contact provider or agency': 'contact the provider or agency',
-  'Contact landlord or property': 'contact the landlord or property',
+  'Contact provider': 'contact the provider',
+  'Contact agency': 'contact the agency',
+  'Contact landlord': 'contact the landlord',
+  'Contact property': 'contact the property',
   'Make payment': 'make a payment',
   'Review options': 'review options',
   Other: '',
@@ -1023,9 +1036,11 @@ export const NEXT_CONSUMER: Record<string, string> = {
 
 /** Who the third party is, as it reads in the note. */
 export const THIRD_PARTIES: Record<string, string> = {
-  'Parent or guardian': `the ${TERMS.client}'s parent or guardian`,
+  Parent: `the ${TERMS.client}'s parent`,
+  Guardian: `the ${TERMS.client}'s guardian`,
   'Family member': `a family member`,
-  'Landlord or property': 'the landlord or property',
+  Landlord: 'the landlord',
+  Property: 'the property',
   'Housing authority': 'the housing authority',
   Provider: 'the provider',
   MCO: `the ${TERMS.client}'s MCO`,

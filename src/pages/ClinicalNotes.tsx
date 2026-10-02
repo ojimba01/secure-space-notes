@@ -307,10 +307,12 @@ export default function ClinicalNotes() {
 
           {mode === 'draft' && (
             <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">How did the contact happen? (optional)</p>
+              <h3 className="font-semibold">
+                How did the contact happen? <span className="text-xs font-normal text-muted-foreground">Optional</span>
+              </h3>
               <div className="flex flex-wrap gap-2">
                 {CONTACT_METHOD_OPTIONS.map((m) => (
-                  <Chip key={m.value} size="sm" selected={method === m.value} onClick={() => setMethod(method === m.value ? null : m.value)}>
+                  <Chip key={m.value} selected={method === m.value} onClick={() => setMethod(method === m.value ? null : m.value)}>
                     {m.label}
                   </Chip>
                 ))}

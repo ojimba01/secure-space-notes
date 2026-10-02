@@ -31,6 +31,8 @@ guides, and superadmins also get the filter buttons.
   (`src/lib/clinicalNotes`). Never add wording that states a fact nobody
   selected (mood, cooperation, outcomes, names). `tests/clinical-notes.test.mjs`
   checks this; extend it with any new topic or option.
+- Each choice names one thing ("Contact agency", "Contact provider"), never
+  "X or Y", so the note never says "or". The tests check this.
 - The optional AI rewording (`supabase/functions/clinical-note-wording`) runs
   only when `ANTHROPIC_API_KEY` is set, and must stay under a HIPAA BAA. It
   rewords the app's draft and is rejected if it adds a name, number or date.

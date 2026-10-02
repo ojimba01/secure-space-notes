@@ -128,8 +128,8 @@ test('a third party next step names who it is', () => {
   const d = emptyDraft();
   d.topics = ['application'];
   d.items = { application: [{ id: 'status', answers: { v: 'Pending' } }] };
-  d.next = { who: ['Third party'], cm: [], consumer: [], third: ['Make a decision'], thirdWho: 'Parent or guardian', other: '' };
-  assert.match(generateNote(d, { method: 'phone' }, 0), /(Next step is pending|Awaiting) a decision from the client's parent or guardian\./);
+  d.next = { who: ['Third party'], cm: [], consumer: [], third: ['Make a decision'], thirdWho: 'Guardian', other: '' };
+  assert.match(generateNote(d, { method: 'phone' }, 0), /(Next step is pending|Awaiting) a decision from the client's guardian\./);
 });
 
 test('apartment issues and specific needs read plainly', () => {
@@ -137,13 +137,13 @@ test('apartment issues and specific needs read plainly', () => {
   d.topics = ['checkin', 'basic_needs'];
   d.items = {
     checkin: [
-      { id: 'unit', answers: { concern: 'Heat, water, or power', status: 'New' } },
+      { id: 'unit', answers: { concern: 'Heat', status: 'New' } },
       { id: 'food', answers: { v: 'Running low' } },
     ],
     basic_needs: [{ id: 'transportation', answers: { kind: 'Medical appointment', v: 'Referral made' } }],
   };
   const note = generateNote(d, { method: 'in_person' }, 0);
-  assert.match(note, /A new apartment heat, water or power issue was (identified|noted)\./);
+  assert.match(note, /A new apartment heat issue was (identified|noted)\./);
   assert.match(note, /(Client is running low on food|Food is running low)\./);
   assert.match(note, /referral (was made for|for) transportation to a medical appointment/);
 });
@@ -179,9 +179,9 @@ test('next steps: both parties, no next step, and a specific date', () => {
   const d = emptyDraft();
   d.topics = ['landlord'];
   d.items = { landlord: [{ id: 'rent', answers: { v: 'Late' } }] };
-  d.next = { who: ['CM', 'Consumer'], cm: ['Contact landlord or property'], consumer: ['Make payment'], third: [], other: '', timing: 'On a specific date', date: '2026-10-15' };
+  d.next = { who: ['CM', 'Consumer'], cm: ['Contact landlord'], consumer: ['Make payment'], third: [], other: '', timing: 'On a specific date', date: '2026-10-15' };
   const note = generateNote(d, { method: 'phone' });
-  assert.match(note, /CM (will|plans to) contact the landlord or property by October 15, 2026\./);
+  assert.match(note, /CM (will|plans to) contact the landlord by October 15, 2026\./);
   assert.match(note, /Client (will|is to) make a payment by October 15, 2026\./);
   d.next = { who: ['None'], cm: [], consumer: [], third: [], other: '' };
   assert.match(generateNote(d, { method: 'phone' }), /No (further action|next step) is needed at this time\.$/);
@@ -204,11 +204,11 @@ test('next step: several can be responsible, and older "Both" drafts still read'
   const d = emptyDraft();
   d.topics = ['landlord'];
   d.items = { landlord: [{ id: 'rent', answers: { v: 'Late' } }] };
-  d.next = { who: ['CM', 'Third party'], cm: ['Follow up'], consumer: [], third: ['Respond'], thirdWho: 'Landlord or property', other: '' };
+  d.next = { who: ['CM', 'Third party'], cm: ['Follow up'], consumer: [], third: ['Respond'], thirdWho: 'Landlord', other: '' };
   const note = generateNote(d, { method: 'phone' });
   assert.match(note, /CM (will|plans to) follow up\./);
-  assert.match(note, /(Next step is pending|Awaiting) a response from the landlord or property\./);
-  assert.equal(summarize(d).at(-1).lines[0], 'CM, Third party · Landlord or property, Follow up, Respond');
+  assert.match(note, /(Next step is pending|Awaiting) a response from the landlord\./);
+  assert.equal(summarize(d).at(-1).lines[0], 'CM, Third party · Landlord, Follow up, Respond');
   // Saved before several could be picked: "Both" is CM and the client.
   d.next = { who: 'Both', cm: ['Follow up'], consumer: ['Make payment'], third: [], other: '' };
   const old = generateNote(d, { method: 'phone' });
@@ -224,5 +224,25 @@ test('notes say client, never consumer', () => {
     d.response = ['Agreed with plan'];
     d.next = { who: ['Consumer'], cm: [], consumer: ['Gather documents'], third: [], other: '' };
     assert.doesNotMatch(generateNote(d, { method: 'phone' }), /consumer/i, topic.id);
+  }
+});
+
+test('choices and notes never offer "or"', () => {
+  const lists = [mod.NEXT_CM, mod.NEXT_CONSUMER, mod.THIRD_PARTIES, mod.BARRIERS, mod.RESPONSES];
+  const labels = lists.flatMap((l) => Object.keys(l));
+  for (const t of mod.TOPICS) {
+    labels.push(...t.items.map((i) => i.label));
+    for (const it of t.items) for (const q of it.questions) labels.push(...q.options);
+  }
+  for (const a of mod.ACTIONS) labels.push(...Object.keys(a.options));
+  for (const l of labels) assert.doesNotMatch(l, /\bor\b/, l);
+  // Every choice in every topic, written out, has no "or" either.
+  for (const t of mod.TOPICS) for (const it of t.items) for (const q of it.questions) for (const o of q.options) {
+    const d = emptyDraft();
+    d.topics = [t.id];
+    const answers = Object.fromEntries(it.questions.map((x) => [x.key, x.multi ? [x.options[0]] : x.options[0]]));
+    answers[q.key] = q.multi ? [o] : o;
+    d.items = { [t.id]: [{ id: it.id, answers }] };
+    assert.doesNotMatch(generateNote(d, { method: 'phone' }), /\bor\b/, `${t.id}/${it.id}/${o}`);
   }
 });

@@ -365,7 +365,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0 space-y-3">
         {/* 1. Topic */}
-        <Step n={1} title="What was this meeting about?" hint={draft.topics.length > 1 ? '★ marks the main focus' : 'Choose one or more'}>
+        <Step n={1} title="What was this visit about?" hint={draft.topics.length > 1 ? '★ marks the main focus' : 'Choose one or more'}>
           <div className="flex flex-wrap gap-2">
             {TOPICS.map((t) => {
               const on = draft.topics.includes(t.id);
