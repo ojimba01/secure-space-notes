@@ -213,17 +213,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           </Button>
           {isAdmin && (
             <Button
-              data-tutorial="billing-nav"
-              variant={routeVariant('/billing')}
-              className="w-full justify-start gap-2"
-              onClick={() => handleNavigate('/billing')}
-            >
-              <DollarSign className="h-4 w-4" />
-              Billing
-            </Button>
-          )}
-          {isAdmin && (
-            <Button
               variant={routeVariant('/workbook')}
               className="w-full justify-start gap-2"
               onClick={() => handleNavigate('/workbook')}
@@ -245,6 +234,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             {isAdmin ? 'Team touchpoints' : 'My touchpoints'}
           </Button>
 
+          {isAdmin && (
+            <Button
+              data-tutorial="billing-nav"
+              variant={routeVariant('/billing')}
+              className="w-full justify-start gap-2"
+              onClick={() => handleNavigate('/billing')}
+            >
+              <DollarSign className="h-4 w-4" />
+              Billing
+            </Button>
+          )}
           <Button
             variant={viewVariant('calendar')}
             className="w-full justify-start gap-2"

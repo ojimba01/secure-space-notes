@@ -117,9 +117,9 @@ async function noteRest(p) {
   await inStep(p, 'What was the result?', 'Barrier').click();
   await inStep(p, 'What was the result?', 'Waiting on a third party').click();
   await inStep(p, 'How did the client respond?', 'Requested help').click();
-  await inStep(p, 'Next steps', 'CM').click();
-  await inStep(p, 'Next steps', 'Follow up').click();
-  await inStep(p, 'Next steps', 'In 1 week').click();
+  await inStep(p, 'Who is responsible for the next step?', 'CM').click();
+  await inStep(p, 'Who is responsible for the next step?', 'Follow up').click();
+  await inStep(p, 'Who is responsible for the next step?', 'In 1 week').click();
   await wait(p, 400);
 }
 async function backlogOpen(p) {
@@ -150,9 +150,9 @@ async function draftNoteReady(p) {
   await step('What did CM do?', 'Landlord').click();
   await step('What was the result?', 'Pending').click();
   await step('How did the client respond?', 'Agreed with plan').click();
-  await step('Next steps', 'CM').click();
-  await step('Next steps', 'Follow up').click();
-  await step('Next steps', 'In 1 week').click();
+  await step('Who is responsible for the next step?', 'CM').click();
+  await step('Who is responsible for the next step?', 'Follow up').click();
+  await step('Who is responsible for the next step?', 'In 1 week').click();
   await p.getByRole('button', { name: /Generate note/ }).click();
   await wait(p, 800);
   await p.getByRole('checkbox').click();
@@ -278,7 +278,7 @@ const SHOTS = {
     { as: 'staff', go: (p) => openClient(p, 'c-2', 'Touchpoints'), target: (p) => btn(p, 'Clinical note', true), label: 'Clinical note' },
     { as: 'staff', go: openNoteBuilder, target: (p) => inStep(p, 'What was this meeting about?', 'Benefits'), label: 'Choose the topic' },
     { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); }, target: (p) => dialog(p).locator('section', { hasText: 'What topics did you discuss?' }).locator('.rounded-lg').first(), label: 'One choice at a time' },
-    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); }, target: (p) => dialog(p).locator('section', { hasText: 'Next steps' }), label: 'Skip what does not apply' },
+    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); }, target: (p) => dialog(p).locator('section', { hasText: 'Who is responsible for the next step?' }), label: 'Skip what does not apply' },
     { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); }, target: (p) => dialog(p).locator('aside section').last(), label: 'Your note' },
     { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); await dialog(p).getByRole('checkbox').click(); await wait(p, 300); }, target: (p) => btn(p, 'Use this note', true), label: 'Use this note' },
   ],

@@ -9,7 +9,7 @@
 // Off until the ANTHROPIC_API_KEY secret is set. Turn it on only under a HIPAA
 // Business Associate Agreement with Anthropic: the typed "anything else" text
 // can contain client information. No client name or ID is sent; the note says
-// "the consumer".
+// "the client".
 import Anthropic from 'npm:@anthropic-ai/sdk';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -28,9 +28,9 @@ Rules:
 - Use only the facts given. Do not add, infer or assume anything: no mood, mental status, cooperation, understanding, motivation, success, or outcome that is not stated.
 - Do not add names of people, agencies, landlords, providers, programs or places. Do not add dates, numbers or amounts.
 - Keep every fact in the draft. Do not soften, strengthen or merge facts into new claims.
-- Refer to the case manager as "CM" and the client as "consumer".
-- Legal matters stay as the consumer's reported concerns, never as conclusions.
-- Keep the order: reason for contact, consumer update, CM's assistance, result or barrier, next steps. Usually 3 to 6 sentences; do not lengthen it.
+- Refer to the case manager as "CM" and the client as "client".
+- Legal matters stay as the client's reported concerns, never as conclusions.
+- Keep the order: reason for contact, client update, CM's assistance, result or barrier, next steps. Usually 3 to 6 sentences; do not lengthen it.
 - No headings, bullets or quotation marks. Reply with the note text only.`;
 
 interface Body {
@@ -43,7 +43,7 @@ interface Body {
 /** Capitalized words, numbers and dates in a text, minus sentence starts and our own terms. */
 function specifics(text: string): Set<string> {
   const out = new Set<string>();
-  const allowed = new Set(['CM', 'Consumer', 'The', 'A', 'An', 'No', 'This', 'There', 'Next', 'Progress', 'Awaiting']);
+  const allowed = new Set(['CM', 'Client', 'The', 'A', 'An', 'No', 'This', 'There', 'Next', 'Progress', 'Awaiting']);
   for (const sentence of text.split(/(?<=[.!?])\s+/)) {
     const words = sentence.split(/\s+/);
     words.forEach((w, i) => {

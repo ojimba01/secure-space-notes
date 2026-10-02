@@ -1,8 +1,8 @@
 // Turns a case manager's selections into a progress note.
 //
 // Only what was selected or typed goes in. The note follows the usual order:
-// why the contact happened, the consumer's update, what CM did, the result,
-// the consumer's response, anything typed, and the next step. A section with
+// why the contact happened, the client's update, what CM did, the result,
+// the client's response, anything typed, and the next step. A section with
 // nothing selected is left out rather than padded.
 //
 // `variant` picks among equivalent wordings, so "Regenerate wording" reads
@@ -45,7 +45,8 @@ export interface NoteDraft {
   response: string[];
   responseOther: string;
   next: {
-    who: string;
+    /** Who is responsible: CM, Consumer, Third party, or None alone. A single string in older drafts. */
+    who: string[] | string;
     cm: string[];
     consumer: string[];
     third: string[];
@@ -94,7 +95,7 @@ function purpose(draft: NoteDraft, contact: ContactFacts, v: number): string {
   const subject = about.length ? joinList(about) : '';
   const method = contact.method ?? 'other';
 
-  // Care coordination is often with a provider, not the consumer.
+  // Care coordination is often with a provider, not the client.
   if (primary.id === 'care_coordination') {
     const means = METHOD_MEANS[method] ?? '';
     return `${TERMS.cm} completed care coordination for the ${TERMS.client}${means ? ` ${means}` : ''}${
@@ -167,10 +168,20 @@ function when(next: NonNullable<NoteDraft['next']>): string {
   return next.timing ? TIMING[next.timing] ?? '' : '';
 }
 
+/** Who is responsible for the next step, read from new and older drafts ("Both" was CM and the client). */
+export function nextWho(next: NoteDraft['next']): string[] {
+  if (!next) return [];
+  const w = next.who;
+  if (Array.isArray(w)) return w;
+  return w === 'Both' ? ['CM', 'Consumer'] : w ? [w] : [];
+}
+
 function nextSteps(draft: NoteDraft, v: number): string[] {
   const n = draft.next;
   if (!n) return [];
-  if (n.who === 'None') return [choose(v, ['No further action is needed at this time.', 'No next step is needed at this time.'])];
+  const who = nextWho(n);
+  if (!who.length) return [];
+  if (who.includes('None')) return [choose(v, ['No further action is needed at this time.', 'No next step is needed at this time.'])];
   const timing = when(n);
   const tail = timing ? ` ${timing}` : '';
   const typed = n.other.trim();
@@ -178,15 +189,15 @@ function nextSteps(draft: NoteDraft, v: number): string[] {
     chosen.map((c) => (c === 'Other' ? typed : map[c])).filter(Boolean);
   const out: string[] = [];
 
-  if (n.who === 'CM' || n.who === 'Both') {
+  if (who.includes('CM')) {
     const p = phrases(n.cm, NEXT_CM);
     if (p.length) out.push(choose(v, [`${TERMS.cm} will ${joinList(p)}${tail}.`, `${TERMS.cm} plans to ${joinList(p)}${tail}.`]));
   }
-  if (n.who === 'Consumer' || n.who === 'Both') {
+  if (who.includes('Consumer')) {
     const p = phrases(n.consumer, NEXT_CONSUMER);
     if (p.length) out.push(choose(v + 1, [`${TERMS.Client} will ${joinList(p)}${tail}.`, `${TERMS.Client} is to ${joinList(p)}${tail}.`]));
   }
-  if (n.who === 'Third party') {
+  if (who.includes('Third party')) {
     const party = THIRD_PARTIES[n.thirdWho ?? ''] ?? 'a third party';
     const p = n.third.map((c) => (c === 'Other' ? typed : NEXT_THIRD[c]?.(party) ?? '')).filter(Boolean);
     if (!p.length && n.thirdWho) p.push(`a response from ${party}`);
@@ -261,8 +272,8 @@ export function summarize(draft: NoteDraft): SummaryLine[] {
     const what = [...(n.thirdWho ? [n.thirdWho] : []), ...n.cm, ...n.consumer, ...n.third].filter((x) => x !== 'Other');
     if (n.other.trim()) what.push(n.other.trim());
     const t = n.timing === SPECIFIC_DATE ? n.date ?? '' : n.timing ?? '';
-    const who = NEXT_WHO_LABELS[n.who] ?? n.who;
-    out.push({ heading: 'Next', lines: [[who, what.join(', '), t].filter(Boolean).join(' · ')] });
+    const who = nextWho(n).map((w) => NEXT_WHO_LABELS[w] ?? w).join(', ');
+    if (who) out.push({ heading: 'Next', lines: [[who, what.join(', '), t].filter(Boolean).join(' · ')] });
   }
   if (draft.freeText.trim()) out.push({ heading: 'Added detail', lines: [draft.freeText.trim()] });
   return out;

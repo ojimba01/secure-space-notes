@@ -195,7 +195,7 @@ export const GUIDES: Guide[] = [
       s('Select Clinical note', 'Open the client, select the Touchpoints tab, then select Clinical note.'),
       s('Choose the topic', 'Select what the meeting was about. If you choose more than one, the star marks the main focus.'),
       s('Pick what you talked about', 'Select each topic you discussed and answer its questions, one choice at a time. Select a chosen answer to change it.'),
-      s('Add the rest', 'Select what CM did, the result, how the client responded and who is responsible for the next step. Select Skip for anything that does not apply.'),
+      s('Add the rest', 'Select what CM did, the result, how the client responded and who is responsible for the next step. These cover the whole contact, across all topics. Select Skip for anything that does not apply.'),
       s('Generate the note', 'Select Generate note. It uses only your selections. Select Regenerate wording for different phrasing, or Edit note to change it.'),
       s('Review and save', 'Tick the confirmation, select Use this note, then select Save touchpoint.'),
     ],

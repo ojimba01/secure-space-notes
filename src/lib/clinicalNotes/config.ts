@@ -10,7 +10,7 @@
 // wording" vary the phrasing without changing what is said.
 
 /** Terms used in notes. Change here if the organization changes them. */
-export const TERMS = { cm: 'CM', client: 'consumer', Client: 'Consumer' } as const;
+export const TERMS = { cm: 'CM', client: 'client', Client: 'Client' } as const;
 
 export type Answers = Record<string, string | string[] | undefined>;
 
@@ -991,7 +991,8 @@ export const RESPONSES: Record<string, string[]> = {
   Other: [],
 };
 
-export const NEXT_WHO = ['CM', 'Consumer', 'Both', 'Third party', 'None'] as const;
+/** Who can be responsible for the next step. Several can be picked, except None. */
+export const NEXT_WHO = ['CM', 'Consumer', 'Third party', 'None'] as const;
 
 /** How each NEXT_WHO value is labeled in the builder. The values stay as saved. */
 export const NEXT_WHO_LABELS: Record<string, string> = { CM: TERMS.cm, Consumer: 'Client', Both: 'Both', 'Third party': 'Third party', None: 'No next step' };

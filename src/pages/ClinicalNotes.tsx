@@ -338,10 +338,15 @@ export default function ClinicalNotes() {
               key={composerKey}
               method={method}
               initial={editingDraft?.composed ?? null}
-              useLabel="Copy note"
+              useLabel={
+                <>
+                  <ClipboardCopy className="mr-1.5 h-4 w-4" />
+                  Copy note
+                </>
+              }
               onUse={(c) => void copy(c.final, toast)}
               extraActions={(c) => (
-                <Button variant="outline" disabled={!c} onClick={() => c && void saveAsDraft(c)}>
+                <Button className="bg-emerald-600 text-white hover:bg-emerald-700" disabled={!c} onClick={() => c && void saveAsDraft(c)}>
                   {editingDraft ? 'Update draft' : 'Save draft'}
                 </Button>
               )}

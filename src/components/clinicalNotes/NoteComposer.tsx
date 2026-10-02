@@ -40,6 +40,7 @@ import {
   emptyDraft,
   generateNote,
   itemComplete,
+  nextWho,
   summarize,
   type NoteDraft,
 } from '@/lib/clinicalNotes/generate';
@@ -235,7 +236,7 @@ interface Props {
   /** Start from an earlier note (a draft being finished). */
   initial?: ComposedNote | null;
   /** The main button, after review. */
-  useLabel: string;
+  useLabel: React.ReactNode;
   onUse: (note: ComposedNote) => void;
   /** Called when the primary topic changes, so a touchpoint type can follow it. */
   onPrimaryTopic?: (topicId: string | null) => void;
@@ -296,8 +297,12 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
     actions: draft.actions.some((a) => a.group === 'other' || a.options.length > 0) || !!skipped.actions,
     result: (!!draft.result && (draft.result.value !== 'Barrier' || !!draft.result.barrier)) || !!skipped.result,
     response: draft.response.length > 0 || !!skipped.response,
-    next: (!!draft.next && (draft.next.who === 'None' || !!draft.next.timing || [...draft.next.cm, ...draft.next.consumer, ...draft.next.third].length > 0 || !!draft.next.thirdWho)) || !!skipped.next,
+    next: (!!draft.next && (nextWho(draft.next).includes('None') || !!draft.next.timing || [...draft.next.cm, ...draft.next.consumer, ...draft.next.third].length > 0 || !!draft.next.thirdWho)) || !!skipped.next,
   };
+  const who = nextWho(draft.next);
+  // With several topics, steps 3 to 6 are for the whole contact, not one topic.
+  const acrossTopics = draft.topics.length > 1 ? 'Covers all topics' : '';
+  const hint = (...parts: string[]) => parts.filter(Boolean).join('. ') || undefined;
   const encourageText = draft.topics.some((t) => topicById(t)?.encourageFreeText);
 
   // ---- generating
@@ -469,7 +474,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 3. What CM did */}
         {stepDone.topic && stepDone.details && (
-          <Step n={3} title={`What did ${TERMS.cm} do?`} hint="Select all that apply" onSkip={stepDone.actions ? undefined : () => setSkipped((s) => ({ ...s, actions: true }))}>
+          <Step n={3} title={`What did ${TERMS.cm} do?`} hint={hint(acrossTopics, 'Select all that apply')} onSkip={stepDone.actions ? undefined : () => setSkipped((s) => ({ ...s, actions: true }))}>
             <div className="flex flex-wrap gap-2">
               {[...ACTIONS.map((a) => ({ id: a.id, label: a.label })), { id: 'other', label: 'Other' }].map((a) => (
                 <Chip
@@ -525,7 +530,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 4. Result */}
         {stepDone.topic && stepDone.details && stepDone.actions && (
-          <Step n={4} title="What was the result?" onSkip={stepDone.result ? undefined : () => setSkipped((s) => ({ ...s, result: true }))}>
+          <Step n={4} title="What was the result?" hint={hint(acrossTopics)} onSkip={stepDone.result ? undefined : () => setSkipped((s) => ({ ...s, result: true }))}>
             <div className="flex flex-wrap gap-2">
               {Object.keys(RESULTS).map((r) => (
                 <Chip
@@ -563,7 +568,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 5. Consumer response (optional) */}
         {stepDone.topic && stepDone.details && stepDone.actions && stepDone.result && (
-          <Step n={5} title="How did the client respond?" hint="Optional" onSkip={stepDone.response ? undefined : () => setSkipped((s) => ({ ...s, response: true }))}>
+          <Step n={5} title="How did the client respond?" hint={hint(acrossTopics, 'Optional')} onSkip={stepDone.response ? undefined : () => setSkipped((s) => ({ ...s, response: true }))}>
             <div className="flex flex-wrap gap-2">
               {Object.keys(RESPONSES).map((r) => (
                 <Chip key={r} selected={draft.response.includes(r)} onClick={() => update((d) => ({ ...d, response: toggle(d.response, r) }))}>
@@ -579,33 +584,54 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 6. Next step */}
         {stepDone.topic && stepDone.details && stepDone.actions && stepDone.result && stepDone.response && (
-          <Step n={6} title="Next steps" onSkip={stepDone.next ? undefined : () => setSkipped((s) => ({ ...s, next: true }))}>
-            <p className="text-xs font-medium text-muted-foreground">Who is responsible for the next step?</p>
+          <Step
+            n={6}
+            title="Who is responsible for the next step?"
+            hint={hint(acrossTopics, 'Select all that apply')}
+            onSkip={stepDone.next ? undefined : () => setSkipped((s) => ({ ...s, next: true }))}
+          >
             <div className="flex flex-wrap gap-2">
               {NEXT_WHO.map((w) => (
                 <Chip
                   key={w}
-                  selected={draft.next?.who === w}
+                  selected={who.includes(w)}
                   onClick={() =>
-                    update((d) => ({
-                      ...d,
-                      next: d.next?.who === w ? null : { who: w, cm: [], consumer: [], third: [], thirdWho: undefined, other: '', timing: d.next?.timing, date: d.next?.date },
-                    }))
+                    update((d) => {
+                      const cur = nextWho(d.next);
+                      // "No next step" stands alone; picking anyone else clears it.
+                      const list = cur.includes(w) ? cur.filter((x) => x !== w) : w === 'None' ? ['None'] : [...cur.filter((x) => x !== 'None'), w];
+                      if (!list.length) return { ...d, next: null };
+                      const prev: NonNullable<NoteDraft['next']> = d.next ?? { who: [], cm: [], consumer: [], third: [], other: '' };
+                      return {
+                        ...d,
+                        next: {
+                          ...prev,
+                          who: list,
+                          // Answers for someone no longer responsible are dropped.
+                          cm: list.includes('CM') ? prev.cm : [],
+                          consumer: list.includes('Consumer') ? prev.consumer : [],
+                          third: list.includes('Third party') ? prev.third : [],
+                          thirdWho: list.includes('Third party') ? prev.thirdWho : undefined,
+                          timing: list.includes('None') ? undefined : prev.timing,
+                          date: list.includes('None') ? undefined : prev.date,
+                        },
+                      };
+                    })
                   }
                 >
                   {NEXT_WHO_LABELS[w]}
                 </Chip>
               ))}
             </div>
-            {draft.next && draft.next.who !== 'None' && (
+            {draft.next && who.length > 0 && !who.includes('None') && (
               <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
-                {(draft.next.who === 'CM' || draft.next.who === 'Both') && (
+                {who.includes('CM') && (
                   <NextChoices label={`What will ${TERMS.cm} do?`} options={NEXT_CM} value={draft.next.cm} onChange={(cm) => update((d) => ({ ...d, next: { ...d.next!, cm } }))} />
                 )}
-                {(draft.next.who === 'Consumer' || draft.next.who === 'Both') && (
+                {who.includes('Consumer') && (
                   <NextChoices label="What will the client do?" options={NEXT_CONSUMER} value={draft.next.consumer} onChange={(consumer) => update((d) => ({ ...d, next: { ...d.next!, consumer } }))} />
                 )}
-                {draft.next.who === 'Third party' && (
+                {who.includes('Third party') && (
                   <>
                     <div>
                       <p className="mb-1.5 text-xs font-medium text-muted-foreground">Who are you waiting on?</p>

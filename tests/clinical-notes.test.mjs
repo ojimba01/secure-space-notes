@@ -41,14 +41,14 @@ function checkIn() {
 
 test('writes the contact in order: purpose, update, action, response, next step', () => {
   const note = generateNote(checkIn(), { method: 'in_person' }, 0);
-  assert.match(note, /^CM met with the consumer in person for a housing stability check-in and recertification\./);
+  assert.match(note, /^CM met with the client in person for a housing stability check-in and recertification\./);
   assert.match(note, /Rent is current\./);
   assert.match(note, /No (landlord concerns|concerns regarding the landlord) were identified\./);
   assert.match(note, /Income documentation is needed for the recertification\./);
   assert.match(note, /CM reviewed documents and next steps\./);
-  assert.match(note, /Consumer agreed with the plan\./);
+  assert.match(note, /Client agreed with the plan\./);
   assert.match(note, /CM will follow up at the next scheduled contact\./);
-  assert.match(note, /Consumer (will|is to) gather the required documents at the next scheduled contact\./);
+  assert.match(note, /Client (will|is to) gather the required documents at the next scheduled contact\./);
 });
 
 test('adds nothing that was not selected', () => {
@@ -78,7 +78,7 @@ test('leaves out sections with nothing selected', () => {
   d.topicContext = { benefits: { type: 'SNAP' } };
   d.items = { benefits: [{ id: 'change', answers: { v: 'Interrupted' } }] };
   const note = generateNote(d, { method: 'phone' }, 0);
-  assert.equal(note, 'CM contacted the consumer by phone regarding benefits. SNAP benefits were interrupted.');
+  assert.equal(note, 'CM contacted the client by phone regarding benefits. SNAP benefits were interrupted.');
 });
 
 test('legal concerns are reported, never concluded', () => {
@@ -86,7 +86,7 @@ test('legal concerns are reported, never concluded', () => {
   d.topics = ['legal'];
   d.items = { legal: [{ id: 'discrimination_concern', answers: { actions: ['Provided legal resource'] } }] };
   const note = generateNote(d, { method: 'in_person' }, 0);
-  assert.match(note, /Consumer reported concerns regarding possible discrimination\./);
+  assert.match(note, /Client reported concerns regarding possible discrimination\./);
   assert.match(note, /CM provided a legal resource\./);
 });
 
@@ -95,13 +95,13 @@ test('an unfinished item is not written', () => {
   d.topics = ['application'];
   d.items = { application: [{ id: 'documents', answers: { type: 'Income' } }] };
   assert.equal(canGenerate(d), false);
-  assert.equal(generateNote(d, { method: 'phone' }, 0), 'CM contacted the consumer by phone regarding the housing application.');
+  assert.equal(generateNote(d, { method: 'phone' }, 0), 'CM contacted the client by phone regarding the housing application.');
 });
 
 test('typed detail is tidied, not rewritten', () => {
   const d = checkIn();
-  d.freeText = '  consumer mentioned a new roommate  ';
-  assert.match(generateNote(d, { method: 'in_person' }, 0), / Consumer mentioned a new roommate\. /);
+  d.freeText = '  client mentioned a new roommate  ';
+  assert.match(generateNote(d, { method: 'in_person' }, 0), / Client mentioned a new roommate\. /);
 });
 
 test('the summary is short lines, not prose', () => {
@@ -110,15 +110,15 @@ test('the summary is short lines, not prose', () => {
   assert.deepEqual(s[1].lines, ['Deadline: Upcoming', 'Documents: Income → Needed']);
 });
 
-test('the opening says CM contacted or met with the consumer', () => {
+test('the opening says CM contacted or met with the client', () => {
   const d = emptyDraft();
   d.topics = ['landlord'];
   for (const [method, start] of [
-    ['phone', 'CM contacted the consumer by phone'],
-    ['text', 'CM contacted the consumer by text'],
-    ['email', 'CM contacted the consumer by email'],
-    ['in_person', 'CM met with the consumer in person'],
-    ['other', 'CM contacted the consumer'],
+    ['phone', 'CM contacted the client by phone'],
+    ['text', 'CM contacted the client by text'],
+    ['email', 'CM contacted the client by email'],
+    ['in_person', 'CM met with the client in person'],
+    ['other', 'CM contacted the client'],
   ]) {
     assert.ok(generateNote(d, { method }, 0).startsWith(start), method);
   }
@@ -128,8 +128,8 @@ test('a third party next step names who it is', () => {
   const d = emptyDraft();
   d.topics = ['application'];
   d.items = { application: [{ id: 'status', answers: { v: 'Pending' } }] };
-  d.next = { who: 'Third party', cm: [], consumer: [], third: ['Make a decision'], thirdWho: 'Parent or guardian', other: '' };
-  assert.match(generateNote(d, { method: 'phone' }, 0), /(Next step is pending|Awaiting) a decision from the consumer's parent or guardian\./);
+  d.next = { who: ['Third party'], cm: [], consumer: [], third: ['Make a decision'], thirdWho: 'Parent or guardian', other: '' };
+  assert.match(generateNote(d, { method: 'phone' }, 0), /(Next step is pending|Awaiting) a decision from the client's parent or guardian\./);
 });
 
 test('apartment issues and specific needs read plainly', () => {
@@ -144,7 +144,7 @@ test('apartment issues and specific needs read plainly', () => {
   };
   const note = generateNote(d, { method: 'in_person' }, 0);
   assert.match(note, /A new apartment heat, water or power issue was (identified|noted)\./);
-  assert.match(note, /(Consumer is running low on food|Food is running low)\./);
+  assert.match(note, /(Client is running low on food|Food is running low)\./);
   assert.match(note, /referral (was made for|for) transportation to a medical appointment/);
 });
 
@@ -179,11 +179,11 @@ test('next steps: both parties, no next step, and a specific date', () => {
   const d = emptyDraft();
   d.topics = ['landlord'];
   d.items = { landlord: [{ id: 'rent', answers: { v: 'Late' } }] };
-  d.next = { who: 'Both', cm: ['Contact landlord or property'], consumer: ['Make payment'], third: [], other: '', timing: 'On a specific date', date: '2026-10-15' };
+  d.next = { who: ['CM', 'Consumer'], cm: ['Contact landlord or property'], consumer: ['Make payment'], third: [], other: '', timing: 'On a specific date', date: '2026-10-15' };
   const note = generateNote(d, { method: 'phone' });
   assert.match(note, /CM (will|plans to) contact the landlord or property by October 15, 2026\./);
-  assert.match(note, /Consumer (will|is to) make a payment by October 15, 2026\./);
-  d.next = { who: 'None', cm: [], consumer: [], third: [], other: '' };
+  assert.match(note, /Client (will|is to) make a payment by October 15, 2026\./);
+  d.next = { who: ['None'], cm: [], consumer: [], third: [], other: '' };
   assert.match(generateNote(d, { method: 'phone' }), /No (further action|next step) is needed at this time\.$/);
   assert.equal(summarize(d).at(-1).lines[0], 'No next step');
 });
@@ -198,4 +198,31 @@ test('backlog: one 30-day cycle per row, five for 150 days, six with the extensi
   assert.equal(six.length, 6);
   assert.deepEqual(six[5], { n: 6, start: '2026-05-31', end: '2026-06-29' });
   assert.deepEqual(mod.backlogCycles('', false), []);
+});
+
+test('next step: several can be responsible, and older "Both" drafts still read', () => {
+  const d = emptyDraft();
+  d.topics = ['landlord'];
+  d.items = { landlord: [{ id: 'rent', answers: { v: 'Late' } }] };
+  d.next = { who: ['CM', 'Third party'], cm: ['Follow up'], consumer: [], third: ['Respond'], thirdWho: 'Landlord or property', other: '' };
+  const note = generateNote(d, { method: 'phone' });
+  assert.match(note, /CM (will|plans to) follow up\./);
+  assert.match(note, /(Next step is pending|Awaiting) a response from the landlord or property\./);
+  assert.equal(summarize(d).at(-1).lines[0], 'CM, Third party · Landlord or property, Follow up, Respond');
+  // Saved before several could be picked: "Both" is CM and the client.
+  d.next = { who: 'Both', cm: ['Follow up'], consumer: ['Make payment'], third: [], other: '' };
+  const old = generateNote(d, { method: 'phone' });
+  assert.match(old, /CM (will|plans to) follow up\./);
+  assert.match(old, /Client (will|is to) make a payment\./);
+});
+
+test('notes say client, never consumer', () => {
+  for (const topic of mod.TOPICS) {
+    const d = emptyDraft();
+    d.topics = [topic.id];
+    d.items = { [topic.id]: topic.items.map((it) => ({ id: it.id, answers: Object.fromEntries(it.questions.map((q) => [q.key, q.multi ? [q.options[0]] : q.options[0]])) })) };
+    d.response = ['Agreed with plan'];
+    d.next = { who: ['Consumer'], cm: [], consumer: ['Gather documents'], third: [], other: '' };
+    assert.doesNotMatch(generateNote(d, { method: 'phone' }), /consumer/i, topic.id);
+  }
 });
