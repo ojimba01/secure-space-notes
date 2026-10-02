@@ -230,6 +230,8 @@ export default function ClinicalNotes() {
   const activeCycle = visit === 'old' && backlogStart && backlogCycle ? backlogCycles(backlogStart, backlogExt).find((x) => x.n === backlogCycle) ?? null : null;
   // The note builder shows once the visit is set up: a recent visit, or an old one with its cycle.
   const ready = visit === 'recent' || !!activeCycle;
+  // A backlog cycle is chosen: the name and the cycle are all there is to set up.
+  const cycleHeader = mode === 'draft' && !!activeCycle;
   const open = openLabel !== null ? { label: openLabel, ...backlogFor(openLabel) } : null;
 
   return (
@@ -249,6 +251,25 @@ export default function ClinicalNotes() {
         {tab === 'new' && (
           <>
             <Card className="space-y-3 p-4">
+              {cycleHeader && activeCycle ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <div>
+                    <p className="text-lg font-semibold">{clientLabel.trim()}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Cycle {activeCycle.n} · {cycleDates(activeCycle)}
+                    </p>
+                  </div>
+                  <div className="ml-auto flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => openCycles()}>
+                      Change cycle
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setBacklogCycle(null); setEditingDraft(null); setComposerKey((k) => k + 1); }}>
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+              <>
               <h2 className="font-semibold">Create note for</h2>
               <div className="flex flex-wrap gap-2">
                 <Chip selected={mode === 'client'} onClick={() => setMode('client')}>
@@ -324,12 +345,7 @@ export default function ClinicalNotes() {
                 </div>
               )}
 
-              {mode === 'draft' && visit === 'old' && activeCycle && (
-                <p className="text-sm">
-                  <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">
-                    Cycle {activeCycle.n} · {cycleDates(activeCycle)}
-                  </span>
-                </p>
+              </>
               )}
 
               {mode === 'draft' && ready && (

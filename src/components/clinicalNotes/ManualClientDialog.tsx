@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { ClientPicker, type PickableClient } from '@/components/ClientPicker';
 import { cn } from '@/lib/utils';
 import { topicById } from '@/lib/clinicalNotes/config';
+import { categoryById } from '@/lib/clinicalNotes/tree';
 import { backlogCycles, cycleDates, day, type BacklogCycle } from '@/lib/clinicalNotes/backlog';
 import { loadBacklogNotes, type DraftNote } from '@/lib/clinicalNotes/save';
 
@@ -146,7 +147,7 @@ export const ManualClientDialog: React.FC<Props> = (props) => {
               {drafts.map((d) => (
                 <li key={d.id} className="space-y-2 p-3">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-semibold text-foreground">{topicById(d.primary_topic ?? '')?.label ?? 'Note'}</span>
+                    <span className="font-semibold text-foreground">{categoryById(d.primary_topic ?? '')?.label ?? topicById(d.primary_topic ?? '')?.label ?? 'Note'}</span>
                     {d.backlog_cycle && <span className="rounded-full bg-muted px-2 py-0.5 font-medium">Cycle {d.backlog_cycle}</span>}
                     {d.contact_date && <span>Contact {day(d.contact_date)}</span>}
                     <span>Saved {format(new Date(d.updated_at), "MMM d 'at' h:mm a")}</span>

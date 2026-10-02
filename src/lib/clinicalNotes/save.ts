@@ -38,8 +38,9 @@ export function noteRow(c: ComposedNote, contact: NoteContact, finalText?: strin
     service_type: contact.serviceType ?? null,
     location: contact.location ?? null,
     progress_note_type: contact.progressNoteType ?? null,
-    primary_topic: d.topics[0] ?? null,
-    secondary_topics: d.topics.slice(1),
+    // The categories picked (v3), or the topics of an older draft.
+    primary_topic: (d.v === 3 ? d.tree?.categories[0] : d.topics[0]) ?? null,
+    secondary_topics: d.v === 3 ? d.tree?.categories.slice(1) ?? [] : d.topics.slice(1),
     selections: d,
     // Answered per activity, each entry names its activity.
     interventions: (isSplit(d, 'actions') ? d.activities.map((id) => ({ id, p: partFor(d, id) })) : [{ id: null, p: d as ActivityPart }]).flatMap(({ id, p }) =>

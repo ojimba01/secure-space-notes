@@ -28,6 +28,7 @@ import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
+import { TOUCHPOINT_TOPIC } from '@/lib/clinicalNotes/tree';
 import { isCaseClosed, isSetupComplete } from '@/lib/workflow';
 import {
   CONTACT_METHOD_OPTIONS, TOUCHPOINT_TYPES, contactMethodLabel, touchpointTypeLabel,
@@ -199,7 +200,9 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
       setLocation(defaultNjhmisLocation(fromDraft.contactMethod));
       setFaceToFace(isInPersonMethod(fromDraft.contactMethod) ? 'yes' : 'no');
     }
-    const draftTopic = fromDraft?.composed.draft.topics[0];
+    const fd = fromDraft?.composed.draft;
+    // A v3 note records its first category; an older one its first topic.
+    const draftTopic = fd?.v === 3 ? TOUCHPOINT_TOPIC[fd.tree?.categories[0] ?? ''] : fd?.topics[0];
     if (draftTopic) setTouchpointType(topicById(draftTopic)?.touchpointType ?? 'general_checkin');
     setBuilderOpen(!!startWithBuilder && !fromDraft);
     setCopied(false);

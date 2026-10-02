@@ -9,7 +9,7 @@ import { build } from 'esbuild';
 
 const bundle = await build({
   stdin: {
-    contents: `export * from './src/lib/clinicalNotes/generate'; export * from './src/lib/clinicalNotes/config'; export * from './src/lib/clinicalNotes/backlog';`,
+    contents: `export * from './src/lib/clinicalNotes/generate'; export * from './src/lib/clinicalNotes/config'; export * from './src/lib/clinicalNotes/backlog'; export * as tree from './src/lib/clinicalNotes/tree';`,
     resolveDir: process.cwd(),
     loader: 'ts',
   },
@@ -17,7 +17,14 @@ const bundle = await build({
   alias: { '@': `${process.cwd()}/src` },
 });
 const mod = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
-const { generateNote, emptyDraft, summarize, canGenerate } = mod;
+const { generateNote, summarize, canGenerate } = mod;
+/** An older (topics-based) draft: these must keep reading as they always did. */
+const emptyDraft = () => {
+  const d = mod.emptyDraft();
+  delete d.v;
+  delete d.tree;
+  return d;
+};
 
 /** A check-in about rent and recertification, close to the example in the brief. */
 function checkIn() {
@@ -329,9 +336,9 @@ test('new detail sections write one claim per choice', () => {
   assert.doesNotMatch(note, /legal advice|No home safety concern/);
 });
 
-test('"visit" only for a phone call', () => {
-  assert.equal(mod.contactWord('phone'), 'visit');
-  for (const m of ['in_person', 'text', 'email', 'virtual', 'other', null]) assert.equal(mod.contactWord(m), 'contact');
+test('"visit" only when in person', () => {
+  assert.equal(mod.contactWord('in_person'), 'visit');
+  for (const m of ['phone', 'text', 'email', 'virtual', 'other', null]) assert.equal(mod.contactWord(m), 'contact');
 });
 
 test('new choices name one thing each', () => {
@@ -387,4 +394,132 @@ test('a barrier for one activity reads under that activity', () => {
   const note = generateNote(d, { method: 'in_person' });
   assert.match(note, /Regarding housing search assistance, (barriers affecting the housing goal: housing availability|the housing goal was affected by housing availability)\./);
   assert.match(note, /Regarding budgeting support, no barriers were (identified|noted)\./);
+});
+
+// ---- the button-only tree (v3) ----------------------------------------------
+
+const T = mod.tree;
+const v3 = () => mod.emptyDraft();
+
+/** Picks and answers that make a question asked: its first trigger item, its gating answer. */
+function setupFor(c, q) {
+  const t = T.emptyTree();
+  t.categories = [c.id];
+  const item = q.items?.[0] ?? q.when?.[0] ?? c.items[0].id;
+  t.picks[c.id] = [item];
+  if (q.whenAnswer) t.answers[T.answerKey(c.id, q.whenAnswer.q)] = q.whenAnswer.is;
+  if (q.perAnswerOf) t.answers[T.answerKey(c.id, q.perAnswerOf)] = ['Photo ID'];
+  return { t, per: q.perItem ? item : q.perAnswerOf ? 'Photo ID' : undefined };
+}
+
+test('v3: a category alone writes nothing', () => {
+  const d = v3();
+  d.tree.categories = ['housing_assistance', 'lease_tenancy'];
+  assert.equal(canGenerate(d), false);
+  assert.equal(generateNote(d, { method: 'phone' }), 'CM contacted the member by phone.');
+});
+
+test('v3: every item and every answer writes its own definite sentence', () => {
+  for (const c of T.CATEGORIES) {
+    for (const item of c.items) {
+      const t = T.emptyTree();
+      t.categories = [c.id];
+      t.picks[c.id] = [item.id];
+      const out = T.categorySentences(t, c.id);
+      if (item.say) assert.ok(out.includes(item.say), `${c.id}/${item.id}`);
+    }
+    for (const q of c.questions) {
+      const answers = q.says ? Object.keys(q.says) : Object.keys(q.phrases ?? {});
+      for (const a of answers) {
+        const { t, per } = setupFor(c, q);
+        t.answers[T.answerKey(c.id, q.id, per)] = q.multi ? [a] : a;
+        const text = T.categorySentences(t, c.id).join(' ');
+        const expect = q.says?.[a] ?? (q.phrases?.[a] && q.sentence ? q.sentence(q.phrases[a], 1) : '');
+        if (expect && !expect.includes('{')) assert.ok(text.includes(expect), `${c.id}/${q.id}/${a}: ${text}`);
+        assert.doesNotMatch(text, /\{x\}|\{X\}|undefined/, `${c.id}/${q.id}/${a}`);
+        assert.doesNotMatch(text, /\bor\b/, `${c.id}/${q.id}/${a}`);
+      }
+    }
+  }
+});
+
+test('v3: no choice anywhere says "or"', () => {
+  const labels = [
+    ...T.CATEGORIES.flatMap((c) => [c.label, ...c.items.map((i) => i.label), ...c.questions.flatMap((q) => Object.keys(q.says ?? q.phrases ?? {}))]),
+    ...Object.keys(T.GOALS), ...Object.keys(T.PROMPTS), ...Object.keys(T.HOUSING), ...Object.keys(T.HOUSING_CHANGE),
+    ...Object.keys(T.RESULT), ...Object.keys(T.UNABLE_BECAUSE), ...Object.keys(T.RESPONSE), ...Object.keys(T.BARRIER),
+    ...Object.keys(T.OWNER), ...Object.values(T.OWNER_ACTIONS).flatMap(Object.keys), ...Object.keys(T.STEP_TIMING), ...Object.keys(T.NEXT_CONTACT_V3),
+  ];
+  for (const l of labels) assert.doesNotMatch(l, /\bor\b/, l);
+});
+
+test('v3: a whole note, in order, from buttons only', () => {
+  const d = v3();
+  d.tree.categories = ['housing_assistance', 'care_coordination'];
+  d.tree.picks = { housing_assistance: ['app_assist', 'app_submit'], care_coordination: ['mco'] };
+  d.tree.answers = {
+    'housing_assistance.app_status': 'Submitted',
+    'care_coordination.purpose.mco': 'Referral',
+    'care_coordination.outcome.mco': 'No response',
+  };
+  d.prompts = ['Application update'];
+  d.goals = ['Apply for housing'];
+  d.housing = { status: 'Staying with family', changed: 'No change', change: '' };
+  d.actions = [{ group: 'contacted', options: ['MCO'] }];
+  d.result = { value: 'Pending third-party response' };
+  d.response = ['Agreed with the plan'];
+  d.barriers = { list: ['Waiting for a third party'], other: '', impact: '' };
+  d.steps = [{ who: 'CM', actions: ['Follow up on application'], other: '', timing: 'Within 1 week', goal: '' }];
+  d.nextContact = { kind: 'Within 1 week' };
+  const note = generateNote(d, { method: 'in_person' });
+  assert.equal(
+    note,
+    "CM met with the member in person. The contact was prompted by an application update. This contact supported the member's goal to apply for housing. " +
+      "The member is staying with family. The member's housing status has not changed since the last contact. " +
+      'CM assisted the member with a housing application. CM submitted a housing application. The housing application has been submitted. ' +
+      "CM contacted the member's MCO regarding a referral. No response has been received from the member's MCO. " +
+      "CM contacted the member's MCO. The outcome is pending a third-party response. The member agreed with the plan. " +
+      'Barriers identified: waiting for a third party. CM will follow up on the application within one week. Next contact is planned within one week.',
+  );
+  // "Contacted", never "coordinated", when there was no response.
+  assert.doesNotMatch(note, /coordinat/);
+});
+
+test('v3: unable to complete names why; barrier "none" answers stand alone', () => {
+  const d = v3();
+  d.tree.categories = ['other_service'];
+  d.tree.picks = { other_service: ['followup'] };
+  d.result = { value: 'Unable to complete', reason: 'Member unavailable' };
+  d.barriers = { list: ['No barrier identified'], other: '', impact: '' };
+  const note = generateNote(d, { method: 'phone' });
+  assert.match(note, /The activity could not be completed because the member was unavailable\./);
+  assert.match(note, /No barriers were identified\./);
+});
+
+test('v3: "Service not listed" writes nothing', () => {
+  const d = v3();
+  d.tree.categories = ['other_service'];
+  d.tree.picks = { other_service: [T.NOT_LISTED] };
+  assert.equal(canGenerate(d), false);
+});
+
+test('v3: answers per document, per need, per situation', () => {
+  const d = v3();
+  d.tree.categories = ['benefits_docs', 'basic_needs', 'crisis_support'];
+  d.tree.picks = { benefits_docs: ['docs_gather'], basic_needs: ['transportation'], crisis_support: ['eviction_notice'] };
+  d.tree.answers = {
+    'benefits_docs.doc_types': ['Photo ID', 'Bank statement'],
+    'benefits_docs.doc_status.Photo ID': 'Gathered',
+    'benefits_docs.doc_status.Bank statement': 'Missing',
+    'basic_needs.need_action.transportation': ['Provided a resource'],
+    'basic_needs.transport_for.transportation': 'Medical appointment',
+    'basic_needs.transport_help.transportation': ['Bus pass'],
+    'crisis_support.crisis_status.eviction_notice': 'Ongoing',
+    'crisis_support.crisis_support_needed.eviction_notice': 'Temporary plan in place',
+  };
+  const note = generateNote(d, { method: 'phone' });
+  assert.match(note, /Photo ID has been gathered\. The bank statement is missing\./);
+  assert.match(note, /CM provided a resource for transportation\. Transportation was needed for a medical appointment\. A bus pass was needed\./);
+  assert.match(note, /CM addressed an eviction notice\. The eviction notice is ongoing\. A temporary plan is in place\./);
+  assert.equal(T.categoryComplete(d.tree, 'benefits_docs'), true);
 });

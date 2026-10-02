@@ -42,6 +42,26 @@ import {
   type Answers,
   type Section,
 } from './config';
+import {
+  BARRIER,
+  BARRIER_ALONE,
+  GOALS,
+  HOUSING,
+  HOUSING_CHANGE,
+  NEXT_CONTACT_V3,
+  NOT_LISTED,
+  OWNER,
+  PROMPTS,
+  RESPONSE,
+  RESULT,
+  STEP_TIMING,
+  UNABLE_BECAUSE,
+  actionsFor,
+  categoryById,
+  categorySentences,
+  emptyTree,
+  type TreeState,
+} from './tree';
 
 export const GENERATOR_VERSION = 'clinical-notes-template-v2';
 
@@ -67,13 +87,20 @@ export interface ActivityPart {
   actions: { group: string; options: string[] }[];
   actionsOther: string;
   actionText: Record<string, string>;
-  result: { value: string; barrier?: string; barrierOther?: string } | null;
+  result: { value: string; barrier?: string; barrierOther?: string; reason?: string } | null;
   barriers: { answer?: string; list: string[]; other: string; impact: string };
 }
 
 export const emptyPart = (): ActivityPart => ({ actions: [], actionsOther: '', actionText: {}, result: null, barriers: { list: [], other: '', impact: '' } });
 
 export interface NoteDraft {
+  /** 3 for the button-only answer tree; older drafts have none. */
+  v?: number;
+  /** The answer tree (v3): categories, picked items and their answers. */
+  tree?: TreeState;
+  /** v3: the housing goals and what prompted the contact, as picked. */
+  goals?: string[];
+  prompts?: string[];
   /** The housing support activities that took place, in the order picked. */
   activities: string[];
   /** Typed for "Other activity". */
@@ -96,7 +123,7 @@ export interface NoteDraft {
   actionsOther: string;
   /** Words typed for an action option that asks for them, keyed "group:option". */
   actionText: Record<string, string>;
-  result: { value: string; barrier?: string; barrierOther?: string } | null;
+  result: { value: string; barrier?: string; barrierOther?: string; reason?: string } | null;
   barriers: { answer?: string; list: string[]; other: string; impact: string };
   /** Steps answered separately for each activity (only with more than one activity). */
   split: Partial<Record<SplitStep, boolean>>;
@@ -124,6 +151,10 @@ export interface NoteDraft {
 }
 
 export const emptyDraft = (): NoteDraft => ({
+  v: 3,
+  tree: emptyTree(),
+  goals: [],
+  prompts: [],
   activities: [],
   activityOther: '',
   extraSections: [],
@@ -157,6 +188,15 @@ export function normalizeDraft(d: Partial<NoteDraft> | null | undefined): NoteDr
   x.barriers = { ...e.barriers, ...(d?.barriers ?? {}) };
   x.nextContact = { ...(d?.nextContact ?? {}) };
   x.split = { ...(d?.split ?? {}) };
+  // Saved before the version field: an older draft, read the older way.
+  if (d && d.v === undefined) delete x.v;
+  if (x.v === 3) {
+    x.tree = { ...emptyTree(), ...(d?.tree ?? {}) };
+    x.goals = [...(d?.goals ?? [])];
+    x.prompts = [...(d?.prompts ?? [])];
+    // The split steps work per category.
+    x.activities = [...x.tree.categories];
+  }
   x.byActivity = Object.fromEntries(
     Object.entries(d?.byActivity ?? {}).map(([k, p]) => [k, { ...emptyPart(), ...p, barriers: { ...emptyPart().barriers, ...(p?.barriers ?? {}) } }]),
   );
@@ -170,7 +210,8 @@ export const isSplit = (d: NoteDraft, step: SplitStep) => (d.activities ?? []).l
 export const partFor = (d: NoteDraft, activityId: string): ActivityPart => d.byActivity?.[activityId] ?? emptyPart();
 
 /** How an activity is named on screen. */
-export const activityLabel = (d: NoteDraft, id: string) => (id === 'other' ? d.activityOther.trim() || 'Other activity' : activityById(id)?.label ?? id);
+export const activityLabel = (d: NoteDraft, id: string) =>
+  d.v === 3 ? categoryById(id)?.label ?? id : id === 'other' ? d.activityOther.trim() || 'Other activity' : activityById(id)?.label ?? id;
 
 export interface ContactFacts {
   /** client_contacts.modality, when known. */
@@ -446,9 +487,76 @@ function perActivity(draft: NoteDraft, v: number): string[] {
   });
 }
 
+// ---- the button-only tree (v3) ----------------------------------------------
+
+function resultV3(p: ActivityPart): string[] {
+  const r = p.result;
+  if (!r) return [];
+  if (r.value === 'Unable to complete' && r.reason && UNABLE_BECAUSE[r.reason]) return [`The activity could not be completed because ${UNABLE_BECAUSE[r.reason]}.`];
+  return RESULT[r.value] ? [RESULT[r.value]] : [];
+}
+
+function barriersV3(p: ActivityPart): string[] {
+  const list = p.barriers.list;
+  if (list.includes('No barrier identified')) return ['No barriers were identified.'];
+  if (list.includes('Barrier not assessed')) return ['Barriers were not assessed.'];
+  const ph = list.map((b) => BARRIER[b]).filter(Boolean);
+  return ph.length ? [`Barriers identified: ${joinList(ph)}.`] : [];
+}
+
+function stepV3(s: NextStep): string[] {
+  const owner = OWNER[s.who];
+  if (!owner) return [];
+  const map = actionsFor(s.who);
+  const acts = s.actions.map((a) => map[a]).filter(Boolean);
+  if (!acts.length) return [];
+  const out = [`${owner} will ${joinList(acts)}${STEP_TIMING[s.timing ?? ''] ?? ''}.`];
+  if (s.timing === 'Timing not confirmed') out.push('Timing has not been confirmed.');
+  return out;
+}
+
+/** Sentences in order, each written once (two answers can say the same thing). */
+const once = (list: string[]) => [...new Set(list.filter(Boolean))];
+
+function generateV3(draft: NoteDraft, contact: ContactFacts, v: number): string {
+  const t = draft.tree ?? emptyTree();
+  const method = contact.method ?? 'other';
+  const out: string[] = [`${TERMS.cm} ${choose(v, METHOD_PHRASES[method] ?? METHOD_PHRASES.other)}.`];
+  const prompts = (draft.prompts ?? []).map((p) => PROMPTS[p]).filter(Boolean);
+  if (prompts.length) out.push(`The contact was prompted by ${joinList(prompts)}.`);
+  const goals = (draft.goals ?? []).map((g) => GOALS[g]).filter(Boolean);
+  if (goals.length) out.push(`This contact supported the member's ${goals.length === 1 ? 'goal' : 'goals'} to ${joinList(goals)}.`);
+  if (HOUSING[draft.housing.status ?? '']) out.push(HOUSING[draft.housing.status!]);
+  if (HOUSING_CHANGE[draft.housing.changed ?? '']) out.push(HOUSING_CHANGE[draft.housing.changed!]);
+  // Categories write nothing themselves; the answers beneath them do.
+  for (const c of t.categories) out.push(...categorySentences(t, c));
+  // A step answered once covers the whole contact; one answered per category reads under it.
+  if (!isSplit(draft, 'actions')) out.push(...cmActions(draft, v));
+  const split = SPLIT_STEPS.filter((st) => isSplit(draft, st));
+  if (split.length) {
+    for (const [i, id] of draft.activities.entries()) {
+      const part = partFor(draft, id);
+      const group = [
+        ...(split.includes('actions') ? cmActions(part, v + i) : []),
+        ...(split.includes('result') ? resultV3(part) : []),
+        ...(split.includes('barriers') ? barriersV3(part) : []),
+      ];
+      out.push(...regarding((categoryById(id)?.label ?? '').toLowerCase(), group));
+    }
+  }
+  if (!isSplit(draft, 'result')) out.push(...resultV3(draft));
+  out.push(...draft.response.map((r) => RESPONSE[r]).filter(Boolean));
+  if (!isSplit(draft, 'barriers')) out.push(...barriersV3(draft));
+  if (draft.noNextStep) out.push('No next step was identified.');
+  else out.push(...draft.steps.flatMap(stepV3));
+  if (NEXT_CONTACT_V3[draft.nextContact.kind ?? '']) out.push(NEXT_CONTACT_V3[draft.nextContact.kind!]);
+  return once(out).join(' ');
+}
+
 /** The note for a draft, in wording `variant`. */
 export function generateNote(input: NoteDraft, contact: ContactFacts, variant = 0): string {
   const draft = normalizeDraft(input);
+  if (draft.v === 3) return generateV3(draft, contact, variant);
   const parts = [
     ...purpose(draft, contact, variant),
     ...housing(draft, variant),
@@ -470,6 +578,11 @@ export function generateNote(input: NoteDraft, contact: ContactFacts, variant = 
 /** True when there is enough to write a note: an activity (or older topic) and something said. */
 export function canGenerate(input: NoteDraft): boolean {
   const draft = normalizeDraft(input);
+  // v3: at least one specific answer beneath a category, not a category alone.
+  if (draft.v === 3) {
+    const t = draft.tree ?? emptyTree();
+    return t.categories.some((c) => categorySentences(t, c).length > 0);
+  }
   if (draft.activities.length) return activityPhrases(draft).length > 0;
   if (!draft.topics.length) return false;
   const anyItem = draft.topics.some((t) => (draft.items[t] ?? []).some((p) => itemComplete(t, p.id, p.answers)));
@@ -488,14 +601,30 @@ const show = (a: string | string[] | undefined) => (Array.isArray(a) ? a.join(',
 export function summarize(input: NoteDraft): SummaryLine[] {
   const draft = normalizeDraft(input);
   const out: SummaryLine[] = [];
-  if (draft.activities.length) {
+  if (draft.v === 3) {
+    const t = draft.tree ?? emptyTree();
+    for (const id of t.categories) {
+      const c = categoryById(id);
+      if (!c) continue;
+      const lines = (t.picks[id] ?? []).map((p) => c.items.find((i) => i.id === p)?.label ?? p).filter((l) => l);
+      const answered = Object.entries(t.answers)
+        .filter(([k, a]) => k.startsWith(`${id}.`) && (Array.isArray(a) ? a.length : a))
+        .map(([, a]) => (Array.isArray(a) ? a.join(', ') : a!));
+      if (lines.length) out.push({ heading: c.label, lines: [...lines, ...answered.map((a) => `→ ${a}`)] });
+    }
+    if (draft.goals?.length) out.push({ heading: 'Housing goal', lines: draft.goals });
+    if (draft.prompts?.length) out.push({ heading: 'Prompted by', lines: draft.prompts });
+    const hs = [draft.housing.status, draft.housing.changed].filter(Boolean) as string[];
+    if (hs.length) out.push({ heading: 'Housing status', lines: hs });
+  }
+  if (draft.activities.length && draft.v !== 3) {
     const lines = draft.activities.map((id) => (id === 'other' ? `Other: ${draft.activityOther.trim() || '…'}` : activityById(id)?.label ?? id));
     out.push({ heading: 'Activities', lines });
   }
   const why = [draft.reason.trim() && `Reason: ${draft.reason.trim()}`, draft.goal.trim() && `Goal: ${draft.goal.trim()}`].filter(Boolean) as string[];
   if (why.length) out.push({ heading: 'Reason and goal', lines: why });
   const h = draft.housing;
-  const hl = [h.status, h.changed && `Changed: ${h.changed}${h.changed === 'Yes' && h.change.trim() ? ` → ${h.change.trim()}` : ''}`].filter(Boolean) as string[];
+  const hl = draft.v === 3 ? [] : [h.status, h.changed && `Changed: ${h.changed}${h.changed === 'Yes' && h.change.trim() ? ` → ${h.change.trim()}` : ''}`].filter(Boolean) as string[];
   if (hl.length) out.push({ heading: 'Housing status', lines: hl });
   draft.topics.forEach((id, i) => {
     const topic = topicById(id);
@@ -527,9 +656,11 @@ export function summarize(input: NoteDraft): SummaryLine[] {
     if (step === 'result') {
       const r = p.result;
       if (!r) return [];
+      if (r.reason) return [`${r.value} → ${r.reason}`];
       return [r.value === 'Barrier' && r.barrier ? `Barrier → ${r.barrier === 'Other' ? r.barrierOther || 'Other' : r.barrier}` : r.value];
     }
     const b = p.barriers;
+    if (draft.v === 3) return b.list;
     if (!b.answer) return [];
     const list = b.list.map((x) => (x === 'Other barrier' && b.other.trim() ? b.other.trim() : x));
     return [b.answer === 'Yes' && list.length ? list.join(', ') : b.answer, ...(b.answer === 'Yes' && b.impact.trim() ? [`Impact: ${b.impact.trim()}`] : [])];

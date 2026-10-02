@@ -1162,8 +1162,8 @@ export const activityById = (id: string) => ACTIVITIES.find((a) => a.id === id);
 /** Detail sections that can be added when relevant, beyond what the activities open. */
 export const EXTRA_SECTIONS = ['voucher', 'recertification', 'supportive_housing', 'basic_needs', 'legal', 'checkin'];
 
-/** "visit" for a phone call, "contact" otherwise. */
-export const contactWord = (method?: string | null) => (method === 'phone' ? 'visit' : 'contact');
+/** "visit" when it was in person, "contact" otherwise. */
+export const contactWord = (method?: string | null) => (method === 'in_person' ? 'visit' : 'contact');
 
 export const HOUSING_STATUS: Record<string, string[]> = {
   'Stably housed': [`${TERMS.Client} is stably housed.`, `${TERMS.Client} is currently stably housed.`],
