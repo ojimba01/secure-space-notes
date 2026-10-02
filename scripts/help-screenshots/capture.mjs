@@ -122,26 +122,22 @@ async function noteRest(p) {
   await inStep(p, 'Who is responsible for the next step?', 'In 1 week').click();
   await wait(p, 400);
 }
-async function backlogOpen(p) {
+async function manualOpen(p) {
   await p.goto(`${BASE}/clinical-notes`);
   await wait(p, 2500);
   await btn(p, 'Manual entry', true).click();
-  await p.getByLabel('Client name').fill('Jamie Rivera');
   await wait(p, 300);
 }
-async function backlogReady(p) {
-  await backlogOpen(p);
-  await btn(p, 'Backlog', true).click();
-  await p.getByLabel('150-day start date').fill('2026-03-02');
-  await p.getByText('Include 180-day extension').click();
-  await wait(p, 800);
-}
-async function draftNoteReady(p) {
-  await p.goto(`${BASE}/clinical-notes`);
-  await wait(p, 2500);
-  await btn(p, 'Manual entry', true).click();
+const oldVisit = (p) => p.getByRole('button', { name: /^Old visit/ }).first();
+async function recentReady(p) {
+  await manualOpen(p);
+  await btn(p, 'Recent visit', true).click();
   await p.getByLabel('Client name').fill('Jamie Rivera');
   await btn(p, 'Phone', true).click();
+  await wait(p, 300);
+}
+/** Make the selections for a short landlord note, generate it and tick the review box. */
+async function fillNote(p) {
   const step = (title, name) => p.locator('section', { hasText: title }).getByRole('button', { name, exact: true }).first();
   await step('What was this visit about?', 'Landlord').click();
   await step('What topics did you discuss?', 'Maintenance').click();
@@ -155,8 +151,25 @@ async function draftNoteReady(p) {
   await step('Who is responsible for the next step?', 'In 1 week').click();
   await p.getByRole('button', { name: /Generate note/ }).click();
   await wait(p, 800);
-  await p.getByRole('checkbox').click();
+  await p.getByRole('checkbox').last().click();
   await wait(p, 300);
+}
+async function draftNoteReady(p) {
+  await recentReady(p);
+  await fillNote(p);
+}
+async function oldOpen(p) {
+  await manualOpen(p);
+  await oldVisit(p).click();
+  await p.getByLabel('Client name').fill('Jamie Rivera');
+  await wait(p, 300);
+}
+/** Old visit with the dates in: the cycle popup is open. */
+async function backlogReady(p) {
+  await oldOpen(p);
+  await p.getByText('Include 180-day extension').click();
+  await p.getByLabel('150-day start date').fill('2026-03-02');
+  await wait(p, 1000);
 }
 
 const SHOTS = {
@@ -283,16 +296,17 @@ const SHOTS = {
     { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); await dialog(p).getByRole('checkbox').click(); await wait(p, 300); }, target: (p) => btn(p, 'Use this note', true), label: 'Use this note' },
   ],
   'draft-note': [
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/clinical-notes`); await wait(p, 2500); }, target: (p) => btn(p, 'Manual entry', true), label: 'Manual entry' },
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/clinical-notes`); await wait(p, 2500); await btn(p, 'Manual entry', true).click(); await btn(p, 'Phone', true).click(); await wait(p, 300); }, target: (p) => p.locator('section', { hasText: 'What was this visit about?' }), label: 'Make your selections' },
-    { as: 'staff', go: draftNoteReady, target: (p) => btn(p, 'Save draft', true), label: 'Copy note or Save draft' },
-    { as: 'staff', go: async (p) => { await draftNoteReady(p); await btn(p, 'Save draft', true).click(); await wait(p, 1500); }, target: (p) => btn(p, 'Assign to client'), label: 'Assign to client' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/clinical-notes`).then(() => wait(p, 2500)), target: (p) => btn(p, 'Manual entry', true), label: 'Manual entry' },
+    { as: 'staff', go: manualOpen, target: (p) => btn(p, 'Recent visit', true), label: 'Recent visit' },
+    { as: 'staff', go: recentReady, target: (p) => p.locator('section', { hasText: 'What was this visit about?' }), label: 'Make your selections' },
+    { as: 'staff', go: draftNoteReady, target: (p) => btn(p, 'Save note', true), label: 'Copy note or Save note' },
+    { as: 'staff', go: async (p) => { await draftNoteReady(p); await btn(p, 'Save note', true).click(); await wait(p, 1500); }, target: (p) => p.getByRole('tab', { name: /Generated notes/ }), label: 'Generated notes' },
   ],
   'backlog-notes': [
-    { as: 'staff', go: backlogOpen, target: (p) => p.getByLabel('Client name'), label: 'Client name' },
-    { as: 'staff', go: backlogOpen, target: (p) => btn(p, 'Backlog', true), label: 'Backlog' },
-    { as: 'staff', go: backlogReady, target: (p) => p.locator('ul', { hasText: 'Cycle 1' }), label: 'One row per cycle' },
-    { as: 'staff', go: async (p) => { await backlogReady(p); await btn(p, 'Add note', true).first().click(); await wait(p, 600); }, target: (p) => p.getByText(/^Note for cycle 1/), label: 'Dated the cycle start' },
+    { as: 'staff', go: manualOpen, target: oldVisit, label: 'Old visit' },
+    { as: 'staff', go: async (p) => { await oldOpen(p); await p.getByText('Include 180-day extension').click(); }, target: (p) => p.getByLabel('150-day start date'), label: '150-day start date' },
+    { as: 'staff', go: backlogReady, target: (p) => dialog(p).locator('ul', { hasText: 'Cycle 1' }), label: 'One row per cycle' },
+    { as: 'staff', go: async (p) => { await backlogReady(p); await dialog(p).getByRole('button', { name: 'Add note', exact: true }).first().click(); await wait(p, 600); await btn(p, 'Phone', true).click(); await fillNote(p); await btn(p, 'Save note', true).click(); await wait(p, 1500); }, target: (p) => dialog(p).getByRole('button', { name: /Go to cycle 2/ }), label: 'Next cycle' },
   ],
   reminders: [
     { as: 'staff', reminders: true, go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'Next reminder'), label: 'Next reminder' },

@@ -203,19 +203,20 @@ export const GUIDES: Guide[] = [
   {
     id: 'draft-note', section: 'Touchpoints', title: 'Write notes with manual entry', audience: 'everyone', minutes: 2,
     steps: [
-      s('Open Generate Notes', 'Select Generate Notes in the left panel, then select Manual entry. Type the client name if you like; it groups your drafts and is not written into the note. Enter the contact date.'),
+      s('Open Manual entry', 'Select Generate Notes in the left panel, then select Manual entry.'),
+      s('Choose Recent visit', 'Select Recent visit. Type the client name if you like; it groups your notes and is not written into the note. Enter the contact date.'),
       s('Build the note', 'Choose how the contact happened, make your selections and select Generate note.'),
-      s('Copy or save', 'Tick the confirmation, then select Copy note or Save draft. The name stays filled in for the next note; enter its date.'),
-      s('Assign it later', 'Under My drafts, notes are grouped by name. Select + Add a note for another note, or Assign to client to make one that client’s touchpoint. The contact date becomes the touchpoint date.'),
+      s('Copy or save', 'Tick the confirmation, then select Copy note or Save note.'),
+      s('Find it later', 'Select the Generated notes tab and open the name. Select Assign to client to make a note that client’s touchpoint. The contact date becomes the touchpoint date.'),
     ],
   },
   {
     id: 'backlog-notes', section: 'Touchpoints', title: 'Write backlog notes', audience: 'everyone', minutes: 3,
     steps: [
-      s('Open Manual entry', 'Select Generate Notes in the left panel, select Manual entry, then type the client name.'),
-      s('Select Backlog', 'Select Backlog and enter the 150-day start date. Tick Include 180-day extension if it applies.'),
-      s('Find the cycle', 'One row is listed for each 30-day cycle: five for 150 days, six with the extension. Each row shows whether a note is saved or assigned.'),
-      s('Add the note', 'Select Add note beside a cycle. The contact date is set to the first day of the cycle. Build the note, then select Save draft. Assign it to the client from My drafts.'),
+      s('Choose Old visit', 'Select Generate Notes in the left panel, select Manual entry, then select Old visit.'),
+      s('Enter the dates', 'Type the client name and enter the 150-day start date. Tick Include 180-day extension if it applies.'),
+      s('Choose the cycle', 'A popup lists one row per 30-day cycle: five for 150 days, six with the extension. Select Add note beside a cycle. The note is dated the first day of the cycle.'),
+      s('Save and go on', 'Build the note and select Save note. Then select Go to cycle 2 for the next cycle, or Different client.'),
     ],
   },
   {
