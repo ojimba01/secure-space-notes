@@ -332,8 +332,10 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Open the Workbook', 'Select Workbook in the left panel. Select Full screen for more room.'),
       s('Edit a cell', 'Select a cell and type. Grey cells are calculated.'),
-      s('Arrange columns and rows', 'Drag headings and row numbers to move them, and drag their edges to resize. The layout is shared with your team.'),
-      s('Filter a column', 'Select Filter, then choose a value from the dropdown under any column heading. Choose All to clear it.'),
+      s('Add a row', 'Select Add row, beside the search box, to add a client.'),
+      s('Arrange columns and rows', 'Drag a column heading by its dotted handle, or a row number, to move it. Drag an edge to resize. The layout is shared with your team.'),
+      s('Sort and filter', 'Select Filter. Sort client names A–Z or Z–A, and choose a value under columns with only a few options, such as MCO.'),
+      s('Add and rename tabs', 'Select + beside the tabs to add one. Right-click a tab to rename it. An added tab keeps its own search, filters and sort.'),
       s('Export', 'Select Download as Excel to save every tab.'),
     ],
   },

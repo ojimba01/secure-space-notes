@@ -7,8 +7,11 @@
 // and anything the app works out (end dates, billing and payment status) is
 // calculated rather than typed.
 //
-// How it is arranged (tab names, column order and widths, hidden columns, row
-// order and heights) is shared by the whole team, as the Google Sheet was.
+// How it is arranged (tab names, added tabs, column order and widths, hidden
+// columns, row order and heights) is shared by the whole team, as the Google
+// Sheet was. An added tab shows the Master rows with its own search, MCO,
+// filters and sort. Filter dropdowns appear only for columns with a handful of
+// values; the name column sorts A–Z or Z–A instead.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
@@ -90,8 +93,19 @@ const KIND_BAR: Record<Kind, string> = {
 // The browser keeps a copy only so the Workbook opens in the right shape
 // before the saved one arrives.
 
+/** What a tab added by the team shows: the Master rows, searched, filtered and sorted its own way. */
+interface TabView {
+  query: string;
+  mco: string;
+  filters: Record<string, string>;
+  sort: '' | 'asc' | 'desc';
+}
+
 interface Layout {
   sheetNames: Partial<Record<Sheet, string>>;
+  /** Tabs the team added, after the built-in ones. Their keys are "custom:<id>". */
+  customTabs: { id: string; name: string }[];
+  tabViews: Record<string, TabView>;
   colOrder: string[];
   colWidths: Record<string, number>;
   removed: string[];
@@ -106,6 +120,8 @@ const ALL_GROUPS = Object.keys(GROUP_LABEL) as Group[];
 
 const DEFAULT_LAYOUT: Layout = {
   sheetNames: {},
+  customTabs: [],
+  tabViews: {},
   colOrder: COLUMNS.map((c) => c.key),
   colWidths: {},
   removed: [],
@@ -261,6 +277,13 @@ function columnLetter(i: number): string {
   return out;
 }
 
+/**
+ * Columns worth a filter dropdown: a handful of set values (MCO, level, statuses).
+ * Names sort instead, and dates, IDs and notes have too many values to pick from.
+ */
+const FILTERABLE = new Set(['case_status', 'second', 'billing_status', 'payment_status', 'reason_closed']);
+const filterable = (col: { key: string; kind: Kind }) => col.kind === 'drop' || FILTERABLE.has(col.key);
+
 /** Stands for an empty cell in a column filter. */
 const BLANK = '__blank__';
 
@@ -273,8 +296,13 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
   const [secondAuthIds, setSecondAuthIds] = useState<Set<string>>(new Set());
   const [lastContact, setLastContact] = useState<Map<string, string>>(new Map());
   const [layout, setLayoutState] = useState<Layout>(cachedLayout);
-  const [sheet, setSheet] = useState<Sheet>('master');
-  const [renaming, setRenaming] = useState<Sheet | null>(null);
+  /** A built-in tab, or "custom:<id>" for one the team added. */
+  const [sheet, setSheet] = useState<string>('master');
+  const [renaming, setRenaming] = useState<string | null>(null);
+  /** Right-click menu on a tab. */
+  const [tabMenu, setTabMenu] = useState<{ key: string; x: number; y: number } | null>(null);
+  /** Client name, A–Z or Z–A. */
+  const [sortDir, setSortDir] = useState<'' | 'asc' | 'desc'>('');
   const [query, setQuery] = useState('');
   const [mco, setMco] = useState('');
   const [editMode, setEditMode] = useState(false);
@@ -385,7 +413,11 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
     [layout],
   );
 
-  const sheetName = (s: Sheet) => layout.sheetNames[s] || SHEETS.find((x) => x.key === s)!.label;
+  const isCustom = (s: string) => s.startsWith('custom:');
+  const sheetName = (s: string) =>
+    isCustom(s)
+      ? layout.customTabs.find((t) => `custom:${t.id}` === s)?.name ?? 'Sheet'
+      : layout.sheetNames[s as Sheet] || SHEETS.find((x) => x.key === s)?.label || s;
 
   const ordered = useMemo(() => {
     if (!clients) return [];
@@ -413,9 +445,54 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
       // Picked from the column's dropdown, so it matches a value exactly.
       list = list.filter((c) => (shown(col, col.value(c, extraOf(c))).trim() || BLANK) === f);
     }
+    if (sortDir) {
+      const name = (c: WbClient) => `${c.last_name ?? ''} ${c.first_name ?? ''}`.trim();
+      list = [...list].sort((a, b) => (sortDir === 'asc' ? 1 : -1) * name(a).localeCompare(name(b)));
+    }
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ordered, sheet, mco, query, filters, extraOf]);
+  }, [ordered, sheet, mco, query, filters, sortDir, extraOf]);
+
+  // ---- tabs the team adds -----------------------------------------------
+  // Each keeps its own search, MCO, filters and sort; the built-in tabs share theirs.
+  const openTab = (key: string) => {
+    if (isCustom(key) || isCustom(sheet)) {
+      const v = layout.tabViews[key];
+      setQuery(v?.query ?? '');
+      setMco(v?.mco ?? '');
+      setFilters(v?.filters ?? {});
+      setSortDir(v?.sort ?? '');
+      setShowFilters(!!v && (Object.values(v.filters).some(Boolean) || !!v.sort));
+    }
+    setSheet(key);
+  };
+  useEffect(() => {
+    if (!isCustom(sheet)) return;
+    const view: TabView = { query, mco, filters, sort: sortDir };
+    if (JSON.stringify(layout.tabViews[sheet]) === JSON.stringify(view)) return;
+    setLayout((l) => ({ ...l, tabViews: { ...l.tabViews, [sheet]: view } }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheet, query, mco, filters, sortDir]);
+  const addTab = () => {
+    const id = Math.random().toString(36).slice(2, 10);
+    setLayout((l) => ({ ...l, customTabs: [...l.customTabs, { id, name: `Sheet ${l.customTabs.length + 1}` }] }));
+    openTab(`custom:${id}`);
+    setRenaming(`custom:${id}`);
+  };
+  const deleteTab = (key: string) => {
+    setLayout((l) => {
+      const views = { ...l.tabViews };
+      delete views[key];
+      return { ...l, customTabs: l.customTabs.filter((t) => `custom:${t.id}` !== key), tabViews: views };
+    });
+    if (sheet === key) openTab('master');
+  };
+  const renameTab = (key: string, name: string) =>
+    setLayout((l) =>
+      isCustom(key)
+        ? { ...l, customTabs: l.customTabs.map((t) => (`custom:${t.id}` === key && name ? { ...t, name } : t)) }
+        : { ...l, sheetNames: { ...l.sheetNames, [key]: name || undefined } },
+    );
 
   // Each column's values, for its filter dropdown.
   const filterOptions = useMemo(() => {
@@ -429,7 +506,6 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
       );
     }
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showFilters, columns, ordered, extraOf]);
 
   const lapsed = useMemo(() => (clients ? lapsedRows(clients, lastContact) : []), [clients, lastContact]);
@@ -485,7 +561,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
     const row = data as unknown as WbClient;
     setClients((list) => [row, ...(list ?? [])]);
     setLayout((l) => ({ ...l, rowOrder: [row.id, ...l.rowOrder.filter((id) => id !== row.id)] }));
-    setSheet('master');
+    openTab('master');
     toast.success('Client added at the top. Select the name to enter it.');
     onChanged();
   };
@@ -675,7 +751,10 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
                 className={`${th} relative border-b-2 bg-white ${isName ? 'sticky left-12 z-20' : 'cursor-grab'} ${dragOver === `c:${col.key}` ? 'shadow-[inset_3px_0_0_#1a73e8]' : ''}`}
                 style={{ width: w, minWidth: w, maxWidth: w, top: LETTER_H, height: HEAD_H }}
               >
-                <span className="block truncate pr-4">{col.label}</span>
+                <span className="flex items-center gap-1 pr-4">
+                  {!isName && <GripVertical className="h-3 w-3 shrink-0 opacity-40" aria-hidden />}
+                  <span className="truncate">{col.label}</span>
+                </span>
                 <span className={`mt-1 block h-[3px] rounded ${KIND_BAR[col.kind]}`} />
                 {editMode && !isName && (
                   <button
@@ -705,19 +784,34 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
                 className={`${th} bg-white font-normal ${col.key === 'name' ? 'sticky left-12 z-20' : ''}`}
                 style={{ top: LETTER_H + HEAD_H }}
               >
-                <select
-                  className={`w-full rounded border bg-white px-1 py-0.5 text-xs ${filters[col.key] ? 'border-primary font-semibold text-primary' : ''}`}
-                  aria-label={`Filter ${col.label}`}
-                  value={filters[col.key] ?? ''}
-                  onChange={(e) => setFilters((f) => ({ ...f, [col.key]: e.target.value }))}
-                >
-                  <option value="">All</option>
-                  {(filterOptions[col.key] ?? []).map((v) => (
-                    <option key={v} value={v}>
-                      {v === BLANK ? '(Blank)' : v}
-                    </option>
-                  ))}
-                </select>
+                {col.key === 'name' ? (
+                  // Names are sorted, not filtered.
+                  <select
+                    className={`w-full rounded border bg-white px-1 py-0.5 text-xs ${sortDir ? 'border-primary font-semibold text-primary' : ''}`}
+                    aria-label="Sort by client name"
+                    value={sortDir}
+                    onChange={(e) => setSortDir(e.target.value as '' | 'asc' | 'desc')}
+                  >
+                    <option value="">Sort</option>
+                    <option value="asc">A–Z</option>
+                    <option value="desc">Z–A</option>
+                  </select>
+                ) : filterable(col) ? (
+                  // A dropdown only where there are a handful of values to pick from.
+                  <select
+                    className={`w-full rounded border bg-white px-1 py-0.5 text-xs ${filters[col.key] ? 'border-primary font-semibold text-primary' : ''}`}
+                    aria-label={`Filter ${col.label}`}
+                    value={filters[col.key] ?? ''}
+                    onChange={(e) => setFilters((f) => ({ ...f, [col.key]: e.target.value }))}
+                  >
+                    <option value="">All</option>
+                    {(filterOptions[col.key] ?? []).map((v) => (
+                      <option key={v} value={v}>
+                        {v === BLANK ? '(Blank)' : v}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
               </th>
             ))}
           </tr>
@@ -947,6 +1041,12 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
+        {master && (
+          <Button size="sm" className="h-8 rounded-full bg-emerald-600 px-3 text-white hover:bg-emerald-700" onClick={() => void addClient()}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add row
+          </Button>
+        )}
         <select className="h-8 rounded-full border-0 bg-transparent px-2 text-sm hover:bg-[#dde3ea]" value={mco} onChange={(e) => setMco(e.target.value)} aria-label="Filter by MCO">
           <option value="">All MCOs</option>
           {MCO_OPTIONS.map((m) => (
@@ -991,7 +1091,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
                   <button
                     className="mt-1 border-t pt-2 text-left text-xs text-muted-foreground hover:text-foreground"
                     onClick={() => {
-                      setLayout(() => ({ ...DEFAULT_LAYOUT, sheetNames: layout.sheetNames }));
+                      setLayout(() => ({ ...DEFAULT_LAYOUT, sheetNames: layout.sheetNames, customTabs: layout.customTabs, tabViews: layout.tabViews }));
                     }}
                   >
                     Reset column and row layout
@@ -1004,7 +1104,10 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
               variant="ghost"
               className={`${TOOL} ${showFilters ? TOOL_ON : ''}`}
               onClick={() => {
-                if (showFilters) setFilters({});
+                if (showFilters) {
+                  setFilters({});
+                  setSortDir('');
+                }
                 setShowFilters((v) => !v);
               }}
             >
@@ -1014,10 +1117,6 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
             <Button size="sm" variant="ghost" className={`${TOOL} ${editMode ? TOOL_ON : ''}`} onClick={() => setEditMode((v) => !v)}>
               {editMode ? <Check className="mr-1.5 h-4 w-4" /> : <Pencil className="mr-1.5 h-4 w-4" />}
               {editMode ? 'Done editing' : 'Edit'}
-            </Button>
-            <Button size="sm" variant="ghost" className={TOOL} onClick={() => void addClient()}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              Add client
             </Button>
           </>
         )}
@@ -1068,20 +1167,28 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
         )}
       </div>
 
-      {/* Tabs, along the bottom like a spreadsheet. Double-click to rename. */}
+      {/* Tabs, along the bottom like a spreadsheet. Right-click (or double-click) to rename; + adds a tab. */}
       <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-t border-[#e2e3e3] bg-[#f9fbfd] px-2 py-1" role="tablist" aria-label="Workbook tabs">
-        {SHEETS.map((s) =>
-          renaming === s.key ? (
+        <button
+          type="button"
+          onClick={addTab}
+          title="Add a tab"
+          aria-label="Add a tab"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[#444746] hover:bg-[#eceff4]"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+        {[...SHEETS.map((s) => s.key as string), ...layout.customTabs.map((t) => `custom:${t.id}`)].map((key) =>
+          renaming === key ? (
             <input
-              key={s.key}
+              key={key}
               autoFocus
               className="w-40 rounded-md border border-[#1a73e8] px-2 py-1 text-sm"
-              defaultValue={sheetName(s.key)}
+              defaultValue={sheetName(key)}
               aria-label="Rename tab"
               onFocus={(e) => e.currentTarget.select()}
               onBlur={(e) => {
-                const v = e.currentTarget.value.trim();
-                setLayout((l) => ({ ...l, sheetNames: { ...l.sheetNames, [s.key]: v || undefined } }));
+                renameTab(key, e.currentTarget.value.trim());
                 setRenaming(null);
               }}
               onKeyDown={(e) => {
@@ -1091,16 +1198,20 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
             />
           ) : (
             <button
-              key={s.key}
+              key={key}
               role="tab"
-              aria-selected={sheet === s.key}
-              title="Double-click to rename"
-              onClick={() => setSheet(s.key)}
-              onDoubleClick={() => setRenaming(s.key)}
-              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm ${sheet === s.key ? 'bg-[#e1e9f7] font-medium text-[#0b57d0]' : 'text-[#444746] hover:bg-[#eceff4]'}`}
+              aria-selected={sheet === key}
+              title="Right-click to rename"
+              onClick={() => openTab(key)}
+              onDoubleClick={() => setRenaming(key)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setTabMenu({ key, x: e.clientX, y: e.clientY });
+              }}
+              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm ${sheet === key ? 'bg-[#e1e9f7] font-medium text-[#0b57d0]' : 'text-[#444746] hover:bg-[#eceff4]'}`}
             >
-              {sheetName(s.key)}
-              {s.key === 'second' && lapsed.length > 0 && (
+              {sheetName(key)}
+              {key === 'second' && lapsed.length > 0 && (
                 <span className="ml-1.5 rounded-full bg-red-100 px-1.5 text-xs font-semibold text-red-800">{lapsed.length}</span>
               )}
             </button>
@@ -1115,6 +1226,40 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
           ))}
         </div>
       </div>
+
+      {tabMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setTabMenu(null)} onContextMenu={(e) => { e.preventDefault(); setTabMenu(null); }} />
+          <div
+            role="menu"
+            className="fixed z-50 min-w-[160px] -translate-y-full rounded-md border bg-white py-1 text-sm shadow-lg"
+            style={{ left: tabMenu.x, top: tabMenu.y }}
+          >
+            <button
+              role="menuitem"
+              className="block w-full px-3 py-1.5 text-left hover:bg-muted"
+              onClick={() => {
+                setRenaming(tabMenu.key);
+                setTabMenu(null);
+              }}
+            >
+              Rename
+            </button>
+            {isCustom(tabMenu.key) && (
+              <button
+                role="menuitem"
+                className="block w-full px-3 py-1.5 text-left text-red-700 hover:bg-red-50"
+                onClick={() => {
+                  deleteTab(tabMenu.key);
+                  setTabMenu(null);
+                }}
+              >
+                Delete tab
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       <Dialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <DialogContent>

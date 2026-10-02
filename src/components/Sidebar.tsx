@@ -39,6 +39,13 @@ interface SidebarProps {
   onViewChange: (view: 'compliance' | 'clients' | 'calendar' | 'forms') => void;
 }
 
+/** Marks a feature still being tried out. Hidden from screen readers so the item keeps its name. */
+const BetaBadge = () => (
+  <span aria-hidden className="ml-auto rounded-full bg-violet-100 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+    Beta
+  </span>
+);
+
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -210,6 +217,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           >
             <NotebookPen className="h-4 w-4" />
             Generate Notes
+            <BetaBadge />
           </Button>
           {isAdmin && (
             <Button
@@ -219,6 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             >
               <FileSpreadsheet className="h-4 w-4" />
               Workbook
+              <BetaBadge />
             </Button>
           )}
           <Button
