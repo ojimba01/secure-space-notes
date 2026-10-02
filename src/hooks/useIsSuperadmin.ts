@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { usePreview } from '@/components/ViewAsProvider';
+import { cachedRole, rememberRole } from '@/lib/roleCache';
 
 export const useIsSuperadmin = () => {
   const { user } = useAuth();
-  const [isSuperadmin, setIsSuperadmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isSuperadmin, setIsSuperadmin] = useState(() => cachedRole(user?.id, 'superadmin') ?? false);
+  const [loading, setLoading] = useState(() => cachedRole(user?.id, 'superadmin') === undefined);
 
   useEffect(() => {
     const check = async () => {
@@ -14,6 +15,11 @@ export const useIsSuperadmin = () => {
         setIsSuperadmin(false);
         setLoading(false);
         return;
+      }
+      const known = cachedRole(user.id, 'superadmin');
+      if (known !== undefined) {
+        setIsSuperadmin(known);
+        setLoading(false);
       }
 
       try {
@@ -23,7 +29,9 @@ export const useIsSuperadmin = () => {
           .eq('user_id', user.id)
           .eq('role', 'superadmin');
 
-        setIsSuperadmin(!!data && data.length > 0);
+        const value = !!data && data.length > 0;
+        rememberRole(user.id, 'superadmin', value);
+        setIsSuperadmin(value);
       } catch (error) {
         console.error('Error checking superadmin status:', error);
         setIsSuperadmin(false);

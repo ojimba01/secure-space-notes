@@ -52,3 +52,6 @@ guides, and superadmins also get the filter buttons.
 - Superadmins are not case managers: they never appear in staff lists or as
   assignable case managers.
 - Database changes: give the full SQL so it can be pasted into Lovable.
+- Publish every change: after pushing to the branch and main, wait for Lovable
+  to pick up the commit, then publish the site (the live site does not update
+  on push).

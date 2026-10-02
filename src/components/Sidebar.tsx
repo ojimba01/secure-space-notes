@@ -61,11 +61,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   const { startTutorial } = useTutorial();
   const [accountOpen, setAccountOpen] = useState(false);
   // Follows a preview: shows the previewed person's menu.
-  const { isAdmin } = useIsAdmin();
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
-  const { isSuperadmin } = useIsSuperadmin();
-  const { canView: canViewActivity } = useCanViewStaffActivity();
+  const { isSuperadmin, loading: superLoading } = useIsSuperadmin();
+  const { canView: canViewActivity, loading: activityLoading } = useCanViewStaffActivity();
+  // The first time this person's access is checked, the menu waits for all of it,
+  // so items appear together instead of one after another. Later pages are instant.
+  const menuReady = !adminLoading && !superLoading && !activityLoading;
   /** Support tickets waiting on an answer, for the count beside the link. */
   const [openTickets, setOpenTickets] = useState(0);
   useEffect(() => {
@@ -180,7 +183,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         </div>
 
         {/* Navigation */}
-        <div className="space-y-1 md:space-y-2">
+        <div className={cn('space-y-1 md:space-y-2 transition-opacity', menuReady ? 'opacity-100' : 'pointer-events-none opacity-0')} aria-busy={!menuReady}>
           {isAdmin && (
             <Button
               variant={routeVariant('/admin')}

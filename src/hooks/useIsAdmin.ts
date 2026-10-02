@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { usePreview } from '@/components/ViewAsProvider';
+import { cachedRole, rememberRole } from '@/lib/roleCache';
 
 export const useIsAdmin = () => {
   const { user, loading: authLoading } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Known from an earlier page: no wait, so the menu does not change as it loads.
+  const [isAdmin, setIsAdmin] = useState(() => cachedRole(user?.id, 'admin') ?? false);
+  const [loading, setLoading] = useState(() => cachedRole(user?.id, 'admin') === undefined);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -21,6 +23,11 @@ export const useIsAdmin = () => {
         setLoading(false);
         return;
       }
+      const known = cachedRole(user.id, 'admin');
+      if (known !== undefined) {
+        setIsAdmin(known);
+        setLoading(false);
+      }
 
       try {
         const { data } = await supabase
@@ -29,7 +36,9 @@ export const useIsAdmin = () => {
           .eq('user_id', user.id)
           .in('role', ['admin', 'superadmin']);
 
-        setIsAdmin(!!data && data.length > 0);
+        const value = !!data && data.length > 0;
+        rememberRole(user.id, 'admin', value);
+        setIsAdmin(value);
       } catch (error) {
         console.error('Error checking admin status:', error);
         setIsAdmin(false);
