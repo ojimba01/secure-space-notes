@@ -4,6 +4,7 @@
 // written up. Both are kept so the facts behind any note can be audited.
 import { supabase } from '@/integrations/supabase/client';
 import type { ComposedNote } from '@/components/clinicalNotes/NoteComposer';
+import { normalizeDraft } from '@/lib/clinicalNotes/generate';
 
 // Newer than the generated types.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,7 +25,7 @@ export interface NoteContact {
 
 /** The row for a composed note. `finalText` is the note as saved, which may have been edited since. */
 export function noteRow(c: ComposedNote, contact: NoteContact, finalText?: string) {
-  const d = c.draft;
+  const d = normalizeDraft(c.draft);
   const final = (finalText ?? c.final).trim();
   return {
     client_id: contact.clientId ?? null,
@@ -41,10 +42,15 @@ export function noteRow(c: ComposedNote, contact: NoteContact, finalText?: strin
     secondary_topics: d.topics.slice(1),
     selections: d,
     interventions: d.actions.map((a) => (a.group === 'other' ? { group: 'other', text: d.actionsOther.trim() } : a)),
-    consumer_response: d.response.map((r) => (r === 'Other' ? { other: d.responseOther.trim() } : r)),
+    consumer_response: d.response.map((r) => (r === 'Other' || r === 'Other response' ? { other: d.responseOther.trim() } : r)),
     outcome: d.result,
-    barriers: d.result?.value === 'Barrier' && d.result.barrier ? [d.result.barrier === 'Other' ? d.result.barrierOther ?? 'Other' : d.result.barrier] : [],
-    next_actions: d.next,
+    barriers:
+      d.barriers.answer === 'Yes'
+        ? d.barriers.list.map((x) => (x === 'Other barrier' ? d.barriers.other.trim() || x : x))
+        : d.result?.value === 'Barrier' && d.result.barrier
+          ? [d.result.barrier === 'Other' ? d.result.barrierOther ?? 'Other' : d.result.barrier]
+          : [],
+    next_actions: d.steps.length || d.noNextStep || d.nextContact.kind ? { steps: d.steps, noNextStep: d.noNextStep, nextContact: d.nextContact } : d.next ?? null,
     free_text: d.freeText.trim() || null,
     generated_narrative: c.generated,
     final_narrative: final,

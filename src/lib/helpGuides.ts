@@ -190,12 +190,12 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
-    id: 'clinical-note', section: 'Touchpoints', title: 'Write a clinical note', audience: 'everyone', minutes: 2,
+    id: 'clinical-note', section: 'Touchpoints', title: 'Write a clinical note', audience: 'everyone', minutes: 3,
     steps: [
       s('Select Clinical note', 'Open the client, select the Touchpoints tab, then select Clinical note.'),
-      s('Choose the topic', 'Select what the visit was about. If you choose more than one, the star marks the main focus.'),
-      s('Pick what you talked about', 'Select each topic you discussed and answer its questions, one choice at a time. Select a chosen answer to change it.'),
-      s('Add the rest', 'Select what CM did, the result, how the client responded and who is responsible for the next step. These cover the whole contact, across all topics. Select Skip for anything that does not apply.'),
+      s('Choose the activities', 'Select the housing support activities that took place. Each one opens its own questions. Then add the housing goal and what prompted the contact, and the member’s housing status.'),
+      s('Answer the details', 'Answer each activity’s questions, one choice at a time. Select a chosen answer to change it. Add a section such as Voucher or Legal when it applies.'),
+      s('Add the next steps', 'Select what CM did, the result, any barriers and how the member responded. Then add each next step separately, with who is responsible, what they will do and when. Select Skip for anything that does not apply.'),
       s('Generate the note', 'Select Generate note. It uses only your selections. Select Regenerate wording for different phrasing, or Edit note to change it.'),
       s('Review and save', 'Tick the confirmation, select Use this note, then select Save touchpoint.'),
     ],
@@ -205,7 +205,7 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Open Manual entry', 'Select Generate Notes in the left panel, then select Manual entry.'),
       s('Choose Recent visit', 'Select Recent visit. Type the client name if you like; it groups your notes and is not written into the note. Enter the contact date.'),
-      s('Build the note', 'Choose how the contact happened, make your selections and select Generate note.'),
+      s('Build the note', 'Choose how the contact happened, select the activities that took place, answer the questions and select Generate note.'),
       s('Copy or save', 'Tick the confirmation, then select Copy note or Save note.'),
       s('Find it later', 'Select the Generated notes tab and open the name. Select Assign to client to make a note that client’s touchpoint. The contact date becomes the touchpoint date.'),
     ],

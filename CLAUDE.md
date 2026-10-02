@@ -31,6 +31,10 @@ guides, and superadmins also get the filter buttons.
   (`src/lib/clinicalNotes`). Never add wording that states a fact nobody
   selected (mood, cooperation, outcomes, names). `tests/clinical-notes.test.mjs`
   checks this; extend it with any new topic or option.
+- The builder keeps activity (why the contact took place), CM's action, result,
+  barriers and next steps apart, and notes call the client "the member".
+  Questions say "visit" only when the contact method is a phone call
+  (`contactWord` in `config.ts`), "contact" otherwise.
 - Each choice names one thing ("Contact agency", "Contact provider"), never
   "X or Y", so the note never says "or". The tests check this.
 - The optional AI rewording (`supabase/functions/clinical-note-wording`) runs

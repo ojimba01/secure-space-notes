@@ -10,7 +10,7 @@
 // wording" vary the phrasing without changing what is said.
 
 /** Terms used in notes. Change here if the organization changes them. */
-export const TERMS = { cm: 'CM', client: 'client', Client: 'Client' } as const;
+export const TERMS = { cm: 'CM', client: 'member', Client: 'The member' } as const;
 
 export type Answers = Record<string, string | string[] | undefined>;
 
@@ -24,6 +24,8 @@ export interface Question {
   optional?: boolean;
   /** A short typed answer instead of choices. */
   text?: boolean;
+  /** Asked only when this holds for the answers so far (a "Please specify" after Other, say). */
+  showIf?: (a: Answers) => boolean;
 }
 
 export interface SayContext {
@@ -53,6 +55,8 @@ export interface Topic {
   items: Item[];
   /** Ask for a few words of free text, which buttons cannot capture well. */
   encourageFreeText?: boolean;
+  /** Reached only through a visit activity, never offered as a section of its own. */
+  hidden?: boolean;
 }
 
 // ---- helpers ------------------------------------------------------------
@@ -113,10 +117,10 @@ const DOC_TYPES: Record<string, string> = {
 };
 
 /** Documents for something: what type, then where they stand. */
-function documents(forWhat: string): Item {
+function documents(forWhat: string, id = 'documents', label = 'Documents'): Item {
   return {
-    id: 'documents',
-    label: 'Documents',
+    id,
+    label,
     questions: [
       { key: 'type', label: 'What type of document?', options: Object.keys(DOC_TYPES) },
       { key: 'status', label: 'What is its status?', options: ['Needed', 'Gathered', 'Submitted', 'Missing'] },
@@ -859,7 +863,227 @@ const otherTopic: Topic = {
   touchpointType: 'other',
   purpose: '',
   encourageFreeText: true,
-  items: [other('Other matters were addressed.', 'What was the visit about?')],
+  hidden: true,
+  items: [other('Other matters were addressed.', 'What else did you discuss?')],
+};
+
+// ---- detail sections reached through a visit activity -----------------------
+
+/** Picked answers of a several-choice question. */
+const picks = (a: Answers, key = 'v') => many(a, key);
+/** "Please specify", asked when Other is picked. */
+const specify = (key: string, otherLabel: string): Question => ({
+  key: `${key}Other`,
+  label: 'Please specify',
+  options: [],
+  text: true,
+  showIf: (a) => (Array.isArray(a[key]) ? (a[key] as string[]).includes(otherLabel) : a[key] === otherLabel),
+});
+/** The chosen phrases, with the typed text standing in for Other. */
+const phrases = (a: Answers, key: string, map: Record<string, string>, otherLabel: string) =>
+  picks(a, key).map((x) => (x === otherLabel ? one(a, `${key}Other`).trim() : map[x])).filter(Boolean);
+
+const HSP: Record<string, string[]> = {
+  'Reviewed existing plan': [`${TERMS.cm} reviewed the existing housing stabilization plan.`, `${TERMS.cm} went over the existing housing stabilization plan.`],
+  'Updated plan': [`${TERMS.cm} updated the housing stabilization plan.`, `The housing stabilization plan was updated by ${TERMS.cm}.`],
+  'Identified a new goal': [`${TERMS.cm} identified a new housing goal with the ${TERMS.client}.`, `${TERMS.cm} and the ${TERMS.client} identified a new housing goal.`],
+  'Reviewed progress': [`${TERMS.cm} reviewed progress on the housing stabilization plan.`, `${TERMS.cm} went over progress on the housing stabilization plan.`],
+  'Identified a barrier': [`${TERMS.cm} identified a barrier to the housing stabilization plan.`, `A barrier to the housing stabilization plan was identified by ${TERMS.cm}.`],
+};
+const hspTopic: Topic = {
+  id: 'hsp',
+  label: 'Housing stabilization plan',
+  touchpointType: 'general_checkin',
+  purpose: 'the housing stabilization plan',
+  hidden: true,
+  items: [
+    {
+      id: 'plan',
+      label: 'Plan review',
+      questions: [{ key: 'v', label: 'What happened with the housing stabilization plan?', options: Object.keys(HSP), multi: true }],
+      say: (a, v) => picks(a).map((x, i) => choose(v + i, HSP[x] ?? [])).filter(Boolean),
+    },
+  ],
+};
+
+/** One item: pick topics (Other asks to specify), and one sentence names them all. */
+function topicsCovered(id: string, label: string, question: string, map: Record<string, string>, otherLabel: string, sentence: (list: string) => string[]): Item {
+  return {
+    id,
+    label,
+    questions: [{ key: 'v', label: question, options: [...Object.keys(map), otherLabel], multi: true }, specify('v', otherLabel)],
+    say: (a, v) => {
+      const p = phrases(a, 'v', map, otherLabel);
+      return p.length ? [choose(v, sentence(joinList(p)))] : [];
+    },
+  };
+}
+
+const tenantRights: Topic = {
+  id: 'tenant_rights',
+  label: 'Tenant rights education',
+  touchpointType: 'landlord_tenant',
+  purpose: 'tenant rights',
+  hidden: true,
+  items: [
+    // Education about rights, never legal advice.
+    topicsCovered(
+      'topic',
+      'Education topic',
+      'What topic was covered?',
+      { 'Lease terms': 'lease terms', 'Rent responsibilities': 'rent responsibilities', Repairs: 'repairs', 'Eviction process': 'the eviction process', 'Reasonable accommodation': 'reasonable accommodation' },
+      'Other topic',
+      (l) => [`${TERMS.cm} provided tenant rights education about ${l}.`, `${TERMS.cm} provided the ${TERMS.client} with tenant rights education about ${l}.`],
+    ),
+  ],
+};
+
+const EMPLOYMENT: Record<string, string[]> = {
+  'Discussed employment goals': [`${TERMS.cm} discussed employment goals with the ${TERMS.client}.`, `${TERMS.cm} and the ${TERMS.client} discussed employment goals.`],
+  'Shared an employment resource': [`${TERMS.cm} shared an employment resource.`, `${TERMS.cm} provided an employment resource.`],
+  'Made an employment referral': [`${TERMS.cm} made an employment referral.`, `${TERMS.cm} referred the ${TERMS.client} for employment services.`],
+  'Assisted with an employment application': [`${TERMS.cm} assisted with an employment application.`, `${TERMS.cm} helped the ${TERMS.client} with an employment application.`],
+  'Followed up on employment': [`${TERMS.cm} followed up on employment.`, `${TERMS.cm} completed follow-up on employment.`],
+};
+const employment: Topic = {
+  id: 'employment',
+  label: 'Employment support',
+  touchpointType: 'benefits_income',
+  purpose: 'employment',
+  hidden: true,
+  items: [
+    {
+      id: 'support',
+      label: 'Employment support',
+      questions: [{ key: 'v', label: `What did ${TERMS.cm} do?`, options: Object.keys(EMPLOYMENT), multi: true }],
+      say: (a, v) => picks(a).map((x, i) => choose(v + i, EMPLOYMENT[x] ?? [])).filter(Boolean),
+    },
+  ],
+};
+
+const budgeting: Topic = {
+  id: 'budgeting',
+  label: 'Budgeting support',
+  touchpointType: 'benefits_income',
+  purpose: 'budgeting',
+  hidden: true,
+  items: [
+    topicsCovered(
+      'focus',
+      'Budgeting focus',
+      `What did ${TERMS.cm} work on with the ${TERMS.client}?`,
+      { 'Rent budget': 'a rent budget', 'Expense review': 'an expense review', 'Payment plan': 'a payment plan', 'Savings goal': 'a savings goal' },
+      'Other topic',
+      (l) => [`${TERMS.cm} provided budgeting support focused on ${l}.`, `${TERMS.cm} provided the ${TERMS.client} with budgeting support focused on ${l}.`],
+    ),
+  ],
+};
+
+const financialLiteracy: Topic = {
+  id: 'financial_literacy',
+  label: 'Financial literacy coaching',
+  touchpointType: 'benefits_income',
+  purpose: 'financial literacy',
+  hidden: true,
+  items: [
+    topicsCovered(
+      'topic',
+      'Coaching topic',
+      'What topic was covered?',
+      { 'Understanding a bill': 'understanding a bill', 'Tracking expenses': 'tracking expenses', 'Planning payments': 'planning payments', 'Credit education': 'credit' },
+      'Other topic',
+      (l) => [`${TERMS.cm} provided financial literacy coaching about ${l}.`, `${TERMS.cm} provided the ${TERMS.client} with financial literacy coaching about ${l}.`],
+    ),
+  ],
+};
+
+const SAFETY: Record<string, string[]> = {
+  'Completed check': [`${TERMS.cm} completed a home safety check.`, `A home safety check was completed by ${TERMS.cm}.`],
+  'Identified a concern': [],
+  'No concern identified': ['No home safety concern was identified.', 'The home safety check identified no concern.'],
+  'Follow-up needed': ['Follow-up on home safety is needed.', 'Home safety requires follow-up.'],
+};
+const homeSafety: Topic = {
+  id: 'home_safety',
+  label: 'Home safety check',
+  touchpointType: 'general_checkin',
+  purpose: 'home safety',
+  hidden: true,
+  items: [
+    {
+      id: 'check',
+      label: 'Home safety check',
+      questions: [
+        { key: 'v', label: 'What happened?', options: Object.keys(SAFETY), multi: true },
+        {
+          key: 'concern',
+          label: 'What concern was identified?',
+          options: [],
+          text: true,
+          showIf: (a) => picks(a).includes('Identified a concern'),
+        },
+      ],
+      // Only what was picked: no concern is never assumed from a blank.
+      say: (a, v) =>
+        picks(a).flatMap((x, i) => {
+          if (x === 'Identified a concern') {
+            const c = one(a, 'concern').trim().replace(/[.!?]+$/, '');
+            return c ? [`A home safety concern was identified: ${c}.`] : ['A home safety concern was identified.'];
+          }
+          return [choose(v + i, SAFETY[x] ?? [])];
+        }).filter(Boolean),
+    },
+  ],
+};
+
+const housingSpecialist: Topic = {
+  id: 'housing_specialist',
+  label: 'Housing specialist coordination',
+  touchpointType: 'care_coordination',
+  purpose: 'coordination with the housing specialist',
+  hidden: true,
+  items: [
+    {
+      id: 'coordination',
+      label: 'Housing specialist',
+      questions: [
+        { key: 'purpose', label: 'What was the purpose?', options: Object.keys(CARE_PURPOSES) },
+        specify('purpose', 'Other'),
+        { key: 'result', label: 'What was the result?', options: Object.keys(CARE_RESULTS) },
+      ],
+      say: (a, v) => {
+        const p = one(a, 'purpose') === 'Other' ? one(a, 'purposeOther').trim() : CARE_PURPOSES[one(a, 'purpose')];
+        if (!p) return [];
+        const out = [`${TERMS.cm} coordinated with the housing specialist regarding ${p}.`];
+        const r = CARE_RESULTS[one(a, 'result')];
+        if (r) out.push(choose(v, r));
+        return out;
+      },
+    },
+  ],
+};
+
+const propertyManager: Topic = {
+  id: 'property_manager',
+  label: 'Property manager',
+  touchpointType: 'landlord_tenant',
+  purpose: 'the property manager',
+  hidden: true,
+  items: [communication('communication', 'Communication', 'property manager')],
+};
+
+const documentAssistance: Topic = {
+  id: 'document_assistance',
+  label: 'Document assistance',
+  touchpointType: 'housing_application',
+  purpose: 'documents',
+  hidden: true,
+  items: [
+    documents('application', 'application_docs', 'Application documents'),
+    documents('voucher', 'voucher_docs', 'Voucher documents'),
+    documents('recertification', 'recert_docs', 'Recertification documents'),
+    documents('benefits application', 'benefits_docs', 'Benefits documents'),
+  ],
 };
 
 export const TOPICS: Topic[] = [
@@ -876,9 +1100,83 @@ export const TOPICS: Topic[] = [
   supportiveHousing,
   crisis,
   otherTopic,
+  hspTopic,
+  tenantRights,
+  employment,
+  budgeting,
+  financialLiteracy,
+  homeSafety,
+  housingSpecialist,
+  propertyManager,
+  documentAssistance,
 ];
 
 export const topicById = (id: string) => TOPICS.find((t) => t.id === id);
+
+// ---- what happened on the visit -------------------------------------------
+
+/** A detail section an activity opens, limited to some of its items when given. */
+export interface Section {
+  topic: string;
+  items?: string[];
+}
+
+export interface Activity {
+  id: string;
+  label: string;
+  /** Completes "CM … regarding ___". */
+  phrase: string;
+  /** The existing detail questions this activity shows. */
+  sections: Section[];
+  /** Coordination about the member, often without them on the call. */
+  coordination?: boolean;
+}
+
+/** Step 1: the housing support activities that took place. Each opens its detail questions. */
+export const ACTIVITIES: Activity[] = [
+  { id: 'housing_search', label: 'Housing search assistance', phrase: 'housing search assistance', sections: [{ topic: 'housing_search' }] },
+  { id: 'application', label: 'Housing application assistance', phrase: 'housing application assistance', sections: [{ topic: 'application' }] },
+  { id: 'lease_review', label: 'Lease review', phrase: 'a lease review', sections: [{ topic: 'landlord', items: ['lease'] }] },
+  { id: 'lease_signing', label: 'Lease signing support', phrase: 'lease signing support', sections: [{ topic: 'landlord', items: ['lease'] }] },
+  { id: 'hsp_review', label: 'Housing stabilization plan review', phrase: 'a housing stabilization plan review', sections: [{ topic: 'hsp' }] },
+  { id: 'move_in', label: 'Move-in coordination', phrase: 'move-in coordination', sections: [{ topic: 'landlord', items: ['movein'] }, { topic: 'supportive_housing', items: ['movein'] }] },
+  { id: 'tenant_rights', label: 'Tenant rights education', phrase: 'tenant rights education', sections: [{ topic: 'tenant_rights' }] },
+  { id: 'resource_referral', label: 'Community resource referral', phrase: 'a community resource referral', sections: [{ topic: 'basic_needs' }] },
+  { id: 'employment', label: 'Employment support', phrase: 'employment support', sections: [{ topic: 'checkin', items: ['employment'] }, { topic: 'employment' }] },
+  { id: 'landlord', label: 'Landlord communication', phrase: 'communication with the landlord', sections: [{ topic: 'landlord' }] },
+  { id: 'property_manager', label: 'Property manager communication', phrase: 'communication with the property manager', sections: [{ topic: 'property_manager' }] },
+  { id: 'benefits', label: 'Benefits assistance', phrase: 'benefits assistance', sections: [{ topic: 'benefits' }] },
+  { id: 'documents', label: 'Document assistance', phrase: 'document assistance', sections: [{ topic: 'document_assistance' }] },
+  { id: 'budgeting', label: 'Budgeting support', phrase: 'budgeting support', sections: [{ topic: 'budgeting' }] },
+  { id: 'financial_literacy', label: 'Financial literacy coaching', phrase: 'financial literacy coaching', sections: [{ topic: 'financial_literacy' }] },
+  { id: 'eviction_prevention', label: 'Eviction prevention', phrase: 'eviction prevention', sections: [{ topic: 'crisis_followup' }, { topic: 'legal' }] },
+  { id: 'crisis', label: 'Crisis intervention', phrase: 'crisis intervention', sections: [{ topic: 'crisis_followup' }] },
+  { id: 'mco', label: 'MCO coordination', phrase: 'MCO coordination', sections: [{ topic: 'care_coordination' }], coordination: true },
+  { id: 'housing_specialist', label: 'Housing specialist coordination', phrase: 'coordination with the housing specialist', sections: [{ topic: 'housing_specialist' }], coordination: true },
+  { id: 'home_safety', label: 'Home safety check', phrase: 'a home safety check', sections: [{ topic: 'home_safety' }] },
+  { id: 'other', label: 'Other activity', phrase: '', sections: [] },
+];
+
+export const activityById = (id: string) => ACTIVITIES.find((a) => a.id === id);
+
+/** Detail sections that can be added when relevant, beyond what the activities open. */
+export const EXTRA_SECTIONS = ['voucher', 'recertification', 'supportive_housing', 'basic_needs', 'legal', 'checkin'];
+
+/** "visit" for a phone call, "contact" otherwise. */
+export const contactWord = (method?: string | null) => (method === 'phone' ? 'visit' : 'contact');
+
+export const HOUSING_STATUS: Record<string, string[]> = {
+  'Stably housed': [`${TERMS.Client} is stably housed.`, `${TERMS.Client} is currently stably housed.`],
+  'At risk of losing housing': [`${TERMS.Client} is at risk of losing housing.`, `${TERMS.Client} is currently at risk of losing housing.`],
+  'Experiencing homelessness': [`${TERMS.Client} is experiencing homelessness.`, `${TERMS.Client} is currently experiencing homelessness.`],
+  'Transitioning into housing': [`${TERMS.Client} is transitioning into housing.`, `${TERMS.Client} is currently transitioning into housing.`],
+};
+
+export const HOUSING_CHANGED: Record<string, string> = {
+  Yes: `${TERMS.Client}'s housing situation has changed since the last contact.`,
+  No: `${TERMS.Client}'s housing situation has not changed since the last contact.`,
+  Unknown: `Whether the ${TERMS.client}'s housing situation has changed since the last contact is unknown.`,
+};
 
 // ---- what CM did --------------------------------------------------------
 
@@ -889,19 +1187,21 @@ export interface ActionGroup {
   options: Record<string, string>;
   /** The sentence for the chosen phrases. */
   say: (phrases: string[], v: number) => string;
+  /** Options that ask for a few words, and how the answer reads. */
+  detail?: Record<string, { label: string; phrase: (text: string) => string }>;
 }
 
 export const ACTIONS: ActionGroup[] = [
   {
     id: 'reviewed',
     label: 'Reviewed',
-    options: { Documents: 'documents', Application: 'the application', Lease: 'the lease', Benefits: 'benefits', 'Housing plan': 'the housing plan', 'Next steps': 'next steps' },
+    options: { Documents: 'documents', Application: 'the application', Lease: 'the lease', Benefits: 'benefits', 'Housing stabilization plan': 'the housing stabilization plan', 'Next steps': 'next steps' },
     say: (p, v) => choose(v, [`${TERMS.cm} reviewed ${joinList(p)}.`, `${TERMS.cm} went over ${joinList(p)}.`]),
   },
   {
     id: 'assisted',
     label: 'Assisted with',
-    options: { Application: 'the application', Documents: 'documents', 'Phone call': 'a phone call', Scheduling: 'scheduling', 'Housing search': 'the housing search' },
+    options: { 'An application': 'an application', Documents: 'documents', 'Phone call': 'a phone call', Scheduling: 'scheduling', 'Housing search': 'the housing search' },
     say: (p, v) =>
       choose(v, [
         `${TERMS.cm} assisted the ${TERMS.client} with ${joinList(p)}.`,
@@ -911,13 +1211,22 @@ export const ACTIONS: ActionGroup[] = [
   {
     id: 'contacted',
     label: 'Contacted',
-    options: { Landlord: 'the landlord', Property: 'the property', 'Housing authority': 'the housing authority', Provider: 'the provider', 'Benefits agency': 'the benefits agency', MCO: `the ${TERMS.client}'s MCO` },
+    options: {
+      Landlord: 'the landlord',
+      'Property manager': 'the property manager',
+      'Property about a listing': 'the property about the listing',
+      'Housing authority': 'the housing authority',
+      Provider: 'the provider',
+      'Benefits agency': 'the benefits agency',
+      MCO: `the ${TERMS.client}'s MCO`,
+    },
     say: (p, v) => choose(v, [`${TERMS.cm} contacted ${joinList(p)}.`, `${TERMS.cm} reached out to ${joinList(p)}.`]),
   },
   {
     id: 'provided',
     label: 'Provided',
-    options: { Information: 'information', Resource: 'a resource', Education: 'education', Documentation: 'documentation' },
+    options: { Information: 'information', 'A resource': 'a resource', Education: 'education', Documentation: 'documentation' },
+    detail: { Education: { label: 'What was the education about?', phrase: (t) => `education about ${t}` } },
     say: (p, v) =>
       choose(v, [`${TERMS.cm} provided the ${TERMS.client} with ${joinList(p)}.`, `${TERMS.cm} provided ${joinList(p)} to the ${TERMS.client}.`]),
   },
@@ -974,10 +1283,27 @@ export const RESULTS: Record<string, string[]> = {
   'Progress made': ['Progress was made.', 'Progress was made toward the goal.'],
   Pending: ['The matter remains pending.', 'This is pending at this time.'],
   'No change': ['There was no change at this time.', 'No change was noted at this time.'],
-  Barrier: [],
   'Unable to complete': [`${TERMS.cm} was unable to complete the task at this time.`, 'The task could not be completed at this time.'],
 };
 
+/** Barriers that affected the housing goal, as each reads in the note. */
+export const BARRIER_LIST: Record<string, string> = {
+  'Financial barrier': 'a financial barrier',
+  'Missing documents': 'missing documents',
+  'Eligibility barrier': 'an eligibility barrier',
+  'Housing availability': 'housing availability',
+  'Transportation barrier': 'a transportation barrier',
+  'Legal barrier': 'a legal barrier',
+  'Behavioral health concern': 'a behavioral health concern',
+  'Waiting for a third-party response': 'waiting for a third-party response',
+  'Member unavailable': `the ${TERMS.client} was unavailable`,
+  'Member declined assistance': `the ${TERMS.client} declined assistance`,
+  'Other barrier': '',
+};
+
+export const BARRIER_ANSWERS = ['Yes', 'No', 'Not assessed'] as const;
+
+/** Older drafts: a barrier picked as the result. */
 export const BARRIERS: Record<string, string> = {
   'Missing documents': 'missing documents',
   'Waiting on a third party': 'waiting on a third party',
@@ -991,20 +1317,54 @@ export const BARRIERS: Record<string, string> = {
 };
 
 export const RESPONSES: Record<string, string[]> = {
+  'Engaged in the discussion': [`${TERMS.Client} engaged in the discussion.`, `${TERMS.Client} took part in the discussion.`],
+  'Agreed with the plan': [`${TERMS.Client} agreed with the plan.`, `${TERMS.Client} agreed to the plan.`],
+  'Requested assistance': [`${TERMS.Client} requested assistance.`, `${TERMS.Client} asked for assistance.`],
+  'Asked questions': [`${TERMS.Client} asked questions.`, `${TERMS.Client} had questions.`],
+  'Expressed concern': [`${TERMS.Client} expressed concern.`, `${TERMS.Client} voiced concern.`],
+  'Declined assistance': [`${TERMS.Client} declined assistance.`, `${TERMS.Client} declined the assistance offered.`],
+  'Reported no additional needs': [`${TERMS.Client} reported no additional needs.`, `${TERMS.Client} reported no further needs at this time.`],
+  'Response not observed': [`${TERMS.Client}'s response was not observed.`, `No response from the ${TERMS.client} was observed.`],
+  // Older drafts.
   'Agreed with plan': [`${TERMS.Client} agreed with the plan.`, `${TERMS.Client} agreed to the plan.`],
   'Requested help': [`${TERMS.Client} requested assistance.`, `${TERMS.Client} asked for assistance.`],
   'Declined help': [`${TERMS.Client} declined assistance.`, `${TERMS.Client} declined the assistance offered.`],
   'Has questions': [`${TERMS.Client} had questions.`, `${TERMS.Client} asked questions.`],
   Concerned: [`${TERMS.Client} expressed concern.`, `${TERMS.Client} voiced concern.`],
   'No additional needs': [`${TERMS.Client} reported no additional needs.`, `${TERMS.Client} reported no further needs at this time.`],
+  'Other response': [],
   Other: [],
 };
+
+/** The response choices offered now (the rest are kept for older drafts). */
+export const RESPONSE_CHOICES = [
+  'Engaged in the discussion',
+  'Agreed with the plan',
+  'Requested assistance',
+  'Asked questions',
+  'Expressed concern',
+  'Declined assistance',
+  'Reported no additional needs',
+  'Response not observed',
+  'Other response',
+];
 
 /** Who can be responsible for the next step. Several can be picked, except None. */
 export const NEXT_WHO = ['CM', 'Consumer', 'Third party', 'None'] as const;
 
 /** How each NEXT_WHO value is labeled in the builder. The values stay as saved. */
-export const NEXT_WHO_LABELS: Record<string, string> = { CM: TERMS.cm, Consumer: 'Client', Both: 'Both', 'Third party': 'Third party', None: 'No next step' };
+export const NEXT_WHO_LABELS: Record<string, string> = { CM: TERMS.cm, Consumer: 'Member', Member: 'Member', Both: 'Both', 'Third party': 'Third party', None: 'No next step' };
+
+/** Who is responsible for one next step. */
+export const STEP_WHO = ['CM', 'Member', 'Third party'] as const;
+
+/** When the next contact is planned. */
+export const NEXT_CONTACT = ['Specific date', 'Timeframe', 'Not yet scheduled'] as const;
+export const NEXT_CONTACT_TIMEFRAMES: Record<string, string> = {
+  'In 1 week': 'within one week',
+  'In 2 weeks': 'within two weeks',
+  'In 1 month': 'within one month',
+};
 
 export const NEXT_CM: Record<string, string> = {
   'Follow up': 'follow up',
