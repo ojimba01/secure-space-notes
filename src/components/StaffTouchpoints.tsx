@@ -13,9 +13,9 @@ import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { CalendarClock, CalendarSync, CheckCircle2, Plus } from 'lucide-react';
+import { CalendarClock, CalendarSync, Plus } from 'lucide-react';
 import {
-  useMyCompliance, ScheduledTouchpoint, CycleRow,
+  useMyCompliance, ScheduledTouchpoint,
 } from '@/hooks/useMyCompliance';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { CaseLog } from '@/components/CaseLog';
@@ -98,17 +98,6 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
       touchpointType: t.touchpoint_type,
     });
 
-  const addFromCycle = (c: CycleRow) =>
-    c.nextScheduled
-      ? addFromTouchpoint(c.nextScheduled)
-      : openAdd({
-          clientId: c.client_id,
-          clientName: c.client_name,
-          levelOfNeed: c.level_of_need,
-          locked: true,
-          date: today,
-          contactMethod: c.remainingInPerson > 0 ? 'in_person' : 'phone',
-        });
 
   const openMove = (t: ScheduledTouchpoint) => {
     setMoveTp(t);

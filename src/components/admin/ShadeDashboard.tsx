@@ -91,7 +91,6 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
   const today = todayAgency();
   const past = claims.filter((c) => c.daysLeft < 0);
   const within30 = claims.filter((c) => c.daysLeft >= 0 && c.daysLeft <= 30);
-  const within60 = claims.filter((c) => c.daysLeft > 30);
   const valueWithin30 = within30.reduce((sum, c) => sum + Number(c.amount ?? 0), 0);
 
   // Who has been through the walkthrough since Shade last looked. A banner

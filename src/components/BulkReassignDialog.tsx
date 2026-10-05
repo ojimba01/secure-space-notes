@@ -158,7 +158,6 @@ export const BulkReassignDialog: React.FC<BulkReassignDialogProps> = ({
     form.reset();
   };
 
-  const selectedEmployee = employees.find((e) => e.id === form.watch('new_employee_id'));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

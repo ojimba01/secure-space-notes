@@ -1,55 +1,24 @@
 // Turns a case manager's selections into a progress note.
 //
-// Only what was selected or typed goes in. The note follows the usual order:
-// why the contact happened (the activities, what prompted it and the housing
-// goal), the member's housing status, the details, what CM did, the result,
-// barriers, the member's response, anything typed, the next steps and the next
-// contact. A section with nothing selected is left out rather than padded.
+// Only what was selected goes in, in the usual order: how the contact
+// happened, what prompted it and the housing goal, the member's housing
+// status, what happened in each category, what CM did, the result, the
+// member's response, barriers, the next steps and the next contact. A section
+// with nothing selected is left out rather than padded.
 //
-// Activity, action, result and next step are kept apart: the activity says why
-// the contact took place, the action what CM actually did. Each choice makes
-// one claim, and nothing is written from a heading alone.
+// Categories organize the screen and write nothing; only the answers beneath
+// them do. What CM did, the result and barriers can be answered once for the
+// whole contact or separately for each category.
 //
 // `variant` picks among equivalent wordings, so "Regenerate wording" reads
 // differently while saying exactly the same thing.
-//
-// Older drafts (picked topics instead of activities, one "next" instead of
-// separate steps, a barrier as the result) still read as they did.
-import {
-  ACTIONS,
-  BARRIERS,
-  BARRIER_LIST,
-  HOUSING_CHANGED,
-  HOUSING_STATUS,
-  METHOD_MEANS,
-  METHOD_PHRASES,
-  NEXT_CM,
-  NEXT_CONSUMER,
-  NEXT_CONTACT_TIMEFRAMES,
-  NEXT_THIRD,
-  NEXT_WHO_LABELS,
-  RESPONSES,
-  RESULTS,
-  SPECIFIC_DATE,
-  TERMS,
-  THIRD_PARTIES,
-  TIMING,
-  activityById,
-  choose,
-  joinList,
-  tidy,
-  topicById,
-  type Answers,
-  type Section,
-} from './config';
+import { ACTIONS, METHOD_PHRASES, TERMS, choose, joinList } from './config';
 import {
   BARRIER,
-  BARRIER_ALONE,
   GOALS,
   HOUSING,
   HOUSING_CHANGE,
-  NEXT_CONTACT_V3,
-  NOT_LISTED,
+  NEXT_CONTACT,
   OWNER,
   PROMPTS,
   RESPONSE,
@@ -65,89 +34,44 @@ import {
 
 export const GENERATOR_VERSION = 'clinical-notes-template-v2';
 
-/** One next step: who, what, when, and the goal it supports. */
+/** One next step: who, what and when. */
 export interface NextStep {
   who: string;
   actions: string[];
-  /** Who the third party is (Landlord, Provider …). */
-  thirdWho?: string;
-  /** Typed text for Other. */
-  other: string;
   timing?: string;
-  date?: string;
-  goal: string;
 }
 
-/** The steps that can be answered once for every activity, or separately for each. */
+/** The steps that can be answered once for every category, or separately for each. */
 export const SPLIT_STEPS = ['actions', 'result', 'barriers'] as const;
 export type SplitStep = (typeof SPLIT_STEPS)[number];
 
-/** What CM did, the result and barriers: for the whole contact, or for one activity. */
+/** What CM did, the result and barriers: for the whole contact, or for one category. */
 export interface ActivityPart {
   actions: { group: string; options: string[] }[];
-  actionsOther: string;
-  actionText: Record<string, string>;
-  result: { value: string; barrier?: string; barrierOther?: string; reason?: string } | null;
-  barriers: { answer?: string; list: string[]; other: string; impact: string };
+  result: { value: string; reason?: string } | null;
+  barriers: { list: string[] };
 }
 
-export const emptyPart = (): ActivityPart => ({ actions: [], actionsOther: '', actionText: {}, result: null, barriers: { list: [], other: '', impact: '' } });
+export const emptyPart = (): ActivityPart => ({ actions: [], result: null, barriers: { list: [] } });
 
-export interface NoteDraft {
-  /** 3 for the button-only answer tree; older drafts have none. */
-  v?: number;
-  /** The answer tree (v3): categories, picked items and their answers. */
-  tree?: TreeState;
-  /** v3: the housing goals and what prompted the contact, as picked. */
-  goals?: string[];
-  prompts?: string[];
-  /** The housing support activities that took place, in the order picked. */
+export interface NoteDraft extends ActivityPart {
+  /** 3 for the button-only answer tree. Notes from older builders have none and start over. */
+  v: 3;
+  /** The categories picked, the items picked in each, and their answers. */
+  tree: TreeState;
+  goals: string[];
+  prompts: string[];
+  /** The categories, for answering a step per category. Mirrors `tree.categories`. */
   activities: string[];
-  /** Typed for "Other activity". */
-  activityOther: string;
-  /** Detail sections added beyond what the activities open (Voucher, Legal …). */
-  extraSections: string[];
-  /** The member's housing goal this contact supported, as typed. */
-  goal: string;
-  /** What prompted the contact, as typed. */
-  reason: string;
-  housing: { status?: string; changed?: string; change: string };
-  /** Detail sections shown; the first is the primary one. Follows the activities. */
-  topics: string[];
-  /** Topic-level answers, such as the benefit type. */
-  topicContext: Record<string, Answers>;
-  /** Per topic, the items picked and their answers, in the order picked. */
-  items: Record<string, { id: string; answers: Answers }[]>;
-  /** What CM did: group id → chosen options. "other" holds typed text. */
-  actions: { group: string; options: string[] }[];
-  actionsOther: string;
-  /** Words typed for an action option that asks for them, keyed "group:option". */
-  actionText: Record<string, string>;
-  result: { value: string; barrier?: string; barrierOther?: string; reason?: string } | null;
-  barriers: { answer?: string; list: string[]; other: string; impact: string };
-  /** Steps answered separately for each activity (only with more than one activity). */
+  housing: { status?: string; changed?: string };
+  /** Steps answered separately for each category (only with more than one). */
   split: Partial<Record<SplitStep, boolean>>;
-  /** Per activity: its own actions, result and barriers, for the split steps. */
+  /** Per category: its own actions, result and barriers, for the split steps. */
   byActivity: Record<string, ActivityPart>;
   response: string[];
-  responseOther: string;
-  /** Next steps, one per responsible party and action. */
   steps: NextStep[];
   noNextStep: boolean;
-  nextContact: { kind?: string; date?: string; timeframe?: string };
-  /** Older drafts: one next step for several people. */
-  next?: {
-    /** CM, Consumer, Third party, or None alone. A single string in the oldest drafts. */
-    who: string[] | string;
-    cm: string[];
-    consumer: string[];
-    third: string[];
-    thirdWho?: string;
-    other: string;
-    timing?: string;
-    date?: string;
-  } | null;
-  freeText: string;
+  nextContact: { kind?: string };
 }
 
 export const emptyDraft = (): NoteDraft => ({
@@ -156,347 +80,77 @@ export const emptyDraft = (): NoteDraft => ({
   goals: [],
   prompts: [],
   activities: [],
-  activityOther: '',
-  extraSections: [],
-  goal: '',
-  reason: '',
-  housing: { change: '' },
-  topics: [],
-  topicContext: {},
-  items: {},
+  housing: {},
   actions: [],
-  actionsOther: '',
-  actionText: {},
   result: null,
-  barriers: { list: [], other: '', impact: '' },
+  barriers: { list: [] },
   split: {},
   byActivity: {},
   response: [],
-  responseOther: '',
   steps: [],
   noNextStep: false,
   nextContact: {},
-  next: null,
-  freeText: '',
 });
 
-/** A draft with every field present, whatever version saved it. */
+/** A draft with every field present. Drafts from older builders start over. */
 export function normalizeDraft(d: Partial<NoteDraft> | null | undefined): NoteDraft {
   const e = emptyDraft();
-  const x = { ...e, ...(d ?? {}) } as NoteDraft;
-  x.housing = { ...e.housing, ...(d?.housing ?? {}) };
-  x.barriers = { ...e.barriers, ...(d?.barriers ?? {}) };
-  x.nextContact = { ...(d?.nextContact ?? {}) };
-  x.split = { ...(d?.split ?? {}) };
-  // Saved before the version field: an older draft, read the older way.
-  if (d && d.v === undefined) delete x.v;
-  if (x.v === 3) {
-    x.tree = { ...emptyTree(), ...(d?.tree ?? {}) };
-    x.goals = [...(d?.goals ?? [])];
-    x.prompts = [...(d?.prompts ?? [])];
-    // The split steps work per category.
-    x.activities = [...x.tree.categories];
-  }
+  if (d?.v !== 3) return e;
+  const x: NoteDraft = { ...e, ...d, v: 3 };
+  x.tree = { ...emptyTree(), ...(d.tree ?? {}) };
+  x.activities = [...x.tree.categories];
+  x.housing = { ...(d.housing ?? {}) };
+  x.barriers = { list: [...(d.barriers?.list ?? [])] };
+  x.nextContact = { ...(d.nextContact ?? {}) };
+  x.split = { ...(d.split ?? {}) };
   x.byActivity = Object.fromEntries(
-    Object.entries(d?.byActivity ?? {}).map(([k, p]) => [k, { ...emptyPart(), ...p, barriers: { ...emptyPart().barriers, ...(p?.barriers ?? {}) } }]),
+    Object.entries(d.byActivity ?? {}).map(([k, p]) => [k, { ...emptyPart(), ...p, barriers: { list: [...(p?.barriers?.list ?? [])] } }]),
   );
   return x;
 }
 
-/** Whether a step is answered separately for each activity. Needs two or more activities. */
-export const isSplit = (d: NoteDraft, step: SplitStep) => (d.activities ?? []).length > 1 && !!d.split?.[step];
+/** Whether a step is answered separately for each category. Needs two or more. */
+export const isSplit = (d: NoteDraft, step: SplitStep) => d.activities.length > 1 && !!d.split[step];
 
-/** One activity's part (empty until something is picked). */
-export const partFor = (d: NoteDraft, activityId: string): ActivityPart => d.byActivity?.[activityId] ?? emptyPart();
+/** One category's part (empty until something is picked). */
+export const partFor = (d: NoteDraft, id: string): ActivityPart => d.byActivity[id] ?? emptyPart();
 
-/** How an activity is named on screen. */
-export const activityLabel = (d: NoteDraft, id: string) =>
-  d.v === 3 ? categoryById(id)?.label ?? id : id === 'other' ? d.activityOther.trim() || 'Other activity' : activityById(id)?.label ?? id;
+/** How a category is named on screen. */
+export const activityLabel = (id: string) => categoryById(id)?.label ?? id;
 
 export interface ContactFacts {
   /** client_contacts.modality, when known. */
   method?: string | null;
 }
 
-// ---- which detail questions show --------------------------------------------
-
-/** The detail sections the activities and added sections open, merged by topic. */
-export function sectionsOf(d: NoteDraft): Section[] {
-  const out: Section[] = [];
-  const add = (s: Section) => {
-    const cur = out.find((x) => x.topic === s.topic);
-    if (!cur) out.push({ ...s, items: s.items ? [...s.items] : undefined });
-    else if (!s.items) cur.items = undefined;
-    else if (cur.items) cur.items = [...new Set([...cur.items, ...s.items])];
-  };
-  for (const id of d.activities ?? []) for (const s of activityById(id)?.sections ?? []) add(s);
-  for (const t of d.extraSections ?? []) add({ topic: t });
-  return out;
-}
-
-/** Items of a topic that can be picked, or null for all of them. */
-export function allowedItems(d: NoteDraft, topicId: string): string[] | null {
-  if (!(d.activities ?? []).length && !(d.extraSections ?? []).length) return null; // older drafts
-  return sectionsOf(d).find((s) => s.topic === topicId)?.items ?? null;
-}
-
-/** Bring the shown sections in line with the activities, dropping answers for anything no longer shown. */
-export function syncSections(d: NoteDraft): NoteDraft {
-  const secs = sectionsOf(d);
-  d.topics = secs.map((s) => s.topic);
-  for (const t of Object.keys(d.items)) {
-    const s = secs.find((x) => x.topic === t);
-    if (!s) delete d.items[t];
-    else if (s.items) d.items[t] = d.items[t].filter((p) => s.items!.includes(p.id));
-  }
-  for (const t of Object.keys(d.topicContext)) if (!secs.some((x) => x.topic === t)) delete d.topicContext[t];
-  // Answers for an activity no longer picked go with it.
-  for (const a of Object.keys(d.byActivity ?? {})) if (!d.activities.includes(a)) delete d.byActivity[a];
-  return d;
-}
-
-/** Whether a question is asked, given the answers so far. */
-export const asked = (q: { showIf?: (a: Answers) => boolean }, a: Answers) => !q.showIf || q.showIf(a);
-
-/** Whether an item has every required answer. */
-export function itemComplete(topicId: string, itemId: string, answers: Answers): boolean {
-  const item = topicById(topicId)?.items.find((i) => i.id === itemId);
-  if (!item) return false;
-  return item.questions.every((q) => {
-    if (q.optional || !asked(q, answers)) return true;
-    const a = answers[q.key];
-    return Array.isArray(a) ? a.length > 0 : !!(typeof a === 'string' ? a.trim() : a);
-  });
-}
-
 // ---- the note ---------------------------------------------------------------
 
-const longDate = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-
-/** The activities as they read: typed text for Other. */
-function activityPhrases(d: NoteDraft): string[] {
-  return d.activities.map((id) => (id === 'other' ? d.activityOther.trim() : activityById(id)?.phrase ?? '')).filter(Boolean);
-}
-
-function purpose(draft: NoteDraft, contact: ContactFacts, v: number): string[] {
-  const method = contact.method ?? 'other';
-  const how = choose(v, METHOD_PHRASES[method] ?? METHOD_PHRASES.other);
+function cmActions(p: ActivityPart, v: number): string[] {
   const out: string[] = [];
-  if (draft.activities.length) {
-    const p = activityPhrases(draft);
-    const coordinationOnly = draft.activities.every((id) => activityById(id)?.coordination);
-    if (!p.length) out.push(`${TERMS.cm} ${how}.`);
-    else if (coordinationOnly) {
-      // Coordination is often with a provider, not the member.
-      const means = METHOD_MEANS[method] ?? '';
-      out.push(`${TERMS.cm} completed ${joinList(p)} for the ${TERMS.client}${means ? ` ${means}` : ''}.`);
-    } else out.push(`${TERMS.cm} ${how} regarding ${joinList(p)}.`);
-  } else {
-    // Older drafts: the topics say what it was about.
-    const [primary, ...rest] = draft.topics.map((id) => topicById(id)).filter(Boolean) as NonNullable<ReturnType<typeof topicById>>[];
-    if (!primary) return [];
-    const about = [primary, ...rest].map((t) => t.purpose).filter(Boolean);
-    if (primary.id === 'care_coordination') {
-      const means = METHOD_MEANS[method] ?? '';
-      out.push(`${TERMS.cm} completed care coordination for the ${TERMS.client}${means ? ` ${means}` : ''}${
-        rest.length ? `, including ${joinList(rest.map((t) => t.purpose).filter(Boolean))}` : ''
-      }.`);
-    } else if (!about.length) out.push(`${TERMS.cm} ${how}.`);
-    else out.push(`${TERMS.cm} ${how} ${primary.id === 'checkin' ? 'for' : 'regarding'} ${joinList(about)}.`);
-  }
-  const reason = tidy(draft.reason);
-  if (reason) out.push(`Reason for contact: ${reason}`);
-  const goal = tidy(draft.goal);
-  if (goal) out.push(`Housing goal: ${goal}`);
-  return out;
-}
-
-function housing(draft: NoteDraft, v: number): string[] {
-  const h = draft.housing;
-  const out: string[] = [];
-  const s = HOUSING_STATUS[h.status ?? ''];
-  if (s) out.push(choose(v, s));
-  const c = HOUSING_CHANGED[h.changed ?? ''];
-  if (c) out.push(c);
-  const what = tidy(h.change);
-  if (h.changed === 'Yes' && what) out.push(`Change reported: ${what}`);
-  return out;
-}
-
-function updates(draft: NoteDraft, v: number): string[] {
-  const out: string[] = [];
-  draft.topics.forEach((topicId, ti) => {
-    const topic = topicById(topicId);
-    if (!topic) return;
-    const allowed = allowedItems(draft, topicId);
-    for (const [ii, picked] of (draft.items[topicId] ?? []).entries()) {
-      if (allowed && !allowed.includes(picked.id)) continue;
-      const item = topic.items.find((i) => i.id === picked.id);
-      if (!item || !itemComplete(topicId, picked.id, picked.answers)) continue;
-      out.push(...item.say(picked.answers, v + ti + ii, { topic: draft.topicContext[topicId] ?? {} }));
-    }
-  });
-  return out;
-}
-
-function cmActions(draft: ActivityPart, v: number): string[] {
-  const out: string[] = [];
-  for (const [i, a] of draft.actions.entries()) {
-    if (a.group === 'other') continue;
+  for (const [i, a] of p.actions.entries()) {
     const group = ACTIONS.find((g) => g.id === a.group);
-    if (!group) continue;
-    const phrases = a.options
-      .map((o) => {
-        const typed = (draft.actionText?.[`${a.group}:${o}`] ?? '').trim();
-        const detail = group.detail?.[o];
-        return detail && typed ? detail.phrase(typed) : group.options[o];
-      })
-      .filter(Boolean);
-    if (phrases.length) out.push(group.say(phrases, v + i));
+    const phrases = a.options.map((o) => group?.options[o]).filter((x): x is string => !!x);
+    if (group && phrases.length) out.push(group.say(phrases, v + i));
   }
-  const typed = tidy(draft.actionsOther);
-  if (draft.actions.some((a) => a.group === 'other') && typed) out.push(typed);
   return out;
 }
 
-function result(draft: ActivityPart, v: number): string[] {
-  const r = draft.result;
-  if (!r) return [];
-  if (r.value === 'Barrier') {
-    // Older drafts picked a barrier as the result.
-    const b = r.barrier === 'Other' ? (r.barrierOther ?? '').trim() : BARRIERS[r.barrier ?? ''] ?? '';
-    if (!b) return [choose(v, ['A barrier was identified.', 'A barrier was noted.'])];
-    return [choose(v, [`A barrier was identified: ${b}.`, `Progress was limited by a barrier: ${b}.`])];
-  }
-  const list = RESULTS[r.value];
-  return list?.length ? [choose(v, list)] : [];
-}
-
-function barriers(draft: ActivityPart, v: number): string[] {
-  const b = draft.barriers;
-  if (b.answer === 'No') return [choose(v, ['No barriers were identified.', 'No barriers were noted.'])];
-  if (b.answer === 'Not assessed') return ['Barriers were not assessed.'];
-  if (b.answer !== 'Yes') return [];
-  const out: string[] = [];
-  const list = b.list.map((x) => (x === 'Other barrier' ? b.other.trim() : BARRIER_LIST[x])).filter(Boolean);
-  if (list.length) out.push(choose(v, [`Barriers affecting the housing goal: ${joinList(list)}.`, `The housing goal was affected by ${joinList(list)}.`]));
-  const impact = tidy(b.impact);
-  if (impact) out.push(`Impact on the housing goal: ${impact}`);
-  return out;
-}
-
-function response(draft: NoteDraft, v: number): string[] {
-  const out = draft.response
-    .filter((r) => r !== 'Other' && r !== 'Other response')
-    .map((r) => RESPONSES[r])
-    .filter((l): l is string[] => !!l && l.length > 0)
-    .map((l, i) => choose(v + i, l));
-  const typed = tidy(draft.responseOther);
-  if (draft.response.some((r) => r === 'Other' || r === 'Other response') && typed) out.push(typed);
-  return out;
-}
-
-function whenText(timing?: string, date?: string): string {
-  if (timing === SPECIFIC_DATE && date) return `by ${longDate(date)}`;
-  return timing ? TIMING[timing] ?? '' : '';
-}
-
-/** One next step as a sentence, with its goal when it differs from the contact's. */
-function stepSentences(draft: NoteDraft, s: NextStep, v: number): string[] {
-  const timing = whenText(s.timing, s.date);
-  const tail = timing ? ` ${timing}` : '';
-  const typed = s.other.trim();
-  const out: string[] = [];
-  if (s.who === 'Third party') {
-    const party = THIRD_PARTIES[s.thirdWho ?? ''] ?? 'a third party';
-    const p = s.actions.map((c) => (c === 'Other' ? typed : NEXT_THIRD[c]?.(party) ?? '')).filter(Boolean);
-    if (!p.length && s.thirdWho) p.push(`a response from ${party}`);
-    if (p.length) out.push(choose(v, [`Next step is pending ${joinList(p)}${tail}.`, `Awaiting ${joinList(p)}${tail}.`]));
-  } else {
-    const map = s.who === 'CM' ? NEXT_CM : NEXT_CONSUMER;
-    const p = s.actions.map((c) => (c === 'Other' ? typed : map[c])).filter(Boolean);
-    const who = s.who === 'CM' ? TERMS.cm : TERMS.Client;
-    if (p.length) out.push(choose(v, [`${who} will ${joinList(p)}${tail}.`, `${who} ${s.who === 'CM' ? 'plans to' : 'is to'} ${joinList(p)}${tail}.`]));
-  }
-  const goal = tidy(s.goal);
-  if (out.length && goal && goal !== tidy(draft.goal)) out.push(`This step supports the housing goal: ${goal}`);
-  return out;
-}
-
-/** Older drafts: who is responsible for the one next step ("Both" was CM and the member). */
-export function nextWho(next: NoteDraft['next']): string[] {
-  if (!next) return [];
-  const w = next.who;
-  if (Array.isArray(w)) return w;
-  return w === 'Both' ? ['CM', 'Consumer'] : w ? [w] : [];
-}
-
-function legacyNext(draft: NoteDraft, v: number): string[] {
-  const n = draft.next;
-  if (!n) return [];
-  const who = nextWho(n);
-  if (!who.length) return [];
-  if (who.includes('None')) return [choose(v, ['No further action is needed at this time.', 'No next step is needed at this time.'])];
-  const steps: NextStep[] = [];
-  const base = { other: n.other, timing: n.timing, date: n.date, goal: '' };
-  if (who.includes('CM')) steps.push({ ...base, who: 'CM', actions: n.cm });
-  if (who.includes('Consumer')) steps.push({ ...base, who: 'Member', actions: n.consumer });
-  if (who.includes('Third party')) steps.push({ ...base, who: 'Third party', actions: n.third, thirdWho: n.thirdWho });
-  const out = steps.flatMap((s, i) => stepSentences(draft, s, v + i));
-  const timing = whenText(n.timing, n.date);
-  if (!out.length && timing) out.push(`Next contact is planned ${timing}.`);
-  return out;
-}
-
-function nextSteps(draft: NoteDraft, v: number): string[] {
-  if (draft.noNextStep) return [choose(v, ['No next step was identified.', 'No next step was identified at this time.'])];
-  if (draft.steps.length) return draft.steps.flatMap((s, i) => stepSentences(draft, s, v + i));
-  return legacyNext(draft, v);
-}
-
-function nextContact(draft: NoteDraft): string[] {
-  const n = draft.nextContact;
-  if (n.kind === 'Specific date' && n.date) return [`Next contact is planned for ${longDate(n.date)}.`];
-  if (n.kind === 'Timeframe' && n.timeframe && NEXT_CONTACT_TIMEFRAMES[n.timeframe]) return [`Next contact is planned ${NEXT_CONTACT_TIMEFRAMES[n.timeframe]}.`];
-  if (n.kind === 'Not yet scheduled') return ['Next contact is not yet scheduled.'];
-  return [];
-}
-
-/** "Regarding the lease review, CM reviewed the lease." The first sentence carries the activity. */
+/** "Regarding housing assistance, CM reviewed the lease." The first sentence carries the category. */
 function regarding(phrase: string, sentences: string[]): string[] {
   if (!sentences.length || !phrase) return sentences;
-  const p = phrase.replace(/^an? /, 'the ');
   const [first, ...rest] = sentences;
   const lead = first.startsWith(`${TERMS.cm} `) ? first : first[0].toLowerCase() + first.slice(1);
-  return [`Regarding ${p}, ${lead}`, ...rest];
+  return [`Regarding ${phrase}, ${lead}`, ...rest];
 }
 
-/** For each activity, the steps answered separately for it, as one group of sentences. */
-function perActivity(draft: NoteDraft, v: number): string[] {
-  const steps = SPLIT_STEPS.filter((s) => isSplit(draft, s));
-  if (!steps.length) return [];
-  return draft.activities.flatMap((id, i) => {
-    const part = partFor(draft, id);
-    const out = [
-      ...(steps.includes('actions') ? cmActions(part, v + i) : []),
-      ...(steps.includes('result') ? result(part, v + i) : []),
-      ...(steps.includes('barriers') ? barriers(part, v + i) : []),
-    ];
-    const phrase = id === 'other' ? draft.activityOther.trim() : activityById(id)?.phrase ?? '';
-    return regarding(phrase, out);
-  });
-}
-
-// ---- the button-only tree (v3) ----------------------------------------------
-
-function resultV3(p: ActivityPart): string[] {
+function resultSentences(p: ActivityPart): string[] {
   const r = p.result;
   if (!r) return [];
   if (r.value === 'Unable to complete' && r.reason && UNABLE_BECAUSE[r.reason]) return [`The activity could not be completed because ${UNABLE_BECAUSE[r.reason]}.`];
   return RESULT[r.value] ? [RESULT[r.value]] : [];
 }
 
-function barriersV3(p: ActivityPart): string[] {
+function barrierSentences(p: ActivityPart): string[] {
   const list = p.barriers.list;
   if (list.includes('No barrier identified')) return ['No barriers were identified.'];
   if (list.includes('Barrier not assessed')) return ['Barriers were not assessed.'];
@@ -504,7 +158,7 @@ function barriersV3(p: ActivityPart): string[] {
   return ph.length ? [`Barriers identified: ${joinList(ph)}.`] : [];
 }
 
-function stepV3(s: NextStep): string[] {
+function stepSentences(s: NextStep): string[] {
   const owner = OWNER[s.who];
   if (!owner) return [];
   const map = actionsFor(s.who);
@@ -518,13 +172,13 @@ function stepV3(s: NextStep): string[] {
 /** Sentences in order, each written once (two answers can say the same thing). */
 const once = (list: string[]) => [...new Set(list.filter(Boolean))];
 
-function generateV3(draft: NoteDraft, contact: ContactFacts, v: number): string {
-  const t = draft.tree ?? emptyTree();
+function writeNote(draft: NoteDraft, contact: ContactFacts, v: number): string {
+  const t = draft.tree;
   const method = contact.method ?? 'other';
   const out: string[] = [`${TERMS.cm} ${choose(v, METHOD_PHRASES[method] ?? METHOD_PHRASES.other)}.`];
-  const prompts = (draft.prompts ?? []).map((p) => PROMPTS[p]).filter(Boolean);
+  const prompts = draft.prompts.map((p) => PROMPTS[p]).filter(Boolean);
   if (prompts.length) out.push(`The contact was prompted by ${joinList(prompts)}.`);
-  const goals = (draft.goals ?? []).map((g) => GOALS[g]).filter(Boolean);
+  const goals = draft.goals.map((g) => GOALS[g]).filter(Boolean);
   if (goals.length) out.push(`This contact supported the member's ${goals.length === 1 ? 'goal' : 'goals'} to ${joinList(goals)}.`);
   if (HOUSING[draft.housing.status ?? '']) out.push(HOUSING[draft.housing.status!]);
   if (HOUSING_CHANGE[draft.housing.changed ?? '']) out.push(HOUSING_CHANGE[draft.housing.changed!]);
@@ -538,55 +192,30 @@ function generateV3(draft: NoteDraft, contact: ContactFacts, v: number): string 
       const part = partFor(draft, id);
       const group = [
         ...(split.includes('actions') ? cmActions(part, v + i) : []),
-        ...(split.includes('result') ? resultV3(part) : []),
-        ...(split.includes('barriers') ? barriersV3(part) : []),
+        ...(split.includes('result') ? resultSentences(part) : []),
+        ...(split.includes('barriers') ? barrierSentences(part) : []),
       ];
       out.push(...regarding((categoryById(id)?.label ?? '').toLowerCase(), group));
     }
   }
-  if (!isSplit(draft, 'result')) out.push(...resultV3(draft));
+  if (!isSplit(draft, 'result')) out.push(...resultSentences(draft));
   out.push(...draft.response.map((r) => RESPONSE[r]).filter(Boolean));
-  if (!isSplit(draft, 'barriers')) out.push(...barriersV3(draft));
+  if (!isSplit(draft, 'barriers')) out.push(...barrierSentences(draft));
   if (draft.noNextStep) out.push('No next step was identified.');
-  else out.push(...draft.steps.flatMap(stepV3));
-  if (NEXT_CONTACT_V3[draft.nextContact.kind ?? '']) out.push(NEXT_CONTACT_V3[draft.nextContact.kind!]);
+  else out.push(...draft.steps.flatMap(stepSentences));
+  if (NEXT_CONTACT[draft.nextContact.kind ?? '']) out.push(NEXT_CONTACT[draft.nextContact.kind!]);
   return once(out).join(' ');
 }
 
 /** The note for a draft, in wording `variant`. */
 export function generateNote(input: NoteDraft, contact: ContactFacts, variant = 0): string {
-  const draft = normalizeDraft(input);
-  if (draft.v === 3) return generateV3(draft, contact, variant);
-  const parts = [
-    ...purpose(draft, contact, variant),
-    ...housing(draft, variant),
-    ...updates(draft, variant),
-    // A step answered once for the whole contact reads as before; one answered
-    // per activity reads under that activity.
-    ...(isSplit(draft, 'actions') ? [] : cmActions(draft, variant)),
-    ...perActivity(draft, variant),
-    ...(isSplit(draft, 'result') ? [] : result(draft, variant)),
-    ...(isSplit(draft, 'barriers') ? [] : barriers(draft, variant)),
-    ...response(draft, variant),
-    tidy(draft.freeText),
-    ...nextSteps(draft, variant),
-    ...nextContact(draft),
-  ].filter(Boolean);
-  return parts.join(' ');
+  return writeNote(normalizeDraft(input), contact, variant);
 }
 
-/** True when there is enough to write a note: an activity (or older topic) and something said. */
+/** True when there is enough to write a note: a specific answer beneath a category, not a category alone. */
 export function canGenerate(input: NoteDraft): boolean {
-  const draft = normalizeDraft(input);
-  // v3: at least one specific answer beneath a category, not a category alone.
-  if (draft.v === 3) {
-    const t = draft.tree ?? emptyTree();
-    return t.categories.some((c) => categorySentences(t, c).length > 0);
-  }
-  if (draft.activities.length) return activityPhrases(draft).length > 0;
-  if (!draft.topics.length) return false;
-  const anyItem = draft.topics.some((t) => (draft.items[t] ?? []).some((p) => itemComplete(t, p.id, p.answers)));
-  return anyItem || draft.actions.length > 0 || !!draft.freeText.trim();
+  const t = normalizeDraft(input).tree;
+  return t.categories.some((c) => categorySentences(t, c).length > 0);
 }
 
 // ---- the short "Selected" summary -----------------------------------------
@@ -596,81 +225,38 @@ export interface SummaryLine {
   lines: string[];
 }
 
-const show = (a: string | string[] | undefined) => (Array.isArray(a) ? a.join(', ') : a ?? '');
-
 export function summarize(input: NoteDraft): SummaryLine[] {
   const draft = normalizeDraft(input);
   const out: SummaryLine[] = [];
-  if (draft.v === 3) {
-    const t = draft.tree ?? emptyTree();
-    for (const id of t.categories) {
-      const c = categoryById(id);
-      if (!c) continue;
-      const lines = (t.picks[id] ?? []).map((p) => c.items.find((i) => i.id === p)?.label ?? p).filter((l) => l);
-      const answered = Object.entries(t.answers)
-        .filter(([k, a]) => k.startsWith(`${id}.`) && (Array.isArray(a) ? a.length : a))
-        .map(([, a]) => (Array.isArray(a) ? a.join(', ') : a!));
-      if (lines.length) out.push({ heading: c.label, lines: [...lines, ...answered.map((a) => `→ ${a}`)] });
-    }
-    if (draft.goals?.length) out.push({ heading: 'Housing goal', lines: draft.goals });
-    if (draft.prompts?.length) out.push({ heading: 'Prompted by', lines: draft.prompts });
-    const hs = [draft.housing.status, draft.housing.changed].filter(Boolean) as string[];
-    if (hs.length) out.push({ heading: 'Housing status', lines: hs });
+  const t = draft.tree;
+  for (const id of t.categories) {
+    const c = categoryById(id);
+    if (!c) continue;
+    const lines = (t.picks[id] ?? []).map((p) => c.items.find((i) => i.id === p)?.label ?? p).filter((l) => l);
+    const answered = Object.entries(t.answers)
+      .filter(([k, a]) => k.startsWith(`${id}.`) && (Array.isArray(a) ? a.length : a))
+      .map(([, a]) => (Array.isArray(a) ? a.join(', ') : a!));
+    if (lines.length) out.push({ heading: c.label, lines: [...lines, ...answered.map((a) => `→ ${a}`)] });
   }
-  if (draft.activities.length && draft.v !== 3) {
-    const lines = draft.activities.map((id) => (id === 'other' ? `Other: ${draft.activityOther.trim() || '…'}` : activityById(id)?.label ?? id));
-    out.push({ heading: 'Activities', lines });
-  }
-  const why = [draft.reason.trim() && `Reason: ${draft.reason.trim()}`, draft.goal.trim() && `Goal: ${draft.goal.trim()}`].filter(Boolean) as string[];
-  if (why.length) out.push({ heading: 'Reason and goal', lines: why });
-  const h = draft.housing;
-  const hl = draft.v === 3 ? [] : [h.status, h.changed && `Changed: ${h.changed}${h.changed === 'Yes' && h.change.trim() ? ` → ${h.change.trim()}` : ''}`].filter(Boolean) as string[];
-  if (hl.length) out.push({ heading: 'Housing status', lines: hl });
-  draft.topics.forEach((id, i) => {
-    const topic = topicById(id);
-    if (!topic) return;
-    const lines: string[] = [];
-    const ctx = topic.context ? show(draft.topicContext[id]?.[topic.context.key]) : '';
-    if (ctx) lines.push(`Type: ${ctx}`);
-    for (const p of draft.items[id] ?? []) {
-      const item = topic.items.find((x) => x.id === p.id);
-      if (!item) continue;
-      const vals = item.questions.filter((q) => asked(q, p.answers)).map((q) => show(p.answers[q.key])).filter(Boolean);
-      lines.push(vals.length ? `${item.label}: ${vals.join(' → ')}` : item.questions.length ? `${item.label}: …` : item.label);
-    }
-    // With activities, a section only shows in the summary once something in it is picked.
-    if (!lines.length && draft.activities.length) return;
-    out.push({ heading: `${topic.label}${i === 0 && draft.topics.length > 1 && !draft.activities.length ? ' (primary)' : ''}`, lines });
-  });
+  if (draft.goals.length) out.push({ heading: 'Housing goal', lines: draft.goals });
+  if (draft.prompts.length) out.push({ heading: 'Prompted by', lines: draft.prompts });
+  const hs = [draft.housing.status, draft.housing.changed].filter(Boolean) as string[];
+  if (hs.length) out.push({ heading: 'Housing status', lines: hs });
   const partLines = (p: ActivityPart, step: SplitStep): string[] => {
     if (step === 'actions')
       return p.actions.map((a) => {
         const g = ACTIONS.find((x) => x.id === a.group);
-        if (a.group === 'other') return `Other${p.actionsOther.trim() ? `: ${p.actionsOther.trim()}` : ''}`;
-        const opts = a.options.map((o) => {
-          const t = (p.actionText?.[`${a.group}:${o}`] ?? '').trim();
-          return t ? `${o} (${t})` : o;
-        });
-        return `${g?.label ?? a.group}${opts.length ? ` → ${opts.join(', ')}` : ''}`;
+        return `${g?.label ?? a.group}${a.options.length ? ` → ${a.options.join(', ')}` : ''}`;
       });
-    if (step === 'result') {
-      const r = p.result;
-      if (!r) return [];
-      if (r.reason) return [`${r.value} → ${r.reason}`];
-      return [r.value === 'Barrier' && r.barrier ? `Barrier → ${r.barrier === 'Other' ? r.barrierOther || 'Other' : r.barrier}` : r.value];
-    }
-    const b = p.barriers;
-    if (draft.v === 3) return b.list;
-    if (!b.answer) return [];
-    const list = b.list.map((x) => (x === 'Other barrier' && b.other.trim() ? b.other.trim() : x));
-    return [b.answer === 'Yes' && list.length ? list.join(', ') : b.answer, ...(b.answer === 'Yes' && b.impact.trim() ? [`Impact: ${b.impact.trim()}`] : [])];
+    if (step === 'result') return p.result ? [p.result.reason ? `${p.result.value} → ${p.result.reason}` : p.result.value] : [];
+    return p.barriers.list;
   };
   const HEAD: Record<SplitStep, string> = { actions: `${TERMS.cm} actions`, result: 'Result', barriers: 'Barriers' };
   for (const step of SPLIT_STEPS) {
     if (isSplit(draft, step)) {
       for (const id of draft.activities) {
         const lines = partLines(partFor(draft, id), step);
-        if (lines.length) out.push({ heading: `${HEAD[step]}: ${activityLabel(draft, id)}`, lines });
+        if (lines.length) out.push({ heading: `${HEAD[step]}: ${activityLabel(id)}`, lines });
       }
     } else {
       const lines = partLines(draft, step);
@@ -679,25 +265,7 @@ export function summarize(input: NoteDraft): SummaryLine[] {
   }
   if (draft.response.length) out.push({ heading: 'Member response', lines: [draft.response.join(', ')] });
   if (draft.noNextStep) out.push({ heading: 'Next steps', lines: ['No next step identified'] });
-  else if (draft.steps.length) {
-    out.push({
-      heading: 'Next steps',
-      lines: draft.steps.map((s) => {
-        const what = [...(s.thirdWho ? [s.thirdWho] : []), ...s.actions.filter((x) => x !== 'Other'), ...(s.other.trim() ? [s.other.trim()] : [])];
-        const t = s.timing === SPECIFIC_DATE ? s.date ?? '' : s.timing ?? '';
-        return [NEXT_WHO_LABELS[s.who] ?? s.who, what.join(', '), t].filter(Boolean).join(' · ');
-      }),
-    });
-  } else if (draft.next) {
-    const n = draft.next;
-    const what = [...(n.thirdWho ? [n.thirdWho] : []), ...n.cm, ...n.consumer, ...n.third].filter((x) => x !== 'Other');
-    if (n.other.trim()) what.push(n.other.trim());
-    const t = n.timing === SPECIFIC_DATE ? n.date ?? '' : n.timing ?? '';
-    const who = nextWho(n).map((w) => NEXT_WHO_LABELS[w] ?? w).join(', ');
-    if (who) out.push({ heading: 'Next', lines: [[who, what.join(', '), t].filter(Boolean).join(' · ')] });
-  }
-  const nc = draft.nextContact;
-  if (nc.kind) out.push({ heading: 'Next contact', lines: [nc.kind === 'Specific date' ? nc.date || 'Specific date' : nc.kind === 'Timeframe' ? nc.timeframe || 'Timeframe' : nc.kind] });
-  if (draft.freeText.trim()) out.push({ heading: 'Added detail', lines: [draft.freeText.trim()] });
+  else if (draft.steps.length) out.push({ heading: 'Next steps', lines: draft.steps.map((s) => [s.who, s.actions.join(', '), s.timing].filter(Boolean).join(' · ')) });
+  if (draft.nextContact.kind) out.push({ heading: 'Next contact', lines: [draft.nextContact.kind] });
   return out;
 }

@@ -5,6 +5,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { ComposedNote } from '@/components/clinicalNotes/NoteComposer';
 import { isSplit, normalizeDraft, partFor, type ActivityPart } from '@/lib/clinicalNotes/generate';
+import { BARRIER_ALONE } from '@/lib/clinicalNotes/tree';
 
 // Newer than the generated types.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,28 +39,19 @@ export function noteRow(c: ComposedNote, contact: NoteContact, finalText?: strin
     service_type: contact.serviceType ?? null,
     location: contact.location ?? null,
     progress_note_type: contact.progressNoteType ?? null,
-    // The categories picked (v3), or the topics of an older draft.
-    primary_topic: (d.v === 3 ? d.tree?.categories[0] : d.topics[0]) ?? null,
-    secondary_topics: d.v === 3 ? d.tree?.categories.slice(1) ?? [] : d.topics.slice(1),
+    primary_topic: d.tree.categories[0] ?? null,
+    secondary_topics: d.tree.categories.slice(1),
     selections: d,
-    // Answered per activity, each entry names its activity.
+    // Answered per category, each entry names its category.
     interventions: (isSplit(d, 'actions') ? d.activities.map((id) => ({ id, p: partFor(d, id) })) : [{ id: null, p: d as ActivityPart }]).flatMap(({ id, p }) =>
-      p.actions.map((a) => ({ ...(id ? { activity: id } : {}), ...(a.group === 'other' ? { group: 'other', text: p.actionsOther.trim() } : a) })),
+      p.actions.map((a) => ({ ...(id ? { activity: id } : {}), ...a })),
     ),
-    consumer_response: d.response.map((r) => (r === 'Other' || r === 'Other response' ? { other: d.responseOther.trim() } : r)),
+    consumer_response: d.response,
     outcome: isSplit(d, 'result') ? Object.fromEntries(d.activities.map((id) => [id, partFor(d, id).result])) : d.result,
-    barriers: isSplit(d, 'barriers')
-      ? d.activities.flatMap((id) => {
-          const b = partFor(d, id).barriers;
-          return b.answer === 'Yes' ? b.list.map((x) => (x === 'Other barrier' ? b.other.trim() || x : x)) : [];
-        })
-      : d.barriers.answer === 'Yes'
-        ? d.barriers.list.map((x) => (x === 'Other barrier' ? d.barriers.other.trim() || x : x))
-        : d.result?.value === 'Barrier' && d.result.barrier
-          ? [d.result.barrier === 'Other' ? d.result.barrierOther ?? 'Other' : d.result.barrier]
-          : [],
-    next_actions: d.steps.length || d.noNextStep || d.nextContact.kind ? { steps: d.steps, noNextStep: d.noNextStep, nextContact: d.nextContact } : d.next ?? null,
-    free_text: d.freeText.trim() || null,
+    // The barriers identified; "No barrier identified" and "Barrier not assessed" are not barriers.
+    barriers: (isSplit(d, 'barriers') ? d.activities.flatMap((id) => partFor(d, id).barriers.list) : d.barriers.list).filter((b) => !BARRIER_ALONE.includes(b)),
+    next_actions: d.steps.length || d.noNextStep || d.nextContact.kind ? { steps: d.steps, noNextStep: d.noNextStep, nextContact: d.nextContact } : null,
+    free_text: null,
     generated_narrative: c.generated,
     final_narrative: final,
     generator: final === c.final.trim() ? c.generator : c.generator.endsWith('(edited)') ? c.generator : `${c.generator} (edited)`,

@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
-import { useViewAs } from '@/components/ViewAsProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -148,8 +147,6 @@ interface FormsHubProps {
 export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
-  const [intakeQuery, setIntakeQuery] = useState('');
-  const { isViewingAs } = useViewAs();
   const profileId = useEffectiveProfileId();
 
   const [forms, setForms] = useState<FormRow[]>([]);

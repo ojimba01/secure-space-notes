@@ -4,7 +4,7 @@
 // which page, what they attached, and the conversation. Replies appear under
 // Support for the person who asked; the status tells them where it stands.
 import { PageShell } from '@/components/PageShell';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowLeft, Inbox } from 'lucide-react';

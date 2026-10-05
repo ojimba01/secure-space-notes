@@ -14,7 +14,7 @@ import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
 import { AddTouchpointDialog } from '@/components/AddTouchpointDialog';
-import { STAGE_LABEL, WORKFLOW_STAGES, displayStage, isCaseClosed, isSetupComplete } from '@/lib/workflow';
+import { STAGE_LABEL, WORKFLOW_STAGES, displayStage, isCaseClosed } from '@/lib/workflow';
 import { BulkReassignDialog } from '@/components/BulkReassignDialog';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
 import { ReopenCaseDialog } from '@/components/ReopenCaseDialog';

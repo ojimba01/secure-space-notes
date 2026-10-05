@@ -8,7 +8,7 @@ const TODAY_PAGE = 5;
 
 /** Set once somebody ticks "Don't ask again" on removing a touchpoint. */
 const SKIP_DELETE_ASK_KEY = 'calendar.skipTouchpointDeleteConfirm';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, Trash2, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -33,7 +33,6 @@ import { AddCalendarEventDialog } from './AddCalendarEventDialog';
 import { EditCalendarEventDialog } from './EditCalendarEventDialog';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
-import { todayAgency } from '@/lib/compliance';
 import { isCaseClosed } from '@/lib/workflow';
 import {
   authPhaseOn,
@@ -89,7 +88,6 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
   /** Five of today's at a time. A day with thirty is a wall, not a schedule. */
   const [todayPage, setTodayPage] = useState(0);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -161,7 +159,6 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
   `;
 
   const fetchEvents = async () => {
-    setLoading(true);
     try {
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
@@ -196,8 +193,6 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
         description: 'Failed to fetch calendar events',
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
     }
   };
 

@@ -1,18 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ArrowUpDown, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, Plus, Search, Undo2, UserRound, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Pencil, Undo2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBilling, BillingClient, RECOVERY_WINDOW_DAYS } from '@/hooks/useBilling';
-import { useAuth } from '@/components/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
-import { BillingCycle, APPROVAL_STATES, ApprovalState, MCO_OPTIONS, isDeadlineAtRisk, isDeadlinePassed, continuationOverlapsInitial, isCycleResolved, finalDeadlineFor, deadlineLabel, daysToFinalDeadline, normalizeLevel, findPossibleDuplicates, needsExtensionReview, daysUntil150End, projected180Start, addDays, todayAgency } from '@/lib/billing';
+import { BillingCycle, isCycleResolved, daysToFinalDeadline, normalizeLevel, findPossibleDuplicates, needsExtensionReview, daysUntil150End, projected180Start, todayAgency } from '@/lib/billing';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { InfoHint } from '@/components/InfoHint';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { ClientProfileDialog } from '@/components/billing/ClientProfileDialog';
@@ -45,32 +41,12 @@ function Pager({page,setPage,total,label}:{page:number;setPage:(n:number)=>void;
   </div>;
 }
 
-type Blocker = 'Missing client name' | 'No authorization start date' | 'Missing level of need';
 // Cycles are built from an authorization start date — the initial 30-day one or
 // the 150-day one. The level of need only prices them.
-const blocker = (c: BillingClient): Blocker =>
-  !c.first_name?.trim() || !c.last_name?.trim() ? 'Missing client name'
-  : !c.auth_30_start && !c.auth_150_start ? 'No authorization start date'
-  : 'Missing level of need';
-const blockerClass = (label: Blocker) =>
-  label === 'No authorization start date' ? 'bg-orange-100 text-orange-900'
-  : label === 'Missing level of need' ? 'bg-red-100 text-red-800'
-  : 'bg-rose-200 text-rose-900';
 
 // Selected dropdown values get their own colour so the grid is readable at a glance.
-const MCO_COLORS: Record<string, string> = {
-  Aetna: 'border-blue-300 bg-blue-100 text-blue-900',
-  Horizon: 'border-sky-300 bg-sky-100 text-sky-900',
-  Wellpoint: 'border-violet-300 bg-violet-100 text-violet-900',
-  UnitedHealthcare: 'border-teal-300 bg-teal-100 text-teal-900',
-  Fidelis: 'border-orange-300 bg-orange-100 text-orange-900',
-};
-const mcoClass = (v?: string | null) => (v ? MCO_COLORS[v] ?? 'border-slate-300 bg-slate-100 text-slate-900' : 'bg-white');
 const lonClass = (v: string) => (v === 'Low' ? 'border-emerald-300 bg-emerald-100 text-emerald-900' : v === 'High' ? 'border-purple-300 bg-purple-100 text-purple-900' : 'bg-white');
-const yesNoClass = (v: boolean | null | undefined) => (v === true ? 'border-green-300 bg-green-100 text-green-900' : v === false ? 'border-slate-300 bg-slate-100 text-slate-800' : 'bg-white');
-const boolValue = (v: boolean | null | undefined) => (v === true ? 'yes' : v === false ? 'no' : undefined);
 
-const HOW_TO_READ = 'Cycle 1 is the initial 30-day authorization and is billable. The 150-day authorization follows it, then the 180-day extension. Each cycle shows which authorization it belongs to. A claim must be submitted within 6 months of a cycle end date — that is the final deadline.';
 
 // Needs attention = an ended cycle whose 6-month final submission deadline is
 // four weeks or less away and that is not approved or closed. Once that window
@@ -84,44 +60,13 @@ type Band = 'overdue' | 'week' | 'month' | 'later';
 const bandOf = (days: number): Band =>
   days < 0 ? 'overdue' : days <= 7 ? 'week' : days <= 30 ? 'month' : 'later';
 
-const BANDS: { key: Band; heading: string; note: string; tone: string; dot: string }[] = [
-  { key:'overdue', heading:'Past the submission deadline', note:'The six-month window has closed. These claims can no longer be submitted.', tone:'border-red-300 bg-red-50 text-red-900',      dot:'bg-red-600' },
-  { key:'week',    heading:'Due this week',                note:'Submit these first.',                                                       tone:'border-amber-300 bg-amber-50 text-amber-900', dot:'bg-amber-500' },
-  { key:'month',   heading:'Due this month',               note:'',                                                                          tone:'border-blue-300 bg-blue-50 text-blue-900',    dot:'bg-blue-600' },
-  { key:'later',   heading:'Not yet due',                  note:'',                                                                          tone:'border-slate-300 bg-white text-slate-700',    dot:'bg-slate-400' },
-];
 
-const attention = (c: BillingCycle) => isDeadlineAtRisk(c) && !isDeadlinePassed(c);
-const matches = (c: BillingClient, q: string) => {
-  const t = q.trim().toLowerCase();
-  if (!t) return true;
-  return `${c.first_name ?? ''} ${c.last_name ?? ''}`.toLowerCase().includes(t) || (c.member_id ?? '').toLowerCase().includes(t) || (c.insurance ?? '').toLowerCase().includes(t);
-};
 
-const Editable = ({ value, type='text', onSave, className='', placeholder }: { value: string | null; type?: string; onSave:(v:string)=>void; className?:string; placeholder?:string }) => {
-  const [v,setV]=useState(value ?? '');
-  useEffect(()=>{setV(value ?? '');},[value]);
-  return <Input type={type} value={v} placeholder={placeholder} className={`h-9 min-w-28 border-indigo-200 bg-white shadow-sm focus:ring-2 focus:ring-ring ${className}`} onChange={e=>setV(e.target.value)} onBlur={()=>v !== (value ?? '') && onSave(v)} />;
-};
 
 // Client names are piped in from the client record. They read as plain text and
 // only become an input once pressed, so edits stay deliberate.
-const EditableText = ({ value, onSave, placeholder }: { value: string | null; onSave:(v:string)=>void; placeholder?:string }) => {
-  const [editing,setEditing]=useState(false);
-  const [v,setV]=useState(value ?? '');
-  useEffect(()=>{setV(value ?? '');},[value]);
-  if (!editing) return <button type="button" title="Press to rename" className="rounded px-1 py-0.5 text-left font-medium hover:bg-indigo-100" onClick={()=>setEditing(true)}>{value?.trim() || <span className="text-muted-foreground">{placeholder ?? 'Add name'}</span>}</button>;
-  return <Input autoFocus value={v} className="h-9 w-28 border-indigo-300 bg-white" onChange={e=>setV(e.target.value)} onBlur={()=>{setEditing(false); if(v !== (value ?? '')) onSave(v);}} onKeyDown={e=>{if(e.key==='Enter')(e.target as HTMLInputElement).blur();}} />;
-};
 
 // Shows the cycle end date; press to reveal the start date.
-const DateCell = ({ start, end }: { start: string | null; end: string | null }) => {
-  const [show,setShow]=useState(false);
-  return <button type="button" className="text-left underline decoration-dotted underline-offset-2" onClick={()=>setShow(s=>!s)}>
-    {fmt(end)}
-    {show && <div className="text-xs text-muted-foreground">Starts {fmt(start)}</div>}
-  </button>;
-};
 
 const ProfileIconButton = ({ onClick, tour }: { onClick:()=>void; tour?:boolean }) => (
   <Button variant="outline" size="icon" aria-label="View profile" title="View profile" data-tour={tour?'profile-btn':undefined} className="h-7 w-7 shrink-0 rounded-full border-primary/40 text-primary hover:bg-primary/10" onClick={(e)=>{e.stopPropagation();onClick();}}>
@@ -132,8 +77,6 @@ const ProfileIconButton = ({ onClick, tour }: { onClick:()=>void; tour?:boolean 
 // ---- Billing tutorial practice data -------------------------------------
 // The tutorial never touches real records. While it runs, the workspace shows a
 // single practice client with practice cycles, and every change stays in memory.
-const PRACTICE_CLIENT_ID = 'practice-client';
-const PRACTICE_NAME = { first: 'Practice', last: 'Client' };
 /** One numbered step in the billing nav. The number is the whole point: these
  *  are done in order, not picked between. */
 const StepButton = ({ step, label, count, active, onClick, tour }: {
@@ -153,69 +96,32 @@ const StepButton = ({ step, label, count, active, onClick, tour }: {
   </Button>
 );
 
-function buildPractice(): { clients: BillingClient[]; cycles: BillingCycle[] } {
-  const start = addDays(todayAgency(), -100);
-  const client: BillingClient = {
-    id: PRACTICE_CLIENT_ID, first_name: PRACTICE_NAME.first, last_name: PRACTICE_NAME.last,
-    insurance: 'Aetna', member_id: 'PRACTICE-001', level_of_need: 'Low Level', status: 'active',
-    hsp_submitted: true, auth_150_start: start, auth_150_end: addDays(start, 150),
-    auth_180_approved: false, auth_180_start: null, auth_180_end: null,
-    assigned_employee_id: null, assigned_staff_name: 'Practice staff',
-    billing_tracking_start: start, auth_30_start: addDays(start, -30), auth_30_end: start,
-    hsp_due_date: start, auth_30_number: 'P-30', auth_150_number: 'P-150', auth_180_number: null,
-    created_at: new Date().toISOString(), deleted_at: null,
-  };
-  const cycles: BillingCycle[] = [1,2,3,4,5].map(num=>{
-    const cs = addDays(start, (num-1)*30);
-    return {
-      id: `practice-cycle-${num}`, client_id: PRACTICE_CLIENT_ID, cycle_number: num,
-      phase: '150-day authorization', cycle_start: cs, cycle_end: addDays(cs, 29),
-      billed_amount: null, paid_amount: 0, billing_status: 'Not Billed', payment_status: 'Unpaid',
-      claim_number: null, submitted_date: null, paid_date: null, is_auto_generated: true, notes: null,
-      approval_state: null, is_active: true,
-    };
-  });
-  return { clients: [client], cycles };
-}
 
 export function BillingWorkspace() {
-  const { user } = useAuth();
   const { isSuperadmin } = useIsSuperadmin();
 
-  const { loading, refresh: refreshBilling, clients: realClients, deletedClients: realDeleted, cycles: realCycles, updateClient, addClient: addRealClient, deleteClient, restoreClient, updateCycle: updateRealCycle } = useBilling();
+  const { loading, refresh: refreshBilling, clients: realClients, deletedClients: realDeleted, cycles: realCycles, updateClient, deleteClient, restoreClient, updateCycle: updateRealCycle } = useBilling();
   const [section,setSection]=useState<Section>('bill');
   // The client whose Availity boxes are open. Null means the list is showing.
   const [billingClientId,setBillingClientId]=useState<string|null>(null);
   // A row on To bill asking for its claim fields, on a particular cycle.
   const [claimRequest,setClaimRequest]=useState<{clientId:string;cycleId:string}|null>(null);
-  const [closedOpen,setClosedOpen]=useState(false);
   const [closing,setClosing]=useState<{id:string;name:string}|null>(null);
-  const [closedClient,setClosedClient]=useState<string|null>(null);
-  const [showLater,setShowLater]=useState(false);
   // The agency's own boxes are the same every time, so they start folded away.
   const [agencyOpen,setAgencyOpen]=useState(false);
-  // The editable data grid is the only home for hsp_submitted and Add client
-  // row, so it stays reachable behind a toggle rather than being deleted.
-  const [editData,setEditData]=useState(false);
   // Raised after a cycle is marked billed, to ask about the touchpoint.
   const [billedPrompt,setBilledPrompt]=useState<TouchpointContext|null>(null);
   const [touchpointFor,setTouchpointFor]=useState<TouchpointContext|null>(null);
-  const [setupReason,setSetupReason]=useState<'all'|'start'|'lon'>('all');
-  const [open,setOpen]=useState<string|null>(null);
-  const [query,setQuery]=useState('');
   const [profileId,setProfileId]=useState<string|null>(null);
   const [practice,setPractice]=useState<{ clients: BillingClient[]; cycles: BillingCycle[] }|null>(null);
   const [practiceRevenueView,setPracticeRevenueView]=useState<'projection'|'recovery'>('projection');
   const [deleteTarget,setDeleteTarget]=useState<BillingClient|null>(null);
   const [duplicate,setDuplicate]=useState<{ row: BillingClient; match: BillingClient }|null>(null);
-  const [newRowIds,setNewRowIds]=useState<string[]>([]);
 
   // Practice data replaces the live lists while the tutorial is running.
   const clients = practice ? practice.clients : realClients;
   const cycles = practice ? practice.cycles : realCycles;
   const deletedClients = practice ? [] : realDeleted;
-  const practiceClient = practice?.clients.find(c=>c.id===PRACTICE_CLIENT_ID) ?? null;
-  const practiceCycle = practice?.cycles[0] ?? null;
 
   // Practice-only writers. Nothing reaches the database.
   const practiceUpdateClient=async(id:string,patch:Partial<BillingClient>)=>{
@@ -224,20 +130,14 @@ export function BillingWorkspace() {
   const practiceUpdateCycle=async(id:string,patch:Partial<BillingCycle>)=>{
     setPractice(p=>p?{...p,cycles:p.cycles.map(c=>c.id===id?{...c,...patch}:c)}:p);
   };
-  const practiceAddClient=async()=>{
-    const id=`practice-new-${Date.now()}`;
-    setPractice(p=>p?{...p,clients:[{...buildPractice().clients[0],id,first_name:'',last_name:'',member_id:null,insurance:null,level_of_need:null,hsp_submitted:null,auth_150_start:null,auth_150_end:null,auth_30_number:null,auth_150_number:null,created_at:new Date().toISOString()},...p.clients]}:p);
-    return id;
-  };
 
 
   const cycleByClient = useMemo(()=>new Map(clients.map(c=>[c.id, cycles.filter(x=>x.client_id===c.id)])),[clients,cycles]);
-  const eligible=clients.filter(complete), setup=clients.filter(c=>c.status==='active'&&!complete(c));
+  const eligible=clients.filter(complete);
   const extensionClients=useMemo(()=>eligible.filter(c=>needsExtensionReview(c)).sort((a,b)=>(daysUntil150End(a)??999)-(daysUntil150End(b)??999)),[eligible]);
   // Clients ready for billing except for the level of need. They can be finished
   // here and move straight into the lists above once the level is saved.
-  const lonAll=useMemo(()=>clients.filter(c=>c.status==='active'&&(!!c.auth_30_start||!!c.auth_150_start)&&!normalizeLevel(c.level_of_need)),[clients]);
-  const lonPending=useMemo(()=>lonAll.filter(c=>matches(c,query)),[lonAll,query]);
+  const lonPending=useMemo(()=>clients.filter(c=>c.status==='active'&&(!!c.auth_30_start||!!c.auth_150_start)&&!normalizeLevel(c.level_of_need)),[clients]);
   // Cycles still waiting to be billed: not approved, not closed, not already
   // filed. A cycle marked billed leaves this list and shows up in Revenue.
   const toBillOf=(c:BillingClient)=>(cycleByClient.get(c.id)??[])
@@ -253,7 +153,7 @@ export function BillingWorkspace() {
   // with them a later cycle days from its own deadline, which then appeared in
   // no list of work at all and could expire unseen too.
   const queue=useMemo(()=>eligible
-      .filter(c=>matches(c,query)&&toBillOf(c).length>0)
+      .filter(c=>toBillOf(c).length>0)
       .flatMap(c=>{
         const open=toBillOf(c);
         const expired=open.filter(x=>daysToFinalDeadline(x)<0);
@@ -264,13 +164,8 @@ export function BillingWorkspace() {
         });
       })
       .sort((a,b)=>a.days-b.days),
-  [eligible,query,cycleByClient]);
+  [eligible,cycleByClient]);
 
-  const byBand=useMemo(()=>{
-    const out:Record<Band,typeof queue>={overdue:[],week:[],month:[],later:[]};
-    queue.forEach(r=>out[r.band].push(r));
-    return out;
-  },[queue]);
 
   // The clients to bill now: their soonest cycle passes its six-month filing
   // deadline within the month, so leaving it loses the money outright.
@@ -280,7 +175,6 @@ export function BillingWorkspace() {
   // list longer and the real work harder to find. They are listed separately,
   // below, where they can still be seen and dealt with.
   const urgent=useMemo(()=>queue.filter(r=>r.band==='week'||r.band==='month'),[queue]);
-  const closed=useMemo(()=>queue.filter(r=>r.band==='overdue'),[queue]);
 
   // How much of this month's filing is already done. Counted from the cycles
   // themselves rather than kept in state, so it survives a reload.
@@ -295,11 +189,7 @@ export function BillingWorkspace() {
     else toast.success('All claims due this month have been submitted.');
   };
 
-  const [page,setPage]=useState(0);
-  useEffect(()=>{setPage(0);},[query]);
-  const laterPaged=byBand.later.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);
 
-  const searchResults = query.trim() ? clients.filter(c=>matches(c,query)).slice(0,8) : [];
 
   const runDuplicateCheck=(id:string)=>{
     const row=clients.find(c=>c.id===id);
@@ -310,7 +200,6 @@ export function BillingWorkspace() {
   // While the tutorial runs, every writer points at practice data only.
   const clientWriter = practice ? practiceUpdateClient : updateClient;
   const cycleWriter = practice ? practiceUpdateCycle : updateRealCycle;
-  const clientAdder = practice ? practiceAddClient : addRealClient;
   const saveClient=(id:string,p:Partial<BillingClient>)=>clientWriter(id,p)
     .then(()=>{toast.success(practice?'Saved to practice data only.':'Saved. Billing has been updated.'); if(!practice) runDuplicateCheck(id);})
     .catch(e=>toast.error(e.message));
@@ -329,53 +218,7 @@ export function BillingWorkspace() {
     });
   };
 
-  // One row in the list of clients to bill.
-  const clientRow=(row:{client:BillingClient;cycles:BillingCycle[];days:number;band:Band},tour:boolean)=>{
-    const c=row.client;
-    const all=cycleByClient.get(c.id)??[];
-    const level=normalizeLevel(c.level_of_need);
-    return <Card key={c.id} className="overflow-hidden">
-      <div className="flex flex-wrap items-center gap-2 pr-4" data-tour={tour?'client-row':undefined}>
-        <button className="flex min-w-[18rem] flex-1 items-center gap-3 p-4 text-left hover:bg-slate-50" onClick={()=>setOpen(open===c.id?null:c.id)}>
-          {open===c.id?<ChevronDown className="h-4 w-4 shrink-0"/>:<ChevronRight className="h-4 w-4 shrink-0"/>}
-          <div className="min-w-0 flex-1">
-            <span className="flex items-center gap-2"><b>{c.first_name} {c.last_name}</b><InfoHint text={HOW_TO_READ}/></span>
-            <div className="truncate text-sm text-muted-foreground">
-              {c.insurance ?? 'No MCO'} · {level?`${level} level`:'Level of need needed'} · {c.auth_180_approved?'180-day extension':'150-day authorization'}
-            </div>
-          </div>
-          <div className="text-right">
-            <b>{row.cycles.length} cycle{row.cycles.length===1?'':'s'} to bill</b>
-            <div className="text-sm text-muted-foreground">
-              {row.days<0?`Window closed ${Math.abs(row.days)} days ago`:row.days===0?'Last day to file':`${row.days} days left to file`}
-            </div>
-          </div>
-        </button>
-        <Button onClick={()=>{setBillingClientId(c.id);window.scrollTo({top:0,behavior:'smooth'});}}>Add billing</Button>
-        {/* A client who has gone quiet is noticed here, working through the
-            billing, not on their own record later. */}
-        <Button variant="outline" onClick={()=>setClosing({id:c.id,name:`${c.first_name} ${c.last_name}`.trim()})}>Close case</Button>
-        <ProfileIconButton onClick={()=>setProfileId(c.id)} tour={tour}/>
-      </div>
-      {open===c.id&&<CycleGrid client={c} cycles={all} updateCycle={cycleWriter} tour={tour} practice={!!practice}/>}
-    </Card>;
-  };
 
-  const reasonOf: Record<'start'|'lon', Blocker> = { start:'No authorization start date', lon:'Missing level of need' };
-  const setupRows=useMemo(()=>{
-    const rows=clients.filter(c=>c.status==='active').filter(c=>setupReason==='all'||(!complete(c)&&blocker(c)===reasonOf[setupReason]));
-    // Newly added rows always sit at the top so they are easy to fill in.
-    return rows.sort((a,b)=>{
-      const an=newRowIds.indexOf(a.id), bn=newRowIds.indexOf(b.id);
-      if(an!==bn) return (an===-1?1:0)-(bn===-1?1:0) || an-bn;
-      return (b.created_at ?? '').localeCompare(a.created_at ?? '');
-    });
-  },[clients,setupReason,newRowIds]);
-  const countBlocked=(k:'start'|'lon')=>setup.filter(c=>blocker(c)===reasonOf[k]).length;
-
-  const practiceFullName=`${PRACTICE_NAME.first} ${PRACTICE_NAME.last}`;
-  const resetPracticeCycles=()=>setPractice(p=>p?{...p,cycles:p.cycles.map(c=>({...c,billing_status:'Not Billed' as const}))}:p);
-  const removePracticeRows=()=>setPractice(p=>p?{...p,clients:p.clients.filter(c=>c.id===PRACTICE_CLIENT_ID)}:p);
 
 
   if (loading) return <Card className="p-8 text-muted-foreground">Loading billing information…</Card>;
@@ -567,129 +410,8 @@ function ExtensionQueue({clients,save,openProfile}:{clients:BillingClient[];save
   </Card>;
 }
 
-const BLOCKERS: Blocker[] = ['No authorization start date','Missing level of need','Missing client name'];
 
 // Column filter: the header shows a small caret; the options only appear once it is pressed.
-function ColumnFilter({label,value,onChange,options}:{label:string;value:string;onChange:(v:string)=>void;options:string[]}){
-  return <div className="font-semibold text-indigo-900">
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button type="button" aria-label={`Filter ${label}`} className="flex items-center gap-1 text-left hover:underline">
-          {label}<ChevronDown className="h-3.5 w-3.5"/>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="bg-white">
-        <DropdownMenuItem onClick={()=>onChange('all')}>All</DropdownMenuItem>
-        {options.map(o=><DropdownMenuItem key={o} onClick={()=>onChange(o)}>{o}</DropdownMenuItem>)}
-      </DropdownMenuContent>
-    </DropdownMenu>
-    {value!=='all' && <div className="text-xs font-normal text-indigo-900/70">{value}</div>}
-  </div>;
-}
 
 
-function ClientGrid({clients,save,openProfile,onDelete}:{clients:BillingClient[];save:(id:string,p:Partial<BillingClient>)=>void;openProfile:(id:string)=>void;onDelete:(c:BillingClient)=>void}){
-  const [sort,setSort]=useState<{key:'name'|'start';dir:'asc'|'desc'}|null>(null);
-  const [fMco,setFMco]=useState('all');
-  const [fLon,setFLon]=useState('all');
-  const [fHsp,setFHsp]=useState('all');
-  const [fExt,setFExt]=useState('all');
-  const [fWhy,setFWhy]=useState('all');
-  const toggle=(key:'name'|'start')=>setSort(s=>s?.key===key?(s.dir==='asc'?{key,dir:'desc'}:null):{key,dir:'asc'});
 
-  const rows=useMemo(()=>{
-    const filtered=clients.filter(c=>
-      (fMco==='all'||(c.insurance ?? '')===fMco)
-      &&(fLon==='all'||normalizeLevel(c.level_of_need)===fLon)
-      &&(fHsp==='all'||(fHsp==='Yes'?c.hsp_submitted===true:fHsp==='No'?c.hsp_submitted===false:c.hsp_submitted==null))
-      &&(fExt==='all'||(fExt==='Approved'?c.auth_180_approved===true:fExt==='N/A'?c.auth_180_approved===false:c.auth_180_approved==null))
-      &&(fWhy==='all'||(fWhy==='In billing'?complete(c):!complete(c)&&blocker(c)===fWhy)));
-    if(!sort) return filtered;
-    const dir=sort.dir==='asc'?1:-1;
-    return [...filtered].sort((a,b)=>sort.key==='name'
-      ? dir*`${a.last_name ?? ''} ${a.first_name ?? ''}`.trim().localeCompare(`${b.last_name ?? ''} ${b.first_name ?? ''}`.trim())
-      : dir*((a.auth_150_start ?? '9999').localeCompare(b.auth_150_start ?? '9999')));
-  },[clients,sort,fMco,fLon,fHsp,fExt,fWhy]);
-
-  const SortHeader=({label,keyName,asc,desc}:{label:string;keyName:'name'|'start';asc:string;desc:string})=>(
-    <button type="button" onClick={()=>toggle(keyName)} className="flex items-center gap-1 font-semibold text-indigo-900 hover:underline">
-      {label}<ArrowUpDown className="h-3.5 w-3.5"/>
-      {sort?.key===keyName && <span className="text-xs font-normal">{sort.dir==='asc'?asc:desc}</span>}
-    </button>
-  );
-
-  return <Card className="overflow-x-auto border-indigo-200">
-    <table className="w-full min-w-[1850px] text-sm"><thead className="bg-indigo-100 text-left"><tr className="align-top">
-      <th className="p-3"><SortHeader label="Client" keyName="name" asc="A–Z" desc="Z–A"/></th>
-      <th className="p-3 font-semibold text-indigo-900">Member ID</th>
-      <th className="p-3"><ColumnFilter label="MCO" value={fMco} onChange={setFMco} options={[...MCO_OPTIONS]}/></th>
-      <th className="p-3"><ColumnFilter label="Level of Need" value={fLon} onChange={setFLon} options={['Low','High']}/></th>
-      <th className="p-3"><ColumnFilter label="HSP submitted" value={fHsp} onChange={setFHsp} options={['Yes','No','Blanks']}/></th>
-      <th className="p-3"><SortHeader label="HSP approval start" keyName="start" asc="Earliest first" desc="Latest first"/></th>
-      <th className="p-3"><ColumnFilter label="180-day extension" value={fExt} onChange={setFExt} options={['Approved','N/A','Blanks']}/></th>
-      <th className="p-3 font-semibold text-indigo-900">30-day auth #</th>
-      <th className="p-3 font-semibold text-indigo-900">150-day auth #</th>
-      <th className="p-3 font-semibold text-indigo-900">180-day auth #</th>
-      <th className="p-3"><ColumnFilter label="Reason billing is incomplete" value={fWhy} onChange={setFWhy} options={['In billing',...BLOCKERS]}/></th>
-
-      <th className="p-3 font-semibold text-indigo-900">Save</th>
-      <th className="p-3 font-semibold text-indigo-900">Delete</th>
-    </tr></thead>
-    <tbody>{rows.map(c=><tr key={c.id} className="border-t border-indigo-100 hover:bg-indigo-50/50">
-      <td className="p-2"><div className="flex items-center gap-1"><ProfileIconButton onClick={()=>openProfile(c.id)}/><EditableText value={c.first_name} placeholder="First name" onSave={v=>save(c.id,{first_name:v})}/><EditableText value={c.last_name} placeholder="Last name" onSave={v=>save(c.id,{last_name:v})}/></div></td>
-      <td className="p-2"><Editable value={c.member_id} placeholder="Member ID" onSave={v=>save(c.id,{member_id:v||null})}/></td>
-      <td className="p-2"><Select value={c.insurance ?? undefined} onValueChange={v=>save(c.id,{insurance:v})}><SelectTrigger className={`w-40 font-medium ${mcoClass(c.insurance)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent>{Array.from(new Set([...MCO_OPTIONS, ...(c.insurance?[c.insurance]:[])])).map(m=><SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select></td>
-      <td className="p-2"><Select value={normalizeLevel(c.level_of_need) || undefined} onValueChange={v=>save(c.id,{level_of_need:v})}><SelectTrigger className={`w-32 font-medium ${lonClass(normalizeLevel(c.level_of_need))}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="Low">Low</SelectItem><SelectItem value="High">High</SelectItem></SelectContent></Select></td>
-      <td className="p-2"><Select value={boolValue(c.hsp_submitted)} onValueChange={v=>save(c.id,{hsp_submitted:v==='yes'})}><SelectTrigger className={`w-24 font-medium ${yesNoClass(c.hsp_submitted)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="no">No</SelectItem><SelectItem value="yes">Yes</SelectItem></SelectContent></Select></td>
-      <td className="p-2"><Editable type="date" value={c.auth_150_start} onSave={v=>save(c.id,{auth_150_start:v||null})}/></td>
-      <td className="p-2"><Select value={boolValue(c.auth_180_approved)} onValueChange={v=>save(c.id,{auth_180_approved:v==='yes'})}><SelectTrigger className={`w-28 font-medium ${yesNoClass(c.auth_180_approved)}`}><SelectValue placeholder=""/></SelectTrigger><SelectContent><SelectItem value="no">N/A</SelectItem><SelectItem value="yes">Approved</SelectItem></SelectContent></Select></td>
-      <td className="p-2"><Editable value={c.auth_30_number} placeholder="30-day" onSave={v=>save(c.id,{auth_30_number:v||null})}/></td>
-      <td className="p-2"><Editable value={c.auth_150_number} placeholder="150-day" onSave={v=>save(c.id,{auth_150_number:v||null})}/></td>
-      <td className="p-2"><Editable value={c.auth_180_number} placeholder="180-day" onSave={v=>save(c.id,{auth_180_number:v||null})}/></td>
-      <td className="p-3">{!complete(c)?<span className={`whitespace-nowrap rounded-full px-3 py-1 font-medium ${blockerClass(blocker(c))}`}>{blocker(c)}</span>:<span className="whitespace-nowrap rounded-full bg-green-100 px-3 py-1 font-medium text-green-900">In billing · {c.auth_180_approved?'180-day extension':'150-day authorization'}</span>}</td>
-      <td className="p-2"><Button size="sm" className="bg-indigo-600 text-white hover:bg-indigo-700" onClick={()=>openProfile(c.id)}>Save</Button></td>
-      <td className="p-2"><Button size="icon" variant="ghost" aria-label="Delete client" title="Delete client" className="h-8 w-8 text-red-600 hover:bg-red-50" onClick={()=>onDelete(c)}><X className="h-4 w-4"/></Button></td>
-    </tr>)}</tbody></table>
-    {rows.length===0 && <div className="p-8 text-center text-sm text-muted-foreground">No clients match these filters. Press Add client row to create one.</div>}
-  </Card>;
-}
-
-
-// Final deadline cell: shows only the time left; once passed the date is revealed on press.
-function DeadlineCell({cycle}:{cycle:BillingCycle}){
-  const [show,setShow]=useState(false);
-  const passed=isDeadlinePassed(cycle);
-  const label=deadlineLabel(cycle);
-  return <button type="button" className={`text-left underline decoration-dotted underline-offset-2 ${passed?'text-muted-foreground':isDeadlineAtRisk(cycle)?'font-semibold text-red-700':''}`} onClick={()=>setShow(s=>!s)}>
-    {label}
-    {show && <div className="text-xs font-normal text-muted-foreground">{passed?'Deadline was ':'Deadline '}{fmt(finalDeadlineFor(cycle))}</div>}
-  </button>;
-}
-
-function CycleGrid({client,cycles,updateCycle,tour,practice}:{client:BillingClient;cycles:BillingCycle[];updateCycle:(id:string,p:Partial<BillingCycle>)=>Promise<void>;tour?:boolean;practice?:boolean}){
-  const savedMsg=(what:string)=>practice?'Practice only — nothing was saved.':what;
-  const allResolved = cycles.length>0 && cycles.every(isCycleResolved);
-  const sorted = [...cycles].sort((a,b)=>a.cycle_number-b.cycle_number);
-  return <div className="border-t bg-white p-4" data-tour={tour?'cycle-table':undefined}>
-    {allResolved && <div className="mb-3 rounded-md border border-green-300 bg-green-50 p-3 text-sm font-medium text-green-800">Every cycle is approved or closed. Nothing else is outstanding for this client.</div>}
-    {continuationOverlapsInitial(client.auth_30_start, client.auth_150_start) && <div className="mb-3 rounded-md border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
-      <p className="font-medium">These dates look wrong.</p>
-      <p className="mt-1">The 150-day authorization starts on {client.auth_150_start}, before the initial 30-day period that began {client.auth_30_start} has finished. Every cycle below is built from that date, so they are all shifted. The usual cause is the continuation start being entered as the date the initial period <i>ended</i> rather than the date it began.</p>
-      <p className="mt-1">Correct the 150-day authorization start under Add or set up client billing. The cycles rebuild from it automatically.</p>
-    </div>}
-    <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-sm"><thead><tr className="bg-slate-100">{['Cycle','Authorization','End date','Final deadline','Approved?','Billing status','Payment status','Claim number'].map(x=><th key={x} className="p-3 text-left">{x}</th>)}</tr></thead><tbody>
-      {sorted.map((c,i)=>{
-      const risk=isDeadlineAtRisk(c);
-      const passed=isDeadlinePassed(c);
-      return <tr key={c.id} className={`border-t ${passed?'bg-slate-100 text-muted-foreground':risk?'bg-red-50':''}`}>
-        <td className={`p-3 font-semibold ${risk&&!passed?'text-red-700':''}`}>Cycle {c.cycle_number}</td>
-        <td className="p-3">{c.phase==='Initial 30-Day'?'Initial 30-day authorization':c.phase==='150-Day'?'150-day authorization':'180-day extension'}</td>
-        <td className="p-3"><DateCell start={c.cycle_start} end={c.cycle_end}/></td>
-        <td className="p-3"><DeadlineCell cycle={c}/></td>
-        <td className="p-3"><Select value={c.approval_state ?? 'none'} onValueChange={v=>updateCycle(c.id,{approval_state:v==='none'?null:v as ApprovalState}).then(()=>toast.success(savedMsg('Cycle approval saved.')))}><SelectTrigger className="w-48"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">Not decided</SelectItem>{APPROVAL_STATES.map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
-        <td className="p-3"><Select value={c.billing_status} onValueChange={v=>updateCycle(c.id,{billing_status:v as BillingCycle['billing_status']}).then(()=>toast.success(savedMsg('Billing status saved.')))}><SelectTrigger className="w-36" data-tour={tour&&i===0?'claim-status':undefined}><SelectValue/></SelectTrigger><SelectContent>{['Not Billed','Ready to Bill','Submitted','Denied'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
-        <td className="p-3"><Select value={c.payment_status} onValueChange={v=>updateCycle(c.id,{payment_status:v as BillingCycle['payment_status']}).then(()=>toast.success(savedMsg('Payment status saved.')))}><SelectTrigger className="w-28"><SelectValue/></SelectTrigger><SelectContent>{['Unpaid','Partial','Paid'].map(x=><SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select></td>
-        <td className="p-3"><Editable value={c.claim_number} placeholder="Enter claim number" onSave={v=>updateCycle(c.id,{claim_number:v||null})}/></td>
-      </tr>;
-    })}</tbody></table></div></div>;
-}

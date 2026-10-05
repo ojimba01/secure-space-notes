@@ -25,7 +25,6 @@ import {
 } from '@/components/ui/dialog';
 import { Download, FileText, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { CaseLog } from '@/components/CaseLog';
 import {
   caseLogEntries,

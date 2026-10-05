@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { formatDay } from '@/lib/dates';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Calendar, FileText, FileUp, Upload, Plus, Edit, Trash2, UserCog } from 'lucide-react';
+import { ArrowLeft, FileUp, Edit, Trash2, UserCog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileManager } from '@/components/FileManager';
 import { ClientOverview } from '@/components/ClientOverview';

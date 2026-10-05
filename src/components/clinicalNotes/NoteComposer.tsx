@@ -24,7 +24,7 @@ import {
   GOALS,
   HOUSING,
   HOUSING_CHANGE,
-  NEXT_CONTACT_V3,
+  NEXT_CONTACT,
   NOT_LISTED,
   OWNER,
   PROMPTS,
@@ -37,8 +37,7 @@ import {
   askedFor,
   categoryById,
   categoryComplete,
-  emptyTree,
-  TOUCHPOINT_TOPIC,
+  TOUCHPOINT_TYPE,
   type Category,
   type TreeQuestion,
 } from '@/lib/clinicalNotes/tree';
@@ -46,7 +45,6 @@ import {
   GENERATOR_VERSION,
   activityLabel,
   canGenerate,
-  emptyDraft,
   emptyPart,
   generateNote,
   isSplit,
@@ -155,7 +153,7 @@ const Choices: React.FC<{
   </div>
 );
 
-const emptyStep = (): NextStep => ({ who: '', actions: [], other: '', goal: '' });
+const emptyStep = (): NextStep => ({ who: '', actions: [] });
 
 // ---- the composer ---------------------------------------------------------
 
@@ -167,15 +165,15 @@ interface Props {
   /** The main button, after review. */
   useLabel: React.ReactNode;
   onUse: (note: ComposedNote) => void;
-  /** Called when the main category changes, so a touchpoint type can follow it. */
-  onPrimaryTopic?: (topicId: string | null) => void;
+  /** Called when the main category changes, with the touchpoint type it records as. */
+  onTouchpointType?: (type: string | null) => void;
   /** Extra buttons beside the main one (Copy, Save note …). They get the reviewed note. */
   extraActions?: (note: ComposedNote | null) => React.ReactNode;
 }
 
-export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse, onPrimaryTopic, extraActions }) => {
-  // Notes saved by the older builder keep their text; their choices start over here.
-  const start = initial?.draft && normalizeDraft(initial.draft).v === 3 ? normalizeDraft(initial.draft) : emptyDraft();
+export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse, onTouchpointType, extraActions }) => {
+  // Notes saved by an older builder keep their text; their choices start over here.
+  const start = normalizeDraft(initial?.draft);
   const [draft, setDraft] = useState<NoteDraft>(start);
   const allSkipped = { details: true, goals: true, prompts: true, housing: true, actions: true, result: true, response: true, barriers: true, next: true };
   const [skipped, setSkipped] = useState<Record<string, boolean>>(() => (initial ? allSkipped : {}));
@@ -190,17 +188,17 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
   const [aiOn, setAiOn] = useState(false);
   /** "visit" when it was in person, "contact" otherwise. */
   const word = contactWord(method);
-  const tree = draft.tree ?? emptyTree();
+  const tree = draft.tree;
 
   useEffect(() => {
     void aiWordingAvailable().then(setAiOn);
   }, []);
 
-  const primary = tree.categories[0] ? TOUCHPOINT_TOPIC[tree.categories[0]] ?? null : null;
+  const touchpointType = tree.categories[0] ? TOUCHPOINT_TYPE[tree.categories[0]] ?? null : null;
   useEffect(() => {
-    onPrimaryTopic?.(primary);
+    onTouchpointType?.(touchpointType);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [primary]);
+  }, [touchpointType]);
 
   const update = (fn: (d: NoteDraft) => NoteDraft) => setDraft((d) => fn(structuredClone(d)));
   const skip = (k: string) => setSkipped((s) => ({ ...s, [k]: true }));
@@ -211,11 +209,10 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
   }, [stale]);
 
   // ---- the tree
-  const setTree = (fn: (t: NonNullable<NoteDraft['tree']>) => void) =>
+  const setTree = (fn: (t: NoteDraft['tree']) => void) =>
     update((d) => {
-      const t = d.tree ?? emptyTree();
+      const t = d.tree;
       fn(t);
-      d.tree = t;
       // Answering per category follows the categories picked.
       d.activities = [...t.categories];
       for (const a of Object.keys(d.byActivity)) if (!t.categories.includes(a)) delete d.byActivity[a];
@@ -223,7 +220,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
     });
 
   /** Drop answers to a category's questions that are no longer asked. */
-  const prune = (c: Category, t: NonNullable<NoteDraft['tree']>) => {
+  const prune = (c: Category, t: NoteDraft['tree']) => {
     const picks = t.picks[c.id] ?? [];
     for (const q of c.questions) {
       const asked = askedFor(c, q, picks, t.answers);
@@ -265,8 +262,8 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
   const done = {
     categories: tree.categories.length > 0,
     details: (tree.categories.length > 0 && tree.categories.every((c) => categoryComplete(tree, c))) || !!skipped.details,
-    goals: (draft.goals ?? []).length > 0 || !!skipped.goals,
-    prompts: (draft.prompts ?? []).length > 0 || !!skipped.prompts,
+    goals: draft.goals.length > 0 || !!skipped.goals,
+    prompts: draft.prompts.length > 0 || !!skipped.prompts,
     housing: (!!h.status && !!h.changed) || !!skipped.housing,
     actions: partsOf('actions').every((p) => p.actions.some((a) => a.options.length > 0)) || !!skipped.actions,
     result: partsOf('result').every((p) => !!p.result && (p.result.value !== 'Unable to complete' || !!p.result.reason)) || !!skipped.result,
@@ -332,7 +329,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
         <p className="text-xs font-medium text-muted-foreground">Does this apply to all {draft.activities.length}?</p>
         <div className="flex flex-wrap gap-2">
           <Chip size="sm" selected={!isSplit(draft, step)} onClick={() => update((d) => ({ ...d, split: { ...d.split, [step]: false } }))}>
-            Applies to all: {joinList(draft.activities.map((id) => activityLabel(draft, id)))}
+            Applies to all: {joinList(draft.activities.map((id) => activityLabel(id)))}
           </Chip>
           <Chip size="sm" selected={isSplit(draft, step)} onClick={() => update((d) => ({ ...d, split: { ...d.split, [step]: true } }))}>
             Different for each
@@ -345,7 +342,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
     isSplit(draft, step)
       ? draft.activities.map((id) => (
           <div key={id} className="space-y-2 rounded-lg border p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">For {activityLabel(draft, id)}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">For {activityLabel(id)}</p>
             {body(partFor(draft, id), (fn) => setPart(id, fn), id)}
           </div>
         ))
@@ -593,7 +590,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
               </Chip>
             </div>
             <Ask label="When is the next contact planned?">
-              <Choices options={Object.keys(NEXT_CONTACT_V3)} value={draft.nextContact.kind} onChange={(v) => update((d) => ({ ...d, nextContact: v ? { kind: v as string } : {} }))} />
+              <Choices options={Object.keys(NEXT_CONTACT)} value={draft.nextContact.kind} onChange={(v) => update((d) => ({ ...d, nextContact: v ? { kind: v as string } : {} }))} />
             </Ask>
           </Step>
         )}

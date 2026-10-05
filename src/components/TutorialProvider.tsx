@@ -24,7 +24,6 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const { user } = useAuth();
   const [isTutorialActive, setIsTutorialActive] = useState(false);
   const [hasCompletedTutorial, setHasCompletedTutorial] = useState(true);
-  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -52,8 +51,6 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // overlay over the screen the person was being shown.
     } catch (error) {
       console.error('Error checking tutorial status:', error);
-    } finally {
-      setChecked(true);
     }
   };
 

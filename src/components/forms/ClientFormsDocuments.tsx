@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -146,7 +145,6 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   onChanged,
 }) => {
   const { toast } = useToast();
-  const { isAdmin } = useIsAdmin();
   const profileId = useEffectiveProfileId();
   const [forms, setForms] = useState<DocumentRow[]>([]);
   const [manualTicks, setManualTicks] = useState<Set<string>>(new Set());

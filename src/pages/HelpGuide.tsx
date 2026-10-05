@@ -3,7 +3,7 @@
 //
 // The guides and their text live in src/lib/helpGuides.ts; the screenshots are
 // taken from the real app over made-up data by scripts/help-screenshots.
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronRight, LifeBuoy, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';

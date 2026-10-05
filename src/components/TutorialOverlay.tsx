@@ -4,7 +4,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { X, ChevronLeft, ChevronRight, SkipForward, Play } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TutorialStep {
@@ -29,7 +29,6 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onComplete, onSkip })
   const [steps, setSteps] = useState<TutorialStep[]>([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,7 +50,6 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onComplete, onSkip })
         .maybeSingle();
       
       const adminStatus = !!roleData;
-      setIsAdmin(adminStatus);
 
       // Fetch steps for user's role
       const { data: stepsData, error } = await supabase

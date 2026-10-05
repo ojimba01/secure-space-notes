@@ -15,7 +15,7 @@
 // exists only once someone adds one for a cycle, dated the cycle's first day.
 // After a cycle's note is saved, a popup offers the next cycle or a different
 // client.
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ClipboardCopy, Hand, UserRound } from 'lucide-react';

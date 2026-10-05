@@ -30,7 +30,6 @@ interface RegistryRow {
   active: boolean;
 }
 
-const ANY_MCO = '__any__';
 
 /** Uploaded blanks live here; see docs/replaceable-templates.sql. */
 const TEMPLATE_BUCKET = 'form-templates';

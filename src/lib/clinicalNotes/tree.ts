@@ -6,6 +6,8 @@
 // status?" after an application activity), and some are asked once per picked
 // item (each document, each need, each party, each situation).
 
+import { joinList } from './config';
+
 /** One picked item or answer → the sentence it writes. "" writes nothing (it adds nothing new). */
 export type Says = Record<string, string>;
 
@@ -643,15 +645,15 @@ export const CATEGORIES: Category[] = [
 
 export const categoryById = (id: string) => CATEGORIES.find((c) => c.id === id);
 
-/** The older topic whose touchpoint type each category records as. */
-export const TOUCHPOINT_TOPIC: Record<string, string> = {
-  housing_assistance: 'housing_search',
-  housing_stability: 'checkin',
-  lease_tenancy: 'landlord',
-  move_in_support: 'landlord',
-  benefits_docs: 'benefits',
+/** The touchpoint type each category records as. */
+export const TOUCHPOINT_TYPE: Record<string, string> = {
+  housing_assistance: 'housing_application',
+  housing_stability: 'general_checkin',
+  lease_tenancy: 'landlord_tenant',
+  move_in_support: 'landlord_tenant',
+  benefits_docs: 'benefits_income',
   basic_needs: 'basic_needs',
-  employment_finances: 'benefits',
+  employment_finances: 'benefits_income',
   care_coordination: 'care_coordination',
   crisis_support: 'crisis_followup',
   other_service: 'other',
@@ -831,7 +833,7 @@ export const STEP_TIMING: Record<string, string> = {
   'Timing not confirmed': '',
 };
 
-export const NEXT_CONTACT_V3: Record<string, string> = {
+export const NEXT_CONTACT: Record<string, string> = {
   'Within 2–3 days': 'Next contact is planned within 2–3 days.',
   'Within 1 week': 'Next contact is planned within one week.',
   'Within 2 weeks': 'Next contact is planned within two weeks.',
@@ -892,7 +894,7 @@ export function categorySentences(t: TreeState, catId: string): string[] {
     const picked = asList(t.answers[answerKey(c.id, q.id, per)]);
     if (q.phrases && q.sentence) {
       const ph = picked.map((p) => q.phrases![p]).filter(Boolean);
-      return ph.length ? [q.sentence(joinAnd(ph), ph.length)] : [];
+      return ph.length ? [q.sentence(joinList(ph), ph.length)] : [];
     }
     return picked.map((p) => (q.says?.[p] ? fill(q.says[p], x) : '')).filter(Boolean);
   };
@@ -909,6 +911,3 @@ export function categorySentences(t: TreeState, catId: string): string[] {
   }
   return out;
 }
-
-/** "a, b and c" */
-export const joinAnd = (parts: string[]) => (parts.length <= 1 ? parts.join('') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`);

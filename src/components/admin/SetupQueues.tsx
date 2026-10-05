@@ -16,10 +16,6 @@ import { ChevronRight, UserX, Gauge, CalendarX, FileX, CircleDollarSign } from '
 import { useAdminSetupQueues, type QueueKey, type QueueClient } from '@/hooks/useAdminSetupQueues';
 import { ClientRecordDialog } from '@/components/ClientRecordDialog';
 
-interface Props {
-  /** Open a client's record. The only thing any of these rows can usefully do. */
-  onOpenClient: (clientId: string) => void;
-}
 
 interface QueueMeta {
   key: QueueKey;

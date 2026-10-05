@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { SetupQueues } from '@/components/admin/SetupQueues';
 import { FeatureWalkthrough } from '@/components/FeatureWalkthrough';
 import { ShadeDashboard } from '@/components/admin/ShadeDashboard';

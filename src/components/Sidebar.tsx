@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { 
   Users, 
-  Clock, 
   Stethoscope, 
   LogOut, 
   Shield, 
@@ -19,10 +18,9 @@ import {
   Activity,
   LifeBuoy,
 } from "lucide-react";
-import { useTutorial } from '@/components/TutorialProvider';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
@@ -57,8 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   const viewVariant = (view: SidebarProps['activeView']) =>
     onRoot && activeView === view ? 'default' : 'ghost';
   const routeVariant = (path: string) => (location.pathname === path ? 'default' : 'ghost');
-  const { user, signOut } = useAuth();
-  const { startTutorial } = useTutorial();
+  const { signOut } = useAuth();
   const [accountOpen, setAccountOpen] = useState(false);
   // Follows a preview: shows the previewed person's menu.
   const { isAdmin, loading: adminLoading } = useIsAdmin();

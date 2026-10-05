@@ -42,11 +42,6 @@ interface Client {
   last_name: string;
 }
 
-interface ClientNote {
-  id: string;
-  title: string;
-  visit_date: string;
-}
 
 interface EditCalendarEventDialogProps {
   open: boolean;

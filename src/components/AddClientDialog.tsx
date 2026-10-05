@@ -30,10 +30,6 @@ import {
 const LON_OPTIONS = ['Low Level', 'High Level'] as const;
 
 
-const REASON_CLOSED_OPTIONS = [
-  'Housed', 'Moved', 'Lost Contact', 'Deceased',
-  'Transferred to Other Agency', 'Medicaid Expired', 'Other',
-] as const;
 
 const NJ_COUNTIES = [
   'Atlantic', 'Bergen', 'Burlington', 'Camden', 'Cape May', 'Cumberland',

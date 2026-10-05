@@ -20,7 +20,7 @@ interface PDFPreviewProps {
  * The page counter still says where you are — it follows the scroll rather
  * than driving it.
  */
-export const PDFPreview: React.FC<PDFPreviewProps> = ({ fileUrl, fileName }) => {
+export const PDFPreview: React.FC<PDFPreviewProps> = ({ fileUrl }) => {
   const [numPages, setNumPages] = useState<number>(0);
   const [visiblePage, setVisiblePage] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);

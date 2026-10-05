@@ -28,10 +28,10 @@ import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
-import { TOUCHPOINT_TOPIC } from '@/lib/clinicalNotes/tree';
+import { TOUCHPOINT_TYPE } from '@/lib/clinicalNotes/tree';
 import { isCaseClosed, isSetupComplete } from '@/lib/workflow';
 import {
-  CONTACT_METHOD_OPTIONS, TOUCHPOINT_TYPES, contactMethodLabel, touchpointTypeLabel,
+  CONTACT_METHOD_OPTIONS, TOUCHPOINT_TYPES, contactMethodLabel,
   isInPersonMethod, todayAgency,
   NJHMIS_SERVICE_TYPES, NJHMIS_LOCATIONS, NJHMIS_NOTE_TYPES, NJHMIS_DEFAULT_NOTE_TYPE,
   defaultNjhmisServiceType, defaultNjhmisLocation,
@@ -39,7 +39,6 @@ import {
 import { format } from 'date-fns';
 import { Check, ClipboardCopy, Sparkles } from 'lucide-react';
 import { NoteComposer, type ComposedNote } from '@/components/clinicalNotes/NoteComposer';
-import { topicById } from '@/lib/clinicalNotes/config';
 import { saveWithTouchpoint } from '@/lib/clinicalNotes/save';
 
 export interface TouchpointContext {
@@ -202,8 +201,8 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     }
     const fd = fromDraft?.composed.draft;
     // A v3 note records its first category; an older one its first topic.
-    const draftTopic = fd?.v === 3 ? TOUCHPOINT_TOPIC[fd.tree?.categories[0] ?? ''] : fd?.topics[0];
-    if (draftTopic) setTouchpointType(topicById(draftTopic)?.touchpointType ?? 'general_checkin');
+    const draftCategory = fd?.tree?.categories[0];
+    if (draftCategory) setTouchpointType(TOUCHPOINT_TYPE[draftCategory] ?? 'general_checkin');
     setBuilderOpen(!!startWithBuilder && !fromDraft);
     setCopied(false);
     setContactBy(null);
@@ -662,8 +661,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
               method={contactMethod}
               initial={composed}
               useLabel="Use this note"
-              onPrimaryTopic={(t) => {
-                const type = t ? topicById(t)?.touchpointType : null;
+              onTouchpointType={(type) => {
                 if (type) setTouchpointType(type);
               }}
               onUse={(c) => {

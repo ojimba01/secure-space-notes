@@ -18,21 +18,13 @@ import { useViewAs } from '@/components/ViewAsProvider';
 import { CheckCircle2, ClipboardList, FileText, Plus, Upload } from 'lucide-react';
 import {
   INTAKE_STATUS_LABEL,
-  PACKAGE_STATE_CLASS,
-  PACKAGE_STATE_LABEL,
   STAGE_CLASS,
   STAGE_LABEL,
   displayStage,
-  continuationPackageState,
   nextAction,
   serviceStartDate,
   type WorkflowClient,
 } from '@/lib/workflow';
-import {
-  EXTERNAL_STATUS_CLASS,
-  EXTERNAL_STATUS_LABEL,
-  FORM_STATUS_SHORT_LABEL,
-} from '@/lib/formSigning';
 import { PDF_TEMPLATES, TemplateFillDialog, type PdfTemplate } from '@/components/forms/TemplateFillDialog';
 import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
 import { regenerateClientCycles } from '@/lib/billingSync';
@@ -182,7 +174,6 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
   const stage = displayStage(client);
   const action = nextAction(client, forms);
   const latest = (type: string) => forms.find((f) => f.form_type === type);
-  const packet = continuationPackageState(forms);
   const current = currentAuthorization(authorizations);
   const daysLeft = daysUntilEnd(current);
   const reauthDue = needsReauthorization(authorizations);

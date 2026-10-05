@@ -1,21 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Plus, Phone, Video, MapPin, Sparkles, Trash2 } from 'lucide-react';
-import { InfoHint } from '@/components/InfoHint';
-import { useComplianceTooltips } from '@/hooks/useComplianceTooltips';
-import { useMyProfileId } from '@/hooks/useMyProfileId';
 import { useViewAs } from '@/components/ViewAsProvider';
 import {
   requirementsForTier, computeProgress, deriveStatus, generatePlanDates,
   firstOfMonth, todayAgency, daysBetween, ENFORCEMENT_START, ContactRow,
   currentBillingWindow, contactsInWindow, windowProgress,
-  windowStatus, suggestTouchpointType,
+  windowStatus,
   type Modality,
 } from '@/lib/compliance';
 import { regenerateTouchpointsForClient } from '@/lib/touchpoints';
@@ -39,10 +34,7 @@ const modalityIcon = (m: Modality) =>
 export const ComplianceCard: React.FC<Props> = ({
   clientId, clientName, levelOfNeed, hspStartDate, assignedEmployeeId, clientCreatedAt, onChanged,
 }) => {
-  const { toast } = useToast();
   const { guardWrite } = useViewAs();
-  const tooltips = useComplianceTooltips();
-  const myProfileId = useMyProfileId();
   const [contacts, setContacts] = useState<ContactRow[]>([]);
   const [complianceId, setComplianceId] = useState<string | null>(null);
   const [activities, setActivities] = useState<string[]>([]);
@@ -50,7 +42,6 @@ export const ComplianceCard: React.FC<Props> = ({
   const [loading, setLoading] = useState(true);
   const [logOpen, setLogOpen] = useState(false);
   const [withBuilder, setWithBuilder] = useState(false);
-  const [savingNote, setSavingNote] = useState(false);
 
   const today = todayAgency();
   const month = firstOfMonth(today);

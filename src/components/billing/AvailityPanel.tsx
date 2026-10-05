@@ -33,7 +33,7 @@ import { digitsOnly } from '@/lib/ids';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { BillingClient } from '@/hooks/useBilling';
-import { MCO_OPTIONS, todayAgency, type BillingCycle } from '@/lib/billing';
+import { todayAgency, type BillingCycle } from '@/lib/billing';
 import { fetchClientAuthorizations, type ClientAuthorization } from '@/lib/authorizations';
 import {
   AGENCY_DIAGNOSIS_CODES,
