@@ -161,7 +161,18 @@ export const GUIDES: Guide[] = [
     id: 'blank-form', section: 'Forms and documents', title: 'Start a blank form', audience: 'everyone', minutes: 3,
     steps: [
       s('Open Blank forms', 'Select Blank forms in the left panel.'),
-      s('Choose the form', 'Select + on the form you need, such as a Move-in Supports Request. Select the upload icon to file one you completed elsewhere.'),
+      s('Choose the form', 'Select + on the form you need, such as the UHC Move-in Supports Request. Select the upload icon to file one you completed elsewhere.'),
+    ],
+  },
+  {
+    id: 'move-in-request', section: 'Forms and documents', title: 'Fill out a Move-in Supports Request', audience: 'everyone', minutes: 10,
+    steps: [
+      s('Open the client’s Forms tab', 'Open the client and select Forms.'),
+      s('Start the request', 'Under Move-in Supports Request, select the request for the client’s MCO: UHC, Horizon or Wellpoint. Horizon and Wellpoint open as PDFs, filled in like any other form.'),
+      s('Check the member details', 'The UHC request opens on Member, filled in from the client record and the client’s other documents. Anything you change here is saved to the client record too.'),
+      s('Go through the items with the member', 'Open each tab (Services, Food, Pantry, Hygiene, Clothing, Household). Select an item to add it, set the quantity with + and −, and fill in a flavor or type where asked. Search finds an item; Selected only shows what you picked.'),
+      s('Add the costs', 'Enter the estimated cost for each line, now or later. Totals add up by themselves. A furniture cost over UHC’s limit is flagged; UHC reviews it individually.'),
+      s('Review and complete', 'Review lists everything picked with its cost, and the paperwork to send for fees, deposits and moving costs. Select Save draft to finish later, or Complete to save UHC’s spreadsheet to the client’s forms.'),
     ],
   },
   {
@@ -377,6 +388,13 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Open your account', 'Select the person icon at the top of the left panel.'),
       s('Change your password', 'Enter a new password and select Change password.'),
+    ],
+  },
+  {
+    id: 'your-phone', section: 'Getting started', title: 'Add your phone number', audience: 'everyone', minutes: 1,
+    steps: [
+      s('Open your account', 'Select the person icon at the top of the left panel.'),
+      s('Enter your phone', 'Under Phone, enter your work number and select Save. Forms that ask for the case manager’s phone fill it in.'),
     ],
   },
   {

@@ -60,6 +60,12 @@ async function openWorkbook(p) {
   await p.goto(`${BASE}/workbook`);
   await wait(p, 3000);
 }
+async function openUhc(p) {
+  await openClient(p, 'c-7', 'Forms');
+  await btn(p, 'UHC Move-in Supports Request', true).click();
+  await wait(p, 2500);
+}
+
 async function openAccount(p) {
   await p.goto(`${BASE}/?view=clients`);
   await wait(p, 2000);
@@ -265,6 +271,10 @@ const SHOTS = {
     { as: 'staff', go: (p) => openClient(p, 'c-2', 'Forms'), target: (p) => btn(p, 'Begin', true), label: 'Begin' },
     { as: 'staff', go: async (p) => { await openClient(p, 'c-2', 'Forms'); await btn(p, 'Begin', true).click(); await wait(p, 4000); }, target: (p) => btn(p, 'Complete form'), label: 'Complete form' },
   ],
+  'your-phone': [
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => p.locator('[aria-label="Your account"]').last(), label: 'Your account' },
+    { as: 'staff', go: async (p) => { await openAccount(p); await dialog(p).getByLabel('Phone').fill('(555) 010-0100'); }, target: (p) => dialog(p).getByLabel('Phone'), label: 'Phone' },
+  ],
   'save-signature': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => p.locator('[aria-label="Your account"]').last(), label: 'Your account' },
     { as: 'staff', go: openAccount, target: (p) => btn(p, 'Add or change'), label: 'Add or change' },
@@ -293,7 +303,15 @@ const SHOTS = {
   ],
   'blank-form': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Blank forms'), label: 'Blank forms' },
-    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=forms`), target: (p) => text(p, 'Horizon Move-in Supports Request').locator('xpath=ancestor::div[contains(@class,"rounded")][1]').getByRole('button').first(), label: 'Start the form' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=forms`), target: (p) => text(p, 'UHC Move-in Supports Request').locator('xpath=ancestor::div[contains(@class,"rounded")][1]').getByRole('button').first(), label: 'Start the form' },
+  ],
+  'move-in-request': [
+    { as: 'admin', go: (p) => openClient(p, 'c-7'), target: (p) => tab(p, 'Forms'), label: 'Forms' },
+    { as: 'admin', go: (p) => openClient(p, 'c-7', 'Forms'), target: (p) => btn(p, 'UHC Move-in Supports Request', true), label: 'UHC Move-in Supports Request' },
+    { as: 'admin', go: openUhc, target: (p) => dialog(p).getByLabel('Member name'), label: 'Member details' },
+    { as: 'admin', go: async (p) => { await openUhc(p); await tab(p, 'Food').click(); await wait(p); await dialog(p).getByRole('button', { name: 'Asparagus', exact: true }).click(); await btn(p, 'More Asparagus').click(); await wait(p, 400); }, target: (p) => btn(p, 'More Asparagus'), label: 'Set the quantity' },
+    { as: 'admin', go: async (p) => { await openUhc(p); await tab(p, 'Household').click(); await wait(p); await dialog(p).getByRole('button', { name: 'Sofa', exact: true }).click(); await dialog(p).getByLabel('Cost of Sofa').fill('750'); await wait(p, 400); }, target: (p) => dialog(p).getByLabel('Cost of Sofa'), label: 'Cost' },
+    { as: 'admin', go: async (p) => { await openUhc(p); await tab(p, 'Services').click(); await wait(p); await dialog(p).getByLabel('Cost of Security Deposit').fill('1500'); await tab(p, 'Review').click(); await wait(p, 600); }, target: (p) => btn(p, 'Complete', true), label: 'Complete' },
   ],
   'case-log': [
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=compliance`); await wait(p, 2200); await text(p, 'HMIS case log').scrollIntoViewIfNeeded(); }, target: (p) => text(p, 'HMIS case log'), label: 'HMIS case log' },

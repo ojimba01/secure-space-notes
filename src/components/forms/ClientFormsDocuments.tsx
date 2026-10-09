@@ -69,10 +69,12 @@ interface Props {
   onChanged?: () => void;
 }
 
+const AUTH_GROUP = 'MCO referrals and authorizations';
+
 /** Collections below the checklist: documents that arrive, rather than forms owed. */
 const EXTRA_GROUPS: { title: string; match: (f: DocumentRow) => boolean }[] = [
   {
-    title: 'MCO referrals and authorizations',
+    title: AUTH_GROUP,
     // Imported authorization paperwork the classifier could not place arrives
     // as "Unsorted" with no workflow purpose, so the filename is the only signal.
     match: (f) =>
@@ -335,6 +337,12 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     const t = PDF_TEMPLATES.find((x) => x.formType === UHC_FORM_TYPE && x.mco === mco);
     return t ? { label: t.label, start: () => setFilling(t) } : null;
   }, [mco]);
+
+  /** The MCO's own authorization request (Aetna, Wellpoint), started from here. */
+  const authTemplate = useMemo(
+    () => PDF_TEMPLATES.find((x) => x.formType === 'Prior Authorization Request' && x.mco === mco) ?? null,
+    [mco],
+  );
 
   /** The blank template this app ships for a checklist form, where it has one. */
   const templateFor = (formType: string): PdfTemplate | undefined =>
@@ -613,8 +621,20 @@ export const ClientFormsDocuments: React.FC<Props> = ({
 
             <div className="space-y-2">
               {extras
-                .filter((g) => g.items.length > 0)
-                .map((g) => collapsibleGroup(g.title, g.items, <span className="w-4" />))}
+                .filter((g) => g.items.length > 0 || (g.title === AUTH_GROUP && authTemplate))
+                .map((g) =>
+                  collapsibleGroup(
+                    g.title,
+                    g.items,
+                    <span className="w-4" />,
+                    g.title === AUTH_GROUP && authTemplate ? (
+                      <Button variant="outline" size="sm" onClick={() => setFilling(authTemplate)} title={`Fill in the ${authTemplate.label}`}>
+                        <Plus className="mr-1 h-4 w-4" />
+                        {authTemplate.label}
+                      </Button>
+                    ) : undefined,
+                  ),
+                )}
             </div>
 
             {forms.length === 0 && manualTicks.size === 0 && (
