@@ -35,6 +35,8 @@ import {
   type PdfTemplate,
 } from '@/components/forms/TemplateFillDialog';
 import { nextFormTitle } from '@/lib/formTitles';
+import { UhcMoveInDialog, type UhcExistingForm } from '@/components/forms/UhcMoveInDialog';
+import { UHC_FORM_LABEL, UHC_FORM_TYPE, UHC_MCO } from '@/lib/uhcMoveIn/model';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
@@ -42,7 +44,7 @@ const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'
 const FIELD_COLUMNS =
   'field_member_name, field_member_id, field_medicaid_id, field_member_dob, ' +
   'field_icd10_code, field_authorization_number, field_service_start, field_service_end, ' +
-  'fields_extracted_at';
+  'fields_extracted_at, form_data';
 
 type DocumentRow = FormRow & Partial<Record<
   | 'field_member_name'
@@ -55,7 +57,7 @@ type DocumentRow = FormRow & Partial<Record<
   | 'field_service_end'
   | 'fields_extracted_at',
   string | null
->>;
+>> & { form_data?: unknown };
 
 interface Props {
   clientId: string;
@@ -155,6 +157,10 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const [uploadFor, setUploadFor] = useState<string | null>(null);
   /** The blank template being filled in, from a checklist row. */
   const [filling, setFilling] = useState<PdfTemplate | null>(null);
+  /** The UHC request being filled in: a new one, or a saved one opened again. */
+  const [uhc, setUhc] = useState<UhcExistingForm | 'new' | null>(null);
+  /** The client's MCO, which decides whose move-in request they fill in. */
+  const [mco, setMco] = useState<string | null>(null);
   const [signerName, setSignerName] = useState('Case manager');
   const [preview, setPreview] = useState<{
     id: string;
@@ -169,14 +175,16 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [formsResult, ticks] = await Promise.all([
+      const [formsResult, ticks, clientRow] = await Promise.all([
         supabase
           .from('client_forms')
           .select(`${FORM_LIST_COLUMNS}, ${FIELD_COLUMNS}`)
           .eq('client_id', clientId)
           .order('created_at', { ascending: false }),
         loadManualTicks(clientId).catch(() => new Set<string>()),
+        supabase.from('clients').select('insurance').eq('id', clientId).maybeSingle(),
       ]);
+      setMco(clientRow.data?.insurance ?? null);
       if (formsResult.error) throw formsResult.error;
       const rows = (formsResult.data as unknown as DocumentRow[]) ?? [];
       setForms(rows);
@@ -236,7 +244,9 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = formDownloadName(clientFirstName, clientLastName, form.form_type, form.created_at);
+      a.download = form.form_data
+        ? formDownloadName(clientFirstName, clientLastName, 'UHC Move-in Supports', form.created_at).replace(/\.pdf$/, '.xlsx')
+        : formDownloadName(clientFirstName, clientLastName, form.form_type, form.created_at);
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -319,6 +329,13 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     onChanged?.();
   };
 
+  /** The move-in request for this client's MCO: UHC's in the app, Horizon's and Wellpoint's as PDFs. */
+  const moveInStart = useMemo(() => {
+    if (mco === UHC_MCO) return { label: UHC_FORM_LABEL, start: () => setUhc('new') };
+    const t = PDF_TEMPLATES.find((x) => x.formType === UHC_FORM_TYPE && x.mco === mco);
+    return t ? { label: t.label, start: () => setFilling(t) } : null;
+  }, [mco]);
+
   /** The blank template this app ships for a checklist form, where it has one. */
   const templateFor = (formType: string): PdfTemplate | undefined =>
     PDF_TEMPLATES.find((t) => t.formType === formType && !t.mco);
@@ -335,7 +352,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
 
   /** Everything the checklist does not claim, in its own collections. */
   const extras = useMemo(() => {
-    const claimed = new Set<string>(CHECKLIST_TYPES);
+    const claimed = new Set<string>([...CHECKLIST_TYPES, UHC_FORM_TYPE]);
     const rest = forms.filter((f) => !claimed.has(f.form_type));
     return EXTRA_GROUPS.map(({ title }) => ({ title, items: [] as DocumentRow[] })).map(
       (group, i, all) => {
@@ -386,9 +403,11 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     <div key={form.id} className="flex flex-wrap items-center justify-between gap-2 p-2.5">
       <button
         type="button"
-        disabled={!form.file_path}
+        disabled={!form.file_path && !form.form_data}
         onClick={() =>
-          form.file_path &&
+          form.form_data
+            ? setUhc({ id: form.id, client_id: form.client_id, status: form.status, form_data: form.form_data })
+            : form.file_path &&
           setPreview({
             id: form.id,
             file_name: form.title || `${form.form_type}.pdf`,
@@ -396,12 +415,12 @@ export const ClientFormsDocuments: React.FC<Props> = ({
             file_type: 'application/pdf',
           })
         }
-        title={form.file_path ? 'Open this document' : 'No file is stored for this document'}
+        title={form.file_path || form.form_data ? 'Open this document' : 'No file is stored for this document'}
         className="flex items-center gap-2 min-w-0 text-left disabled:cursor-default"
       >
         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
         <div className="min-w-0">
-          <div className={`text-sm truncate ${form.file_path ? 'hover:underline' : ''}`}>
+          <div className={`text-sm truncate ${form.file_path || form.form_data ? 'hover:underline' : ''}`}>
             {form.title || form.form_type}
           </div>
           <div className="text-xs text-muted-foreground">
@@ -566,6 +585,32 @@ export const ClientFormsDocuments: React.FC<Props> = ({
               })}
             </div>
 
+            {/* Move-in supports: the request for this client's MCO. */}
+            <div className="space-y-2">
+              {collapsibleGroup(
+                'Move-in Supports Request',
+                byType.get(UHC_FORM_TYPE) ?? [],
+                <span className="w-5" />,
+                <>
+                  {moveInStart && (
+                    <Button variant="outline" size="sm" onClick={moveInStart.start} title={`Fill in the ${moveInStart.label}`}>
+                      <Plus className="mr-1 h-4 w-4" />
+                      {moveInStart.label}
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Upload a completed Move-in Supports Request"
+                    aria-label="Upload a completed Move-in Supports Request"
+                    onClick={() => setUploadFor(UHC_FORM_TYPE)}
+                  >
+                    <Upload className="h-4 w-4" />
+                  </Button>
+                </>,
+              )}
+            </div>
+
             <div className="space-y-2">
               {extras
                 .filter((g) => g.items.length > 0)
@@ -606,6 +651,20 @@ export const ClientFormsDocuments: React.FC<Props> = ({
           onClose={() => setFilling(null)}
           onSubmitted={() => {
             setFilling(null);
+            load();
+            onChanged?.();
+          }}
+        />
+      )}
+
+      {uhc && profileId && (
+        <UhcMoveInDialog
+          profileId={profileId}
+          lockedClientId={clientId}
+          lockedClientName={`${clientLastName}, ${clientFirstName}`}
+          existing={uhc === 'new' ? null : uhc}
+          onClose={() => setUhc(null)}
+          onSaved={() => {
             load();
             onChanged?.();
           }}

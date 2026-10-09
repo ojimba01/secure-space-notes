@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientPicker } from '@/components/ClientPicker';
+import { loadCaseManagerFacts, loadClientFacts } from '@/lib/clientFacts';
 import { SignOnForm } from '@/components/forms/SignOnForm';
 import {
   defaultPlacement,
@@ -267,22 +268,19 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             ?.annotationStorage?.size ?? 0) > 0;
         if (modified) return;
 
-        const { data: client, error } = await supabase
-          .from('clients')
-          .select(
-            'id, first_name, last_name, date_of_birth, phone, email, member_id, medicaid_id, address, insurance, county, njhmis_id, move_in_date, new_address, new_city_state_zip, apartment_complex_name, landlord_name, landlord_phone, landlord_email, realtor_name, realtor_phone, realtor_email',
-          )
-          .eq('id', clientId)
-          .maybeSingle();
-        if (error) throw error;
-        if (!client || cancelled) return;
-        setClientRecord(client as AutofillClient & { id: string });
+        // The record first; where it is blank, the client's other filed
+        // documents and their intake fill in.
+        const client = await loadClientFacts(clientId);
+        if (cancelled) return;
+        setClientRecord(client);
+        const cm = await loadCaseManagerFacts(client.assigned_employee_id ?? profileId);
 
         // The registry decides which blank form this is, so a template an
         // admin has replaced is the one staff fill in.
         const blank = await loadBlankTemplate(template.formType, template.mco, template.file);
         const bytes = await prefillTemplate(blank, template.formType, client, {
-          name: signerName,
+          ...cm,
+          name: cm.name || signerName,
         });
         // The registry copy is whatever an admin last uploaded, so it is
         // relaxed here rather than trusted to have been built that way.
@@ -301,7 +299,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existing, template, clientId, signerName]);
+  }, [existing, template, clientId, signerName, profileId]);
 
   // Stable identity so react-pdf doesn't reload the document on re-renders.
   const documentFile = useMemo(() => {

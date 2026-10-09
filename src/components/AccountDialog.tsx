@@ -58,6 +58,9 @@ export const AccountDialog: React.FC<{
   const { toast } = useToast();
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  /** Work phone, written on forms that ask for the case manager's number. */
+  const [phone, setPhone] = useState('');
+  const [savedPhone, setSavedPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [signatures, setSignatures] = useState(false);
   /** The default mark, shown so the section says what is already saved. */
@@ -73,10 +76,13 @@ export const AccountDialog: React.FC<{
     (async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('first_name, last_name')
+        .select('first_name, last_name, phone')
         .eq('user_id', user.id)
         .maybeSingle();
       setName(`${data?.first_name ?? ''} ${data?.last_name ?? ''}`.trim());
+      const p = (data as { phone?: string | null } | null)?.phone ?? '';
+      setPhone(p);
+      setSavedPhone(p);
     })();
   }, [open, user]);
 
@@ -166,6 +172,20 @@ export const AccountDialog: React.FC<{
     }
   };
 
+  const savePhone = async () => {
+    if (!user) return;
+    setBusy(true);
+    const value = phone.trim() || null;
+    const { error } = await supabase.from('profiles').update({ phone: value } as never).eq('user_id', user.id);
+    setBusy(false);
+    if (error) {
+      toast({ title: 'Could not save it', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setSavedPhone(value ?? '');
+    toast({ title: 'Phone saved' });
+  };
+
   const changePassword = async () => {
     if (password.length < 8) {
       toast({ title: 'Use at least 8 characters', variant: 'destructive' });
@@ -210,6 +230,26 @@ export const AccountDialog: React.FC<{
             <section className="space-y-1 px-5 py-4">
               <SectionHeading>Signed in as</SectionHeading>
               <p className="text-sm">{user?.email}</p>
+            </section>
+
+            <section className="space-y-3 px-5 py-4">
+              <SectionHeading>Phone</SectionHeading>
+              <Label htmlFor="account-phone" className="sr-only">
+                Phone
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="account-phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Work phone"
+                  autoComplete="tel"
+                />
+                <Button size="sm" className="h-10" onClick={savePhone} disabled={busy || phone.trim() === savedPhone.trim()}>
+                  Save
+                </Button>
+              </div>
             </section>
 
             <section className="space-y-3 px-5 py-4">

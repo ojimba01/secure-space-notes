@@ -739,6 +739,7 @@ export type Database = {
           file_path: string | null
           file_size: number | null
           form_type: string
+          form_data: Json | null
           id: string
           import_batch_id: string | null
           mco_response_at: string | null
@@ -794,6 +795,7 @@ export type Database = {
           file_path?: string | null
           file_size?: number | null
           form_type: string
+          form_data?: Json | null
           id?: string
           import_batch_id?: string | null
           mco_response_at?: string | null
@@ -849,6 +851,7 @@ export type Database = {
           file_path?: string | null
           file_size?: number | null
           form_type?: string
+          form_data?: Json | null
           id?: string
           import_batch_id?: string | null
           mco_response_at?: string | null
@@ -1510,6 +1513,9 @@ export type Database = {
           email: string | null
           field_sources: Json | null
           first_name: string
+          household_size: number | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           housing_stabilization_plan_date: string | null
           hsp_150_date: string | null
           hsp_180_date: string | null
@@ -1539,6 +1545,7 @@ export type Database = {
           njhmis_id: string | null
           notes: string | null
           phone: string | null
+          preferred_delivery: string | null
           realtor_email: string | null
           realtor_name: string | null
           realtor_phone: string | null
@@ -1582,6 +1589,9 @@ export type Database = {
           email?: string | null
           field_sources?: Json | null
           first_name: string
+          household_size?: number | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           housing_stabilization_plan_date?: string | null
           hsp_150_date?: string | null
           hsp_180_date?: string | null
@@ -1611,6 +1621,7 @@ export type Database = {
           njhmis_id?: string | null
           notes?: string | null
           phone?: string | null
+          preferred_delivery?: string | null
           realtor_email?: string | null
           realtor_name?: string | null
           realtor_phone?: string | null
@@ -1654,6 +1665,9 @@ export type Database = {
           email?: string | null
           field_sources?: Json | null
           first_name?: string
+          household_size?: number | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           housing_stabilization_plan_date?: string | null
           hsp_150_date?: string | null
           hsp_180_date?: string | null
@@ -1683,6 +1697,7 @@ export type Database = {
           njhmis_id?: string | null
           notes?: string | null
           phone?: string | null
+          preferred_delivery?: string | null
           realtor_email?: string | null
           realtor_name?: string | null
           realtor_phone?: string | null
@@ -2136,6 +2151,7 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          phone: string | null
           touchpoint_go_live_date: string | null
           touchpoint_tutorial_acknowledged_at: string | null
           updated_at: string | null
@@ -2148,6 +2164,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          phone?: string | null
           touchpoint_go_live_date?: string | null
           touchpoint_tutorial_acknowledged_at?: string | null
           updated_at?: string | null
@@ -2160,6 +2177,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          phone?: string | null
           touchpoint_go_live_date?: string | null
           touchpoint_tutorial_acknowledged_at?: string | null
           updated_at?: string | null

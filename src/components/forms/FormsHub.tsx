@@ -67,9 +67,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { X } from 'lucide-react';
 
+import { UhcMoveInDialog } from '@/components/forms/UhcMoveInDialog';
+import { UHC_FORM_LABEL } from '@/lib/uhcMoveIn/model';
+
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
 export interface FormRow {
+  /** Answers to a form filled in the app rather than on a PDF (UHC move-in). */
+  form_data?: unknown;
   id: string;
   client_id: string;
   employee_id: string;
@@ -163,7 +168,12 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [fillingTemplate, setFillingTemplate] = useState<PdfTemplate | null>(null);
-  const [editingForm, setEditingForm] = useState<FormRow | null>(null);
+  const [editingPdf, setEditingPdf] = useState<FormRow | null>(null);
+  /** The UHC request: new, or a saved one opened again. */
+  const [uhcForm, setUhcForm] = useState<FormRow | 'new' | null>(null);
+  // A UHC request is answered in the app, not on a PDF.
+  const setEditingForm = (f: FormRow | null) => (f?.form_data ? setUhcForm(f) : setEditingPdf(f));
+  const editingForm = editingPdf;
   const [detail, setDetail] = useState<FormRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<FormRow | null>(null);
   const [preview, setPreview] = useState<{
@@ -210,7 +220,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
       let query = supabase
         .from('client_forms')
         .select(
-          `${FORM_LIST_COLUMNS}, clients:client_id (first_name, last_name, status, workflow_stage), profiles:employee_id (first_name, last_name)`,
+          `${FORM_LIST_COLUMNS}, form_data, clients:client_id (first_name, last_name, status, workflow_stage), profiles:employee_id (first_name, last_name)`,
         )
         .order('created_at', { ascending: false });
 
@@ -408,9 +418,9 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
       a.download = formDownloadName(
         form.clients?.first_name,
         form.clients?.last_name,
-        form.form_type,
+        form.form_data ? 'UHC Move-in Supports' : form.form_type,
         form.created_at,
-      );
+      ).replace(/\.pdf$/, form.form_data ? '.xlsx' : '.pdf');
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: any) {
@@ -419,6 +429,10 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   };
 
   const openPreview = (form: FormRow) => {
+    if (form.form_data) {
+      setUhcForm(form);
+      return;
+    }
     if (!form.file_path) return;
     setPreview({
       id: form.id,
@@ -507,6 +521,27 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
                 </div>
               </Card>
             ))}
+            <Card className="p-4 flex flex-col gap-2">
+              <div className="flex items-start gap-2">
+                <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <div className="text-sm font-medium leading-tight">{UHC_FORM_LABEL}</div>
+                  <p className="text-xs text-muted-foreground mt-1">UHC’s move-in checklist: items, quantities and estimated costs.</p>
+                </div>
+              </div>
+              <div className="mt-auto flex items-center gap-2">
+                <Button
+                  size="icon"
+                  className="h-8 w-8 bg-green-600 text-white hover:bg-green-700"
+                  onClick={() => setUhcForm('new')}
+                  disabled={!profileId}
+                  title={`Fill out the ${UHC_FORM_LABEL}`}
+                  aria-label={`Fill out the ${UHC_FORM_LABEL}`}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </Card>
             <CaseLogFormCard profileId={profileId} caseManagerName={signerName} />
           </div>
 
@@ -682,6 +717,15 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
         </div>
       )}
         </>
+      )}
+
+      {uhcForm && profileId && (
+        <UhcMoveInDialog
+          profileId={profileId}
+          existing={uhcForm === 'new' ? null : { id: uhcForm.id, client_id: uhcForm.client_id, status: uhcForm.status, form_data: uhcForm.form_data }}
+          onClose={() => setUhcForm(null)}
+          onSaved={fetchForms}
+        />
       )}
 
       {fillingTemplate && profileId && (

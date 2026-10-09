@@ -32,6 +32,7 @@ interface Employee {
   email: string;
   first_name?: string;
   last_name?: string;
+  phone?: string | null;
   created_at: string;
   active: boolean;
   user_roles: Array<{ role: string }>;
@@ -278,7 +279,10 @@ const Admin = () => {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{employee.email}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {employee.email}
+                      {employee.phone ? ` · ${employee.phone}` : ''}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       Joined: {new Date(employee.created_at).toLocaleDateString()}
                     </p>
