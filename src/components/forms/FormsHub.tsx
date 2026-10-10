@@ -72,7 +72,7 @@ import { UHC_FORM_TYPE, UHC_MCO } from '@/lib/uhcMoveIn/model';
 
 /** The MCO forms, by what they ask for. */
 const MCO_GROUPS = [
-  { formType: 'Prior Authorization Request', title: 'Authorization requests', cardTitle: 'Authorization', fullTitle: 'Authorization Request' },
+  { formType: 'Prior Authorization Request', title: 'Authorization Requests', cardTitle: 'Authorization', fullTitle: 'Authorization Request' },
   { formType: 'Move-In Supports Request', title: 'Move-in Supports Requests', cardTitle: 'Move-in Supports', fullTitle: 'Move-in Supports Request' },
 ];
 
@@ -465,16 +465,20 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   const formCard = (c: { key: string; title: string; fullTitle?: string; mco?: string; onFill: () => void; onUpload: () => void }) => {
     const name = c.mco ? `${MCO_SHORT[c.mco] ?? c.mco} ${c.fullTitle ?? c.title}` : c.title;
     return (
-      <Card key={c.key} className="flex items-center gap-2 p-3">
-        {!c.mco && <FileText className="h-4 w-4 text-muted-foreground shrink-0" />}
-        <div className="min-w-0 flex-1">
-          {c.mco && (
-            <span className={`mb-1 inline-block rounded px-2 py-0.5 text-xs font-bold ${MCO_TAG[c.mco] ?? 'bg-muted text-foreground'}`}>
+      <Card key={c.key} className={`flex items-center gap-2 ${c.mco ? 'p-2' : 'p-3'}`}>
+        {c.mco ? (
+          // The group heading says which form; the card only says whose.
+          <div className="min-w-0 flex-1">
+            <span className={`inline-block rounded-md px-2.5 py-1 text-base font-bold ${MCO_TAG[c.mco] ?? 'bg-muted text-foreground'}`}>
               {MCO_SHORT[c.mco] ?? c.mco}
             </span>
-          )}
-          <div className="text-sm font-medium leading-tight">{c.mco ? c.fullTitle ?? c.title : c.title}</div>
-        </div>
+          </div>
+        ) : (
+          <>
+            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="min-w-0 flex-1 text-sm font-medium leading-tight">{c.title}</div>
+          </>
+        )}
         {/* The card already says which form this is; the labels are for
             somebody who cannot see it. */}
         <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -567,8 +571,8 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
             <h3 className="text-sm font-semibold">MCO forms</h3>
             {MCO_GROUPS.map((g) => (
               <div key={g.formType} className="space-y-2">
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.title}</h4>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <h4 className="text-base font-bold text-slate-900">{g.title}</h4>
+                <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
                   {mcoForms(g.formType).map((f) =>
                     formCard({ key: f.key, title: g.cardTitle, fullTitle: g.fullTitle, mco: f.mco, onFill: f.onFill, onUpload: () => uploadFor(g.formType) }),
                   )}
