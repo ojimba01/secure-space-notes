@@ -72,16 +72,16 @@ import { UHC_FORM_TYPE, UHC_MCO } from '@/lib/uhcMoveIn/model';
 
 /** The MCO forms, by what they ask for. */
 const MCO_GROUPS = [
-  { formType: 'Prior Authorization Request', title: 'Authorization Requests', cardTitle: 'Authorization', fullTitle: 'Authorization Request' },
-  { formType: 'Move-In Supports Request', title: 'Move-in Supports Requests', cardTitle: 'Move-in Supports', fullTitle: 'Move-in Supports Request' },
+  { formType: 'Prior Authorization Request', title: 'Authorization Requests', fullTitle: 'Authorization Request' },
+  { formType: 'Move-In Supports Request', title: 'Move-in Supports Requests', fullTitle: 'Move-in Supports Request' },
 ];
 
 /** Each MCO in its own colour, so the payer is the first thing read. */
-const MCO_TAG: Record<string, string> = {
-  Aetna: 'bg-violet-100 text-violet-800',
-  Horizon: 'bg-sky-100 text-sky-800',
-  UnitedHealthcare: 'bg-orange-100 text-orange-800',
-  Wellpoint: 'bg-emerald-100 text-emerald-800',
+const MCO_TEXT: Record<string, string> = {
+  Aetna: 'text-violet-700',
+  Horizon: 'text-sky-700',
+  UnitedHealthcare: 'text-orange-700',
+  Wellpoint: 'text-emerald-700',
 };
 const MCO_SHORT: Record<string, string> = { UnitedHealthcare: 'UHC' };
 
@@ -462,51 +462,40 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
     return [...pdfs, ...uhc].sort((a, b) => a.mco.localeCompare(b.mco));
   };
 
-  const formCard = (c: { key: string; title: string; fullTitle?: string; mco?: string; onFill: () => void; onUpload: () => void }) => {
-    const name = c.mco ? `${MCO_SHORT[c.mco] ?? c.mco} ${c.fullTitle ?? c.title}` : c.title;
-    return (
-      <Card key={c.key} className={`flex items-center gap-2 ${c.mco ? 'p-2' : 'p-3'}`}>
-        {c.mco ? (
-          // The group heading says which form; the card only says whose.
-          <div className="min-w-0 flex-1">
-            <span className={`inline-block rounded-md px-2.5 py-1 text-base font-bold ${MCO_TAG[c.mco] ?? 'bg-muted text-foreground'}`}>
-              {MCO_SHORT[c.mco] ?? c.mco}
-            </span>
-          </div>
-        ) : (
-          <>
-            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="min-w-0 flex-1 text-sm font-medium leading-tight">{c.title}</div>
-          </>
-        )}
-        {/* The card already says which form this is; the labels are for
-            somebody who cannot see it. */}
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <Button
-            size="icon"
-            className="h-8 w-8 bg-green-600 text-white hover:bg-green-700"
-            onClick={c.onFill}
-            disabled={!profileId}
-            title={`Fill out the ${name}`}
-            aria-label={`Fill out the ${name}`}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={c.onUpload}
-            disabled={!profileId}
-            title={`Upload a completed ${name}`}
-            aria-label={`Upload a completed ${name}`}
-          >
-            <Upload className="h-4 w-4" />
-          </Button>
-        </div>
-      </Card>
-    );
-  };
+  /** + to fill a form in, and upload for one completed elsewhere. */
+  const formButtons = (name: string, onFill: () => void, onUpload: () => void) => (
+    <div className="flex shrink-0 items-center gap-2">
+      <Button
+        size="icon"
+        className="h-8 w-8 bg-green-600 text-white hover:bg-green-700"
+        onClick={onFill}
+        disabled={!profileId}
+        title={`Fill out the ${name}`}
+        aria-label={`Fill out the ${name}`}
+      >
+        <Plus className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-8 w-8"
+        onClick={onUpload}
+        disabled={!profileId}
+        title={`Upload a completed ${name}`}
+        aria-label={`Upload a completed ${name}`}
+      >
+        <Upload className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+
+  const formCard = (c: { key: string; title: string; onFill: () => void; onUpload: () => void }) => (
+    <Card key={c.key} className="flex items-center gap-2 p-3">
+      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+      <div className="min-w-0 flex-1 text-sm font-medium leading-tight">{c.title}</div>
+      <div className="ml-auto">{formButtons(c.title, c.onFill, c.onUpload)}</div>
+    </Card>
+  );
 
   const openPreview = (form: FormRow) => {
     if (form.form_data) {
@@ -572,10 +561,17 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
             {MCO_GROUPS.map((g) => (
               <div key={g.formType} className="space-y-2">
                 <h4 className="text-base font-bold text-slate-900">{g.title}</h4>
-                <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                  {mcoForms(g.formType).map((f) =>
-                    formCard({ key: f.key, title: g.cardTitle, fullTitle: g.fullTitle, mco: f.mco, onFill: f.onFill, onUpload: () => uploadFor(g.formType) }),
-                  )}
+                {/* Just the MCO's name, in its colour, and the two buttons. */}
+                <div className="flex flex-wrap items-center gap-x-10 gap-y-2">
+                  {mcoForms(g.formType).map((f) => {
+                    const name = `${MCO_SHORT[f.mco] ?? f.mco} ${g.fullTitle}`;
+                    return (
+                      <div key={f.key} className="flex items-center gap-2">
+                        <span className={`mr-1 text-base font-bold ${MCO_TEXT[f.mco] ?? 'text-foreground'}`}>{MCO_SHORT[f.mco] ?? f.mco}</span>
+                        {formButtons(name, f.onFill, () => uploadFor(g.formType))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
