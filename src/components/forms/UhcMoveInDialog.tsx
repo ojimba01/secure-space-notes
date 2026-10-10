@@ -66,22 +66,44 @@ interface Props {
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-const MEMBER_FIELDS: { key: keyof UhcMember; label: string; type?: string; wide?: boolean }[] = [
-  { key: 'provider', label: 'Requesting HSP provider', wide: true },
-  { key: 'caseManager', label: 'Housing case manager' },
-  { key: 'cmPhone', label: 'Case manager phone', type: 'tel' },
-  { key: 'cmEmail', label: 'Case manager email', type: 'email' },
-  { key: 'memberName', label: 'Member name' },
-  { key: 'medicaidId', label: 'Medicaid ID' },
-  { key: 'householdSize', label: 'Total household members', type: 'number' },
-  { key: 'memberPhone', label: 'Member phone', type: 'tel' },
-  { key: 'newAddress', label: 'New address' },
-  { key: 'newCityStateZip', label: 'City, state and ZIP' },
-  { key: 'moveInDate', label: 'Anticipated move-in date', type: 'date' },
-  { key: 'emergencyName', label: 'Emergency contact (for deliveries)' },
-  { key: 'emergencyPhone', label: 'Emergency contact phone', type: 'tel' },
-  { key: 'delivery', label: 'Preferred delivery date and time', wide: true },
+type MemberField = { key: keyof UhcMember; label: string; type?: string; wide?: boolean };
+
+/** UHC's first page, in the groups it asks them in. */
+const MEMBER_GROUPS: { title: string; fields: MemberField[] }[] = [
+  {
+    title: 'Provider',
+    fields: [
+      { key: 'provider', label: 'Requesting HSP provider', wide: true },
+      { key: 'caseManager', label: 'Housing case manager' },
+      { key: 'cmPhone', label: 'Case manager phone', type: 'tel' },
+      { key: 'cmEmail', label: 'Case manager email', type: 'email', wide: true },
+    ],
+  },
+  {
+    title: 'Member',
+    fields: [
+      { key: 'memberName', label: 'Member name' },
+      { key: 'medicaidId', label: 'Medicaid ID' },
+      { key: 'householdSize', label: 'Total household members', type: 'number' },
+      { key: 'memberPhone', label: 'Member phone', type: 'tel' },
+    ],
+  },
+  {
+    title: 'New home and delivery',
+    fields: [
+      { key: 'newAddress', label: 'New address' },
+      { key: 'newCityStateZip', label: 'City, state and ZIP' },
+      { key: 'moveInDate', label: 'Anticipated move-in date', type: 'date' },
+      { key: 'delivery', label: 'Preferred delivery date and time' },
+      { key: 'emergencyName', label: 'Emergency contact (for deliveries)' },
+      { key: 'emergencyPhone', label: 'Emergency contact phone', type: 'tel' },
+    ],
+  },
 ];
+const MEMBER_FIELDS = MEMBER_GROUPS.flatMap((g) => g.fields);
+
+/** A box that stands out from the page, and says so when it is still empty. */
+const BOX = 'border-slate-400 bg-white text-base text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-primary';
 
 /** The member fields that live on the client record, and their columns. */
 const RECORD_COLUMNS: Partial<Record<keyof UhcMember, keyof ClientFacts>> = {
@@ -185,6 +207,7 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
     });
 
   const total = grandTotal(answers);
+  const emptyMember = MEMBER_FIELDS.filter((f) => !answers.member[f.key].trim()).length;
   const q = query.trim().toLowerCase();
   const missingCost = useMemo(() => unpriced(answers), [answers]);
   const paperwork = needsPaperwork(answers);
@@ -273,6 +296,8 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
             employee_id: profileId,
             form_type: UHC_FORM_TYPE,
             title: nextFormTitle(UHC_FORM_LABEL, (same ?? []).map((f) => f.title)),
+            // A spreadsheet, not a PDF: nothing for the document reader to read.
+            processing_status: 'skipped',
             ...(file ? { original_file_path: file.path } : {}),
           } as never)
           .select('id')
@@ -307,7 +332,7 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
     const name = l.free ? 'Item not listed' : `${l.group ? `${l.group}: ` : ''}${l.label}`;
     const toggle = () => (picked ? setLine(l.id, { qty: undefined, cost: undefined, note: undefined, size: undefined }) : setLine(l.id, { qty: 1 }));
     return (
-      <div key={l.id} className={cn('rounded-lg border p-2.5', picked ? 'border-primary/50 bg-primary/5' : 'bg-background')}>
+      <div key={l.id} className={cn('rounded-lg border p-2.5 shadow-sm', picked ? 'border-primary bg-primary/5' : 'border-slate-300 bg-white')}>
         <div className="flex flex-wrap items-center gap-2">
           {l.free ? (
             <Input
@@ -315,11 +340,11 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
               placeholder="Item not listed"
               value={a?.item ?? ''}
               onChange={(e) => setLine(l.id, { item: e.target.value, qty: a?.qty ?? (l.qty ? 1 : undefined) })}
-              className="h-9 min-w-[10rem] flex-1"
+              className={cn('h-9 min-w-[10rem] flex-1', BOX)}
             />
           ) : (
             <button type="button" onClick={toggle} className="flex min-w-[10rem] flex-1 items-center gap-2 text-left text-sm">
-              <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded border', picked ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40')}>
+              <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded border-2', picked ? 'border-primary bg-primary text-primary-foreground' : 'border-slate-500 bg-white')}>
                 {picked && <Check className="h-3.5 w-3.5" />}
               </span>
               <span className={cn(picked && 'font-medium')}>{name}</span>
@@ -335,7 +360,7 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
                 inputMode="numeric"
                 value={a?.qty ?? ''}
                 onChange={(e) => setLine(l.id, { qty: Number(e.target.value.replace(/\D/g, '')) || undefined })}
-                className="h-8 w-12 text-center"
+                className={cn('h-8 w-12 text-center', BOX)}
               />
               <Button type="button" size="icon" variant="outline" className="h-8 w-8" aria-label={`More ${name}`} onClick={() => setLine(l.id, { qty: (a?.qty ?? 0) + 1 })}>
                 <Plus className="h-3.5 w-3.5" />
@@ -354,16 +379,16 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
                   const v = e.target.value.replace(/[^\d.]/g, '');
                   setLine(l.id, { cost: v === '' ? undefined : Number(v), ...(!l.qty || a?.qty ? {} : { qty: 1 }) });
                 }}
-                className="h-8 w-24 pl-5"
+                className={cn('h-8 w-24 pl-5', BOX)}
               />
             </div>
           )}
         </div>
         {picked && (l.note || l.size) && (
           <div className="mt-2 flex flex-wrap gap-2 pl-7">
-            {l.size && <Input aria-label={`Size of ${name}`} placeholder="Size" value={a?.size ?? ''} onChange={(e) => setLine(l.id, { size: e.target.value })} className="h-8 w-24" />}
+            {l.size && <Input aria-label={`Size of ${name}`} placeholder="Size" value={a?.size ?? ''} onChange={(e) => setLine(l.id, { size: e.target.value })} className={cn('h-8 w-24', BOX)} />}
             {l.note && (
-              <Input aria-label={`${l.noteLabel ?? 'Detail'} for ${name}`} placeholder={l.noteLabel ?? 'Detail'} value={a?.note ?? ''} onChange={(e) => setLine(l.id, { note: e.target.value })} className="h-8 max-w-xs flex-1" />
+              <Input aria-label={`${l.noteLabel ?? 'Detail'} for ${name}`} placeholder={l.noteLabel ?? 'Detail'} value={a?.note ?? ''} onChange={(e) => setLine(l.id, { note: e.target.value })} className={cn('h-8 max-w-xs flex-1', BOX)} />
             )}
           </div>
         )}
@@ -464,7 +489,7 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
 
   return (
     <Dialog open onOpenChange={(o) => !o && !saving && onClose()}>
-      <DialogContent className="flex h-[94vh] max-w-6xl flex-col gap-3 overflow-hidden bg-slate-50 p-4 sm:p-6">
+      <DialogContent className="flex h-[94vh] max-w-6xl flex-col gap-3 overflow-hidden bg-slate-100 p-4 sm:p-6">
         <DialogHeader className="space-y-1">
           <DialogTitle>{UHC_FORM_LABEL}</DialogTitle>
           <DialogDescription className="sr-only">Move-in items and costs for a UnitedHealthcare member, written into UHC’s spreadsheet.</DialogDescription>
@@ -499,7 +524,7 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="relative w-full max-w-xs">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input aria-label="Search items" placeholder="Search items" value={query} onChange={(e) => setQuery(e.target.value)} className="h-9 pl-8" />
+                <Input aria-label="Search items" placeholder="Search items" value={query} onChange={(e) => setQuery(e.target.value)} className={cn('h-9 pl-8', BOX)} />
               </div>
               <label className="flex items-center gap-2 text-sm">
                 <Switch checked={pickedOnly} onCheckedChange={setPickedOnly} />
@@ -512,15 +537,39 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
           )}
 
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
-            <TabsContent value="member" className="mt-0">
-              <div className="grid gap-3 sm:grid-cols-2">
-                {MEMBER_FIELDS.map((f) => (
-                  <div key={f.key} className={cn('space-y-1', f.wide && 'sm:col-span-2')}>
-                    <Label htmlFor={`uhc-${f.key}`}>{f.label}</Label>
-                    <Input id={`uhc-${f.key}`} type={f.type ?? 'text'} value={answers.member[f.key]} onChange={(e) => setMember(f.key, e.target.value)} className="h-10 bg-background" />
+            <TabsContent value="member" className="mt-0 space-y-4">
+              {!facts && clientId && <p className="text-sm text-muted-foreground">Loading the client’s details…</p>}
+              {!clientId && <p className="text-sm text-muted-foreground">Select a client to fill in their details.</p>}
+              {emptyMember > 0 && facts && (
+                <p className="text-sm font-medium text-amber-800">
+                  {emptyMember} {emptyMember === 1 ? 'detail is' : 'details are'} not on file. Fill in the boxes outlined in amber.
+                </p>
+              )}
+              {MEMBER_GROUPS.map((g) => (
+                <section key={g.title} className="rounded-lg border border-slate-300 bg-white p-4 shadow-sm">
+                  <h3 className="mb-3 text-sm font-semibold text-slate-900">{g.title}</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {g.fields.map((f) => {
+                      const empty = !answers.member[f.key].trim();
+                      return (
+                        <div key={f.key} className={cn('space-y-1', f.wide && 'sm:col-span-2')}>
+                          <Label htmlFor={`uhc-${f.key}`} className="text-sm font-medium text-slate-800">
+                            {f.label}
+                          </Label>
+                          <Input
+                            id={`uhc-${f.key}`}
+                            type={f.type ?? 'text'}
+                            value={answers.member[f.key]}
+                            onChange={(e) => setMember(f.key, e.target.value)}
+                            placeholder="Not on file"
+                            className={cn('h-11', BOX, empty && facts && 'border-amber-500 bg-amber-50/60')}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
+                </section>
+              ))}
             </TabsContent>
             {UHC_TABS.map(itemsTab)}
             {review}

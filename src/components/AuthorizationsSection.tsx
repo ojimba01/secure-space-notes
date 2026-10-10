@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,9 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { ShieldCheck, Plus } from 'lucide-react';
+import { StartAuthorizationDialog } from '@/components/StartAuthorizationDialog';
+import { LAPSE_BUFFER_DAYS } from '@/components/billing/workbook/columns';
+import { todayAgency } from '@/lib/billing';
 import {
   AUTHORIZATION_STATUSES,
   AUTHORIZATION_STATUS_CLASS,
@@ -41,6 +44,8 @@ import {
 
 interface Props {
   clientId: string;
+  /** For the second-authorization window's title. */
+  clientName?: string;
   onUpdate?: () => void;
 }
 
@@ -73,7 +78,7 @@ const blank = (): FormState => ({
  * lives here — including repeat 180-day reauthorizations — so staff can see
  * what covers today and what has lapsed.
  */
-export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) => {
+export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, onUpdate }) => {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
   const { isViewingAs } = useViewAs();
@@ -86,6 +91,7 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState<FormState>(blank());
   const [saving, setSaving] = useState(false);
+  const [startingSecond, setStartingSecond] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -213,8 +219,30 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
     }
   };
 
+  // The latest authorization ended more than the buffer ago, and no newer one exists.
+  const lapsedSince = useMemo(() => {
+    const ends = rows.map((r) => r.end_date).filter((d): d is string => !!d).sort();
+    const last = ends.at(-1);
+    if (!last) return null;
+    const days = Math.round((Date.parse(todayAgency()) - Date.parse(last)) / 86_400_000);
+    return days > LAPSE_BUFFER_DAYS ? days : null;
+  }, [rows]);
+
   return (
     <Card>
+      {startingSecond && (
+        <StartAuthorizationDialog
+          open
+          onOpenChange={setStartingSecond}
+          clientId={clientId}
+          clientName={clientName ?? 'this client'}
+          onStarted={async () => {
+            setStartingSecond(false);
+            await load();
+            onUpdate?.();
+          }}
+        />
+      )}
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -232,12 +260,16 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, onUpdate }) =
             goes quiet during their first 30 days and comes back afterwards
             needs a second 30-day authorization, not an edit to the first: the
             first one really did happen and its dates are what was billed. */}
-        {canEdit && rows.some((r) => r.authorization_type === 'initial_30') && (
-          <p className="text-xs text-muted-foreground">
-            A client who came back after their first 30 days gets a second 30-day
-            authorization here — add one and choose "Initial 30-day". The earlier one is kept and
-            marked superseded, so what was already billed against it is not disturbed.
-          </p>
+        {/* A client who went quiet and came back needs a new 30-day
+            authorization, not an edit to the old one: the same rule and the same
+            window as the Workbook's 2nd authorization tab. */}
+        {canEdit && lapsedSince !== null && (
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+            <span>The last authorization ended {lapsedSince} days ago.</span>
+            <Button size="sm" className="ml-auto" onClick={() => setStartingSecond(true)}>
+              Start 2nd authorization
+            </Button>
+          </div>
         )}
       </CardHeader>
       <CardContent>

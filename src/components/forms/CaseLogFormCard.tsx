@@ -62,25 +62,17 @@ export const CaseLogFormCard: React.FC<Props> = ({ profileId, caseManagerName })
 
   return (
     <>
-      <Card className="p-4 flex flex-col gap-2">
-        <div className="flex items-start gap-2">
-          <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-          <div>
-            <div className="text-sm font-medium leading-tight">{CASE_LOG_LABEL}</div>
-            <p className="text-xs text-muted-foreground mt-1">{CASE_LOG_DESCRIPTION}</p>
-            <p className="text-xs mt-1.5">
-              {saved !== null ? (
-                <span className="text-foreground">
-                  Draft for {weekLabel(week)} · {saved} {saved === 1 ? 'row' : 'rows'}
-                  {savedAt && ` · saved ${savedAt}`}
-                </span>
-              ) : (
-                <span className="text-muted-foreground">{weekLabel(week)}</span>
-              )}
+      <Card className="flex items-center gap-2 p-3">
+        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="break-words text-sm font-medium leading-tight">{CASE_LOG_LABEL}</div>
+          {saved !== null && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Draft for {weekLabel(week)} · {saved} {saved === 1 ? 'row' : 'rows'}
             </p>
-          </div>
+          )}
         </div>
-        <div className="mt-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <Button
             size="icon"
             className="h-8 w-8 bg-green-600 text-white hover:bg-green-700"

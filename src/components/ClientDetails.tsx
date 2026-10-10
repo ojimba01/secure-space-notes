@@ -310,7 +310,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </TabsContent>
 
         <TabsContent value="authorizations" className="space-y-6">
-          <AuthorizationsSection key={`authorizations-${client.id}-${recordVersion}`} clientId={client.id} onUpdate={recordChanged} />
+          <AuthorizationsSection key={`authorizations-${client.id}-${recordVersion}`} clientId={client.id} clientName={`${client.first_name} ${client.last_name}`} onUpdate={recordChanged} />
         </TabsContent>
 
         <TabsContent value="documents">

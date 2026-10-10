@@ -100,3 +100,22 @@ test('setCell adds a cell in column order when the row lacks it', () => {
   assert.equal(out, '<sheetData><row r="2"><c r="A2" s="1"/><c r="B2"><v>5</v></c><c r="C2" s="1"/></row></sheetData>');
   assert.equal(mod.setCell(xml, 'A4', 'x'), '<sheetData><row r="2"><c r="A2" s="1"/><c r="C2" s="1"/></row><row r="4"><c r="A4" t="inlineStr"><is><t xml:space="preserve">x</t></is></c></row></sheetData>');
 });
+
+test('an uploaded UHC spreadsheet reads back as the answers written into it', async () => {
+  const a = sample();
+  const back = await mod.readUhcWorkbook(await mod.fillUhcWorkbook(template, a));
+  assert.ok(back);
+  assert.equal(back.member.memberName, 'Alex Sample');
+  assert.equal(back.member.medicaidId, '123456789');
+  assert.equal(back.member.moveInDate, '2026-11-01');
+  assert.equal(back.member.householdSize, '3');
+  for (const id of Object.keys(a.lines)) {
+    const want = { ...a.lines[id] };
+    assert.deepEqual(back.lines[id], want, id);
+  }
+  assert.equal(mod.grandTotal(back), mod.grandTotal(a));
+  // The blank form reads as nothing filled in, and another workbook is not UHC's.
+  const blank = await mod.readUhcWorkbook(template);
+  assert.deepEqual(blank.lines, {});
+  assert.equal(await mod.readUhcWorkbook(new Uint8Array([1, 2, 3])), null);
+});

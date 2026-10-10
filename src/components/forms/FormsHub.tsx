@@ -68,7 +68,22 @@ import {
 import { X } from 'lucide-react';
 
 import { UhcMoveInDialog } from '@/components/forms/UhcMoveInDialog';
-import { UHC_FORM_LABEL } from '@/lib/uhcMoveIn/model';
+import { UHC_FORM_TYPE, UHC_MCO } from '@/lib/uhcMoveIn/model';
+
+/** The MCO forms, by what they ask for. */
+const MCO_GROUPS = [
+  { formType: 'Prior Authorization Request', title: 'Authorization requests', cardTitle: 'Authorization', fullTitle: 'Authorization Request' },
+  { formType: 'Move-In Supports Request', title: 'Move-in Supports Requests', cardTitle: 'Move-in Supports', fullTitle: 'Move-in Supports Request' },
+];
+
+/** Each MCO in its own colour, so the payer is the first thing read. */
+const MCO_TAG: Record<string, string> = {
+  Aetna: 'bg-violet-100 text-violet-800',
+  Horizon: 'bg-sky-100 text-sky-800',
+  UnitedHealthcare: 'bg-orange-100 text-orange-800',
+  Wellpoint: 'bg-emerald-100 text-emerald-800',
+};
+const MCO_SHORT: Record<string, string> = { UnitedHealthcare: 'UHC' };
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
 
@@ -428,6 +443,67 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
     }
   };
 
+  const uploadFor = (formType: string) => {
+    setUploadType(formType);
+    setUploadOpen(true);
+  };
+
+  /** The MCO forms of one kind, in MCO order, UHC's (filled in the app) among them. */
+  const mcoForms = (formType: string) => {
+    const pdfs = PDF_TEMPLATES.filter((t) => t.mco && t.formType === formType).map((t) => ({
+      key: t.file,
+      mco: t.mco as string,
+      onFill: () => setFillingTemplate(t),
+    }));
+    const uhc =
+      formType === UHC_FORM_TYPE
+        ? [{ key: 'uhc-move-in', mco: UHC_MCO, onFill: () => setUhcForm('new') }]
+        : [];
+    return [...pdfs, ...uhc].sort((a, b) => a.mco.localeCompare(b.mco));
+  };
+
+  const formCard = (c: { key: string; title: string; fullTitle?: string; mco?: string; onFill: () => void; onUpload: () => void }) => {
+    const name = c.mco ? `${MCO_SHORT[c.mco] ?? c.mco} ${c.fullTitle ?? c.title}` : c.title;
+    return (
+      <Card key={c.key} className="flex items-center gap-2 p-3">
+        {!c.mco && <FileText className="h-4 w-4 text-muted-foreground shrink-0" />}
+        <div className="min-w-0 flex-1">
+          {c.mco && (
+            <span className={`mb-1 inline-block rounded px-2 py-0.5 text-xs font-bold ${MCO_TAG[c.mco] ?? 'bg-muted text-foreground'}`}>
+              {MCO_SHORT[c.mco] ?? c.mco}
+            </span>
+          )}
+          <div className="text-sm font-medium leading-tight">{c.mco ? c.fullTitle ?? c.title : c.title}</div>
+        </div>
+        {/* The card already says which form this is; the labels are for
+            somebody who cannot see it. */}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Button
+            size="icon"
+            className="h-8 w-8 bg-green-600 text-white hover:bg-green-700"
+            onClick={c.onFill}
+            disabled={!profileId}
+            title={`Fill out the ${name}`}
+            aria-label={`Fill out the ${name}`}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={c.onUpload}
+            disabled={!profileId}
+            title={`Upload a completed ${name}`}
+            aria-label={`Upload a completed ${name}`}
+          >
+            <Upload className="h-4 w-4" />
+          </Button>
+        </div>
+      </Card>
+    );
+  };
+
   const openPreview = (form: FormRow) => {
     if (form.form_data) {
       setUhcForm(form);
@@ -446,7 +522,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Forms</h1>
+          <h1 className="text-2xl font-semibold">{view === 'archive' ? 'Forms' : 'Blank forms'}</h1>
         </div>
         <Button
           variant="outline"
@@ -469,81 +545,37 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
       */}
       <div className="rounded-md border">
         <div className="px-4 py-3 text-sm font-medium">Start a blank form</div>
-        <div className="border-t p-4 space-y-3">
-          <p className="text-xs text-muted-foreground">
-            Opens an empty official template. For a client's required assessments, open the
-            client and use their case lifecycle card instead — the form arrives already linked
-            to them, with their details filled in.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {PDF_TEMPLATES.map((t) => (
-              <Card key={t.file} className="p-4 flex flex-col gap-2">
-                <div className="flex items-start gap-2">
-                  <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                  <div>
-                    <div className="text-sm font-medium leading-tight">{t.label}</div>
-                    <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
-                  </div>
+        <div className="border-t p-4 space-y-4">
+          {/* Forms every client has, then each MCO's own, split by what they ask
+              for. The MCO's name is a coloured tag so the payer stands out. */}
+          <section className="space-y-2 rounded-lg border bg-white p-3">
+            <h3 className="text-sm font-semibold">Forms for every client</h3>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {PDF_TEMPLATES.filter((t) => !t.mco).map((t) =>
+                formCard({
+                  key: t.file,
+                  title: t.label,
+                  onFill: () => setFillingTemplate(t),
+                  onUpload: () => uploadFor(t.formType),
+                }),
+              )}
+              <CaseLogFormCard profileId={profileId} caseManagerName={signerName} />
+            </div>
+          </section>
+
+          <section className="space-y-3 rounded-lg border bg-white p-3">
+            <h3 className="text-sm font-semibold">MCO forms</h3>
+            {MCO_GROUPS.map((g) => (
+              <div key={g.formType} className="space-y-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.title}</h4>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {mcoForms(g.formType).map((f) =>
+                    formCard({ key: f.key, title: g.cardTitle, fullTitle: g.fullTitle, mco: f.mco, onFill: f.onFill, onUpload: () => uploadFor(g.formType) }),
+                  )}
                 </div>
-                {/* The card above already says which form this is, so the
-                    action does not have to say it again — but a plus on its
-                    own says nothing to somebody who cannot see it, which is
-                    what the label is for. */}
-                <div className="mt-auto flex items-center gap-2">
-                  <Button
-                    size="icon"
-                    className="h-8 w-8 bg-green-600 text-white hover:bg-green-700"
-                    onClick={() => setFillingTemplate(t)}
-                    disabled={!profileId}
-                    title={`Fill out and submit the ${t.label}`}
-                    aria-label={`Fill out and submit the ${t.label}`}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                  {/* The other way a form of this kind arrives: already
-                      filled in, on paper or in Availity, and scanned. Outlined
-                      rather than bare, so the pair reads as two buttons rather
-                      than one button and a loose icon. */}
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => {
-                      setUploadType(t.formType);
-                      setUploadOpen(true);
-                    }}
-                    disabled={!profileId}
-                    title={`Upload a completed ${t.label}`}
-                    aria-label={`Upload a completed ${t.label}`}
-                  >
-                    <Upload className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
+              </div>
             ))}
-            <Card className="p-4 flex flex-col gap-2">
-              <div className="flex items-start gap-2">
-                <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                <div>
-                  <div className="text-sm font-medium leading-tight">{UHC_FORM_LABEL}</div>
-                  <p className="text-xs text-muted-foreground mt-1">UHC’s move-in checklist: items, quantities and estimated costs.</p>
-                </div>
-              </div>
-              <div className="mt-auto flex items-center gap-2">
-                <Button
-                  size="icon"
-                  className="h-8 w-8 bg-green-600 text-white hover:bg-green-700"
-                  onClick={() => setUhcForm('new')}
-                  disabled={!profileId}
-                  title={`Fill out the ${UHC_FORM_LABEL}`}
-                  aria-label={`Fill out the ${UHC_FORM_LABEL}`}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </Card>
-            <CaseLogFormCard profileId={profileId} caseManagerName={signerName} />
-          </div>
+          </section>
 
           {/* Filling one in is one thing; taking the blank to a meeting on
               paper is another, and it is rarely just one form. */}

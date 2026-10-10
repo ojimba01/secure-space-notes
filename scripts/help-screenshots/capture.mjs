@@ -303,7 +303,7 @@ const SHOTS = {
   ],
   'blank-form': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Blank forms'), label: 'Blank forms' },
-    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=forms`), target: (p) => text(p, 'UHC Move-in Supports Request').locator('xpath=ancestor::div[contains(@class,"rounded")][1]').getByRole('button').first(), label: 'Start the form' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=forms`), target: (p) => p.getByRole('button', { name: 'Fill out the UHC Move-in Supports Request' }), label: 'Start the form' },
   ],
   'move-in-request': [
     { as: 'admin', go: (p) => openClient(p, 'c-7'), target: (p) => tab(p, 'Forms'), label: 'Forms' },
@@ -429,6 +429,7 @@ const SHOTS = {
     { as: 'admin', go: async (p) => { await openWorkbook(p); }, target: (p) => p.getByRole('tab', { name: /2nd authorization/ }), label: '2nd authorization' },
     { as: 'admin', go: async (p) => { await openWorkbook(p); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); }, target: (p) => btn(p, 'Open client'), label: 'Open client' },
     { as: 'admin', go: async (p) => { await openWorkbook(p); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); await btn(p, 'Start 2nd authorization').click(); await wait(p, 800); }, target: (p) => btn(p, 'Start authorization', true), label: 'Start authorization' },
+    { as: 'admin', go: (p) => openClient(p, 'c-9', 'Authorizations'), target: (p) => btn(p, 'Start 2nd authorization', true), label: 'Start 2nd authorization' },
   ],
 };
 

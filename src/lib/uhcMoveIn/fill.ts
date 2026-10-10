@@ -117,3 +117,112 @@ export async function fillUhcWorkbook(template: ArrayBuffer | Uint8Array, answer
   }
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
 }
+
+// ---- reading a filled copy back ---------------------------------------------------
+
+const unescapeXml = (s: string) =>
+  s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+
+/** The text runs of a string item, joined (rich text keeps its words in several <t>). */
+const runs = (xml: string) => [...xml.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => unescapeXml(m[1])).join('');
+
+/** A cell's value as Excel saved it: shared string, inline string or number. */
+export function getCell(xml: string, ref: string, shared: string[]): string | number | null {
+  const m = xml.match(new RegExp(`<c r="${ref}"((?:\\s[^>]*?)?)(?:/>|>([\\s\\S]*?)</c>)`));
+  if (!m || !m[2]) return null;
+  const type = (m[1].match(/\st="([^"]*)"/) ?? [])[1];
+  if (type === 'inlineStr') return runs(m[2]);
+  const v = (m[2].match(/<v>([\s\S]*?)<\/v>/) ?? [])[1];
+  if (v === undefined) return null;
+  if (type === 's') return shared[Number(v)] ?? null;
+  if (type === 'str' || type === 'e') return unescapeXml(v);
+  const n = Number(v);
+  return Number.isFinite(n) ? n : unescapeXml(v);
+}
+
+/** Excel keeps dates as days since 1899-12-30. */
+const excelDate = (v: string | number | null): string => {
+  if (typeof v === 'number' && v > 20000 && v < 80000) {
+    const d = new Date(Date.UTC(1899, 11, 30) + v * 86400000);
+    return d.toISOString().slice(0, 10);
+  }
+  const s = String(v ?? '').trim();
+  const us = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (us) return `${us[3]}-${us[1].padStart(2, '0')}-${us[2].padStart(2, '0')}`;
+  return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : '';
+};
+
+const num = (v: string | number | null): number | undefined => {
+  if (v === null || v === '') return undefined;
+  const n = typeof v === 'number' ? v : Number(String(v).replace(/[$,\s]/g, ''));
+  return Number.isFinite(n) && n !== 0 ? Math.round(n * 100) / 100 : undefined;
+};
+
+/**
+ * The answers in a UHC spreadsheet somebody filled in by hand, so an uploaded
+ * copy opens in the app like one filled in here. Returns null when the file is
+ * not UHC's checklist.
+ */
+export async function readUhcWorkbook(bytes: ArrayBuffer | Uint8Array): Promise<UhcAnswers | null> {
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(bytes);
+  } catch {
+    return null;
+  }
+  const memberXml = await zip.file(MEMBER_SHEET)?.async('string');
+  if (!memberXml) return null;
+  const sharedXml = (await zip.file('xl/sharedStrings.xml')?.async('string')) ?? '';
+  const shared = [...sharedXml.matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => runs(m[1]));
+  if (!/Move In Supports/i.test(String(getCell(memberXml, 'B5', shared) ?? ''))) return null;
+
+  const sheets = new Map<string, string>([[MEMBER_SHEET, memberXml]]);
+  for (const t of UHC_TABS) if (!sheets.has(t.sheet)) sheets.set(t.sheet, (await zip.file(t.sheet)?.async('string')) ?? '');
+  const at = (sheet: string, ref: string | undefined) => (ref ? getCell(sheets.get(sheet) ?? '', ref, shared) : null);
+  const text = (sheet: string, ref: string | undefined) => {
+    const v = at(sheet, ref);
+    return v === null ? '' : String(v).trim();
+  };
+
+  const a: UhcAnswers = { v: 1, member: { ...emptyMemberValues() }, lines: {}, paperwork: {} };
+  const m = a.member;
+  const M = (k: keyof typeof MEMBER_CELLS) => text(MEMBER_SHEET, MEMBER_CELLS[k]);
+  m.provider = M('provider');
+  m.caseManager = M('caseManager');
+  m.cmPhone = M('cmPhone');
+  m.cmEmail = M('cmEmail');
+  m.memberName = M('memberName');
+  m.medicaidId = M('medicaidId');
+  m.householdSize = M('householdSize');
+  m.newAddress = M('newAddress');
+  m.memberPhone = M('memberPhone');
+  m.moveInDate = excelDate(at(MEMBER_SHEET, MEMBER_CELLS.moveInDate));
+  m.emergencyName = M('emergencyContact');
+  m.delivery = M('delivery');
+
+  for (const tab of UHC_TABS)
+    for (const s of tab.sections)
+      for (const l of s.lines) {
+        const qty = num(at(tab.sheet, l.qty));
+        const cost = num(at(tab.sheet, l.total));
+        const size = l.size ? text(tab.sheet, l.size) : '';
+        const cellText = text(tab.sheet, l.cell);
+        const ans: { qty?: number; cost?: number; note?: string; item?: string; size?: string } = {};
+        if (qty) ans.qty = qty;
+        if (cost) ans.cost = cost;
+        if (size) ans.size = size;
+        if (l.free) {
+          if (cellText) ans.item = cellText;
+        } else if (l.note) {
+          // Whatever follows UHC's own words is the note.
+          const base = (l.text ?? '').trim();
+          if (base && cellText.startsWith(base) && cellText.length > base.length) ans.note = cellText.slice(base.length).replace(/^[\s:\-–]+/, '').trim();
+        }
+        if (Object.keys(ans).length && (ans.qty || ans.cost || ans.item)) a.lines[l.id] = ans;
+      }
+  return a;
+}
+
+function emptyMemberValues() {
+  return { provider: '', caseManager: '', cmPhone: '', cmEmail: '', memberName: '', medicaidId: '', householdSize: '', newAddress: '', newCityStateZip: '', memberPhone: '', moveInDate: '', emergencyName: '', emergencyPhone: '', delivery: '' };
+}

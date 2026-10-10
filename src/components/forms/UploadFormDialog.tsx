@@ -32,8 +32,13 @@ import { suggestDocumentName, tagsFromFilename, extensionOf } from '@/lib/docume
 import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
 import { identityFromFields, recognizeDocument } from '@/lib/documentRecognition';
 import { Upload } from 'lucide-react';
+import { readUhcWorkbook } from '@/lib/uhcMoveIn/fill';
+import { UHC_FORM_TYPE, type UhcAnswers } from '@/lib/uhcMoveIn/model';
 
 const MAX_BYTES = 20 * 1024 * 1024;
+const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+/** UHC's move-in request is a spreadsheet, so a filled copy can be uploaded as one. */
+const isSpreadsheet = (f: File) => f.type === XLSX_TYPE || /\.xlsx$/i.test(f.name);
 
 const schema = z.object({
   client_id: z.string().uuid('Select a client'),
@@ -83,6 +88,8 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
   const [saveAs, setSaveAs] = useState('');
   /** True once the name has been typed in, so suggestions stop overwriting it. */
   const [nameEdited, setNameEdited] = useState(false);
+  /** Answers read off an uploaded UHC spreadsheet, so it opens in the app. */
+  const [uhcAnswers, setUhcAnswers] = useState<UhcAnswers | null>(null);
   const [detected, setDetected] = useState<{
     basis: string;
     documentType: string | null;
@@ -120,6 +127,7 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
     setFile(null);
     setAttested(false);
     setDetected(null);
+    setUhcAnswers(null);
   };
 
   /**
@@ -150,12 +158,46 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
   const inspect = async (picked: File | null) => {
     setFile(picked);
     setDetected(null);
+    setUhcAnswers(null);
     setNameEdited(false);
     if (!picked) return;
 
     setDetecting(true);
     try {
       const bytes = await picked.arrayBuffer();
+      if (isSpreadsheet(picked)) {
+        const answers = await readUhcWorkbook(bytes);
+        if (!answers) {
+          setDetected({ basis: 'Not UHC’s move-in spreadsheet', documentType: null, clientName: null, matchedOn: null });
+          return;
+        }
+        setUhcAnswers(answers);
+        setFormType(UHC_FORM_TYPE);
+        // The Medicaid ID first, then the name, as for any other form.
+        const norm = (v: string) => v.replace(/[^a-z0-9]/gi, '').toLowerCase();
+        let clientName: string | null = null;
+        let matchedOn: string | null = null;
+        if (answers.member.medicaidId) {
+          const { data } = await supabase.from('clients').select('id, first_name, last_name, medicaid_id').is('deleted_at', null);
+          const hit = (data ?? []).find((c) => c.medicaid_id && norm(c.medicaid_id) === norm(answers.member.medicaidId));
+          if (hit && clients.some((c) => c.id === hit.id)) {
+            setClientId(hit.id);
+            clientName = `${hit.last_name}, ${hit.first_name}`;
+            matchedOn = 'Medicaid ID on the form';
+          }
+        }
+        if (!clientName && answers.member.memberName) {
+          const target = answers.member.memberName.trim().toLowerCase().replace(/\s+/g, ' ');
+          const hits = clients.filter((c) => `${c.first_name} ${c.last_name}`.toLowerCase() === target);
+          if (hits.length === 1) {
+            setClientId(hits[0].id);
+            clientName = `${hits[0].last_name}, ${hits[0].first_name}`;
+            matchedOn = 'name on the form';
+          }
+        }
+        setDetected({ basis: 'UHC’s move-in spreadsheet', documentType: UHC_FORM_TYPE, clientName, matchedOn });
+        return;
+      }
       const result = await recognizeDocument(picked.name, bytes);
       if (result.documentType) setFormType(result.documentType);
 
@@ -227,8 +269,13 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
       toast({ title: 'Attach the completed PDF', variant: 'destructive' });
       return;
     }
-    if (file.type !== 'application/pdf') {
+    const spreadsheet = isSpreadsheet(file);
+    if (file.type !== 'application/pdf' && !spreadsheet) {
       toast({ title: 'Only PDF files can be submitted', variant: 'destructive' });
+      return;
+    }
+    if (spreadsheet && !uhcAnswers) {
+      toast({ title: 'Only UHC’s move-in spreadsheet can be uploaded as a spreadsheet', variant: 'destructive' });
       return;
     }
     if (file.size > MAX_BYTES) {
@@ -243,11 +290,11 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
     setSaving(true);
     try {
       const folder = `forms/${clientId}/${crypto.randomUUID()}`;
-      const filePath = `${folder}/form.pdf`;
+      const filePath = spreadsheet ? `${folder}/uhc-move-in-supports.xlsx` : `${folder}/form.pdf`;
 
       const { error: uploadError } = await supabase.storage
         .from('client-files')
-        .upload(filePath, file, { contentType: 'application/pdf' });
+        .upload(filePath, file, { contentType: spreadsheet ? XLSX_TYPE : 'application/pdf' });
       if (uploadError) throw uploadError;
 
       const fileHash = await sha256Hex(await file.arrayBuffer());
@@ -268,6 +315,15 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
           signature_name: signerName,
           signed_by: profileId,
           signed_at: new Date().toISOString(),
+          // A UHC spreadsheet's answers open in the app; there is no PDF to read.
+          ...(spreadsheet && uhcAnswers
+            ? {
+                form_data: uhcAnswers as never,
+                processing_status: 'skipped',
+                field_member_name: uhcAnswers.member.memberName || null,
+                field_medicaid_id: uhcAnswers.member.medicaidId || null,
+              }
+            : {}),
         })
         .select('id')
         .single();
@@ -366,9 +422,9 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
               id="form-file"
               file={file}
               onChange={inspect}
-              accept="application/pdf"
+              accept={`application/pdf,.xlsx,${XLSX_TYPE}`}
               label="Upload PDF"
-              hint="PDF only, up to 20 MB. Sign it before uploading if a signature is required."
+              hint="PDF, or UHC’s move-in spreadsheet (.xlsx), up to 20 MB. Sign it before uploading if a signature is required."
             />
 
             {detecting && (
