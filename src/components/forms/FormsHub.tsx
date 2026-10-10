@@ -549,7 +549,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
           {/* Forms every client has, then each MCO's own, split by what they ask
               for. The MCO's name is a coloured tag so the payer stands out. */}
           <section className="space-y-2 rounded-lg border bg-white p-3">
-            <h3 className="text-sm font-semibold">Forms for every client</h3>
+            <h3 className="text-sm font-semibold">General</h3>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {PDF_TEMPLATES.filter((t) => !t.mco).map((t) =>
                 formCard({
