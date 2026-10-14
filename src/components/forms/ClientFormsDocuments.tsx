@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -37,7 +38,7 @@ import {
 import { nextFormTitle } from '@/lib/formTitles';
 import { UhcMoveInDialog, type UhcExistingForm } from '@/components/forms/UhcMoveInDialog';
 import { fetchClientAuthorizations, formatAuthDate, type ClientAuthorization } from '@/lib/authorizations';
-import { FORMS_FOR_RESTART, latestRestart } from '@/lib/restartAuthorization';
+import { FORMS_FOR_RESTART, latestRestart, pendingRestart, type PendingRestart } from '@/lib/restartAuthorization';
 import { UHC_FORM_LABEL, UHC_FORM_TYPE, UHC_MCO } from '@/lib/uhcMoveIn/model';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
@@ -152,6 +153,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
 }) => {
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
+  const { isAdmin } = useIsAdmin();
   const [forms, setForms] = useState<DocumentRow[]>([]);
   const [manualTicks, setManualTicks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -167,6 +169,9 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const [mco, setMco] = useState<string | null>(null);
   /** The client's latest authorization, when it restarted services after a gap. */
   const [restart, setRestart] = useState<ClientAuthorization | null>(null);
+  /** The client's current round, and a restart still waiting for its date. */
+  const [round, setRound] = useState(1);
+  const [pending, setPending] = useState<PendingRestart | null>(null);
   const [signerName, setSignerName] = useState('Case manager');
   const [preview, setPreview] = useState<{
     id: string;
@@ -181,16 +186,23 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [formsResult, ticks, clientRow] = await Promise.all([
+      const clientRow = await supabase
+        .from('clients')
+        .select('insurance, billing_round, restart_pending_at, restart_pending_type')
+        .eq('id', clientId)
+        .maybeSingle();
+      const currentRound = clientRow.data?.billing_round ?? 1;
+      const [formsResult, ticks] = await Promise.all([
         supabase
           .from('client_forms')
           .select(`${FORM_LIST_COLUMNS}, ${FIELD_COLUMNS}`)
           .eq('client_id', clientId)
           .order('created_at', { ascending: false }),
-        loadManualTicks(clientId).catch(() => new Set<string>()),
-        supabase.from('clients').select('insurance').eq('id', clientId).maybeSingle(),
+        loadManualTicks(clientId, currentRound).catch(() => new Set<string>()),
       ]);
       setMco(clientRow.data?.insurance ?? null);
+      setRound(currentRound);
+      setPending(pendingRestart(clientRow.data));
       setRestart(latestRestart(await fetchClientAuthorizations(clientId).catch(() => [])));
       if (formsResult.error) throw formsResult.error;
       const rows = (formsResult.data as unknown as DocumentRow[]) ?? [];
@@ -343,14 +355,33 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     return t ? { label: t.label, start: () => setFilling(t) } : null;
   }, [mco]);
 
-  /** The forms the latest restart needs, and whether one was filed since. */
+  /** This round's documents; earlier rounds' stay on record, folded away. */
+  const current = useMemo(() => forms.filter((f) => (f.round ?? 1) >= round), [forms, round]);
+  const earlier = useMemo(() => forms.filter((f) => (f.round ?? 1) < round), [forms, round]);
+
+  /** The type of the restart that opened this round, once it is known. */
+  const restartType = pending ? pending.type : round > 1 ? restart?.authorization_type ?? null : null;
+
+  /** The forms this round's restart needs, and whether this round has one. */
   const restartForms = useMemo(() => {
-    if (!restart) return [];
-    return (FORMS_FOR_RESTART[restart.authorization_type] ?? []).map((type) => ({
+    if (!restartType) return [];
+    return (FORMS_FOR_RESTART[restartType] ?? []).map((type) => ({
       type,
-      filed: forms.some((f) => f.form_type === type && f.created_at >= restart.created_at),
+      filed: current.some((f) => f.form_type === type) || manualTicks.has(type),
     }));
-  }, [restart, forms]);
+  }, [restartType, current, manualTicks]);
+
+  /** Admins move a document to the round it belongs to. */
+  const moveToRound = async (form: DocumentRow, to: number) => {
+    const { error } = await supabase.from('client_forms').update({ round: to } as never).eq('id', form.id);
+    if (error) {
+      toast({ title: 'Could not move the document', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: `Moved to round ${to}` });
+    load();
+    onChanged?.();
+  };
 
   /** The MCO's own authorization request (Aetna, Wellpoint), started from here. */
   const authTemplate = useMemo(
@@ -364,18 +395,18 @@ export const ClientFormsDocuments: React.FC<Props> = ({
 
   const byType = useMemo(() => {
     const map = new Map<string, DocumentRow[]>();
-    for (const f of forms) {
+    for (const f of current) {
       const list = map.get(f.form_type) ?? [];
       list.push(f);
       map.set(f.form_type, list);
     }
     return map;
-  }, [forms]);
+  }, [current]);
 
   /** Everything the checklist does not claim, in its own collections. */
   const extras = useMemo(() => {
     const claimed = new Set<string>([...CHECKLIST_TYPES, UHC_FORM_TYPE]);
-    const rest = forms.filter((f) => !claimed.has(f.form_type));
+    const rest = current.filter((f) => !claimed.has(f.form_type));
     return EXTRA_GROUPS.map(({ title }) => ({ title, items: [] as DocumentRow[] })).map(
       (group, i, all) => {
         for (const f of rest) {
@@ -385,7 +416,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         return group;
       },
     );
-  }, [forms]);
+  }, [current]);
 
   /** What the documents said about this client, once anything has been read. */
   const readFacts = useMemo(() => {
@@ -416,9 +447,10 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       dateStyle: 'medium',
       timeStyle: 'short',
     });
-    if (form.source === 'bulk_import') return `Imported · ${when}`;
+    if (form.source === 'bulk_import') return round > 1 ? `Imported · ${when} · Round ${form.round ?? 1}` : `Imported · ${when}`;
     const verb = form.source === 'manual_upload' ? 'Uploaded' : 'Filled out';
-    return who ? `${verb} by ${who} · ${when}` : `${verb} · ${when}`;
+    const line = who ? `${verb} by ${who} · ${when}` : `${verb} · ${when}`;
+    return round > 1 ? `${line} · Round ${form.round ?? 1}` : line;
   };
 
   const documentRow = (form: DocumentRow) => (
@@ -459,6 +491,21 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         </span>
         {goesToMco(form.form_type) && isCompleted(form) && (
           <McoStep form={form} onSet={setMcoStatus} />
+        )}
+        {isAdmin && round > 1 && (
+          <select
+            className="h-8 rounded-md border bg-background px-1.5 text-xs"
+            value={form.round ?? 1}
+            aria-label="Round"
+            title="Move to another round"
+            onChange={(e) => moveToRound(form, Number(e.target.value))}
+          >
+            {Array.from({ length: round }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>
+                Round {n}
+              </option>
+            ))}
+          </select>
         )}
 
         <Button
@@ -526,11 +573,16 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         <CardTitle className="text-lg">Forms and Documents</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* A restart needs some forms filed again; each is ticked once one is filed after it. */}
-        {!loading && restartForms.some((f) => !f.filed) && restart && (
+        {/* A restart needs some forms filed again; each is ticked once this round has one. */}
+        {!loading && pending && !pending.type && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            Restart pending. The forms it needs show once the type is chosen.
+          </div>
+        )}
+        {!loading && restartForms.some((f) => !f.filed) && (
           <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
             <p className="font-medium">
-              Needed for the restart on {formatAuthDate(restart.start_date)}
+              {pending || !restart ? 'Needed for the restart' : `Needed for the restart on ${formatAuthDate(restart.start_date)}`}
             </p>
             <div className="flex flex-wrap gap-2">
               {restartForms.map((f) => (
@@ -671,6 +723,12 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                   ),
                 )}
             </div>
+
+            {earlier.length > 0 && (
+              <div className="space-y-2">
+                {collapsibleGroup(`Earlier rounds`, earlier, <span className="w-4" />)}
+              </div>
+            )}
 
             {forms.length === 0 && manualTicks.size === 0 && (
               <p className="text-sm text-muted-foreground">

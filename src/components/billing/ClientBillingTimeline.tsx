@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   BillingCycle,
   billingBadgeClass,
@@ -27,6 +28,7 @@ interface ClientInfo {
   member_id: string | null;
   level_of_need: string | null;
   auth_150_start: string | null;
+  billing_round: number | null;
 }
 
 export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
@@ -34,13 +36,14 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
   const [cycles, setCycles] = useState<BillingCycle[]>([]);
   const [editing, setEditing] = useState<BillingCycle | null>(null);
   const [open, setOpen] = useState(false);
+  const [showEarlier, setShowEarlier] = useState(false);
 
   const load = useCallback(async () => {
     // Non-fatal: the timeline still renders the stored cycles if the rebuild fails.
     await regenerateClientCycles(clientId).catch(() => {});
     const { data: c } = await supabase
       .from('clients')
-      .select('first_name, last_name, insurance, member_id, level_of_need, auth_150_start')
+      .select('first_name, last_name, insurance, member_id, level_of_need, auth_150_start, billing_round')
       .eq('id', clientId)
       .maybeSingle();
     const { data: cyc } = await supabase
@@ -58,6 +61,10 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
 
   if (!client) return null;
 
+  // This round's cycles up front; earlier rounds stay on record, folded away.
+  const round = client.billing_round ?? 1;
+  const earlier = cycles.filter((c) => (c.round ?? 1) < round);
+  const shown = showEarlier ? cycles : cycles.filter((c) => (c.round ?? 1) >= round);
   const totals = totalsForCycles(cycles);
   const cur = currentCycleNumber(client.auth_150_start);
   const rate = rateForLevel(client.level_of_need);
@@ -87,7 +94,7 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
           <p className="text-sm text-muted-foreground">No billing cycles are available. Add the 150-day authorization start date to generate cycles.</p>
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-2">
-            {cycles.map((c) => {
+            {shown.map((c) => {
               const pastDue = isPastDue(c);
               return (
                 <button
@@ -96,7 +103,10 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
                   className={`min-w-[160px] shrink-0 rounded-lg border p-3 text-left transition-colors hover:bg-accent ${pastDue ? 'border-red-500 border-2' : ''} ${c.cycle_number === cur ? 'ring-2 ring-primary' : ''}`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold">Cycle {c.cycle_number}</span>
+                    <span className="font-semibold">
+                      Cycle {c.cycle_number}
+                      {round > 1 && <span className="ml-1 text-[10px] font-normal text-muted-foreground">Round {c.round ?? 1}</span>}
+                    </span>
                     <Badge variant="outline" className="text-[10px]">{c.phase}</Badge>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">{c.cycle_start} → {c.cycle_end}</div>
@@ -118,6 +128,11 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
               );
             })}
           </div>
+        )}
+        {earlier.length > 0 && (
+          <Button variant="ghost" size="sm" className="-ml-2 mt-1 text-muted-foreground" onClick={() => setShowEarlier((v) => !v)}>
+            {showEarlier ? 'Hide earlier rounds' : `Show earlier rounds (${earlier.length} cycles)`}
+          </Button>
         )}
       </CardContent>
       <BillingCycleDialog cycle={editing} open={open} onOpenChange={setOpen} onSaved={load} />

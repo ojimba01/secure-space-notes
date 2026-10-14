@@ -50,6 +50,7 @@ interface Props {
     last_name: string;
     auth_30_start?: string | null;
     auth_30_number?: string | null;
+    billing_round?: number | null;
     auth_150_number?: string | null;
     mco_housing_manager?: string | null;
   };
@@ -126,6 +127,8 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
       .from('client_forms')
       .select('form_type, status, external_status, created_at')
       .eq('client_id', client.id)
+      // Only this round's forms count toward its packet.
+      .gte('round', client.billing_round ?? 1)
       .order('created_at', { ascending: false });
     if (error) {
       toast({
@@ -137,7 +140,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
     }
     setForms((data as FormSummary[]) ?? []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client.id]);
+  }, [client.id, client.billing_round]);
 
   const loadAuthorizations = useCallback(async () => {
     try {

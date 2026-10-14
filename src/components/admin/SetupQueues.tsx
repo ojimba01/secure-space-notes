@@ -12,7 +12,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, UserX, Gauge, CalendarX, FileX, CircleDollarSign } from 'lucide-react';
+import { ChevronRight, UserX, Gauge, CalendarX, FileX, CircleDollarSign, RotateCcw } from 'lucide-react';
 import { useAdminSetupQueues, type QueueKey, type QueueClient } from '@/hooks/useAdminSetupQueues';
 import { ClientRecordDialog } from '@/components/ClientRecordDialog';
 
@@ -62,6 +62,13 @@ const QUEUES: QueueMeta[] = [
     empty: 'Every active client has a start date.',
   },
   {
+    key: 'restartPending',
+    label: 'restarts waiting for a start date',
+    action: 'Billing and touchpoints wait until the start date is added. Open the client and choose Complete restart on the Authorizations tab.',
+    icon: <RotateCcw className="h-5 w-5" />,
+    empty: 'No restart is waiting for a start date.',
+  },
+  {
     key: 'noHsp',
     label: 'HSPs not submitted',
     action:
@@ -107,6 +114,7 @@ const Row: React.FC<{ c: QueueClient; showDeadline: boolean; onOpen: () => void 
         {c.staffName ?? 'No case manager'}
         {c.insurance ? ` · ${c.insurance}` : ''}
         {showDeadline && c.cycleLabel ? ` · ${c.cycleLabel}` : ''}
+        {c.pendingSince ? ` · since ${new Date(c.pendingSince).toLocaleDateString()}` : ''}
       </div>
     </div>
     <div className="flex items-center gap-2 shrink-0">
@@ -171,7 +179,7 @@ export const SetupQueues: React.FC = () => {
         </p>
       </div>
 
-      <div data-tutorial="priority-tiles" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div data-tutorial="priority-tiles" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
         {QUEUES.map((q) => (
           <Tile
             key={q.key}

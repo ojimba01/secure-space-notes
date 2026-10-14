@@ -56,6 +56,8 @@ interface Client {
   hsp_submitted?: boolean | null;
   notes?: string;
   assigned_employee_id?: string;
+  billing_round?: number | null;
+  restart_pending_at?: string | null;
 }
 
 interface ClientDetailsProps {
@@ -244,6 +246,10 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           <Button variant="outline" size="sm" onClick={() => setHmisOpen(true)}>
             HMIS
           </Button>
+          {client.restart_pending_at && client.status !== 'closed' && (
+            <Badge className="border-transparent bg-amber-500 text-white hover:bg-amber-500">Restart pending</Badge>
+          )}
+          {(client.billing_round ?? 1) > 1 && <Badge variant="outline">Round {client.billing_round}</Badge>}
           <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
             {client.status}
           </Badge>

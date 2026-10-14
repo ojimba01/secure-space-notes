@@ -114,7 +114,7 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
         supabase
           .from('clients')
           .select(
-            'iat_date, auth_30_start, auth_30_end, auth_150_start, auth_150_end, auth_180_start, auth_180_end, hsp_150_date',
+            'iat_date, auth_30_start, auth_30_end, auth_150_start, auth_150_end, auth_180_start, auth_180_end, hsp_150_date, billing_round',
           )
           .eq('id', clientId)
           .maybeSingle(),
@@ -123,7 +123,9 @@ export const TouchpointCycles: React.FC<{ clientId: string }> = ({ clientId }) =
       if (cancelled) return;
 
       const loaded = (data as AuthorizationSpans) ?? null;
-      const fromRecord = spansFromAuthorizations(auths);
+      // A restart starts the cycles over; earlier rounds' contacts stay in the log.
+      const round = (data as { billing_round?: number | null } | null)?.billing_round ?? 1;
+      const fromRecord = spansFromAuthorizations(auths.filter((a) => (a.round ?? 1) >= round));
       setSpans(loaded);
       setRecorded(fromRecord);
       setLoading(false);

@@ -22,9 +22,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
-import { ShieldCheck, Plus } from 'lucide-react';
+import { ShieldCheck, Plus, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { RestartAuthorizationDialog } from '@/components/RestartAuthorizationDialog';
-import { lastEnd } from '@/lib/restartAuthorization';
+import { lastEnd, pendingRestart, type PendingRestart } from '@/lib/restartAuthorization';
 import { todayAgency } from '@/lib/billing';
 import {
   AUTHORIZATION_STATUSES,
@@ -92,11 +93,20 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
   const [form, setForm] = useState<FormState>(blank());
   const [saving, setSaving] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const [round, setRound] = useState(1);
+  const [pending, setPending] = useState<PendingRestart | null>(null);
+  const [showEarlier, setShowEarlier] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setRows(await fetchClientAuthorizations(clientId));
+      const [list, { data: client }] = await Promise.all([
+        fetchClientAuthorizations(clientId),
+        supabase.from('clients').select('billing_round, restart_pending_at, restart_pending_type').eq('id', clientId).maybeSingle(),
+      ]);
+      setRows(list);
+      setRound(client?.billing_round ?? 1);
+      setPending(pendingRestart(client));
     } catch (err: any) {
       toast({
         title: 'Could not load authorizations',
@@ -219,64 +229,20 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
     }
   };
 
+  // The current round up front; earlier rounds stay on record, folded away.
+  const current = useMemo(() => rows.filter((r) => (r.round ?? 1) >= round), [rows, round]);
+  const earlier = useMemo(() => rows.filter((r) => (r.round ?? 1) < round), [rows, round]);
+
   // Days since the latest authorization ended, when it has and no newer one exists.
   const endedSince = useMemo(() => {
+    if (pending) return null;
     const last = lastEnd(rows);
     if (!last) return null;
     const days = Math.round((Date.parse(todayAgency()) - Date.parse(last)) / 86_400_000);
     return days > 0 ? days : null;
-  }, [rows]);
+  }, [rows, pending]);
 
-  return (
-    <Card>
-      {restarting && (
-        <RestartAuthorizationDialog
-          open
-          onOpenChange={setRestarting}
-          clientId={clientId}
-          clientName={clientName ?? 'this client'}
-          onStarted={async () => {
-            setRestarting(false);
-            await load();
-            onUpdate?.();
-          }}
-        />
-      )}
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <ShieldCheck className="h-5 w-5 text-muted-foreground" />
-            Authorizations
-          </CardTitle>
-          {canEdit && (
-            <Button size="sm" variant="outline" onClick={openAdd}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add authorization
-            </Button>
-          )}
-        </div>
-        {/* A client who went quiet and came back gets a new authorization, not
-            an edit to the old one: the old one really happened and its dates
-            are what was billed. See lib/restartAuthorization. */}
-        {canEdit && endedSince !== null && (
-          <div className="flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-            <span>
-              The last authorization ended {endedSince} {endedSince === 1 ? 'day' : 'days'} ago.
-            </span>
-            <Button size="sm" className="ml-auto" onClick={() => setRestarting(true)}>
-              Restart authorization
-            </Button>
-          </div>
-        )}
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading authorizations...</p>
-        ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No authorizations recorded yet. They appear here as soon as the MCO responds.
-          </p>
-        ) : (
+  const renderTable = (list: ClientAuthorization[]) => (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-left">
@@ -291,7 +257,7 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {list.map((r) => (
                   <tr key={r.id} className="border-t">
                     <td className="px-3 py-2">
                       {AUTHORIZATION_TYPE_LABEL[r.authorization_type] ?? r.authorization_type}
@@ -342,6 +308,92 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
                 ))}
               </tbody>
             </table>
+          </div>
+  );
+
+  return (
+    <Card>
+      {restarting && (
+        <RestartAuthorizationDialog
+          open
+          onOpenChange={setRestarting}
+          clientId={clientId}
+          clientName={clientName ?? 'this client'}
+          onStarted={async () => {
+            setRestarting(false);
+            await load();
+            onUpdate?.();
+          }}
+        />
+      )}
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+            Authorizations
+          </CardTitle>
+          {canEdit && (
+            <div className="flex flex-wrap gap-2">
+              {!pending && endedSince === null && (
+                <Button size="sm" variant="outline" onClick={() => setRestarting(true)}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Restart authorization
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={openAdd}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add authorization
+              </Button>
+            </div>
+          )}
+        </div>
+        {pending && (
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+            <span>
+              Restart pending since {formatAuthDate(pending.since.slice(0, 10))}
+              {pending.type ? ` · ${AUTHORIZATION_TYPE_LABEL[pending.type] ?? pending.type}` : ''}. Billing and touchpoints wait for the start date.
+            </span>
+            {canEdit && (
+              <Button size="sm" className="ml-auto" onClick={() => setRestarting(true)}>
+                Complete restart
+              </Button>
+            )}
+          </div>
+        )}
+        {/* A client who went quiet and came back gets a new authorization, not
+            an edit to the old one: the old one really happened and its dates
+            are what was billed. See lib/restartAuthorization. */}
+        {canEdit && endedSince !== null && (
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+            <span>
+              The last authorization ended {endedSince} {endedSince === 1 ? 'day' : 'days'} ago.
+            </span>
+            <Button size="sm" className="ml-auto" onClick={() => setRestarting(true)}>
+              Restart authorization
+            </Button>
+          </div>
+        )}
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading authorizations...</p>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No authorizations recorded yet. They appear here as soon as the MCO responds.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {round > 1 && <p className="text-xs font-semibold text-muted-foreground">Round {round}</p>}
+            {current.length ? renderTable(current) : <p className="text-sm text-muted-foreground">No authorization in this round yet.</p>}
+            {earlier.length > 0 && (
+              <div>
+                <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setShowEarlier((v) => !v)}>
+                  {showEarlier ? <ChevronDown className="mr-1 h-4 w-4" /> : <ChevronRight className="mr-1 h-4 w-4" />}
+                  {showEarlier ? 'Hide earlier rounds' : `Show earlier rounds (${earlier.length})`}
+                </Button>
+                {showEarlier && <div className="mt-2 opacity-80">{renderTable(earlier)}</div>}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

@@ -31,8 +31,9 @@ export type ChecklistType = (typeof CHECKLIST_TYPES)[number];
  * them. A type holding a document is ticked by the document itself, and is
  * deliberately not recorded here.
  */
-export async function loadManualTicks(clientId: string): Promise<Set<string>> {
-  const { data, error } = await checklist().select('form_type').eq('client_id', clientId);
+export async function loadManualTicks(clientId: string, round = 1): Promise<Set<string>> {
+  // A restart starts its round unticked; earlier rounds keep their ticks.
+  const { data, error } = await checklist().select('form_type').eq('client_id', clientId).eq('round', round);
   if (error) throw new Error(error.message);
   return new Set(((data ?? []) as { form_type: string }[]).map((r) => r.form_type));
 }
@@ -51,10 +52,11 @@ export async function tickByHand(
   if (error && !error.message.includes('duplicate key')) throw new Error(error.message);
 }
 
-export async function untickByHand(clientId: string, formType: string): Promise<void> {
+export async function untickByHand(clientId: string, formType: string, round = 1): Promise<void> {
   const { error } = await checklist()
     .delete()
     .eq('client_id', clientId)
-    .eq('form_type', formType);
+    .eq('form_type', formType)
+    .eq('round', round);
   if (error) throw new Error(error.message);
 }

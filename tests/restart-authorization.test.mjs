@@ -7,8 +7,15 @@ import { build } from 'esbuild';
 const stub = {
   name: 'stub-supabase',
   setup(b) {
-    b.onResolve({ filter: /integrations\/supabase\/client$/ }, () => ({ path: 'stub', namespace: 'stub' }));
-    b.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: 'export const supabase = {};', loader: 'js' }));
+    b.onResolve({ filter: /integrations\/supabase\/client$/ }, () => ({ path: 'supabase', namespace: 'stub' }));
+    b.onResolve({ filter: /lib\/(billingSync|touchpoints)$/ }, (a) => ({ path: a.path.split('/').pop(), namespace: 'stub' }));
+    b.onLoad({ filter: /.*/, namespace: 'stub' }, (a) => ({
+      contents:
+        a.path === 'supabase'
+          ? 'export const supabase = { from: (t) => globalThis.__db.from(t) };'
+          : 'export const regenerateClientCycles = async () => { globalThis.__db.resynced++; }; export const regenerateTouchpointsForClient = async () => {};',
+      loader: 'js',
+    }));
   },
 };
 const bundle = await build({
@@ -39,4 +46,84 @@ test('only the latest authorization counts as the restart', () => {
   assert.equal(mod.latestRestart([a('2026-01-01', 30, 'expired'), a('2026-10-01', null)]), null);
   // A cancelled restart does not count.
   assert.equal(mod.latestRestart([a('2026-01-01', null, 'expired'), a('2026-10-01', 30, 'cancelled')]), null);
+});
+
+/**
+ * A stand-in database: every query is recorded, and reads answer from `rows`.
+ * Enough of the query builder for restartAuthorization.
+ */
+function fakeDb(rows) {
+  const db = { calls: [], resynced: 0 };
+  db.from = (table) => {
+    const call = { table, op: 'select', payload: null, filters: [] };
+    db.calls.push(call);
+    const result = () => {
+      if (call.op !== 'select') return { data: null, error: null };
+      const data = rows[table] ?? [];
+      return { data: call.single ? data[0] ?? null : data, error: null };
+    };
+    const q = {
+      select: () => q,
+      update: (p) => ((call.op = 'update'), (call.payload = p), q),
+      insert: (p) => ((call.op = 'insert'), (call.payload = p), q),
+      delete: () => ((call.op = 'delete'), q),
+      eq: (k, v) => (call.filters.push(['eq', k, v]), q),
+      in: (k, v) => (call.filters.push(['in', k, v]), q),
+      gte: (k, v) => (call.filters.push(['gte', k, v]), q),
+      lt: (k, v) => (call.filters.push(['lt', k, v]), q),
+      maybeSingle: () => ((call.single = true), Promise.resolve(result())),
+      then: (res, rej) => Promise.resolve(result()).then(res, rej),
+    };
+    return q;
+  };
+  globalThis.__db = db;
+  return db;
+}
+
+test('a restart without a date is pending: a new round, nothing recorded yet', async () => {
+  const db = fakeDb({
+    clients: [{ billing_round: 1, restart_pending_at: null, restart_pending_type: null }],
+    client_authorizations: [{ id: 'a1', end_date: '2026-08-25', status: 'active' }],
+  });
+  const out = await mod.restartAuthorization({ clientId: 'c1', type: 'initial_30' });
+  assert.deepEqual(out, { gap: null, pending: true });
+  const updates = db.calls.filter((c) => c.op === 'update');
+  // The old authorization ends and round 2 opens with the old dates cleared.
+  assert.equal(updates[0].table, 'client_authorizations');
+  assert.equal(updates[0].payload.status, 'expired');
+  const opened = updates.find((c) => c.table === 'clients' && c.payload.billing_round);
+  assert.equal(opened.payload.billing_round, 2);
+  assert.equal(opened.payload.auth_30_start, null);
+  // The restart is marked pending with the type it already has.
+  const marked = updates.find((c) => c.table === 'clients' && c.payload.restart_pending_at);
+  assert.equal(marked.payload.restart_pending_type, 'initial_30');
+  // No authorization is recorded until the date arrives.
+  assert.equal(db.calls.some((c) => c.table === 'client_authorizations' && c.op === 'insert'), false);
+  assert.equal(db.resynced, 1);
+});
+
+test('marking a pending restart again does not open another round', async () => {
+  const db = fakeDb({
+    clients: [{ billing_round: 2, restart_pending_at: '2026-10-01T12:00:00Z', restart_pending_type: null }],
+    client_authorizations: [{ id: 'a1', end_date: '2026-08-25', status: 'expired' }],
+  });
+  await mod.restartAuthorization({ clientId: 'c1', type: 'continuation_150' });
+  const updates = db.calls.filter((c) => c.op === 'update');
+  assert.equal(updates.some((c) => c.payload.billing_round), false);
+  const marked = updates.find((c) => c.payload.restart_pending_at);
+  assert.equal(marked.payload.restart_pending_at, '2026-10-01T12:00:00Z');
+  assert.equal(marked.payload.restart_pending_type, 'continuation_150');
+});
+
+test('a start date on or before the last end is refused', async () => {
+  fakeDb({
+    clients: [{ billing_round: 1 }],
+    client_authorizations: [{ id: 'a1', end_date: '2026-08-25', status: 'active' }],
+  });
+  await assert.rejects(mod.restartAuthorization({ clientId: 'c1', type: 'initial_30', startDate: '2026-08-25' }), /after the last authorization ended/);
+});
+
+test('a pending restart is read off the client record', () => {
+  assert.equal(mod.pendingRestart({ restart_pending_at: null }), null);
+  assert.deepEqual(mod.pendingRestart({ restart_pending_at: '2026-10-01T00:00:00Z', restart_pending_type: null }), { since: '2026-10-01T00:00:00Z', type: null });
 });

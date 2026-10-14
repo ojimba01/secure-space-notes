@@ -67,13 +67,14 @@ export interface WbClient {
   reason_closed: string | null;
   notes: string | null;
   assigned_employee_id: string | null;
+  billing_round: number | null;
 }
 
 export const WB_SELECT =
   'id, first_name, last_name, insurance, member_id, medicaid_id, njhmis_id, date_of_birth, phone, address, ' +
   'auth_30_number, auth_30_start, auth_30_end, auth_150_number, auth_150_start, auth_150_end, ' +
   'auth_180_number, auth_180_start, auth_180_end, auth_180_approved, intake_date, level_of_need, ' +
-  'diagnosis_code, status, approval_status, closed_date, reason_closed, notes, assigned_employee_id';
+  'diagnosis_code, status, approval_status, closed_date, reason_closed, notes, assigned_employee_id, billing_round';
 
 /** What the Workbook knows about a client beyond the record itself. */
 export interface Extra {
@@ -175,6 +176,7 @@ export const COLUMNS: Column[] = [
   },
   field('approval_status', 'Approval Status', 'drop', 'status', { options: ['Not Submitted', 'Submitted', 'Approved', 'Denied'] }),
   { key: 'second', label: '2nd Authorization?', kind: 'auto', group: 'status', value: (_c, x) => (x.secondAuth ? 'Yes' : 'No') },
+  { key: 'round', label: 'Round', kind: 'auto', group: 'status', width: 70, value: (c) => String(c.billing_round ?? 1) },
 
   {
     key: 'billing_status',

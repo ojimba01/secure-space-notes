@@ -22,7 +22,8 @@ export type QueueKey =
   | 'noLevelOfNeed'
   | 'noStartDate'
   | 'noHsp'
-  | 'billingDueThisWeek';
+  | 'billingDueThisWeek'
+  | 'restartPending';
 
 export interface QueueClient {
   id: string;
@@ -34,6 +35,8 @@ export interface QueueClient {
   daysLeft?: number;
   /** Only on the billing queue: which cycle is running out. */
   cycleLabel?: string;
+  /** Only on the restart queue: when the restart was marked. */
+  pendingSince?: string;
 }
 
 export interface AdminSetupQueues {
@@ -55,6 +58,7 @@ const EMPTY: Record<QueueKey, QueueClient[]> = {
   noStartDate: [],
   noHsp: [],
   billingDueThisWeek: [],
+  restartPending: [],
 };
 
 interface ClientRow {
@@ -70,6 +74,7 @@ interface ClientRow {
   auth_150_start: string | null;
   hsp_150_date: string | null;
   insurance: string | null;
+  restart_pending_at: string | null;
 }
 
 export function useAdminSetupQueues(): AdminSetupQueues {
@@ -88,7 +93,7 @@ export function useAdminSetupQueues(): AdminSetupQueues {
           supabase
             .from('clients')
             .select(
-              'id, first_name, last_name, assigned_employee_id, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, auth_180_start, hsp_150_date, insurance',
+              'id, first_name, last_name, assigned_employee_id, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, auth_180_start, hsp_150_date, insurance, restart_pending_at',
             )
             .eq('status', 'active')
             .or(OPEN_CASE_STAGE_FILTER)
@@ -119,6 +124,7 @@ export function useAdminSetupQueues(): AdminSetupQueues {
         noStartDate: [],
         noHsp: [],
         billingDueThisWeek: [],
+        restartPending: [],
       };
 
 
@@ -134,6 +140,14 @@ export function useAdminSetupQueues(): AdminSetupQueues {
         if (c.level_of_need !== 'Low Level' && c.level_of_need !== 'High Level') {
           next.noLevelOfNeed.push(base(c));
           held = true;
+        }
+        // A pending restart waits on the MCO for its date, and its plan is due
+        // with the new period; it gets its own list instead.
+        if (c.restart_pending_at) {
+          next.restartPending.push({ ...base(c), pendingSince: c.restart_pending_at });
+          held = true;
+          blocked.add(c.id);
+          continue;
         }
         if (!serviceStartDate(c)) {
           next.noStartDate.push(base(c));

@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { BillingCycle, todayAgency } from '@/lib/billing';
+import { BillingCycle, todayAgency, roundTag } from '@/lib/billing';
 import { usDate } from '@/lib/availity';
 import { BillingClient } from '@/hooks/useBilling';
 
@@ -173,7 +173,7 @@ export const SubmittedClaims: React.FC<Props> = ({ clients, cycles, updateCycle 
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5">{client.insurance ?? '—'}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">Cycle {c.cycle_number}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">Cycle {c.cycle_number}{roundTag(c, client) && <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">{roundTag(c, client)}</span>}</td>
                       <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">
                         {usDate(c.cycle_start)} – {usDate(c.cycle_end)}
                       </td>

@@ -66,10 +66,43 @@ async function openUhc(p) {
   await wait(p, 2500);
 }
 
+const card = (p, name) => p.locator('[class*="hover:shadow-md"]', { hasText: name }).first();
+async function clientsList(p) {
+  await p.goto(`${BASE}/?view=clients`);
+  await wait(p, 2500);
+}
 async function openRestart(p) {
-  await openClient(p, 'c-9', 'Authorizations');
-  await btn(p, 'Restart authorization', true).click();
+  await clientsList(p);
+  await card(p, 'Helen Brooks').getByRole('button', { name: 'Restart Authorization', exact: true }).click();
   await wait(p, 800);
+}
+/** Restart Helen with no type or date yet. */
+async function markPending(p) {
+  await openRestart(p);
+  await dialog(p).getByRole('button', { name: 'Not decided yet', exact: true }).click();
+  await dialog(p).getByRole('button', { name: 'Mark restart pending', exact: true }).click();
+  await wait(p, 2000);
+  // The confirmation toast sits over the card's button.
+  await p.evaluate(() => document.head.insertAdjacentHTML('beforeend', '<style>li[role=status]{display:none!important}</style>'));
+}
+async function completePending(p) {
+  await markPending(p);
+  await card(p, 'Helen Brooks').getByRole('button', { name: 'Add start date', exact: true }).click();
+  await wait(p, 800);
+  await fillRestart(p);
+}
+/** Restart Helen in full, then open her record from the card (no reload: the mock forgets). */
+async function restarted(p, tabName) {
+  await openRestart(p);
+  await fillRestart(p);
+  await dialog(p).getByRole('button', { name: 'Restart authorization', exact: true }).click();
+  await wait(p, 2000);
+  if (tabName) {
+    await card(p, 'Helen Brooks').getByRole('button', { name: 'View Details', exact: true }).click();
+    await wait(p, 1500);
+    await tab(p, tabName).click();
+    await wait(p, 1200);
+  }
 }
 
 async function fillRestart(p) {
@@ -444,11 +477,21 @@ const SHOTS = {
     { as: 'admin', go: async (p) => { await openWorkbook(p); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); }, target: (p) => btn(p, 'Restart authorization', true), label: 'Restart authorization' },
   ],
   'restart-authorization': [
-    { as: 'admin', go: (p) => openClient(p, 'c-9', 'Authorizations'), target: (p) => btn(p, 'Restart authorization', true), label: 'Restart authorization' },
+    { as: 'admin', go: clientsList, target: (p) => card(p, 'Helen Brooks').getByRole('button', { name: 'Restart Authorization', exact: true }), label: 'Restart Authorization' },
     { as: 'admin', go: openRestart, target: (p) => dialog(p).getByRole('button', { name: '150-day', exact: true }), label: 'What the MCO approved' },
     { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByLabel('Start date'), label: 'Start date' },
     { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByRole('button', { name: 'Restart authorization', exact: true }), label: 'Restart authorization' },
-    { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); await dialog(p).getByRole('button', { name: 'Restart authorization', exact: true }).click(); await wait(p, 2000); await tab(p, 'Forms').click(); await wait(p, 1500); }, target: (p) => text(p, 'Needed for the restart on 10/12/2026').locator('xpath=..'), label: 'Forms to file' },
+    { as: 'admin', go: (p) => restarted(p, 'Forms'), target: (p) => text(p, 'Needed for the restart on 10/12/2026').locator('xpath=..'), label: 'Forms to file' },
+  ],
+  'complete-restart': [
+    { as: 'admin', go: markPending, target: (p) => card(p, 'Helen Brooks').getByRole('button', { name: 'Add start date', exact: true }), label: 'Add start date' },
+    { as: 'admin', go: completePending, target: (p) => dialog(p).getByLabel('Start date'), label: 'Start date' },
+    { as: 'admin', go: completePending, target: (p) => dialog(p).getByRole('button', { name: 'Complete restart', exact: true }), label: 'Complete restart' },
+  ],
+  'earlier-rounds': [
+    { as: 'admin', go: (p) => restarted(p), target: (p) => card(p, 'Helen Brooks').getByText('Round 2', { exact: true }), label: 'Round 2' },
+    { as: 'admin', go: (p) => restarted(p, 'Authorizations'), target: (p) => p.getByRole('button', { name: /^Show earlier rounds/ }).first(), label: 'Show earlier rounds' },
+    { as: 'admin', go: (p) => restarted(p, 'History'), target: (p) => p.getByText(/^Authorization restarted/).first().locator('xpath=ancestor::li[1]'), label: 'Restart in Case history' },
   ],
 };
 

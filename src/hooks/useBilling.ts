@@ -17,10 +17,11 @@ export interface BillingClient {
   auth_30_start: string | null; auth_30_end: string | null; hsp_due_date: string | null;
   auth_30_number: string | null; auth_150_number: string | null; auth_180_number: string | null;
   created_at: string | null; deleted_at: string | null;
+  billing_round?: number | null;
 }
 
 const CLIENT_COLUMNS =
-  'id,first_name,last_name,insurance,member_id,level_of_need,status,hsp_submitted,auth_150_start,auth_150_end,auth_180_approved,auth_180_start,auth_180_end,assigned_employee_id,billing_tracking_start,auth_30_start,auth_30_end,hsp_due_date,auth_30_number,auth_150_number,auth_180_number,created_at,deleted_at';
+  'id,first_name,last_name,insurance,member_id,level_of_need,status,hsp_submitted,auth_150_start,auth_150_end,auth_180_approved,auth_180_start,auth_180_end,assigned_employee_id,billing_tracking_start,auth_30_start,auth_30_end,hsp_due_date,auth_30_number,auth_150_number,auth_180_number,created_at,deleted_at,billing_round';
 
 // Deleted clients can be recovered for this many days before they are gone for good.
 export const RECOVERY_WINDOW_DAYS = 30;

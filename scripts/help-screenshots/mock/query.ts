@@ -120,9 +120,14 @@ export function makeFrom(db: Tables, log: (msg: string) => void) {
     const run = () => {
       const rows = (db[table] ??= []);
       if (mode === 'insert' || mode === 'upsert') {
+        // Like the database's triggers: a new row belongs to the client's current round.
+        const ROUNDED = ['client_forms', 'client_authorizations', 'client_form_checklist'];
+        const roundOf = (p: Row) =>
+          ROUNDED.includes(table) && p.client_id ? (db.clients ?? []).find((c) => c.id === p.client_id)?.billing_round ?? 1 : undefined;
         const list = (Array.isArray(payload) ? payload : [payload]).map((p: Row) => ({
           id: p.id ?? newId(),
           created_at: new Date().toISOString(),
+          ...(roundOf(p) !== undefined ? { round: roundOf(p) } : {}),
           ...p,
         }));
         for (const r of list) {

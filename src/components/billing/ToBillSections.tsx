@@ -22,8 +22,7 @@ import {
   RATE_LOW,
   rateForLevel,
   todayAgency,
-  type BillingCycle,
-} from '@/lib/billing';
+  type BillingCycle, roundTag } from '@/lib/billing';
 
 type SectionKey = 'deadline' | 'ready' | 'soon' | 'missed';
 
@@ -256,7 +255,7 @@ export const ToBillSections: React.FC<Props> = ({ clients, cycles, onOpenClaim }
                     {r.client.status !== 'active' && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(case closed)</span>}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">{r.client.insurance ?? '—'}</td>
-                  <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">Cycle {r.cycle.cycle_number}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">Cycle {r.cycle.cycle_number}{roundTag(r.cycle, r.client) && <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">{roundTag(r.cycle, r.client)}</span>}</td>
                   <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">
                     {fmt(r.cycle.cycle_end)}
                     {running && (

@@ -113,6 +113,8 @@ export interface FormRow {
   approved_at: string | null;
   review_note: string | null;
   created_at: string;
+  /** Which round of the case the document belongs to; see lib/restartAuthorization. */
+  round?: number;
   /** How far the background reader has got with this document. */
   processing_status?: string | null;
   processing_error?: string | null;
@@ -142,7 +144,7 @@ export const FORM_LIST_COLUMNS =
   'external_status, sent_to_mco_at, mco_response_at, due_date, workflow_purpose, source, ' +
   'source_filename, template_version, authorization_id, signature_name, signed_at, ' +
   'approved_at, review_note, created_at, processing_status, processing_error, ' +
-  'text_char_count, page_count, ocr_applied, text_truncated';
+  'text_char_count, page_count, ocr_applied, text_truncated, round';
 
 const PAGE_SIZE = 10;
 

@@ -368,11 +368,27 @@ export const GUIDES: Guide[] = [
   {
     id: 'restart-authorization', section: 'Billing', title: 'Restart an authorization after a gap', audience: 'admins', minutes: 2,
     steps: [
-      s('Open the client’s Authorizations', 'Open the client and select Authorizations. Once the last authorization has ended, Restart authorization is shown. It is also on the Workbook’s 2nd authorization tab.'),
-      s('Choose what the MCO approved', 'Select 30-day, 150-day or 180-day.'),
-      s('Enter the dates', 'Enter the start date. The end date fills in from the type; change it if the approval says otherwise. Add the authorization number if you have it.'),
-      s('Check and restart', 'Read what will happen, then select Restart authorization. Earlier authorizations and billing stay as they are. Billing and touchpoints start over from the new date, and touchpoints from the gap are cleared.'),
+      s('Select Restart Authorization', 'On Clients, select Restart Authorization on the client’s card, under View Details. It is also on the client’s Authorizations tab and the Workbook’s 2nd authorization tab.'),
+      s('Choose what the MCO approved', 'Select 30-day, 150-day or 180-day. If you do not know yet, select Not decided yet.'),
+      s('Do you have the start date?', 'Select Yes and enter the start date. The end date fills in from the type; change it if the approval says otherwise. Add the authorization number if you have it. Select Not yet if the approval has not arrived.'),
+      s('Check and restart', 'Read what will happen, then select Restart authorization, or Mark restart pending if the date can wait. Earlier authorizations and billing stay on record. Billing and touchpoints start over from the new date, and touchpoints from the gap are cleared.'),
       s('File the forms', 'The client’s Forms tab lists the forms this restart needs (a new IAT, LON and HSP for 30 days; an HSP for 150 days; a LON and HSP for 180 days) until each is filed.'),
+    ],
+  },
+  {
+    id: 'complete-restart', section: 'Billing', title: 'Add the start date to a pending restart', audience: 'admins', minutes: 1,
+    steps: [
+      s('Find the pending restart', 'A client waiting for a start date shows Restart pending. Select Add start date on the client’s card, or Complete restart on the Authorizations tab. Superadmins also see them under Priorities on the Admin dashboard.'),
+      s('Enter the dates', 'Choose the type if it was not set, then enter the start date and the authorization number.'),
+      s('Complete the restart', 'Select Complete restart. Billing and touchpoints start from the new date.'),
+    ],
+  },
+  {
+    id: 'earlier-rounds', section: 'Clients', title: 'See authorizations from before a restart', audience: 'everyone', minutes: 1,
+    steps: [
+      s('Each restart is a new round', 'A client who was restarted shows Round 2 (or higher). Their screens show the current round; earlier rounds are hidden.'),
+      s('Show earlier rounds', 'On Authorizations, select Show earlier rounds. On Forms, open Earlier rounds. On Billing, select Show earlier rounds.'),
+      s('See it all in History', 'Select History. Case history lists every authorization, restart and round.'),
     ],
   },
 

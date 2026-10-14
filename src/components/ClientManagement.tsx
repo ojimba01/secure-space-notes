@@ -3,6 +3,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { isTestAccount, showTestAccounts } from '@/lib/testAccounts';
 import { ClientCard } from '@/components/ClientCard';
+import { RestartAuthorizationDialog } from '@/components/RestartAuthorizationDialog';
 import { ClientDetails } from '@/components/ClientDetails';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -126,6 +127,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   /** The client whose case the list is closing, if any. */
   const [closingClient, setClosingClient] = useState<Client | null>(null);
   const [reopeningClient, setReopeningClient] = useState<Client | null>(null);
+  const [restartingClient, setRestartingClient] = useState<Client | null>(null);
   const [touchpointFor, setTouchpointFor] = useState<
     { id: string; name: string; levelOfNeed: string | null } | null
   >(null);
@@ -657,6 +659,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               // reopening one is an administrator's update, so the button is
               // never offered to somebody who could not carry it out.
               onReopenCase={isAdmin ? setReopeningClient : undefined}
+              onRestart={isAdmin ? setRestartingClient : undefined}
               assignedManagerName={
                 client.assigned_employee_id
                   ? managerMap.get(client.assigned_employee_id) ?? null
@@ -741,6 +744,19 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           clientName={`${closingClient.first_name} ${closingClient.last_name}`}
           onClosed={() => {
             setClosingClient(null);
+            fetchClients();
+          }}
+        />
+      )}
+
+      {restartingClient && (
+        <RestartAuthorizationDialog
+          open
+          onOpenChange={(o) => !o && setRestartingClient(null)}
+          clientId={restartingClient.id}
+          clientName={`${restartingClient.first_name} ${restartingClient.last_name}`}
+          onStarted={() => {
+            setRestartingClient(null);
             fetchClients();
           }}
         />

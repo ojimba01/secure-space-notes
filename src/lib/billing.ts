@@ -66,6 +66,8 @@ export interface BillingCycle {
   is_active?: boolean;
   created_at?: string;
   updated_at?: string;
+  /** Which round of the case the cycle belongs to; a restart opens a new one. */
+  round?: number | null;
 }
 
 
@@ -546,4 +548,14 @@ export function needsExtensionReview(
 export function projected180Start(auth150Start: string | null | undefined): string | null {
   if (!auth150Start) return null;
   return addDays(auth150Start, 150);
+}
+
+/**
+ * "Round 1" on a cycle from before the client's restart, so an old round's
+ * claim is not mistaken for the current one. Nothing for a client never restarted.
+ */
+export function roundTag(cycle: { round?: number | null }, client: { billing_round?: number | null }): string | null {
+  const current = client.billing_round ?? 1;
+  const own = cycle.round ?? 1;
+  return current > 1 && own < current ? `Round ${own}` : null;
 }

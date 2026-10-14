@@ -31,6 +31,9 @@ interface Client {
   auth_150_number?: string | null;
   auth_180_start?: string | null;
   auth_180_number?: string | null;
+  billing_round?: number | null;
+  restart_pending_at?: string | null;
+  restart_pending_type?: string | null;
 }
 
 const addDays = (dateStr: string, days: number) => {
@@ -99,6 +102,8 @@ interface ClientCardProps {
   onCloseCase?: (client: Client) => void;
   /** Only reachable where closed cases are listed, which is an admin's filter. */
   onReopenCase?: (client: Client) => void;
+  /** Restart, or finish a pending restart. Admins only; omitted otherwise. */
+  onRestart?: (client: Client) => void;
 }
 
 export const ClientCard: React.FC<ClientCardProps> = ({
@@ -112,7 +117,9 @@ export const ClientCard: React.FC<ClientCardProps> = ({
   documentCount = 0,
   onCloseCase,
   onReopenCase,
+  onRestart,
 }) => {
+  const restartPending = !!client.restart_pending_at;
   const handleClick = () => {
     if (selectionMode && onToggleSelect) {
       onToggleSelect(client.id);
@@ -218,13 +225,22 @@ export const ClientCard: React.FC<ClientCardProps> = ({
           {/* Nothing authorized yet reads as pending, in the amber the rest of
               the app uses for that stage — not the blue of an active case,
               which made pending clients impossible to pick out. */}
-          {pendingApproval ? (
+          {restartPending && !isCaseClosed(client) ? (
+            <Badge className="border-transparent bg-amber-500 text-white hover:bg-amber-500">
+              Restart pending
+            </Badge>
+          ) : pendingApproval ? (
             <Badge className="border-transparent bg-amber-500 text-white hover:bg-amber-500">
               Pending approval
             </Badge>
           ) : (
             <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
               {client.status}
+            </Badge>
+          )}
+          {(client.billing_round ?? 1) > 1 && (
+            <Badge variant="outline" className="font-normal">
+              Round {client.billing_round}
             </Badge>
           )}
           {pendingNext && (
@@ -241,7 +257,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
             Without them, showing an incomplete client would only move the
             confusion: they would appear on the list and then be absent from
             touchpoints and billing with nothing explaining why. */}
-        {!isSetupComplete(client) && (
+        {!isSetupComplete(client) && !restartPending && (
           <div className="flex flex-wrap gap-1.5 pt-1">
             {missingSetupShort(client).map((part) => (
               <Badge
@@ -330,6 +346,20 @@ export const ClientCard: React.FC<ClientCardProps> = ({
               <FileText className="h-4 w-4 mr-2" />
               View Details
             </Button>
+            {onRestart && !isCaseClosed(client) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className={`mt-2 w-full ${restartPending ? 'border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRestart(client);
+                }}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                {restartPending ? 'Add start date' : 'Restart Authorization'}
+              </Button>
+            )}
           </div>
         )}
       </CardContent>

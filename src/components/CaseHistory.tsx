@@ -17,10 +17,11 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { History, ArrowRight, Archive, RotateCcw, CheckCircle2, Pencil, FileText, DollarSign, CalendarDays } from 'lucide-react';
+import { History, ArrowRight, Archive, RotateCcw, CheckCircle2, Pencil, FileText, DollarSign, CalendarDays, ShieldCheck } from 'lucide-react';
 import { describeChange, loadChanges, type ChangeKind } from '@/lib/changeDescriptions';
 import { contactMethodLabel, touchpointTypeLabel } from '@/lib/compliance';
 import { format } from 'date-fns';
+import { AUTHORIZATION_TYPE_LABEL, formatAuthDate } from '@/lib/authorizations';
 
 interface Person {
   first_name?: string | null;
@@ -31,7 +32,7 @@ interface Person {
 const personName = (p: Person | null | undefined): string =>
   p ? `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || p.email || 'Unknown' : 'Unassigned';
 
-type EntryKind = 'assigned' | 'closed' | 'reopened' | 'touchpoint' | 'edit' | 'document' | 'billing' | 'calendar';
+type EntryKind = 'assigned' | 'closed' | 'reopened' | 'touchpoint' | 'edit' | 'document' | 'billing' | 'calendar' | 'authorization' | 'restart';
 
 const CHANGE_ENTRY: Partial<Record<ChangeKind, EntryKind>> = {
   document: 'document',
@@ -61,6 +62,8 @@ const ICON: Record<EntryKind, React.ReactNode> = {
   document: <FileText className="h-4 w-4 text-violet-600" />,
   billing: <DollarSign className="h-4 w-4 text-amber-600" />,
   calendar: <CalendarDays className="h-4 w-4 text-sky-600" />,
+  authorization: <ShieldCheck className="h-4 w-4 text-emerald-600" />,
+  restart: <RotateCcw className="h-4 w-4 text-sky-600" />,
 };
 
 export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
@@ -69,7 +72,7 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [assignments, audits, current, contacts, changes] = await Promise.all([
+      const [assignments, audits, current, contacts, changes, authorizations] = await Promise.all([
         supabase
           .from('client_assignments_history')
           .select(
@@ -104,6 +107,11 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
         // Every other change to the record. Administrators only, like the
         // audit trail it is read from; anyone else gets nothing back here.
         loadChanges(new Date('2000-01-01'), new Date(Date.now() + 86_400_000), clientId),
+        // Every authorization, earlier rounds included: this is where they stay visible.
+        supabase
+          .from('client_authorizations')
+          .select('id, created_at, authorization_type, start_date, end_date, restarted_after_days, round')
+          .eq('client_id', clientId),
       ]);
       if (cancelled) return;
 
@@ -136,6 +144,29 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
         old_data: Record<string, unknown> | null;
         new_data: Record<string, unknown> | null;
       }[]) {
+        // A restart marked before its date, and the round it opened.
+        if (!row.old_data?.restart_pending_at && row.new_data?.restart_pending_at) {
+          out.push({
+            id: `restart-pending-${row.id}`,
+            at: row.created_at,
+            kind: 'restart',
+            summary: <>Restart marked pending</>,
+            detail: null,
+            timed: true,
+          });
+        }
+        const oldRound = Number(row.old_data?.billing_round ?? 1);
+        const newRound = Number(row.new_data?.billing_round ?? oldRound);
+        if (row.new_data && newRound > oldRound) {
+          out.push({
+            id: `round-${row.id}`,
+            at: row.created_at,
+            kind: 'restart',
+            summary: <>Round {newRound} started; earlier authorizations ended</>,
+            detail: null,
+            timed: true,
+          });
+        }
         const was = (row.old_data?.status as string) ?? null;
         const now = (row.new_data?.status as string) ?? null;
         if (!now || was === now) continue;
@@ -194,6 +225,38 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
         });
       }
 
+      for (const a of (authorizations.data ?? []) as {
+        id: string;
+        created_at: string;
+        authorization_type: string;
+        start_date: string | null;
+        end_date: string | null;
+        restarted_after_days: number | null;
+        round: number | null;
+      }[]) {
+        const label = AUTHORIZATION_TYPE_LABEL[a.authorization_type as keyof typeof AUTHORIZATION_TYPE_LABEL] ?? a.authorization_type;
+        const period = a.start_date ? `${formatAuthDate(a.start_date)} – ${formatAuthDate(a.end_date)}` : null;
+        const restarted = a.restarted_after_days != null;
+        out.push({
+          id: `auth-${a.id}`,
+          at: a.created_at ?? `${a.start_date ?? '2000-01-01'}T12:00:00Z`,
+          kind: restarted ? 'restart' : 'authorization',
+          summary: restarted ? (
+            <>
+              Authorization restarted: <strong>{label}</strong>
+              {a.restarted_after_days ? ` after ${a.restarted_after_days} days` : ''}
+              {(a.round ?? 1) > 1 ? ` · Round ${a.round}` : ''}
+            </>
+          ) : (
+            <>
+              <strong>{label}</strong> authorization recorded{(a.round ?? 1) > 1 ? ` · Round ${a.round}` : ''}
+            </>
+          ),
+          detail: period,
+          timed: true,
+        });
+      }
+
       // Who made each change, by login.
       const userIds = [...new Set(changes.rows.map((r) => r.user_id))];
       const people: Record<string, string> = {};
@@ -211,6 +274,7 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
         // A new touchpoint is already listed above with its notes, and a new
         // case manager as a reassignment.
         if (row.table_name === 'client_contacts' && row.action === 'INSERT') continue;
+        if (row.table_name === 'client_authorizations' && row.action === 'INSERT') continue;
         if (
           row.table_name === 'clients' &&
           row.action === 'UPDATE' &&
