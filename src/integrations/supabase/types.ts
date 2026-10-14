@@ -421,6 +421,7 @@ export type Database = {
           notes: string | null
           received_at: string | null
           restarted_after_days: number | null
+          round: number
           sequence_number: number
           service_type: string | null
           source_document_id: string | null
@@ -444,6 +445,7 @@ export type Database = {
           notes?: string | null
           received_at?: string | null
           restarted_after_days?: number | null
+          round?: number
           sequence_number?: number
           service_type?: string | null
           source_document_id?: string | null
@@ -467,6 +469,7 @@ export type Database = {
           notes?: string | null
           received_at?: string | null
           restarted_after_days?: number | null
+          round?: number
           sequence_number?: number
           service_type?: string | null
           source_document_id?: string | null
@@ -742,6 +745,7 @@ export type Database = {
           file_path: string | null
           file_size: number | null
           form_type: string
+          round: number
           form_data: Json | null
           id: string
           import_batch_id: string | null
@@ -798,6 +802,7 @@ export type Database = {
           file_path?: string | null
           file_size?: number | null
           form_type: string
+          round?: number
           form_data?: Json | null
           id?: string
           import_batch_id?: string | null
@@ -854,6 +859,7 @@ export type Database = {
           file_path?: string | null
           file_size?: number | null
           form_type?: string
+          round?: number
           form_data?: Json | null
           id?: string
           import_batch_id?: string | null
@@ -1552,6 +1558,8 @@ export type Database = {
           realtor_email: string | null
           realtor_name: string | null
           realtor_phone: string | null
+          restart_pending_at: string | null
+          restart_pending_type: string | null
           reason_closed: string | null
           referral_channel: string | null
           referral_received_date: string | null
@@ -1628,6 +1636,8 @@ export type Database = {
           realtor_email?: string | null
           realtor_name?: string | null
           realtor_phone?: string | null
+          restart_pending_at?: string | null
+          restart_pending_type?: string | null
           reason_closed?: string | null
           referral_channel?: string | null
           referral_received_date?: string | null
@@ -1704,6 +1714,8 @@ export type Database = {
           realtor_email?: string | null
           realtor_name?: string | null
           realtor_phone?: string | null
+          restart_pending_at?: string | null
+          restart_pending_type?: string | null
           reason_closed?: string | null
           referral_channel?: string | null
           referral_received_date?: string | null

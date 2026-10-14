@@ -60,8 +60,10 @@ export function latestRestart(rows: ClientAuthorization[]): ClientAuthorization 
 
 export interface RestartInput {
   clientId: string;
-  type: AuthorizationType;
-  startDate: string;
+  /** What the MCO approved. Can wait: the restart is then pending. */
+  type?: AuthorizationType | null;
+  /** Can wait too; billing and touchpoints wait with it. */
+  startDate?: string | null;
   endDate?: string | null;
   authorizationNumber?: string | null;
   createdBy?: string | null;
@@ -87,40 +89,74 @@ const CLEARED = {
   hsp_submitted_at: null,
 };
 
-export async function restartAuthorization(input: RestartInput): Promise<{ gap: number | null }> {
-  const end = input.endDate || defaultEndDate(input.type, input.startDate);
+export interface PendingRestart {
+  since: string;
+  type: AuthorizationType | null;
+}
 
+/** The restart waiting for its start date (and maybe its type), if any. */
+export const pendingRestart = (c: { restart_pending_at?: string | null; restart_pending_type?: string | null } | null | undefined): PendingRestart | null =>
+  c?.restart_pending_at ? { since: c.restart_pending_at, type: (c.restart_pending_type as AuthorizationType | null) ?? null } : null;
+
+/**
+ * Restart a client's authorization, or finish a restart that was waiting.
+ *
+ * With a type and a start date the restart is complete. Without either, the
+ * restart is pending: the old round is closed and a new one opened, the
+ * forms it needs are asked for, and billing and touchpoints wait. Calling this
+ * again with the type and date completes it, in the same round.
+ */
+export async function restartAuthorization(input: RestartInput): Promise<{ gap: number | null; pending: boolean }> {
   const [{ data: client, error: readError }, { data: history, error: histError }] = await Promise.all([
-    supabase.from('clients').select('billing_round').eq('id', input.clientId).maybeSingle(),
+    supabase.from('clients').select('billing_round, restart_pending_at, restart_pending_type').eq('id', input.clientId).maybeSingle(),
     supabase.from('client_authorizations').select('id, end_date, status').eq('client_id', input.clientId),
   ]);
   if (readError) throw new Error(readError.message);
   if (histError) throw new Error(histError.message);
+  const already = pendingRestart(client);
   const previousEnd = lastEnd(history ?? []);
-  if (previousEnd && input.startDate <= previousEnd) {
+  const complete = !!(input.type && input.startDate);
+  if (complete && previousEnd && input.startDate! <= previousEnd) {
     throw new Error(`The new start date has to be after the last authorization ended (${previousEnd}).`);
   }
-  const gap = gapDays(previousEnd, input.startDate);
 
-  // Earlier periods ended; they stay on record as they were billed.
-  const open = (history ?? []).filter((r) => r.status === 'active' || r.status === 'pending').map((r) => r.id);
-  if (open.length) {
-    const { error } = await supabase.from('client_authorizations').update({ status: 'expired' }).in('id', open);
-    if (error) throw new Error(error.message);
+  if (!already) {
+    // Earlier periods ended; they stay on record as they were billed.
+    const open = (history ?? []).filter((r) => r.status === 'active' || r.status === 'pending').map((r) => r.id);
+    if (open.length) {
+      const { error } = await supabase.from('client_authorizations').update({ status: 'expired' }).in('id', open);
+      if (error) throw new Error(error.message);
+    }
+    // A new round, with nothing from the old one feeding it.
+    const round = ((client as { billing_round?: number } | null)?.billing_round ?? 1) + 1;
+    const { error: clearError } = await supabase
+      .from('clients')
+      .update({ ...CLEARED, billing_round: round } as never)
+      .eq('id', input.clientId);
+    if (clearError) throw new Error(clearError.message);
   }
 
-  // A new billing round, with nothing from the old one feeding it.
-  const round = ((client as { billing_round?: number } | null)?.billing_round ?? 1) + 1;
-  const { error: clearError } = await supabase
-    .from('clients')
-    .update({ ...CLEARED, billing_round: round } as never)
-    .eq('id', input.clientId);
-  if (clearError) throw new Error(clearError.message);
+  if (!complete) {
+    const { error } = await supabase
+      .from('clients')
+      .update({ restart_pending_at: already?.since ?? new Date().toISOString(), restart_pending_type: input.type ?? already?.type ?? null } as never)
+      .eq('id', input.clientId);
+    if (error) throw new Error(error.message);
+    // Nothing is owed while the client is not authorized.
+    if (previousEnd) await clearGapTouchpoints(input.clientId, addDays(previousEnd, 1), '9999-12-31');
+    await resyncDerivedSchedules(input.clientId);
+    return { gap: null, pending: true };
+  }
+
+  const type = input.type!;
+  const startDate = input.startDate!;
+  const end = input.endDate || defaultEndDate(type, startDate);
+  const gap = gapDays(previousEnd, startDate);
 
   const { authorization } = await recordAuthorization({
     clientId: input.clientId,
-    type: input.type,
-    startDate: input.startDate,
+    type,
+    startDate,
     endDate: end,
     authorizationNumber: input.authorizationNumber?.trim() || null,
     createdBy: input.createdBy ?? null,
@@ -133,17 +169,21 @@ export async function restartAuthorization(input: RestartInput): Promise<{ gap: 
     .eq('id', authorization.id);
   if (markError) throw new Error(markError.message);
 
-  await mirrorAuthorizationToLegacyColumns(input.clientId, input.type, {
+  await mirrorAuthorizationToLegacyColumns(input.clientId, type, {
     authorizationNumber: input.authorizationNumber?.trim() || null,
-    startDate: input.startDate,
+    startDate,
     endDate: end,
   });
+  if (already) {
+    const { error } = await supabase.from('clients').update({ restart_pending_at: null, restart_pending_type: null } as never).eq('id', input.clientId);
+    if (error) throw new Error(error.message);
+  }
 
   // Touchpoints that fell due while the client was gone are not owed.
-  if (previousEnd) await clearGapTouchpoints(input.clientId, addDays(previousEnd, 1), input.startDate);
+  if (previousEnd) await clearGapTouchpoints(input.clientId, addDays(previousEnd, 1), startDate);
 
   await resyncDerivedSchedules(input.clientId);
-  return { gap };
+  return { gap, pending: false };
 }
 
 /** Scheduled touchpoints in [from, to) that nobody adjusted and no contact covered. */

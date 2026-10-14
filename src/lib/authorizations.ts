@@ -76,6 +76,8 @@ export interface ClientAuthorization {
   created_at: string;
   /** Set on a restart: days between the previous authorization's end and this start. */
   restarted_after_days?: number | null;
+  /** Which round of the case this belongs to; see lib/restartAuthorization. */
+  round?: number;
 }
 
 /** How long each authorization type runs, in days, when no end date is given. */
