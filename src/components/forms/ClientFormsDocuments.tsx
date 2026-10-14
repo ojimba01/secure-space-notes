@@ -36,6 +36,8 @@ import {
 } from '@/components/forms/TemplateFillDialog';
 import { nextFormTitle } from '@/lib/formTitles';
 import { UhcMoveInDialog, type UhcExistingForm } from '@/components/forms/UhcMoveInDialog';
+import { fetchClientAuthorizations, formatAuthDate, type ClientAuthorization } from '@/lib/authorizations';
+import { FORMS_FOR_RESTART, latestRestart } from '@/lib/restartAuthorization';
 import { UHC_FORM_LABEL, UHC_FORM_TYPE, UHC_MCO } from '@/lib/uhcMoveIn/model';
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
@@ -163,6 +165,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const [uhc, setUhc] = useState<UhcExistingForm | 'new' | null>(null);
   /** The client's MCO, which decides whose move-in request they fill in. */
   const [mco, setMco] = useState<string | null>(null);
+  /** The client's latest authorization, when it restarted services after a gap. */
+  const [restart, setRestart] = useState<ClientAuthorization | null>(null);
   const [signerName, setSignerName] = useState('Case manager');
   const [preview, setPreview] = useState<{
     id: string;
@@ -187,6 +191,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         supabase.from('clients').select('insurance').eq('id', clientId).maybeSingle(),
       ]);
       setMco(clientRow.data?.insurance ?? null);
+      setRestart(latestRestart(await fetchClientAuthorizations(clientId).catch(() => [])));
       if (formsResult.error) throw formsResult.error;
       const rows = (formsResult.data as unknown as DocumentRow[]) ?? [];
       setForms(rows);
@@ -337,6 +342,15 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     const t = PDF_TEMPLATES.find((x) => x.formType === UHC_FORM_TYPE && x.mco === mco);
     return t ? { label: t.label, start: () => setFilling(t) } : null;
   }, [mco]);
+
+  /** The forms the latest restart needs, and whether one was filed since. */
+  const restartForms = useMemo(() => {
+    if (!restart) return [];
+    return (FORMS_FOR_RESTART[restart.authorization_type] ?? []).map((type) => ({
+      type,
+      filed: forms.some((f) => f.form_type === type && f.created_at >= restart.created_at),
+    }));
+  }, [restart, forms]);
 
   /** The MCO's own authorization request (Aetna, Wellpoint), started from here. */
   const authTemplate = useMemo(
@@ -512,6 +526,27 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         <CardTitle className="text-lg">Forms and Documents</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* A restart needs some forms filed again; each is ticked once one is filed after it. */}
+        {!loading && restartForms.some((f) => !f.filed) && restart && (
+          <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            <p className="font-medium">
+              Needed for the restart on {formatAuthDate(restart.start_date)}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {restartForms.map((f) => (
+                <span key={f.type} className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2 py-1">
+                  {f.filed ? <Check className="h-4 w-4 text-green-600" aria-label="Filed" /> : <X className="h-4 w-4 text-destructive" aria-label="Not filed" />}
+                  {f.type}
+                  {!f.filed && templateFor(f.type) && (
+                    <Button size="sm" variant="outline" className="ml-1 h-7" onClick={() => setFilling(templateFor(f.type) as PdfTemplate)}>
+                      Begin
+                    </Button>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading documents...</p>
         ) : (

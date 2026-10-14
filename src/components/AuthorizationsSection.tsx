@@ -23,8 +23,8 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { ShieldCheck, Plus } from 'lucide-react';
-import { StartAuthorizationDialog } from '@/components/StartAuthorizationDialog';
-import { LAPSE_BUFFER_DAYS } from '@/components/billing/workbook/columns';
+import { RestartAuthorizationDialog } from '@/components/RestartAuthorizationDialog';
+import { lastEnd } from '@/lib/restartAuthorization';
 import { todayAgency } from '@/lib/billing';
 import {
   AUTHORIZATION_STATUSES,
@@ -91,7 +91,7 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState<FormState>(blank());
   const [saving, setSaving] = useState(false);
-  const [startingSecond, setStartingSecond] = useState(false);
+  const [restarting, setRestarting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -219,25 +219,24 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
     }
   };
 
-  // The latest authorization ended more than the buffer ago, and no newer one exists.
-  const lapsedSince = useMemo(() => {
-    const ends = rows.map((r) => r.end_date).filter((d): d is string => !!d).sort();
-    const last = ends.at(-1);
+  // Days since the latest authorization ended, when it has and no newer one exists.
+  const endedSince = useMemo(() => {
+    const last = lastEnd(rows);
     if (!last) return null;
     const days = Math.round((Date.parse(todayAgency()) - Date.parse(last)) / 86_400_000);
-    return days > LAPSE_BUFFER_DAYS ? days : null;
+    return days > 0 ? days : null;
   }, [rows]);
 
   return (
     <Card>
-      {startingSecond && (
-        <StartAuthorizationDialog
+      {restarting && (
+        <RestartAuthorizationDialog
           open
-          onOpenChange={setStartingSecond}
+          onOpenChange={setRestarting}
           clientId={clientId}
           clientName={clientName ?? 'this client'}
           onStarted={async () => {
-            setStartingSecond(false);
+            setRestarting(false);
             await load();
             onUpdate?.();
           }}
@@ -256,18 +255,16 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
             </Button>
           )}
         </div>
-        {/* The case this is most often needed for, said out loud. A client who
-            goes quiet during their first 30 days and comes back afterwards
-            needs a second 30-day authorization, not an edit to the first: the
-            first one really did happen and its dates are what was billed. */}
-        {/* A client who went quiet and came back needs a new 30-day
-            authorization, not an edit to the old one: the same rule and the same
-            window as the Workbook's 2nd authorization tab. */}
-        {canEdit && lapsedSince !== null && (
+        {/* A client who went quiet and came back gets a new authorization, not
+            an edit to the old one: the old one really happened and its dates
+            are what was billed. See lib/restartAuthorization. */}
+        {canEdit && endedSince !== null && (
           <div className="flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-            <span>The last authorization ended {lapsedSince} days ago.</span>
-            <Button size="sm" className="ml-auto" onClick={() => setStartingSecond(true)}>
-              Start 2nd authorization
+            <span>
+              The last authorization ended {endedSince} {endedSince === 1 ? 'day' : 'days'} ago.
+            </span>
+            <Button size="sm" className="ml-auto" onClick={() => setRestarting(true)}>
+              Restart authorization
             </Button>
           </div>
         )}
@@ -298,6 +295,11 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
                   <tr key={r.id} className="border-t">
                     <td className="px-3 py-2">
                       {AUTHORIZATION_TYPE_LABEL[r.authorization_type] ?? r.authorization_type}
+                      {r.restarted_after_days != null && (
+                        <span className="ml-2 rounded bg-sky-100 px-1.5 py-0.5 text-xs font-medium text-sky-900">
+                          Restart{r.restarted_after_days ? ` · after ${r.restarted_after_days} days` : ''}
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-2">{r.sequence_number}</td>
                     <td className="px-3 py-2">

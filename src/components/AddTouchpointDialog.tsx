@@ -238,7 +238,7 @@ export const AddTouchpointDialog: React.FC<Props> = ({ open, onOpenChange, conte
     // real supervisory job -- so the filter is dropped for them.
     let query = supabase
       .from('clients')
-      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, assigned_employee_id, status, workflow_stage')
+      .select('id, first_name, last_name, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, auth_180_start, hsp_150_date, assigned_employee_id, status, workflow_stage')
       .eq('status', 'active')
       // Deliberately no .eq('hsp_submitted', true). A 150-day or 180-day
       // authorization number proves the plan was submitted even when the flag

@@ -57,7 +57,7 @@ function useCaseload() {
     if (loading || !profileId) return;
     let q = supabase
       .from('clients')
-      .select('id, first_name, last_name, member_id, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, assigned_employee_id, status, workflow_stage')
+      .select('id, first_name, last_name, member_id, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, auth_180_start, hsp_150_date, assigned_employee_id, status, workflow_stage')
       .eq('status', 'active')
       .is('deleted_at', null)
       .order('first_name');

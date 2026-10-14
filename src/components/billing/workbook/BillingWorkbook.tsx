@@ -42,7 +42,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
-import { StartAuthorizationDialog } from '@/components/StartAuthorizationDialog';
+import { RestartAuthorizationDialog } from '@/components/RestartAuthorizationDialog';
 import {
   resyncDerivedSchedules,
   syncAuthorizationsFromLegacyColumns,
@@ -975,7 +975,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
                   Open client
                 </Button>
                 <Button size="sm" className="mr-1.5 h-7" onClick={() => setStarting(r.client)}>
-                  Start 2nd authorization
+                  Restart authorization
                 </Button>
                 <Button size="sm" variant="outline" className="h-7" onClick={() => setClosing(r.client)}>
                   Close case
@@ -1279,7 +1279,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
       </Dialog>
 
       {starting && (
-        <StartAuthorizationDialog
+        <RestartAuthorizationDialog
           open
           onOpenChange={(o) => {
             if (!o) setStarting(null);

@@ -362,8 +362,17 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Open 2nd authorization', 'Select Workbook in the left panel, then the 2nd authorization tab.'),
       s('Follow up', 'These authorizations ended over 14 days ago with no contact. Select Open client to check on them, or Close case.'),
-      s('Start a 2nd authorization', 'If the client has a new authorization, select Start 2nd authorization. Enter the 30-day start date and authorization number, then select Start authorization. Earlier billing cycles stay as they are.'),
-      s('Or start it from the client', 'Open the client and select Authorizations. When the last authorization ended over 14 days ago, Start 2nd authorization is shown there too.'),
+      s('Restart the authorization', 'If the MCO approved a new authorization, select Restart authorization. See Restart an authorization after a gap.'),
+    ],
+  },
+  {
+    id: 'restart-authorization', section: 'Billing', title: 'Restart an authorization after a gap', audience: 'admins', minutes: 2,
+    steps: [
+      s('Open the client’s Authorizations', 'Open the client and select Authorizations. Once the last authorization has ended, Restart authorization is shown. It is also on the Workbook’s 2nd authorization tab.'),
+      s('Choose what the MCO approved', 'Select 30-day, 150-day or 180-day.'),
+      s('Enter the dates', 'Enter the start date. The end date fills in from the type; change it if the approval says otherwise. Add the authorization number if you have it.'),
+      s('Check and restart', 'Read what will happen, then select Restart authorization. Earlier authorizations and billing stay as they are. Billing and touchpoints start over from the new date, and touchpoints from the gap are cleared.'),
+      s('File the forms', 'The client’s Forms tab lists the forms this restart needs (a new IAT, LON and HSP for 30 days; an HSP for 150 days; a LON and HSP for 180 days) until each is filed.'),
     ],
   },
 

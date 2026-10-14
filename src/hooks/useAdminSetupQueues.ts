@@ -88,7 +88,7 @@ export function useAdminSetupQueues(): AdminSetupQueues {
           supabase
             .from('clients')
             .select(
-              'id, first_name, last_name, assigned_employee_id, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, insurance',
+              'id, first_name, last_name, assigned_employee_id, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, auth_180_start, hsp_150_date, insurance',
             )
             .eq('status', 'active')
             .or(OPEN_CASE_STAGE_FILTER)

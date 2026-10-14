@@ -420,6 +420,7 @@ export type Database = {
           mco: string | null
           notes: string | null
           received_at: string | null
+          restarted_after_days: number | null
           sequence_number: number
           service_type: string | null
           source_document_id: string | null
@@ -442,6 +443,7 @@ export type Database = {
           mco?: string | null
           notes?: string | null
           received_at?: string | null
+          restarted_after_days?: number | null
           sequence_number?: number
           service_type?: string | null
           source_document_id?: string | null
@@ -464,6 +466,7 @@ export type Database = {
           mco?: string | null
           notes?: string | null
           received_at?: string | null
+          restarted_after_days?: number | null
           sequence_number?: number
           service_type?: string | null
           source_document_id?: string | null

@@ -66,6 +66,19 @@ async function openUhc(p) {
   await wait(p, 2500);
 }
 
+async function openRestart(p) {
+  await openClient(p, 'c-9', 'Authorizations');
+  await btn(p, 'Restart authorization', true).click();
+  await wait(p, 800);
+}
+
+async function fillRestart(p) {
+  await dialog(p).getByRole('button', { name: '150-day', exact: true }).click();
+  await dialog(p).getByLabel('Start date').fill('2026-10-12');
+  await dialog(p).getByLabel('Authorization number').fill('WE-7790144');
+  await wait(p, 400);
+}
+
 async function openAccount(p) {
   await p.goto(`${BASE}/?view=clients`);
   await wait(p, 2000);
@@ -428,8 +441,14 @@ const SHOTS = {
   lapsed: [
     { as: 'admin', go: async (p) => { await openWorkbook(p); }, target: (p) => p.getByRole('tab', { name: /2nd authorization/ }), label: '2nd authorization' },
     { as: 'admin', go: async (p) => { await openWorkbook(p); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); }, target: (p) => btn(p, 'Open client'), label: 'Open client' },
-    { as: 'admin', go: async (p) => { await openWorkbook(p); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); await btn(p, 'Start 2nd authorization').click(); await wait(p, 800); }, target: (p) => btn(p, 'Start authorization', true), label: 'Start authorization' },
-    { as: 'admin', go: (p) => openClient(p, 'c-9', 'Authorizations'), target: (p) => btn(p, 'Start 2nd authorization', true), label: 'Start 2nd authorization' },
+    { as: 'admin', go: async (p) => { await openWorkbook(p); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); }, target: (p) => btn(p, 'Restart authorization', true), label: 'Restart authorization' },
+  ],
+  'restart-authorization': [
+    { as: 'admin', go: (p) => openClient(p, 'c-9', 'Authorizations'), target: (p) => btn(p, 'Restart authorization', true), label: 'Restart authorization' },
+    { as: 'admin', go: openRestart, target: (p) => dialog(p).getByRole('button', { name: '150-day', exact: true }), label: 'What the MCO approved' },
+    { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByLabel('Start date'), label: 'Start date' },
+    { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByRole('button', { name: 'Restart authorization', exact: true }), label: 'Restart authorization' },
+    { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); await dialog(p).getByRole('button', { name: 'Restart authorization', exact: true }).click(); await wait(p, 2000); await tab(p, 'Forms').click(); await wait(p, 1500); }, target: (p) => text(p, 'Needed for the restart on 10/12/2026').locator('xpath=..'), label: 'Forms to file' },
   ],
 };
 

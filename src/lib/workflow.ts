@@ -123,6 +123,8 @@ export interface WorkflowClient {
   intake_status?: string | null;
   auth_30_start?: string | null;
   auth_150_start?: string | null;
+  /** A restart can begin on a 180-day authorization with no 150-day before it. */
+  auth_180_start?: string | null;
   hsp_150_date?: string | null;
   level_of_need?: string | null;
   hsp_submitted?: boolean | null;
@@ -156,7 +158,7 @@ export function hspSubmitted(c: WorkflowClient): boolean {
  * were tracked separately.
  */
 export function serviceStartDate(c: WorkflowClient): string | null {
-  return c.auth_30_start || c.auth_150_start || c.hsp_150_date || null;
+  return c.auth_30_start || c.auth_150_start || c.hsp_150_date || c.auth_180_start || null;
 }
 
 /**

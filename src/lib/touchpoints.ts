@@ -60,7 +60,7 @@ interface TouchpointClient {
 }
 
 const CLIENT_COLUMNS =
-  'id, first_name, last_name, status, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, hsp_150_date, assigned_employee_id';
+  'id, first_name, last_name, status, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, auth_180_start, hsp_150_date, assigned_employee_id';
 
 // Choose N evenly-spread dates inside [from, to], avoiding `used` days and keeping
 // at least MIN_SPACING_DAYS apart when the window is roomy enough.

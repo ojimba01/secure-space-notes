@@ -74,6 +74,8 @@ export interface ClientAuthorization {
   received_at: string | null;
   notes: string | null;
   created_at: string;
+  /** Set on a restart: days between the previous authorization's end and this start. */
+  restarted_after_days?: number | null;
 }
 
 /** How long each authorization type runs, in days, when no end date is given. */
