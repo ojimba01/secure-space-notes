@@ -20,6 +20,7 @@ import {
   type AuthorizationType,
   type ClientAuthorization,
 } from '@/lib/authorizations';
+import { reopenCaseFields } from '@/lib/reopenCase';
 
 export const RESTART_TYPES: { type: AuthorizationType; label: string; days: number }[] = [
   { type: 'initial_30', label: '30-day', days: 30 },
@@ -89,6 +90,95 @@ const CLEARED = {
   hsp_submitted_at: null,
 };
 
+/** The client columns a restart changes, kept so it can be undone. */
+const SNAPSHOT_COLUMNS = [
+  ...Object.keys(CLEARED),
+  'status',
+  'workflow_stage',
+  'workflow_stage_updated_at',
+  'closed_date',
+  'reason_closed',
+];
+
+/** What a restart replaced: stored on the client as restart_undo. */
+export interface RestartSnapshot {
+  round: number;
+  fields: Record<string, unknown>;
+  /** The authorizations the restart ended, with the status each had. */
+  ended: { id: string; status: string }[];
+}
+
+/** A claim filed in the new round means the restart can no longer be undone. */
+export const isFiled = (c: { billing_status?: string | null; payment_status?: string | null; claim_number?: string | null }) =>
+  c.billing_status === 'Submitted' || c.payment_status === 'Paid' || !!c.claim_number;
+
+/**
+ * Take a restart back, pending or complete: the client returns to the round,
+ * authorizations and dates they had before it (a closed case is closed again).
+ * Documents filed since move back to that round. Refused once a claim from
+ * the new round has been filed.
+ */
+export async function undoRestart(clientId: string): Promise<void> {
+  const { data: client, error: readError } = await supabase
+    .from('clients')
+    .select('billing_round, restart_undo')
+    .eq('id', clientId)
+    .maybeSingle();
+  if (readError) throw new Error(readError.message);
+  const snapshot = (client as unknown as { restart_undo?: RestartSnapshot | null } | null)?.restart_undo;
+  const round = (client as { billing_round?: number } | null)?.billing_round ?? 1;
+  if (!snapshot) throw new Error('There is no restart to undo.');
+
+  const { data: cycles, error: cycleError } = await supabase
+    .from('billing_cycles')
+    .select('id, billing_status, payment_status, claim_number')
+    .eq('client_id', clientId)
+    .eq('round', round);
+  if (cycleError) throw new Error(cycleError.message);
+  if ((cycles ?? []).some(isFiled)) {
+    throw new Error('A claim from the restarted authorization has been filed, so the restart cannot be undone.');
+  }
+
+  // The client record first, so anything filed from here on lands in the old round.
+  const { error: clientError } = await supabase
+    .from('clients')
+    .update({ ...snapshot.fields, billing_round: snapshot.round, restart_pending_at: null, restart_pending_type: null } as never)
+    .eq('id', clientId);
+  if (clientError) throw new Error(clientError.message);
+
+  const steps = [
+    // The restart's own authorizations go; the ones it ended come back.
+    supabase.from('client_authorizations').delete().eq('client_id', clientId).eq('round', round),
+    supabase.from('billing_cycles').delete().eq('client_id', clientId).eq('round', round),
+    // Documents filed since the restart are kept, in the round the client is back in.
+    supabase.from('client_forms').update({ round: snapshot.round } as never).eq('client_id', clientId).eq('round', round),
+    ...snapshot.ended.map((a) => supabase.from('client_authorizations').update({ status: a.status as never }).eq('id', a.id)),
+  ];
+  for (const step of steps) {
+    const { error } = await step;
+    if (error) throw new Error(error.message);
+  }
+  await moveChecklistTicks(clientId, round, snapshot.round);
+
+  const { error: doneError } = await supabase.from('clients').update({ restart_undo: null } as never).eq('id', clientId);
+  if (doneError) throw new Error(doneError.message);
+  await resyncDerivedSchedules(clientId);
+}
+
+/** Ticks can only be added and removed, so a moved tick is removed and added again. */
+async function moveChecklistTicks(clientId: string, from: number, to: number): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const table = () => (supabase as any).from('client_form_checklist');
+  const { data } = await table().select('form_type, marked_by, round').eq('client_id', clientId).in('round', [from, to]);
+  const rows = (data ?? []) as { form_type: string; marked_by: string | null; round: number }[];
+  const have = new Set(rows.filter((r) => r.round === to).map((r) => r.form_type));
+  const moving = rows.filter((r) => r.round === from);
+  if (!moving.length) return;
+  await table().delete().eq('client_id', clientId).eq('round', from);
+  const add = moving.filter((r) => !have.has(r.form_type)).map((r) => ({ client_id: clientId, form_type: r.form_type, marked_by: r.marked_by, round: to }));
+  if (add.length) await table().insert(add);
+}
+
 export interface PendingRestart {
   since: string;
   type: AuthorizationType | null;
@@ -108,12 +198,16 @@ export const pendingRestart = (c: { restart_pending_at?: string | null; restart_
  */
 export async function restartAuthorization(input: RestartInput): Promise<{ gap: number | null; pending: boolean }> {
   const [{ data: client, error: readError }, { data: history, error: histError }] = await Promise.all([
-    supabase.from('clients').select('billing_round, restart_pending_at, restart_pending_type').eq('id', input.clientId).maybeSingle(),
+    supabase
+      .from('clients')
+      .select(`billing_round, restart_pending_at, restart_pending_type, ${SNAPSHOT_COLUMNS.join(', ')}`)
+      .eq('id', input.clientId)
+      .maybeSingle(),
     supabase.from('client_authorizations').select('id, end_date, status').eq('client_id', input.clientId),
   ]);
   if (readError) throw new Error(readError.message);
   if (histError) throw new Error(histError.message);
-  const already = pendingRestart(client);
+  const already = pendingRestart(client as unknown as Record<string, string | null> | null);
   const previousEnd = lastEnd(history ?? []);
   const complete = !!(input.type && input.startDate);
   if (complete && previousEnd && input.startDate! <= previousEnd) {
@@ -122,16 +216,25 @@ export async function restartAuthorization(input: RestartInput): Promise<{ gap: 
 
   if (!already) {
     // Earlier periods ended; they stay on record as they were billed.
-    const open = (history ?? []).filter((r) => r.status === 'active' || r.status === 'pending').map((r) => r.id);
+    const open = (history ?? []).filter((r) => r.status === 'active' || r.status === 'pending');
     if (open.length) {
-      const { error } = await supabase.from('client_authorizations').update({ status: 'expired' }).in('id', open);
+      const { error } = await supabase.from('client_authorizations').update({ status: 'expired' }).in('id', open.map((r) => r.id));
       if (error) throw new Error(error.message);
     }
-    // A new round, with nothing from the old one feeding it.
-    const round = ((client as { billing_round?: number } | null)?.billing_round ?? 1) + 1;
+    // A new round, with nothing from the old one feeding it. What it replaces
+    // is kept so the restart can be undone (undoRestart).
+    const current = (client ?? {}) as unknown as Record<string, unknown>;
+    const previousRound = (current.billing_round as number | undefined) ?? 1;
+    const snapshot: RestartSnapshot = {
+      round: previousRound,
+      fields: Object.fromEntries(SNAPSHOT_COLUMNS.map((k) => [k, current[k] ?? null])),
+      ended: open.map((r) => ({ id: r.id, status: r.status })),
+    };
+    // A closed case comes back open: the client has returned.
+    const reopen = current.status === 'closed' ? reopenCaseFields(null, new Date(), {}) : {};
     const { error: clearError } = await supabase
       .from('clients')
-      .update({ ...CLEARED, billing_round: round } as never)
+      .update({ ...CLEARED, ...reopen, billing_round: previousRound + 1, restart_undo: snapshot } as never)
       .eq('id', input.clientId);
     if (clearError) throw new Error(clearError.message);
   }

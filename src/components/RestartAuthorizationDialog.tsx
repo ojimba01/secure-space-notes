@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
+import { UndoRestartButton } from '@/components/UndoRestartButton';
 import { useToast } from '@/hooks/use-toast';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { defaultEndDate, fetchClientAuthorizations, formatAuthDate, type AuthorizationType } from '@/lib/authorizations';
@@ -36,6 +37,20 @@ interface Props {
   onStarted: () => void;
 }
 
+/** One answer among several: bordered and raised so it reads as a button, filled when chosen. */
+const Choice: React.FC<{ selected: boolean; onClick: () => void; children: React.ReactNode }> = ({ selected, onClick, children }) => (
+  <button
+    type="button"
+    aria-pressed={selected}
+    onClick={onClick}
+    className={`h-11 flex-1 whitespace-nowrap rounded-md border-2 px-2 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      selected ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background hover:border-primary/60 hover:bg-muted'
+    }`}
+  >
+    {children}
+  </button>
+);
+
 const list = (items: string[]) => items.join(', ').replace(/, ([^,]*)$/, ' and $1');
 
 export const RestartAuthorizationDialog: React.FC<Props> = ({ open, onOpenChange, clientId, clientName, onStarted }) => {
@@ -49,6 +64,9 @@ export const RestartAuthorizationDialog: React.FC<Props> = ({ open, onOpenChange
   const [number, setNumber] = useState('');
   const [previousEnd, setPreviousEnd] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingRestart | null>(null);
+  const [closed, setClosed] = useState(false);
+  const [undecided, setUndecided] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -60,16 +78,21 @@ export const RestartAuthorizationDialog: React.FC<Props> = ({ open, onOpenChange
     setEndEdited(false);
     setNumber('');
     setPending(null);
+    setClosed(false);
+    setUndecided(false);
+    setCanUndo(false);
     fetchClientAuthorizations(clientId)
       .then((rows) => setPreviousEnd(lastEnd(rows)))
       .catch(() => setPreviousEnd(null));
     supabase
       .from('clients')
-      .select('restart_pending_at, restart_pending_type')
+      .select('restart_pending_at, restart_pending_type, status, restart_undo')
       .eq('id', clientId)
       .maybeSingle()
       .then(({ data }) => {
         const p = pendingRestart(data);
+        setClosed(data?.status === 'closed');
+        setCanUndo(!!data?.restart_undo);
         setPending(p);
         if (p?.type) setType(p.type);
       });
@@ -86,7 +109,7 @@ export const RestartAuthorizationDialog: React.FC<Props> = ({ open, onOpenChange
   const tooEarly = !!(hasDate && previousEnd && start && start <= previousEnd);
   const forms = type ? FORMS_FOR_RESTART[type] ?? [] : [];
   const label = RESTART_TYPES.find((t) => t.type === type)?.label;
-  const canSubmit = !saving && !tooEarly && (pending ? complete : complete || !hasDate);
+  const canSubmit = !saving && !tooEarly && (pending ? complete : complete || (!hasDate && (!!type || undecided)));
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -134,30 +157,28 @@ export const RestartAuthorizationDialog: React.FC<Props> = ({ open, onOpenChange
             <Label>What did the MCO approve?</Label>
             <div className="flex flex-wrap gap-2">
               {RESTART_TYPES.map((t) => (
-                <Button
+                <Choice
                   key={t.type}
-                  type="button"
-                  variant={type === t.type ? 'default' : 'outline'}
-                  className="flex-1"
-                  aria-pressed={type === t.type}
-                  onClick={() => setType(t.type)}
+                  selected={type === t.type}
+                  onClick={() => {
+                    setType(t.type);
+                    setUndecided(false);
+                  }}
                 >
                   {t.label}
-                </Button>
+                </Choice>
               ))}
               {!pending && (
-                <Button
-                  type="button"
-                  variant={type === null ? 'secondary' : 'outline'}
-                  className="flex-1"
-                  aria-pressed={type === null}
+                <Choice
+                  selected={undecided}
                   onClick={() => {
                     setType(null);
+                    setUndecided(true);
                     setHasDate(false);
                   }}
                 >
-                  Not decided yet
-                </Button>
+                  Not decided
+                </Choice>
               )}
             </div>
           </div>
@@ -166,12 +187,12 @@ export const RestartAuthorizationDialog: React.FC<Props> = ({ open, onOpenChange
             <div className="space-y-1.5">
               <Label>Do you have the start date?</Label>
               <div className="flex gap-2">
-                <Button type="button" variant={hasDate ? 'default' : 'outline'} className="flex-1" aria-pressed={hasDate} onClick={() => setHasDate(true)}>
+                <Choice selected={hasDate} onClick={() => setHasDate(true)}>
                   Yes
-                </Button>
-                <Button type="button" variant={!hasDate ? 'default' : 'outline'} className="flex-1" aria-pressed={!hasDate} onClick={() => setHasDate(false)}>
+                </Choice>
+                <Choice selected={!hasDate} onClick={() => setHasDate(false)}>
                   Not yet
-                </Button>
+                </Choice>
               </div>
             </div>
           )}
@@ -207,8 +228,9 @@ export const RestartAuthorizationDialog: React.FC<Props> = ({ open, onOpenChange
 
           {complete && !tooEarly && (
             <div className="space-y-1.5 rounded-md border bg-muted/40 p-3 text-sm">
-              <p className="font-medium">When you restart</p>
+              <p className="font-medium">When you submit</p>
               <ul className="list-disc space-y-1 pl-5">
+                {closed && <li>The case is reopened.</li>}
                 <li>Earlier authorizations stay on record. Nothing already billed changes.</li>
                 <li>Billing starts a new round on {formatAuthDate(start)}.</li>
                 <li>
@@ -222,8 +244,9 @@ export const RestartAuthorizationDialog: React.FC<Props> = ({ open, onOpenChange
 
           {!pending && !complete && !hasDate && (
             <div className="space-y-1.5 rounded-md border bg-muted/40 p-3 text-sm">
-              <p className="font-medium">When you mark the restart</p>
+              <p className="font-medium">When you submit</p>
               <ul className="list-disc space-y-1 pl-5">
+                {closed && <li>The case is reopened.</li>}
                 <li>Earlier authorizations stay on record. Nothing already billed changes.</li>
                 <li>The client shows Restart pending. Billing and touchpoints wait.</li>
                 <li>{forms.length ? `File a new ${list(forms)} on the Forms tab.` : 'The forms needed show once the type is chosen.'}</li>
@@ -233,13 +256,27 @@ export const RestartAuthorizationDialog: React.FC<Props> = ({ open, onOpenChange
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={submit} disabled={!canSubmit}>
-            {saving ? 'Saving…' : pending ? 'Complete restart' : complete ? 'Restart authorization' : 'Mark restart pending'}
-          </Button>
+        <DialogFooter className="gap-2 sm:justify-between">
+          {pending && canUndo ? (
+            <UndoRestartButton
+              clientId={clientId}
+              clientName={clientName}
+              onUndone={() => {
+                onOpenChange(false);
+                onStarted();
+              }}
+            />
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={submit} disabled={!canSubmit} className="bg-green-600 text-white hover:bg-green-700">
+              {saving ? 'Saving…' : 'Submit'}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

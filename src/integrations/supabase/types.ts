@@ -1560,6 +1560,7 @@ export type Database = {
           realtor_phone: string | null
           restart_pending_at: string | null
           restart_pending_type: string | null
+          restart_undo: Json | null
           reason_closed: string | null
           referral_channel: string | null
           referral_received_date: string | null
@@ -1638,6 +1639,7 @@ export type Database = {
           realtor_phone?: string | null
           restart_pending_at?: string | null
           restart_pending_type?: string | null
+          restart_undo?: Json | null
           reason_closed?: string | null
           referral_channel?: string | null
           referral_received_date?: string | null
@@ -1716,6 +1718,7 @@ export type Database = {
           realtor_phone?: string | null
           restart_pending_at?: string | null
           restart_pending_type?: string | null
+          restart_undo?: Json | null
           reason_closed?: string | null
           referral_channel?: string | null
           referral_received_date?: string | null

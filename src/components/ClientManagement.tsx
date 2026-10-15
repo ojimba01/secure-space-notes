@@ -274,9 +274,10 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       const list =
         isAdmin && stageFilter === 'closed' ? all : all.filter((c) => !isCaseClosed(c));
       setClients(list);
-      // Keep the currently open client detail in sync with the latest data
+      // Keep the currently open client detail in sync with the latest data,
+      // even when a change (closing, undoing a restart) takes it off the list.
       setSelectedClient((current) =>
-        current ? list.find((c) => c.id === current.id) || current : current
+        current ? all.find((c) => c.id === current.id) || current : current
       );
     } catch (error: any) {
       toast({

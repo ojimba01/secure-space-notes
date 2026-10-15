@@ -127,3 +127,59 @@ test('a pending restart is read off the client record', () => {
   assert.equal(mod.pendingRestart({ restart_pending_at: null }), null);
   assert.deepEqual(mod.pendingRestart({ restart_pending_at: '2026-10-01T00:00:00Z', restart_pending_type: null }), { since: '2026-10-01T00:00:00Z', type: null });
 });
+
+test('a restart keeps what it replaced, and reopens a closed case', async () => {
+  const db = fakeDb({
+    clients: [{ billing_round: 1, status: 'closed', closed_date: '2026-09-01', reason_closed: 'Lost contact', auth_30_start: '2026-07-01', workflow_stage: 'closed' }],
+    client_authorizations: [{ id: 'a1', end_date: '2026-07-30', status: 'active' }],
+  });
+  await mod.restartAuthorization({ clientId: 'c1' });
+  const opened = db.calls.find((c) => c.op === 'update' && c.table === 'clients' && c.payload.billing_round);
+  assert.equal(opened.payload.status, 'active');
+  assert.equal(opened.payload.closed_date, null);
+  const snap = opened.payload.restart_undo;
+  assert.equal(snap.round, 1);
+  assert.equal(snap.fields.status, 'closed');
+  assert.equal(snap.fields.auth_30_start, '2026-07-01');
+  assert.equal(snap.fields.reason_closed, 'Lost contact');
+  assert.deepEqual(snap.ended, [{ id: 'a1', status: 'active' }]);
+});
+
+test('undo puts the client back as they were before the restart', async () => {
+  const snapshot = { round: 1, fields: { status: 'closed', auth_30_start: '2026-07-01' }, ended: [{ id: 'a1', status: 'active' }] };
+  const db = fakeDb({
+    clients: [{ billing_round: 2, restart_undo: snapshot }],
+    billing_cycles: [{ id: 'b9', billing_status: 'Not Billed', payment_status: 'Unpaid', claim_number: null }],
+    client_form_checklist: [],
+  });
+  await mod.undoRestart('c1');
+  const restored = db.calls.find((c) => c.op === 'update' && c.table === 'clients' && c.payload.billing_round === 1);
+  assert.equal(restored.payload.status, 'closed');
+  assert.equal(restored.payload.auth_30_start, '2026-07-01');
+  assert.equal(restored.payload.restart_pending_at, null);
+  const deleted = db.calls.filter((c) => c.op === 'delete').map((c) => c.table);
+  assert.ok(deleted.includes('client_authorizations') && deleted.includes('billing_cycles'));
+  // Round 2's authorizations and cycles only; nothing from round 1.
+  for (const c of db.calls.filter((c) => c.op === 'delete' && c.table !== 'client_form_checklist')) {
+    assert.deepEqual(c.filters.find((f) => f[1] === 'round'), ['eq', 'round', 2]);
+  }
+  const forms = db.calls.find((c) => c.op === 'update' && c.table === 'client_forms');
+  assert.equal(forms.payload.round, 1);
+  const back = db.calls.find((c) => c.op === 'update' && c.table === 'client_authorizations');
+  assert.equal(back.payload.status, 'active');
+  assert.ok(db.calls.some((c) => c.op === 'update' && c.table === 'clients' && c.payload.restart_undo === null));
+});
+
+test('undo is refused once a claim from the new round is filed', async () => {
+  const db = fakeDb({
+    clients: [{ billing_round: 2, restart_undo: { round: 1, fields: {}, ended: [] } }],
+    billing_cycles: [{ id: 'b9', billing_status: 'Submitted' }],
+  });
+  await assert.rejects(mod.undoRestart('c1'), /claim/);
+  assert.equal(db.calls.some((c) => c.op !== 'select'), false);
+});
+
+test('there is nothing to undo without a restart', async () => {
+  fakeDb({ clients: [{ billing_round: 1, restart_undo: null }] });
+  await assert.rejects(mod.undoRestart('c1'), /no restart to undo/);
+});

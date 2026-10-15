@@ -167,6 +167,16 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
             timed: true,
           });
         }
+        if (row.new_data && newRound < oldRound) {
+          out.push({
+            id: `undo-${row.id}`,
+            at: row.created_at,
+            kind: 'restart',
+            summary: <>Restart undone; back to round {newRound}</>,
+            detail: null,
+            timed: true,
+          });
+        }
         const was = (row.old_data?.status as string) ?? null;
         const now = (row.new_data?.status as string) ?? null;
         if (!now || was === now) continue;

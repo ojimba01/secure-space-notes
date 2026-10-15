@@ -79,8 +79,8 @@ async function openRestart(p) {
 /** Restart Helen with no type or date yet. */
 async function markPending(p) {
   await openRestart(p);
-  await dialog(p).getByRole('button', { name: 'Not decided yet', exact: true }).click();
-  await dialog(p).getByRole('button', { name: 'Mark restart pending', exact: true }).click();
+  await dialog(p).getByRole('button', { name: 'Not decided', exact: true }).click();
+  await dialog(p).getByRole('button', { name: 'Submit', exact: true }).click();
   await wait(p, 2000);
   // The confirmation toast sits over the card's button.
   await p.evaluate(() => document.head.insertAdjacentHTML('beforeend', '<style>li[role=status]{display:none!important}</style>'));
@@ -95,7 +95,7 @@ async function completePending(p) {
 async function restarted(p, tabName) {
   await openRestart(p);
   await fillRestart(p);
-  await dialog(p).getByRole('button', { name: 'Restart authorization', exact: true }).click();
+  await dialog(p).getByRole('button', { name: 'Submit', exact: true }).click();
   await wait(p, 2000);
   if (tabName) {
     await card(p, 'Helen Brooks').getByRole('button', { name: 'View Details', exact: true }).click();
@@ -480,13 +480,17 @@ const SHOTS = {
     { as: 'admin', go: clientsList, target: (p) => card(p, 'Helen Brooks').getByRole('button', { name: 'Restart Authorization', exact: true }), label: 'Restart Authorization' },
     { as: 'admin', go: openRestart, target: (p) => dialog(p).getByRole('button', { name: '150-day', exact: true }), label: 'What the MCO approved' },
     { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByLabel('Start date'), label: 'Start date' },
-    { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByRole('button', { name: 'Restart authorization', exact: true }), label: 'Restart authorization' },
+    { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByRole('button', { name: 'Submit', exact: true }), label: 'Submit' },
     { as: 'admin', go: (p) => restarted(p, 'Forms'), target: (p) => text(p, 'Needed for the restart on 10/12/2026').locator('xpath=..'), label: 'Forms to file' },
   ],
   'complete-restart': [
     { as: 'admin', go: markPending, target: (p) => card(p, 'Helen Brooks').getByRole('button', { name: 'Add start date', exact: true }), label: 'Add start date' },
     { as: 'admin', go: completePending, target: (p) => dialog(p).getByLabel('Start date'), label: 'Start date' },
-    { as: 'admin', go: completePending, target: (p) => dialog(p).getByRole('button', { name: 'Complete restart', exact: true }), label: 'Complete restart' },
+    { as: 'admin', go: completePending, target: (p) => dialog(p).getByRole('button', { name: 'Submit', exact: true }), label: 'Submit' },
+  ],
+  'undo-restart': [
+    { as: 'admin', go: (p) => restarted(p, 'Authorizations'), target: (p) => btn(p, 'Undo restart', true), label: 'Undo restart' },
+    { as: 'admin', go: async (p) => { await restarted(p, 'Authorizations'); await btn(p, 'Undo restart', true).click(); await wait(p, 800); }, target: (p) => p.getByRole('alertdialog').getByRole('button', { name: 'Undo restart', exact: true }), label: 'Undo restart' },
   ],
   'earlier-rounds': [
     { as: 'admin', go: (p) => restarted(p), target: (p) => card(p, 'Helen Brooks').getByText('Round 2', { exact: true }), label: 'Round 2' },

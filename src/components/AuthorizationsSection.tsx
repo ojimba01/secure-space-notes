@@ -25,6 +25,7 @@ import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { ShieldCheck, Plus, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { RestartAuthorizationDialog } from '@/components/RestartAuthorizationDialog';
+import { UndoRestartButton } from '@/components/UndoRestartButton';
 import { lastEnd, pendingRestart, type PendingRestart } from '@/lib/restartAuthorization';
 import { todayAgency } from '@/lib/billing';
 import {
@@ -96,17 +97,19 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
   const [round, setRound] = useState(1);
   const [pending, setPending] = useState<PendingRestart | null>(null);
   const [showEarlier, setShowEarlier] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [list, { data: client }] = await Promise.all([
         fetchClientAuthorizations(clientId),
-        supabase.from('clients').select('billing_round, restart_pending_at, restart_pending_type').eq('id', clientId).maybeSingle(),
+        supabase.from('clients').select('billing_round, restart_pending_at, restart_pending_type, restart_undo').eq('id', clientId).maybeSingle(),
       ]);
       setRows(list);
       setRound(client?.billing_round ?? 1);
       setPending(pendingRestart(client));
+      setCanUndo(!!client?.restart_undo);
     } catch (err: any) {
       toast({
         title: 'Could not load authorizations',
@@ -242,6 +245,11 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
     return days > 0 ? days : null;
   }, [rows, pending]);
 
+  const undone = async () => {
+    await load();
+    onUpdate?.();
+  };
+
   const renderTable = (list: ClientAuthorization[]) => (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -354,9 +362,12 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
               {pending.type ? ` · ${AUTHORIZATION_TYPE_LABEL[pending.type] ?? pending.type}` : ''}. Billing and touchpoints wait for the start date.
             </span>
             {canEdit && (
-              <Button size="sm" className="ml-auto" onClick={() => setRestarting(true)}>
-                Complete restart
-              </Button>
+              <div className="ml-auto flex gap-2">
+                {canUndo && <UndoRestartButton clientId={clientId} clientName={clientName ?? 'This client'} onUndone={undone} />}
+                <Button size="sm" onClick={() => setRestarting(true)}>
+                  Complete restart
+                </Button>
+              </div>
             )}
           </div>
         )}
@@ -383,7 +394,14 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
           </p>
         ) : (
           <div className="space-y-3">
-            {round > 1 && <p className="text-xs font-semibold text-muted-foreground">Round {round}</p>}
+            {round > 1 && (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-muted-foreground">Round {round}</p>
+                {canEdit && canUndo && !pending && (
+                  <UndoRestartButton clientId={clientId} clientName={clientName ?? 'This client'} onUndone={undone} />
+                )}
+              </div>
+            )}
             {current.length ? renderTable(current) : <p className="text-sm text-muted-foreground">No authorization in this round yet.</p>}
             {earlier.length > 0 && (
               <div>

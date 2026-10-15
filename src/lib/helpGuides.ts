@@ -368,10 +368,10 @@ export const GUIDES: Guide[] = [
   {
     id: 'restart-authorization', section: 'Billing', title: 'Restart an authorization after a gap', audience: 'admins', minutes: 2,
     steps: [
-      s('Select Restart Authorization', 'On Clients, select Restart Authorization on the client’s card, under View Details. It is also on the client’s Authorizations tab and the Workbook’s 2nd authorization tab.'),
-      s('Choose what the MCO approved', 'Select 30-day, 150-day or 180-day. If you do not know yet, select Not decided yet.'),
+      s('Select Restart Authorization', 'On Clients, select Restart Authorization on the client’s card, under View Details. It works for closed cases too and reopens them. It is also on the client’s Authorizations tab and the Workbook’s 2nd authorization tab.'),
+      s('Choose what the MCO approved', 'Select 30-day, 150-day or 180-day. If you do not know yet, select Not decided.'),
       s('Do you have the start date?', 'Select Yes and enter the start date. The end date fills in from the type; change it if the approval says otherwise. Add the authorization number if you have it. Select Not yet if the approval has not arrived.'),
-      s('Check and restart', 'Read what will happen, then select Restart authorization, or Mark restart pending if the date can wait. Earlier authorizations and billing stay on record. Billing and touchpoints start over from the new date, and touchpoints from the gap are cleared.'),
+      s('Check and submit', 'Read what will happen, then select Submit. Earlier authorizations and billing stay on record. Billing and touchpoints start over from the new date, and touchpoints from the gap are cleared. Without a date, the client shows Restart pending until you add one. To leave without changing anything, select Cancel.'),
       s('File the forms', 'The client’s Forms tab lists the forms this restart needs (a new IAT, LON and HSP for 30 days; an HSP for 150 days; a LON and HSP for 180 days) until each is filed.'),
     ],
   },
@@ -380,7 +380,14 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Find the pending restart', 'A client waiting for a start date shows Restart pending. Select Add start date on the client’s card, or Complete restart on the Authorizations tab. Superadmins also see them under Priorities on the Admin dashboard.'),
       s('Enter the dates', 'Choose the type if it was not set, then enter the start date and the authorization number.'),
-      s('Complete the restart', 'Select Complete restart. Billing and touchpoints start from the new date.'),
+      s('Submit', 'Select Submit. Billing and touchpoints start from the new date.'),
+    ],
+  },
+  {
+    id: 'undo-restart', section: 'Billing', title: 'Undo a restart', audience: 'admins', minutes: 1,
+    steps: [
+      s('Open the client’s Authorizations', 'Open the client and select Authorizations. Select Undo restart beside the round, or in the Restart pending bar.'),
+      s('Confirm', 'Read what will happen, then select Undo restart. The client goes back to the authorizations and dates from before the restart, and a case that was closed is closed again. Documents filed since are kept. Once a claim from the restart has been filed, it can no longer be undone.'),
     ],
   },
   {
