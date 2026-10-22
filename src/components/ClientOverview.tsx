@@ -25,13 +25,14 @@ import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { formatDay } from '@/lib/dates';
 import { MCO_OPTIONS, addDays, hspDueDateFor } from '@/lib/billing';
 import { NJ_COUNTIES } from '@/lib/clientIntake';
-import { saveClientEdit, type ClientEditValues } from '@/lib/saveClientEdit';
+import { PartialSaveError, saveClientEdit, type ClientEditValues } from '@/lib/saveClientEdit';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
 import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 import { supabase } from '@/integrations/supabase/client';
 import { visibleProfiles } from '@/lib/testAccounts';
 import { caseManagerName as nameOf, fetchActiveCaseManagers } from '@/lib/billingSync';
 import {
+  clearedAuthorizations,
   editAuthorizationDates,
   editAuthorizationNumbers,
 } from '@/lib/clientAuthorizationDates';
@@ -247,6 +248,16 @@ export const ClientOverview: React.FC<{
 
   const save = async () => {
     if (guardWrite()) return onDone?.();
+    // Removing an authorization changes its record, which is an administrator's.
+    const removing = clearedAuthorizations(client, v);
+    if (removing.length && !isAdmin) {
+      toast({
+        title: 'Could not update the client',
+        description: `Only an administrator can remove the ${removing.map((r) => r.label).join(' and ')} authorization date. Put the date back to save your other changes.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setSaving(true);
     try {
       await saveClientEdit(client, v, retrying);
@@ -255,10 +266,13 @@ export const ClientOverview: React.FC<{
       await onSaved?.();
       onDone?.();
     } catch (e) {
-      setRetrying(true);
+      // Only a save that wrote the row and failed afterwards is worth retrying
+      // as it is; anything else needs the form changed first.
+      const partial = e instanceof PartialSaveError;
+      setRetrying(partial);
       toast({
         title: 'Could not update the client',
-        description: `${e instanceof Error ? e.message : String(e)} Your changes may already be saved. Press Update again to retry.`,
+        description: `${e instanceof Error ? e.message : String(e)}${partial ? ' Your changes were saved. Press Update again to finish.' : ''}`,
         variant: 'destructive',
       });
     } finally {

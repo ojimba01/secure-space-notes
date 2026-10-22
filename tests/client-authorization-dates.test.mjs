@@ -43,8 +43,18 @@ test('authorization-only dates populate the edit form and are not cleared on Sav
   assert.equal(form.hsp_150_date, client.auth_150_start);
   assert.deepEqual(api.authorizationDatePatch(client, form), {});
 });
-test('clearing an existing authorization is rejected instead of leaving orphan history', () => {
-  assert.throws(() => api.authorizationDatePatch(original, values({ hsp_150_date: '' })), /cannot be cleared/);
+test('clearing a date removes that authorization from the client and names it', () => {
+  assert.deepEqual(api.authorizationDatePatch(original, values({ hsp_150_date: '' })), {
+    hsp_150_date: null, auth_150_start: null, auth_150_end: null,
+  });
+  assert.deepEqual(api.clearedAuthorizations(original, values({ hsp_150_date: '' })).map((c) => c.type), ['continuation_150']);
+  assert.deepEqual(api.clearedAuthorizations(original, values()), []);
+});
+test('clearing the 180-day date also clears the flag the database would refill it from', () => {
+  const client = { ...original, hsp_180_date: '2026-07-01', auth_180_start: '2026-07-01', auth_180_approved: true };
+  const patch = api.authorizationDatePatch(client, { ...api.editAuthorizationDates(client), hsp_180_date: '' });
+  assert.equal(patch.auth_180_start, null);
+  assert.equal(patch.auth_180_approved, null);
 });
 test('inclusive dates work across leap day and year boundaries', () => {
   assert.equal(api.authorizationDatePatch(original, values({ iat_date: '2024-02-01' })).auth_30_end, '2024-03-01');

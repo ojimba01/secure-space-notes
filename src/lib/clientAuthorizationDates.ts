@@ -19,10 +19,23 @@ const cleanNumber = (raw: string | null | undefined): string =>
 const numberFields = ['auth_30_number', 'auth_150_number', 'auth_180_number'] as const;
 
 const periods = [
-  { field: 'iat_date', start: 'auth_30_start', end: 'auth_30_end', days: 30 },
-  { field: 'hsp_150_date', start: 'auth_150_start', end: 'auth_150_end', days: 150 },
-  { field: 'hsp_180_date', start: 'auth_180_start', end: 'auth_180_end', days: 180 },
+  { field: 'iat_date', start: 'auth_30_start', end: 'auth_30_end', days: 30, type: 'initial_30', phase: 'Initial 30-Day' },
+  { field: 'hsp_150_date', start: 'auth_150_start', end: 'auth_150_end', days: 150, type: 'continuation_150', phase: '150-Day' },
+  { field: 'hsp_180_date', start: 'auth_180_start', end: 'auth_180_end', days: 180, type: 'reauthorization_180', phase: '180-Day' },
 ] as const;
+
+export type ClearedPeriod = { type: (typeof periods)[number]['type']; phase: (typeof periods)[number]['phase']; label: string };
+
+/**
+ * The authorizations whose start date was emptied on the form: the person
+ * saving means to remove a date entered by mistake. saveClientEdit cancels
+ * their history record so nothing is left behind.
+ */
+export function clearedAuthorizations(client: ClientDates, values: ClientDates): ClearedPeriod[] {
+  return periods
+    .filter((p) => !values[p.field] && !!client[p.start])
+    .map((p) => ({ type: p.type, phase: p.phase, label: `${p.days}-day` }));
+}
 
 export function editAuthorizationDates(client: ClientDates) {
   return {
@@ -65,7 +78,7 @@ export function authorizationNumberPatch(client: ClientDates, values: ClientDate
 /** Update the complete period; database triggers only fill missing end dates. */
 export function authorizationDatePatch(client: ClientDates, values: ClientDates) {
   const original = editAuthorizationDates(client);
-  const patch: Record<string, string | null> = {};
+  const patch: Record<string, string | boolean | null> = {};
   for (const period of periods) {
     const next = values[period.field] || '';
     const changed = next !== original[period.field];
@@ -73,12 +86,12 @@ export function authorizationDatePatch(client: ClientDates, values: ClientDates)
     // authorization from a stale HSP field during unrelated edits.
     const missingAuthorization = !!next && !client[period.start];
     if (!changed && !missingAuthorization) continue;
-    if (!next && client[period.start]) {
-      throw new Error('To remove an authorization, update its status in the Authorizations tab. Its start date cannot be cleared here.');
-    }
     patch[period.field] = next || null;
     patch[period.start] = next || null;
     patch[period.end] = next ? addDays(next, period.days - 1) : null;
+    // Otherwise the database fills a cleared 180-day start straight back in
+    // from the 150-day one (set_billing_authorization_dates).
+    if (!next && period.type === 'reauthorization_180') patch.auth_180_approved = null;
   }
   return patch;
 }

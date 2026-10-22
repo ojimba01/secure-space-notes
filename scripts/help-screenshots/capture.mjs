@@ -488,6 +488,10 @@ const SHOTS = {
     { as: 'admin', go: completePending, target: (p) => dialog(p).getByLabel('Start date'), label: 'Start date' },
     { as: 'admin', go: completePending, target: (p) => dialog(p).getByRole('button', { name: 'Submit', exact: true }), label: 'Submit' },
   ],
+  'remove-authorization-date': [
+    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p, 800); }, target: (p) => p.locator('input[type="date"]').nth(3), label: '150-day date' },
+    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p, 800); await p.locator('input[type="date"]').nth(3).fill(''); }, target: (p) => p.getByRole('button', { name: /^Update/ }).first(), label: 'Update client' },
+  ],
   'undo-restart': [
     { as: 'admin', go: (p) => restarted(p, 'Authorizations'), target: (p) => btn(p, 'Undo restart', true), label: 'Undo restart' },
     { as: 'admin', go: async (p) => { await restarted(p, 'Authorizations'); await btn(p, 'Undo restart', true).click(); await wait(p, 800); }, target: (p) => p.getByRole('alertdialog').getByRole('button', { name: 'Undo restart', exact: true }), label: 'Undo restart' },

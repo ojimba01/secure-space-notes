@@ -54,6 +54,13 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
+    id: 'remove-authorization-date', section: 'Clients', title: 'Remove an authorization date entered by mistake', audience: 'admins', minutes: 1,
+    steps: [
+      s('Clear the date', 'Open the client, select Edit, and clear the 30, 150 or 180-day date.'),
+      s('Save', 'Select Update client. The authorization is marked cancelled, and its billing cycles and touchpoints are removed. A date with a filed claim cannot be removed.'),
+    ],
+  },
+  {
     id: 'document-edits', section: 'Clients', title: 'Accept details from documents', audience: 'everyone', minutes: 1,
     steps: [
       s('Open Document edits', 'Open the client and select the Document edits tab. It lists details found in uploaded files.'),

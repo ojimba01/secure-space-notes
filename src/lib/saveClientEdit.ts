@@ -7,7 +7,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { syncAuthorizationsFromLegacyColumns, resyncDerivedSchedules } from '@/lib/authorizations';
 import { regenerateClientCycles } from '@/lib/billingSync';
-import { authorizationDatePatch, authorizationNumberPatch } from '@/lib/clientAuthorizationDates';
+import { authorizationDatePatch, authorizationNumberPatch, clearedAuthorizations } from '@/lib/clientAuthorizationDates';
 import { hspDueDateFor } from '@/lib/billing';
 
 export interface ClientEditValues {
@@ -84,6 +84,8 @@ export async function saveClientEdit(
   retrying = false,
 ): Promise<SaveClientEditResult> {
   const datePatch = authorizationDatePatch(client, data);
+  const cleared = clearedAuthorizations(client, data);
+  if (cleared.length) await refuseIfBilled(client.id, cleared);
   const numberPatch = authorizationNumberPatch(client, data);
   const isUnited = (data.insurance ?? '').toLowerCase().includes('united');
   const derivedHspDue = hspDueDateFor(data.iat_date || client.auth_30_start || null);
@@ -123,6 +125,60 @@ export async function saveClientEdit(
     .single();
 
   if (error) throw new Error(error.message);
+
+  // From here the row is written; a failure is a partial save, and saying so
+  // is what lets the person retry it.
+  try {
+    return await rebuildAfterSave(client, data, datePatch, numberPatch, cleared, retrying);
+  } catch (err) {
+    throw new PartialSaveError(err instanceof Error ? err.message : String(err));
+  }
+}
+
+/** The row was saved; something rebuilt from it was not. Pressing Update again retries. */
+export class PartialSaveError extends Error {
+  readonly partial = true;
+}
+
+/** A date with a filed claim behind it is billing history, and stays. */
+async function refuseIfBilled(clientId: string, cleared: { phase: string; label: string }[]): Promise<void> {
+  const { data: client } = await supabase.from('clients').select('billing_round').eq('id', clientId).maybeSingle();
+  const { data: cycles, error } = await supabase
+    .from('billing_cycles')
+    .select('phase, billing_status, payment_status, claim_number')
+    .eq('client_id', clientId)
+    .eq('round', client?.billing_round ?? 1)
+    .in('phase', cleared.map((c) => c.phase));
+  if (error) throw new Error(error.message);
+  const filed = cleared.find((c) =>
+    (cycles ?? []).some((y) => y.phase === c.phase && (y.billing_status === 'Submitted' || y.payment_status === 'Paid' || !!y.claim_number)),
+  );
+  if (filed) {
+    throw new Error(`A claim has been filed for the ${filed.label} authorization, so its start date can't be cleared.`);
+  }
+}
+
+async function rebuildAfterSave(
+  client: EditableClient,
+  data: ClientEditValues,
+  datePatch: Record<string, unknown>,
+  numberPatch: Record<string, unknown>,
+  cleared: { type: string }[],
+  retrying: boolean,
+): Promise<SaveClientEditResult> {
+  // A cleared date removes that authorization: its record is cancelled rather
+  // than left active with no date on the client.
+  if (cleared.length) {
+    const { data: row } = await supabase.from('clients').select('billing_round').eq('id', client.id).maybeSingle();
+    const { error } = await supabase
+      .from('client_authorizations')
+      .update({ status: 'cancelled' })
+      .eq('client_id', client.id)
+      .eq('round', row?.billing_round ?? 1)
+      .in('authorization_type', cleared.map((c) => c.type) as never)
+      .in('status', ['active', 'pending']);
+    if (error) throw new Error(error.message);
+  }
 
   // A number alone is enough to need the sync: it is what the MCO is billed
   // against, and it lives on the authorization record, not here.
