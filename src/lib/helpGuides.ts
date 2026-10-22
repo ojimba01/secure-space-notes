@@ -57,7 +57,8 @@ export const GUIDES: Guide[] = [
     id: 'remove-authorization-date', section: 'Clients', title: 'Remove an authorization date entered by mistake', audience: 'admins', minutes: 1,
     steps: [
       s('Clear the date', 'Open the client, select Edit, and clear the 30, 150 or 180-day date.'),
-      s('Save', 'Select Update client. The authorization is marked cancelled, and its billing cycles and touchpoints are removed. A date with a filed claim cannot be removed.'),
+      s('Select Update client', 'A message asks whether to remove that authorization. A date with a filed claim cannot be removed.'),
+      s('Remove authorization', 'Select Remove authorization. The date and authorization number are removed, with its billing cycles and touchpoints. It no longer shows on the client, and History keeps a record of it.'),
     ],
   },
   {

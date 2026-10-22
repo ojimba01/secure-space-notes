@@ -491,6 +491,7 @@ const SHOTS = {
   'remove-authorization-date': [
     { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p, 800); }, target: (p) => p.locator('input[type="date"]').nth(3), label: '150-day date' },
     { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p, 800); await p.locator('input[type="date"]').nth(3).fill(''); }, target: (p) => p.getByRole('button', { name: /^Update/ }).first(), label: 'Update client' },
+    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p, 800); await p.locator('input[type="date"]').nth(3).fill(''); await p.getByRole('button', { name: /^Update/ }).first().click(); await wait(p, 800); }, target: (p) => p.getByRole('alertdialog').getByRole('button', { name: 'Remove authorization', exact: true }), label: 'Remove authorization' },
   ],
   'undo-restart': [
     { as: 'admin', go: (p) => restarted(p, 'Authorizations'), target: (p) => btn(p, 'Undo restart', true), label: 'Undo restart' },
