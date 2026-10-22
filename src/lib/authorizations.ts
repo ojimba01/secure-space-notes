@@ -108,11 +108,17 @@ export function statusForPeriod(start: string | null, end: string | null): Autho
   return 'active';
 }
 
+/**
+ * A client's authorizations, without the ones removed (status 'cancelled'):
+ * a date cleared because it was entered by mistake. Those stay in the table
+ * and in Case history, and nowhere else.
+ */
 export async function fetchClientAuthorizations(clientId: string): Promise<ClientAuthorization[]> {
   const { data, error } = await supabase
     .from('client_authorizations')
     .select('*')
     .eq('client_id', clientId)
+    .neq('status', 'cancelled')
     .order('start_date', { ascending: true, nullsFirst: false })
     .order('sequence_number', { ascending: true });
   if (error) throw new Error(error.message);
@@ -468,7 +474,7 @@ export async function syncAuthorizationsFromLegacyColumns(
 
   const { data: existing, error: existingError } = await supabase
     .from('client_authorizations')
-    .select('id, authorization_type, sequence_number')
+    .select('id, authorization_type, sequence_number, status')
     .eq('client_id', clientId)
     .order('sequence_number', { ascending: false });
   if (existingError) throw new Error(existingError.message);
@@ -479,7 +485,10 @@ export async function syncAuthorizationsFromLegacyColumns(
   for (const period of periods) {
     if (!period.start) continue;
     const end = period.end || defaultEndDate(period.type, period.start);
-    const newest = (existing ?? []).find((r) => r.authorization_type === period.type);
+    // A removed authorization is history, not something to fill in again: a
+    // date entered after it starts a new record.
+    const ofType = (existing ?? []).filter((r) => r.authorization_type === period.type);
+    const newest = ofType.find((r) => r.status !== 'cancelled');
 
     if (newest) {
       const { error } = await supabase
@@ -499,7 +508,7 @@ export async function syncAuthorizationsFromLegacyColumns(
       const { error } = await supabase.from('client_authorizations').insert({
         client_id: clientId,
         authorization_type: period.type,
-        sequence_number: 1,
+        sequence_number: (ofType[0]?.sequence_number ?? 0) + 1,
         start_date: period.start,
         end_date: end,
         authorization_number: period.number || null,

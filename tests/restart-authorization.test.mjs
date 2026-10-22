@@ -69,6 +69,7 @@ function fakeDb(rows) {
       delete: () => ((call.op = 'delete'), q),
       eq: (k, v) => (call.filters.push(['eq', k, v]), q),
       in: (k, v) => (call.filters.push(['in', k, v]), q),
+      neq: (k, v) => (call.filters.push(['neq', k, v]), q),
       gte: (k, v) => (call.filters.push(['gte', k, v]), q),
       lt: (k, v) => (call.filters.push(['lt', k, v]), q),
       maybeSingle: () => ((call.single = true), Promise.resolve(result())),

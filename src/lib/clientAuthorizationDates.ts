@@ -19,12 +19,18 @@ const cleanNumber = (raw: string | null | undefined): string =>
 const numberFields = ['auth_30_number', 'auth_150_number', 'auth_180_number'] as const;
 
 const periods = [
-  { field: 'iat_date', start: 'auth_30_start', end: 'auth_30_end', days: 30, type: 'initial_30', phase: 'Initial 30-Day' },
-  { field: 'hsp_150_date', start: 'auth_150_start', end: 'auth_150_end', days: 150, type: 'continuation_150', phase: '150-Day' },
-  { field: 'hsp_180_date', start: 'auth_180_start', end: 'auth_180_end', days: 180, type: 'reauthorization_180', phase: '180-Day' },
+  { field: 'iat_date', start: 'auth_30_start', end: 'auth_30_end', number: 'auth_30_number', days: 30, type: 'initial_30', phase: 'Initial 30-Day' },
+  { field: 'hsp_150_date', start: 'auth_150_start', end: 'auth_150_end', number: 'auth_150_number', days: 150, type: 'continuation_150', phase: '150-Day' },
+  { field: 'hsp_180_date', start: 'auth_180_start', end: 'auth_180_end', number: 'auth_180_number', days: 180, type: 'reauthorization_180', phase: '180-Day' },
 ] as const;
 
-export type ClearedPeriod = { type: (typeof periods)[number]['type']; phase: (typeof periods)[number]['phase']; label: string };
+export type ClearedPeriod = {
+  type: (typeof periods)[number]['type'];
+  phase: (typeof periods)[number]['phase'];
+  /** The form field holding this authorization's number. */
+  numberField: (typeof periods)[number]['number'];
+  label: string;
+};
 
 /**
  * The authorizations whose start date was emptied on the form: the person
@@ -34,7 +40,7 @@ export type ClearedPeriod = { type: (typeof periods)[number]['type']; phase: (ty
 export function clearedAuthorizations(client: ClientDates, values: ClientDates): ClearedPeriod[] {
   return periods
     .filter((p) => !values[p.field] && !!client[p.start])
-    .map((p) => ({ type: p.type, phase: p.phase, label: `${p.days}-day` }));
+    .map((p) => ({ type: p.type, phase: p.phase, numberField: p.number, label: `${p.days}-day` }));
 }
 
 export function editAuthorizationDates(client: ClientDates) {

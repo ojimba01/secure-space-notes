@@ -110,7 +110,7 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
         // Every authorization, earlier rounds included: this is where they stay visible.
         supabase
           .from('client_authorizations')
-          .select('id, created_at, authorization_type, start_date, end_date, restarted_after_days, round')
+          .select('id, created_at, updated_at, status, authorization_type, start_date, end_date, restarted_after_days, round')
           .eq('client_id', clientId),
       ]);
       if (cancelled) return;
@@ -235,9 +235,12 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
         });
       }
 
+      const removed: { id: string; at: string; label: string; period: string | null }[] = [];
       for (const a of (authorizations.data ?? []) as {
         id: string;
         created_at: string;
+        updated_at: string | null;
+        status: string;
         authorization_type: string;
         start_date: string | null;
         end_date: string | null;
@@ -265,6 +268,9 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
           detail: period,
           timed: true,
         });
+        // Removed because its date was entered by mistake: shown here and
+        // nowhere else on the client.
+        if (a.status === 'cancelled') removed.push({ id: a.id, at: a.updated_at ?? a.created_at, label, period });
       }
 
       // Who made each change, by login.
@@ -278,6 +284,32 @@ export const CaseHistory: React.FC<{ clientId: string }> = ({ clientId }) => {
         for (const p of data ?? []) if (p.user_id) people[p.user_id] = personName(p);
       }
       if (cancelled) return;
+
+      for (const r of removed) {
+        // Who removed it: the latest status change on that record, when the
+        // audit trail can be read (administrators).
+        const by = changes.rows
+          .filter((row) => row.table_name === 'client_authorizations' && row.record_id === r.id && (row.changed ?? []).includes('status'))
+          .sort((x, y) => y.created_at.localeCompare(x.created_at))[0];
+        if (by) shown.add(by.id);
+        out.push({
+          id: `auth-removed-${r.id}`,
+          at: by?.created_at ?? r.at,
+          kind: 'authorization',
+          summary: (
+            <>
+              <strong>{r.label}</strong> authorization removed
+              {by ? (
+                <>
+                  {' '}by <strong>{people[by.user_id] ?? 'Unknown'}</strong>
+                </>
+              ) : null}
+            </>
+          ),
+          detail: r.period,
+          timed: true,
+        });
+      }
 
       for (const row of changes.rows) {
         if (shown.has(row.id)) continue;

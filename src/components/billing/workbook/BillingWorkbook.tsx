@@ -327,7 +327,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
   const load = useCallback(async () => {
     const [c, auths, contacts] = await Promise.all([
       supabase.from('clients').select(WB_SELECT).is('deleted_at', null),
-      supabase.from('client_authorizations').select('client_id, authorization_type, sequence_number'),
+      supabase.from('client_authorizations').select('client_id, authorization_type, sequence_number').neq('status', 'cancelled'),
       supabase.from('client_contacts').select('client_id, contact_date').order('contact_date', { ascending: false }).limit(20000),
     ]);
     if (c.error) {

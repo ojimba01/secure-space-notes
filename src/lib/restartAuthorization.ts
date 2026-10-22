@@ -203,7 +203,7 @@ export async function restartAuthorization(input: RestartInput): Promise<{ gap: 
       .select(`billing_round, restart_pending_at, restart_pending_type, ${SNAPSHOT_COLUMNS.join(', ')}`)
       .eq('id', input.clientId)
       .maybeSingle(),
-    supabase.from('client_authorizations').select('id, end_date, status').eq('client_id', input.clientId),
+    supabase.from('client_authorizations').select('id, end_date, status').eq('client_id', input.clientId).neq('status', 'cancelled'),
   ]);
   if (readError) throw new Error(readError.message);
   if (histError) throw new Error(histError.message);

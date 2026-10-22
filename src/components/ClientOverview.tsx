@@ -27,6 +27,16 @@ import { MCO_OPTIONS, addDays, hspDueDateFor } from '@/lib/billing';
 import { NJ_COUNTIES } from '@/lib/clientIntake';
 import { PartialSaveError, saveClientEdit, type ClientEditValues } from '@/lib/saveClientEdit';
 import { CloseCaseDialog } from '@/components/CloseCaseDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { regenerateTouchpointsForClient, regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 import { supabase } from '@/integrations/supabase/client';
 import { visibleProfiles } from '@/lib/testAccounts';
@@ -35,6 +45,7 @@ import {
   clearedAuthorizations,
   editAuthorizationDates,
   editAuthorizationNumbers,
+  type ClearedPeriod,
 } from '@/lib/clientAuthorizationDates';
 
 const REASON_CLOSED_OPTIONS = [
@@ -139,6 +150,9 @@ const Derived: React.FC<{ start?: string | null; days: number }> = ({ start, day
 
 type Values = ClientEditValues;
 
+/** "150-day", "30-day and 150-day". */
+const list = (items: string[]) => items.join(', ').replace(/, ([^,]*)$/, ' and $1');
+
 const initialValues = (c: OverviewClient): Values => ({
   first_name: c.first_name ?? '',
   last_name: c.last_name ?? '',
@@ -179,6 +193,8 @@ export const ClientOverview: React.FC<{
   const [closing, setClosing] = useState(false);
   const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
   const [reassigning, setReassigning] = useState(false);
+  /** Authorizations whose date was cleared, waiting for "remove it" to be confirmed. */
+  const [confirmRemove, setConfirmRemove] = useState<ClearedPeriod[] | null>(null);
 
   // Opening the editor starts from what is on the record now, not from
   // whatever was typed and abandoned last time.
@@ -246,21 +262,29 @@ export const ClientOverview: React.FC<{
   const lock150 = !iatDue || today < iatDue;
   const lock180 = !hsp150Due || today < hsp150Due;
 
-  const save = async () => {
+  const save = async (confirmed = false) => {
     if (guardWrite()) return onDone?.();
     // Removing an authorization changes its record, which is an administrator's.
     const removing = clearedAuthorizations(client, v);
     if (removing.length && !isAdmin) {
       toast({
         title: 'Could not update the client',
-        description: `Only an administrator can remove the ${removing.map((r) => r.label).join(' and ')} authorization date. Put the date back to save your other changes.`,
+        description: `Only an administrator can remove the ${list(removing.map((r) => r.label))} authorization date. Put the date back to save your other changes.`,
         variant: 'destructive',
       });
       return;
     }
+    // A cleared date removes the whole authorization, so ask first.
+    if (removing.length && !confirmed) {
+      setConfirmRemove(removing);
+      return;
+    }
+    // The number goes with the date it belongs to.
+    const values = { ...v };
+    for (const r of removing) values[r.numberField] = '';
     setSaving(true);
     try {
-      await saveClientEdit(client, v, retrying);
+      await saveClientEdit(client, values, retrying);
       setRetrying(false);
       toast({ title: 'Client updated' });
       await onSaved?.();
@@ -332,7 +356,7 @@ export const ClientOverview: React.FC<{
       {editing && (
         <div className="sticky top-0 z-10 flex flex-wrap justify-end gap-2 border-b bg-background pb-3">
           <Button variant="outline" onClick={onDone} disabled={saving}>Cancel</Button>
-          <Button onClick={save} disabled={saving}>
+          <Button onClick={() => save()} disabled={saving}>
             {saving ? 'Updating…' : 'Update client'}
           </Button>
         </div>
@@ -483,6 +507,42 @@ export const ClientOverview: React.FC<{
           </Card>
         )}
       </div>
+
+      <AlertDialog open={!!confirmRemove} onOpenChange={(o) => !o && setConfirmRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Remove the {list((confirmRemove ?? []).map((r) => r.label))} authorization?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                {(confirmRemove ?? [])
+                  .filter((r) => v[r.numberField])
+                  .map((r) => (
+                    <p key={r.type}>
+                      The {r.label} start date was cleared, but authorization number {v[r.numberField]} is still there.
+                    </p>
+                  ))}
+                <p>
+                  Removing it deletes the date and the authorization number, along with its billing cycles and
+                  touchpoints. It stays in History.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go back</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmRemove(null);
+                save(true);
+              }}
+            >
+              Remove authorization
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <CloseCaseDialog
         open={closing}

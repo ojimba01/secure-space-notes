@@ -532,7 +532,7 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {AUTHORIZATION_STATUSES.map((s) => (
+                    {AUTHORIZATION_STATUSES.filter((s) => s !== 'cancelled').map((s) => (
                       <SelectItem key={s} value={s}>
                         {AUTHORIZATION_STATUS_LABEL[s]}
                       </SelectItem>
