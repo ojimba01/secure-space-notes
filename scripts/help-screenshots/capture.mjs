@@ -303,8 +303,9 @@ const SHOTS = {
     { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Reassign', true).click(); await wait(p, 1000); }, target: (p) => dialog(p).getByRole('combobox').first(), label: 'Select the case manager' },
   ],
   'add-client': [
-    { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'Add new client'), label: 'Add new client' },
-    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: 'Enter manually' }), label: 'Enter manually' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'Add new client'), label: 'Add new client' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: 'Enter manually' }), label: 'Enter manually' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); await dialog(p).getByRole('button', { name: 'Enter manually' }).click(); await wait(p, 700); await dialog(p).getByLabel('First Name *').fill('Jordan'); await dialog(p).getByLabel('Last Name *').fill('Ellis'); }, target: (p) => dialog(p).getByRole('button', { name: 'Add Client', exact: true }), label: 'Add Client' },
   ],
 
   upload: [

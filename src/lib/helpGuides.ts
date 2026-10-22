@@ -100,10 +100,11 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
-    id: 'add-client', section: 'Clients', title: 'Add a client', audience: 'admins', minutes: 3,
+    id: 'add-client', section: 'Clients', title: 'Add a client', audience: 'everyone', minutes: 3,
     steps: [
       s('Select Add new client', 'On Clients, select Add new client.'),
       s('Add the details', 'Choose the client’s intake file to fill in their details, or select Enter manually.'),
+      s('Select Add Client', 'A client you add is assigned to you. Admins choose the case manager under Assigned Staff, and can reassign a client later.'),
     ],
   },
 
