@@ -16,6 +16,7 @@ import { syncAuthorizationsFromLegacyColumns, resyncDerivedSchedules } from '@/l
 import { regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 import { MCO_OPTIONS, hspDueDateFor, addDays } from '@/lib/billing';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { FileUp, Loader2 } from 'lucide-react';
 import {
   applyIntake,
@@ -95,6 +96,8 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
   onAddTouchpoint,
 }) => {
   const { user } = useAuth();
+  // Anyone can add a client; staff add to their own caseload, admins choose.
+  const { isAdmin } = useIsAdmin();
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -254,8 +257,9 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         .eq('user_id', user?.id)
         .single();
 
-      const assignedId =
-        data.assigned_employee_id && data.assigned_employee_id !== '__none__'
+      const assignedId = !isAdmin
+        ? profile?.id ?? null
+        : data.assigned_employee_id && data.assigned_employee_id !== '__none__'
           ? data.assigned_employee_id
           : data.assigned_employee_id === '__none__'
             ? null
@@ -551,6 +555,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                 <FormItem><FormLabel>Address</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {isAdmin && (
                 <FormField control={form.control} name="assigned_employee_id" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Assigned Staff</FormLabel>
@@ -564,6 +569,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
                     <FormMessage />
                   </FormItem>
                 )} />
+                )}
                 {isUnited && (
                   <FormField control={form.control} name="mco_housing_manager" render={({ field }) => (
                     <FormItem><FormLabel>MCO Housing Specialist</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
