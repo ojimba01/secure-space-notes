@@ -1209,6 +1209,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             <Button
               onClick={() => handleSubmit(false)}
               disabled={saving || (!numPages && !showReplacementPicker)}
+              className="bg-green-600 text-white hover:bg-green-700"
             >
               <Upload className="h-4 w-4 mr-2" />
               {saving ? 'Saving...' : 'Complete form'}
