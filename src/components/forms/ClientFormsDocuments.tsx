@@ -163,6 +163,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const [uploadFor, setUploadFor] = useState<string | null>(null);
   /** The blank template being filled in, from a checklist row. */
   const [filling, setFilling] = useState<PdfTemplate | null>(null);
+  /** A draft picked up again, to finish and complete. */
+  const [continuing, setContinuing] = useState<DocumentRow | null>(null);
   /** The UHC request being filled in: a new one, or a saved one opened again. */
   const [uhc, setUhc] = useState<UhcExistingForm | 'new' | null>(null);
   /** The client's MCO, which decides whose move-in request they fill in. */
@@ -461,7 +463,9 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         onClick={() =>
           form.form_data
             ? setUhc({ id: form.id, client_id: form.client_id, status: form.status, form_data: form.form_data })
-            : form.file_path &&
+            : !isCompleted(form) && form.file_path
+              ? setContinuing(form)
+              : form.file_path &&
           setPreview({
             id: form.id,
             file_name: form.title || `${form.form_type}.pdf`,
@@ -491,6 +495,12 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         </span>
         {goesToMco(form.form_type) && isCompleted(form) && (
           <McoStep form={form} onSet={setMcoStatus} />
+        )}
+        {/* A draft is unfinished work: the way back into it is right here. */}
+        {!isCompleted(form) && form.file_path && !form.form_data && (
+          <Button size="sm" onClick={() => setContinuing(form)}>
+            Continue
+          </Button>
         )}
         {isAdmin && round > 1 && (
           <select
@@ -764,6 +774,20 @@ export const ClientFormsDocuments: React.FC<Props> = ({
           onClose={() => setFilling(null)}
           onSubmitted={() => {
             setFilling(null);
+            load();
+            onChanged?.();
+          }}
+        />
+      )}
+
+      {continuing && profileId && (
+        <TemplateFillDialog
+          existing={continuing}
+          profileId={profileId}
+          signerName={signerName}
+          onClose={() => setContinuing(null)}
+          onSubmitted={() => {
+            setContinuing(null);
             load();
             onChanged?.();
           }}
