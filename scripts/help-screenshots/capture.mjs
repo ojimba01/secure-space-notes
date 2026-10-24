@@ -337,7 +337,7 @@ const SHOTS = {
   ],
   drafts: [
     { as: 'staff', go: async (p) => { await openClient(p, 'c-2', 'Forms'); await btn(p, 'Begin', true).click(); await wait(p, 4000); }, target: (p) => btn(p, 'Save draft'), label: 'Save draft' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-1', 'Forms'); await text(p, 'Housing Stabilization Plan (HSP)').click(); await wait(p); }, target: (p) => text(p, 'Draft'), label: 'Draft' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-1', 'Forms'); await text(p, 'Housing Stabilization Plan (HSP)').click(); await wait(p); }, target: (p) => btn(p, 'Continue', true), label: 'Continue' },
   ],
   'view-document': [
     { as: 'staff', go: (p) => openClient(p, 'c-1', 'Forms'), target: (p) => text(p, 'Initial Assessment (IAT)').locator('xpath=ancestor::div[contains(@class,"rounded-md")][1]'), label: 'Show documents' },

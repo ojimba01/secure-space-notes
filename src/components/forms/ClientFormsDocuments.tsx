@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Check, ChevronDown, ChevronRight, Download, FileText, Plus, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Clock, Download, FileText, Plus, Upload, X } from 'lucide-react';
 import {
   EXTERNAL_STATUS_LABEL,
   FORM_STATUS_CLASS,
@@ -369,7 +369,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     if (!restartType) return [];
     return (FORMS_FOR_RESTART[restartType] ?? []).map((type) => ({
       type,
-      filed: current.some((f) => f.form_type === type) || manualTicks.has(type),
+      filed: current.some((f) => f.form_type === type && isCompleted(f)) || manualTicks.has(type),
     }));
   }, [restartType, current, manualTicks]);
 
@@ -633,7 +633,9 @@ export const ClientFormsDocuments: React.FC<Props> = ({
               {CHECKLIST_TYPES.map((type) => {
                 const items = byType.get(type) ?? [];
                 const hasDocument = items.length > 0;
-                const ticked = hasDocument || manualTicks.has(type);
+                // A draft is not the form done: only a completed copy ticks it.
+                const hasDraftOnly = hasDocument && !items.some(isCompleted);
+                const ticked = items.some(isCompleted) || manualTicks.has(type);
                 return collapsibleGroup(
                   type,
                   items,
@@ -642,6 +644,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                   // or record that it was done elsewhere.
                   ticked ? (
                     <Check className="h-5 w-5 text-green-600" aria-label="Filed" />
+                  ) : hasDraftOnly ? (
+                    <Clock className="h-5 w-5 text-amber-500" aria-label="Draft, not completed" />
                   ) : (
                     <X className="h-5 w-5 text-destructive" aria-label="Not filed" />
                   ),
@@ -680,7 +684,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                     >
                       <Upload className="h-4 w-4" />
                     </Button>
-                    {!ticked && (
+                    {!ticked && !hasDraftOnly && (
                       <Button variant="ghost" size="sm" onClick={() => markComplete(type)}>
                         Mark as complete
                       </Button>
