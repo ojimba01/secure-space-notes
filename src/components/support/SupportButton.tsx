@@ -51,6 +51,9 @@ import {
 } from '@/lib/support';
 
 /** Longest recording, so a forgotten one does not run on. */
+/** A border dark enough that fields and buttons read as fields and buttons. */
+const FIRM = 'border-foreground/30';
+
 const MAX_RECORDING_MS = 3 * 60_000;
 
 interface Pending {
@@ -71,6 +74,7 @@ export const SupportButton: React.FC = () => {
   const [message, setMessage] = useState('');
   const [pending, setPending] = useState<Pending[]>([]);
   const [sending, setSending] = useState(false);
+  const [askAttach, setAskAttach] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [markup, setMarkup] = useState<HTMLCanvasElement | null>(null);
   const [recording, setRecording] = useState(false);
@@ -243,13 +247,18 @@ export const SupportButton: React.FC = () => {
     }
   };
 
-  const send = async () => {
+  /** asIs: the person chose to send without a screenshot, recording or file. */
+  const send = async (asIs = false) => {
     if (!title.trim()) {
       toast({ title: 'Enter a title', variant: 'destructive' });
       return;
     }
     if (!message.trim()) {
       toast({ title: 'Describe the issue before sending', variant: 'destructive' });
+      return;
+    }
+    if (!pending.length && !asIs) {
+      setAskAttach(true);
       return;
     }
     setSending(true);
@@ -399,6 +408,32 @@ export const SupportButton: React.FC = () => {
         />
       )}
 
+      {/* Nothing attached: a screenshot or file usually shows the problem
+          faster than words, so offer it once before sending. */}
+      <Dialog open={askAttach} onOpenChange={setAskAttach}>
+        <DialogContent className="z-[100] max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Send without an attachment?</DialogTitle>
+            <DialogDescription>
+              A screenshot, screen recording or file helps support see the problem.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              className={FIRM}
+              onClick={() => {
+                setAskAttach(false);
+                void send(true);
+              }}
+            >
+              No, send as is
+            </Button>
+            <Button onClick={() => setAskAttach(false)}>Yes, add an attachment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div data-support-widget className="fixed bottom-4 right-4 z-[90] flex flex-col items-end gap-2">
         {open && (
           <div className="flex max-h-[min(640px,calc(100vh-6rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border bg-background shadow-2xl">
@@ -421,10 +456,10 @@ export const SupportButton: React.FC = () => {
 
             {!viewing && (
               <div className="flex gap-1 border-b px-3 py-2">
-                <Button size="sm" variant={tab === 'new' ? 'default' : 'ghost'} onClick={() => setTab('new')}>
+                <Button size="sm" variant={tab === 'new' ? 'default' : 'outline'} className={tab === 'new' ? '' : FIRM} onClick={() => setTab('new')}>
                   New request
                 </Button>
-                <Button size="sm" variant={tab === 'mine' ? 'default' : 'ghost'} onClick={() => setTab('mine')}>
+                <Button size="sm" variant={tab === 'mine' ? 'default' : 'outline'} className={tab === 'mine' ? '' : FIRM} onClick={() => setTab('mine')}>
                   My requests
                   {unread > 0 && (
                     <span className="ml-1.5 rounded-full bg-red-600 px-1.5 text-[10px] text-white">{unread}</span>
@@ -450,6 +485,7 @@ export const SupportButton: React.FC = () => {
                     placeholder="Title"
                     aria-label="Title"
                     maxLength={100}
+                    className={FIRM}
                   />
                   <Textarea
                     aria-label="Description"
@@ -458,17 +494,18 @@ export const SupportButton: React.FC = () => {
                     placeholder="Describe the issue. What were you trying to do, and what happened?"
                     rows={5}
                     maxLength={4000}
+                    className={FIRM}
                   />
                   <div className="grid grid-cols-3 gap-2">
-                    <Button variant="outline" size="sm" className="h-auto flex-col gap-1 py-2" onClick={() => void screenshot()} disabled={capturing}>
+                    <Button variant="outline" size="sm" className={`h-auto flex-col gap-1 py-2 shadow-sm ${FIRM}`} onClick={() => void screenshot()} disabled={capturing}>
                       {capturing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                       <span className="text-xs">Screenshot</span>
                     </Button>
-                    <Button variant="outline" size="sm" className="h-auto flex-col gap-1 py-2" onClick={() => void startRecording()}>
+                    <Button variant="outline" size="sm" className={`h-auto flex-col gap-1 py-2 shadow-sm ${FIRM}`} onClick={() => void startRecording()}>
                       <Video className="h-4 w-4" />
                       <span className="text-xs">Record screen</span>
                     </Button>
-                    <Button variant="outline" size="sm" className="h-auto flex-col gap-1 py-2" onClick={() => fileInput.current?.click()}>
+                    <Button variant="outline" size="sm" className={`h-auto flex-col gap-1 py-2 shadow-sm ${FIRM}`} onClick={() => fileInput.current?.click()}>
                       <Paperclip className="h-4 w-4" />
                       <span className="text-xs">Attach file</span>
                     </Button>

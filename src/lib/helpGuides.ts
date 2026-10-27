@@ -466,6 +466,7 @@ export const GUIDES: Guide[] = [
       s('Describe the problem', 'Enter a short title, then describe what you were trying to do and what happened.'),
       s('Show the problem', 'Select Screenshot to circle the problem on the page, Record screen to record up to 3 minutes, or Attach file.'),
       s('Send it', 'Select Send to support. Your requests are listed by title under My requests, where replies also appear.'),
+      s('Add an attachment or send as is', 'If nothing is attached, you are asked first. Select Yes, add an attachment to go back to your request, or No, send as is.'),
     ],
   },  {
     id: 'support-reply', section: 'Getting started', title: 'Read a reply from support', audience: 'everyone', minutes: 1,

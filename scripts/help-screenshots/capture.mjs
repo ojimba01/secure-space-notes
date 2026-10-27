@@ -267,6 +267,7 @@ const SHOTS = {
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Support', true).click(); await p.getByLabel('Title').fill('Upload button does nothing'); }, target: (p) => p.getByLabel('Title'), label: 'Title and description' },
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Support', true).click(); }, target: (p) => btn(p, 'Screenshot'), label: 'Screenshot' },
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Support', true).click(); await p.getByLabel('Title').fill('Upload button does nothing'); await p.locator('textarea').last().fill('The Upload documents button does nothing on Dana Whitfield’s Forms tab.'); }, target: (p) => btn(p, 'Send to support'), label: 'Send to support' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Support', true).click(); await p.getByLabel('Title').fill('Upload button does nothing'); await p.locator('textarea').last().fill('The Upload documents button does nothing on Dana Whitfield’s Forms tab.'); await btn(p, 'Send to support').click(); await wait(p, 500); }, target: (p) => btn(p, 'Yes, add an attachment'), label: 'Yes, add an attachment' },
   ],
 
   'find-client': [
