@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
@@ -627,6 +627,7 @@ export type Database = {
           id: string
           marked_at: string
           marked_by: string | null
+          round: number
         }
         Insert: {
           client_id: string
@@ -634,6 +635,7 @@ export type Database = {
           id?: string
           marked_at?: string
           marked_by?: string | null
+          round?: number
         }
         Update: {
           client_id?: string
@@ -641,6 +643,7 @@ export type Database = {
           id?: string
           marked_at?: string
           marked_by?: string | null
+          round?: number
         }
         Relationships: [
           {
@@ -744,9 +747,8 @@ export type Database = {
           file_hash: string | null
           file_path: string | null
           file_size: number | null
-          form_type: string
-          round: number
           form_data: Json | null
+          form_type: string
           id: string
           import_batch_id: string | null
           mco_response_at: string | null
@@ -759,6 +761,7 @@ export type Database = {
           processing_started_at: string | null
           processing_status: string
           review_note: string | null
+          round: number
           sent_to_mco_at: string | null
           signature_name: string | null
           signed_at: string | null
@@ -801,9 +804,8 @@ export type Database = {
           file_hash?: string | null
           file_path?: string | null
           file_size?: number | null
-          form_type: string
-          round?: number
           form_data?: Json | null
+          form_type: string
           id?: string
           import_batch_id?: string | null
           mco_response_at?: string | null
@@ -816,6 +818,7 @@ export type Database = {
           processing_started_at?: string | null
           processing_status?: string
           review_note?: string | null
+          round?: number
           sent_to_mco_at?: string | null
           signature_name?: string | null
           signed_at?: string | null
@@ -858,9 +861,8 @@ export type Database = {
           file_hash?: string | null
           file_path?: string | null
           file_size?: number | null
-          form_type?: string
-          round?: number
           form_data?: Json | null
+          form_type?: string
           id?: string
           import_batch_id?: string | null
           mco_response_at?: string | null
@@ -873,6 +875,7 @@ export type Database = {
           processing_started_at?: string | null
           processing_status?: string
           review_note?: string | null
+          round?: number
           sent_to_mco_at?: string | null
           signature_name?: string | null
           signed_at?: string | null
@@ -1520,11 +1523,11 @@ export type Database = {
           deleted_at: string | null
           diagnosis_code: string | null
           email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           field_sources: Json | null
           first_name: string
           household_size: number | null
-          emergency_contact_name: string | null
-          emergency_contact_phone: string | null
           housing_stabilization_plan_date: string | null
           hsp_150_date: string | null
           hsp_180_date: string | null
@@ -1558,14 +1561,14 @@ export type Database = {
           realtor_email: string | null
           realtor_name: string | null
           realtor_phone: string | null
-          restart_pending_at: string | null
-          restart_pending_type: string | null
-          restart_undo: Json | null
           reason_closed: string | null
           referral_channel: string | null
           referral_received_date: string | null
           referral_source: string | null
           referred_by: string | null
+          restart_pending_at: string | null
+          restart_pending_type: string | null
+          restart_undo: Json | null
           service_type: string | null
           status: string | null
           subscriber_relationship: string | null
@@ -1599,11 +1602,11 @@ export type Database = {
           deleted_at?: string | null
           diagnosis_code?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           field_sources?: Json | null
           first_name: string
           household_size?: number | null
-          emergency_contact_name?: string | null
-          emergency_contact_phone?: string | null
           housing_stabilization_plan_date?: string | null
           hsp_150_date?: string | null
           hsp_180_date?: string | null
@@ -1637,14 +1640,14 @@ export type Database = {
           realtor_email?: string | null
           realtor_name?: string | null
           realtor_phone?: string | null
-          restart_pending_at?: string | null
-          restart_pending_type?: string | null
-          restart_undo?: Json | null
           reason_closed?: string | null
           referral_channel?: string | null
           referral_received_date?: string | null
           referral_source?: string | null
           referred_by?: string | null
+          restart_pending_at?: string | null
+          restart_pending_type?: string | null
+          restart_undo?: Json | null
           service_type?: string | null
           status?: string | null
           subscriber_relationship?: string | null
@@ -1678,11 +1681,11 @@ export type Database = {
           deleted_at?: string | null
           diagnosis_code?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           field_sources?: Json | null
           first_name?: string
           household_size?: number | null
-          emergency_contact_name?: string | null
-          emergency_contact_phone?: string | null
           housing_stabilization_plan_date?: string | null
           hsp_150_date?: string | null
           hsp_180_date?: string | null
@@ -1716,14 +1719,14 @@ export type Database = {
           realtor_email?: string | null
           realtor_name?: string | null
           realtor_phone?: string | null
-          restart_pending_at?: string | null
-          restart_pending_type?: string | null
-          restart_undo?: Json | null
           reason_closed?: string | null
           referral_channel?: string | null
           referral_received_date?: string | null
           referral_source?: string | null
           referred_by?: string | null
+          restart_pending_at?: string | null
+          restart_pending_type?: string | null
+          restart_undo?: Json | null
           service_type?: string | null
           status?: string | null
           subscriber_relationship?: string | null
@@ -1737,6 +1740,126 @@ export type Database = {
             columns: ["assigned_employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clinical_notes: {
+        Row: {
+          backlog_cycle: number | null
+          backlog_extension: boolean
+          backlog_start: string | null
+          barriers: Json
+          client_id: string | null
+          client_label: string | null
+          consumer_response: Json
+          contact_date: string | null
+          contact_id: string | null
+          contact_method: string | null
+          created_at: string
+          created_by: string
+          duration_minutes: number | null
+          face_to_face: boolean | null
+          final_narrative: string | null
+          free_text: string | null
+          generated_narrative: string | null
+          generator: string | null
+          id: string
+          interventions: Json
+          location: string | null
+          next_actions: Json | null
+          njhmis_note_id: string | null
+          outcome: Json | null
+          primary_topic: string | null
+          progress_note_type: string | null
+          reviewed_at: string | null
+          secondary_topics: string[]
+          selections: Json
+          service_type: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          backlog_cycle?: number | null
+          backlog_extension?: boolean
+          backlog_start?: string | null
+          barriers?: Json
+          client_id?: string | null
+          client_label?: string | null
+          consumer_response?: Json
+          contact_date?: string | null
+          contact_id?: string | null
+          contact_method?: string | null
+          created_at?: string
+          created_by?: string
+          duration_minutes?: number | null
+          face_to_face?: boolean | null
+          final_narrative?: string | null
+          free_text?: string | null
+          generated_narrative?: string | null
+          generator?: string | null
+          id?: string
+          interventions?: Json
+          location?: string | null
+          next_actions?: Json | null
+          njhmis_note_id?: string | null
+          outcome?: Json | null
+          primary_topic?: string | null
+          progress_note_type?: string | null
+          reviewed_at?: string | null
+          secondary_topics?: string[]
+          selections?: Json
+          service_type?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          backlog_cycle?: number | null
+          backlog_extension?: boolean
+          backlog_start?: string | null
+          barriers?: Json
+          client_id?: string | null
+          client_label?: string | null
+          consumer_response?: Json
+          contact_date?: string | null
+          contact_id?: string | null
+          contact_method?: string | null
+          created_at?: string
+          created_by?: string
+          duration_minutes?: number | null
+          face_to_face?: boolean | null
+          final_narrative?: string | null
+          free_text?: string | null
+          generated_narrative?: string | null
+          generator?: string | null
+          id?: string
+          interventions?: Json
+          location?: string | null
+          next_actions?: Json | null
+          njhmis_note_id?: string | null
+          outcome?: Json | null
+          primary_topic?: string | null
+          progress_note_type?: string | null
+          reviewed_at?: string | null
+          secondary_topics?: string[]
+          selections?: Json
+          service_type?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinical_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinical_notes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -1812,6 +1935,35 @@ export type Database = {
           value?: Json
         }
         Relationships: []
+      }
+      display_settings: {
+        Row: {
+          profile_id: string
+          text_scale: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          profile_id: string
+          text_scale?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          profile_id?: string
+          text_scale?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "display_settings_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_import_batches: {
         Row: {
@@ -2356,6 +2508,8 @@ export type Database = {
           attachments: Json
           created_at: string
           created_by: string
+          email_result: string | null
+          email_result_at: string | null
           id: string
           last_support_reply_at: string | null
           message: string
@@ -2372,6 +2526,8 @@ export type Database = {
           attachments?: Json
           created_at?: string
           created_by?: string
+          email_result?: string | null
+          email_result_at?: string | null
           id?: string
           last_support_reply_at?: string | null
           message: string
@@ -2388,6 +2544,8 @@ export type Database = {
           attachments?: Json
           created_at?: string
           created_by?: string
+          email_result?: string | null
+          email_result_at?: string | null
           id?: string
           last_support_reply_at?: string | null
           message?: string
@@ -2613,6 +2771,10 @@ export type Database = {
         Returns: undefined
       }
       deactivate_user: { Args: { _profile_id: string }; Returns: undefined }
+      filed_claim_phase: {
+        Args: { p_client_id: string; p_phases: string[] }
+        Returns: string
+      }
       form_type_hidden_from_staff: {
         Args: { _form_type: string }
         Returns: boolean
