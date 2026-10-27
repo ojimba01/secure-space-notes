@@ -1,9 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "mcp__Lovable__query_database",
-      "mcp__Lovable__get_project",
-      "mcp__Lovable__deploy_project"
+      "mcp__Lovable",
+      "mcp__github",
+      "Bash(git:*)",
+      "Bash(npx vite:*)",
+      "Bash(node scripts/help-screenshots/capture.mjs:*)"
     ]
   }
 }
