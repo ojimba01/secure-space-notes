@@ -58,3 +58,36 @@ guides, and superadmins also get the filter buttons.
 - Publish every change: after pushing to the branch and main, wait for Lovable
   to pick up the commit, then publish the site (the live site does not update
   on push).
+
+## Publishing and the database
+
+- Lovable project id: `dfe26a11-7914-4271-82b1-43eef04b67c5` (live site
+  scmclinicalnotes.com). To publish: merge `origin/main`, push to the working
+  branch and to `main`, wait about 80 seconds, check with `get_project` that
+  `latest_commit_sha` is the pushed commit, then `deploy_project`.
+- Fix errors first: when staff are blocked, publish the fix on its own, then
+  do the Help guide text and screenshots in a second push.
+- Database changes are run on the live database with `query_database` (test
+  them first inside a `do $$ … raise exception $$` block so they roll back,
+  as the affected role: `set local role authenticated` plus
+  `request.jwt.claims`), and each is saved in `supabase/migrations/`.
+
+## Agency rules learned so far
+
+- A blank level of need is Low Level (`effectiveLevel` in `src/lib/billing.ts`;
+  the database rate function agrees). Only an unrecognised value is missing.
+- Any staff member can add a client; a client a staff member adds is assigned
+  to them. Staff can add and edit authorizations for their own clients.
+  Restart and undo restart, deleting clients and editing names stay with
+  admins.
+- One touchpoint (an in-person visit) is owed per 30-day cycle. Suggested
+  touchpoints are spread across the cycle with a stable per-client day
+  (`src/lib/touchpoints.ts`); they must not pile onto the next few days.
+- Closing a case removes it from billing, the calendar and every dashboard;
+  `close_case` also deletes its not-yet-done touchpoints.
+- A removed authorization (status `cancelled`) is hidden everywhere except
+  Case history; never show the word "Cancelled" to staff.
+- Support: replies pop up for the requester as they happen; resolved requests
+  show a banner with Refresh. Support emails come from the `support-notify`
+  edge function through Resend (`RESEND_API_KEY`; `SUPPORT_FROM` for a
+  verified sender, since Resend's test sender only reaches the account owner).
