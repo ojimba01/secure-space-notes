@@ -85,7 +85,11 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
   const { isAdmin } = useIsAdmin();
   const { isViewingAs } = useViewAs();
   const profileId = useEffectiveProfileId();
-  const canEdit = isAdmin && !isViewingAs;
+  // Anyone can record and correct the authorizations of a client they can
+  // see (the database limits staff to their own clients). Restarting, and
+  // undoing a restart, rewrite billing and stay with administrators.
+  const canEdit = !isViewingAs;
+  const canRestart = isAdmin && !isViewingAs;
 
   const [rows, setRows] = useState<ClientAuthorization[]>([]);
   const [loading, setLoading] = useState(true);
@@ -342,7 +346,7 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
           </CardTitle>
           {canEdit && (
             <div className="flex flex-wrap gap-2">
-              {!pending && endedSince === null && (
+              {canRestart && !pending && endedSince === null && (
                 <Button size="sm" variant="outline" onClick={() => setRestarting(true)}>
                   <RotateCcw className="mr-2 h-4 w-4" />
                   Restart authorization
@@ -361,7 +365,7 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
               Restart pending since {formatAuthDate(pending.since.slice(0, 10))}
               {pending.type ? ` · ${AUTHORIZATION_TYPE_LABEL[pending.type] ?? pending.type}` : ''}. Billing and touchpoints wait for the start date.
             </span>
-            {canEdit && (
+            {canRestart && (
               <div className="ml-auto flex gap-2">
                 {canUndo && <UndoRestartButton clientId={clientId} clientName={clientName ?? 'This client'} onUndone={undone} />}
                 <Button size="sm" onClick={() => setRestarting(true)}>
@@ -374,7 +378,7 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
         {/* A client who went quiet and came back gets a new authorization, not
             an edit to the old one: the old one really happened and its dates
             are what was billed. See lib/restartAuthorization. */}
-        {canEdit && endedSince !== null && (
+        {canRestart && endedSince !== null && (
           <div className="flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
             <span>
               The last authorization ended {endedSince} {endedSince === 1 ? 'day' : 'days'} ago.
@@ -397,7 +401,7 @@ export const AuthorizationsSection: React.FC<Props> = ({ clientId, clientName, o
             {round > 1 && (
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold text-muted-foreground">Round {round}</p>
-                {canEdit && canUndo && !pending && (
+                {canRestart && canUndo && !pending && (
                   <UndoRestartButton clientId={clientId} clientName={clientName ?? 'This client'} onUndone={undone} />
                 )}
               </div>

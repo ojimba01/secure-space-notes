@@ -62,18 +62,72 @@ interface TouchpointClient {
 const CLIENT_COLUMNS =
   'id, first_name, last_name, status, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, auth_180_start, hsp_150_date, assigned_employee_id';
 
-// Choose N evenly-spread dates inside [from, to], avoiding `used` days and keeping
-// at least MIN_SPACING_DAYS apart when the window is roomy enough.
-function pickDates(from: string, to: string, count: number, used: Set<string>, seed: number): string[] {
+/** Days kept clear at the end of a roomy cycle, for catching up on a missed visit. */
+const END_BUFFER_DAYS = 3;
+
+/**
+ * A stable number for a client, so the same client always lands on the same
+ * part of their cycle however the schedule was rebuilt (one client saved, a
+ * whole caseload reloaded).
+ */
+export function seedForClient(clientId: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < clientId.length; i++) {
+    h ^= clientId.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** Spread seeds evenly over [0, 1): neighbouring seeds land far apart. */
+const fraction = (seed: number) => (seed * 0.6180339887498949) % 1;
+/**
+ * A second, unrelated spread for catching up. Reusing the first would put the
+ * visits planned earliest in their cycle (the ones most likely to be missed)
+ * first in the catch-up week too, all on the same couple of days.
+ */
+const catchUpFraction = (seed: number) => ((seed >>> 7) * 0.7548776662466927) % 1;
+
+/**
+ * Choose N dates for a cycle, avoiding `used` days and keeping at least
+ * MIN_SPACING_DAYS apart when the cycle is roomy enough.
+ *
+ * Each date is planned against the whole cycle, not against today, so it stays
+ * on the same day each time the schedule is rebuilt; the client's seed decides
+ * where in its share of the cycle it falls, which spreads a caseload across the
+ * month instead of stacking everybody on the next few days. Only a date whose
+ * planned day has already gone by is moved, and those are spread over the
+ * coming week. The last days of a roomy cycle are left free for catching up.
+ */
+function pickDates(
+  cycleStart: string,
+  from: string,
+  to: string,
+  count: number,
+  used: Set<string>,
+  seed: number,
+): string[] {
   if (count <= 0) return [];
   const span = Math.max(0, daysBetween(from, to));
+  const cycleLen = daysBetween(cycleStart, to);
+  const lastPlanned = cycleLen >= 14 ? addDays(to, -END_BUFFER_DAYS) : to;
+  const plannedLen = Math.max(0, daysBetween(cycleStart, lastPlanned));
+  const share = plannedLen / count;
+  const offset = fraction(seed);
   const picked: string[] = [];
-  const idealGap = count > 1 ? span / count : 0;
-  const enforceSpacing = idealGap >= MIN_SPACING_DAYS;
+  const enforceSpacing = span / count >= MIN_SPACING_DAYS;
 
   for (let i = 0; i < count; i++) {
-    // base target evenly across the window, nudged by seed to stagger caseloads
-    let target = addDays(from, Math.round(idealGap * (i + 0.5)) + (seed % 3));
+    let target = addDays(cycleStart, Math.floor(share * (i + offset)));
+    if (daysBetween(from, target) < 0) {
+      // Its day has passed without a visit. It goes to this client's own
+      // weekday (Monday to Friday, fixed per client), the next one from today:
+      // within the week, spread across the caseload, and on the same day each
+      // time the schedule is rebuilt rather than sliding along day by day.
+      const weekday = 1 + Math.floor(catchUpFraction(seed) * 5);
+      const todayDow = toDate(from).getUTCDay();
+      target = addDays(from, (weekday - todayDow + 7) % 7);
+    }
     if (daysBetween(target, to) < 0) target = to;
     if (daysBetween(from, target) < 0) target = from;
 
@@ -173,7 +227,7 @@ export function generateTouchpointDates(
   const from = daysBetween(window.start, floor) > 0 ? floor : window.start;
   const to = window.end;
   if (daysBetween(from, to) < 0) return []; // cycle already closed
-  const dates = pickDates(from, to, toSchedule, new Set(usedDays), seed);
+  const dates = pickDates(window.start, from, to, toSchedule, new Set(usedDays), seed);
 
   const usedTypes = new Set<string>([
     ...loggedTypes.filter(Boolean),
@@ -302,7 +356,7 @@ export async function regenerateTouchpointsForClient(clientId: string): Promise<
   const goLive = await goLiveDate();
   const ctx = await loadContext(client as TouchpointClient);
   if (!ctx.window) return;
-  await insertTouchpoints(client as TouchpointClient, 0, ctx.window, ctx.contacts, ctx.events, goLive);
+  await insertTouchpoints(client as TouchpointClient, seedForClient(clientId), ctx.window, ctx.contacts, ctx.events, goLive);
 }
 
 export async function regenerateTouchpointsForStaff(employeeId: string | null | undefined): Promise<void> {
@@ -318,12 +372,10 @@ export async function regenerateTouchpointsForStaff(employeeId: string | null | 
 
   const list = (clients as TouchpointClient[] | null) ?? [];
   const goLive = await goLiveDate();
-  let seed = 0;
   for (const c of list) {
     const ctx = await loadContext(c);
     if (!ctx.window) continue;
-    await insertTouchpoints(c, seed, ctx.window, ctx.contacts, ctx.events, goLive);
-    seed += 1;
+    await insertTouchpoints(c, seedForClient(c.id), ctx.window, ctx.contacts, ctx.events, goLive);
   }
 }
 

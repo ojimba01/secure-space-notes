@@ -14,7 +14,7 @@ const bundle = await build({
     b.onResolve({ filter: /lib\/(billingSync|touchpoints)$/ }, () => ({ path: 'sched', namespace: 'stub' }));
     b.onLoad({ filter: /.*/, namespace: 'stub' }, ({ path }) => ({
       contents: path === 'db'
-        ? 'export const supabase = { from: (t) => globalThis.__db.from(t), rpc: async () => ({ error: null }) };'
+        ? 'export const supabase = { from: (t) => globalThis.__db.from(t), rpc: async (fn, args) => globalThis.__db.rpc(fn, args) };'
         : 'export const regenerateClientCycles = async () => {}; export const regenerateTouchpointsForClient = async () => {};',
       loader: 'js',
     }));
@@ -25,6 +25,11 @@ const api = await import(`data:text/javascript;base64,${Buffer.from(bundle.outpu
 /** Records every query; reads answer from `rows`. */
 function fakeDb(rows) {
   const db = { calls: [] };
+  // The filed-claim check: answers with the phase in rows.filedPhase, if any.
+  db.rpc = async (fn, args) => {
+    db.calls.push({ table: `rpc:${fn}`, op: 'rpc', payload: args, filters: [] });
+    return { data: rows.filedPhase ?? null, error: null };
+  };
   db.from = (table) => {
     const call = { table, op: 'select', payload: null, filters: [] };
     db.calls.push(call);
@@ -65,9 +70,10 @@ test('clearing the 150-day date saves and cancels its authorization record', asy
 });
 
 test('a date with a filed claim is not cleared, and nothing is written', async () => {
-  const db = fakeDb({ clients: [{ billing_round: 1 }], billing_cycles: [{ phase: '150-Day', billing_status: 'Submitted' }] });
+  const db = fakeDb({ clients: [{ billing_round: 1 }], filedPhase: '150-Day' });
   await assert.rejects(api.saveClientEdit(client, form), (e) => /claim has been filed for the 150-day/.test(e.message) && !(e instanceof api.PartialSaveError));
   assert.equal(db.calls.some((c) => c.op === 'update'), false);
+  assert.deepEqual(db.calls.find((c) => c.op === 'rpc').payload, { p_client_id: 'c1', p_phases: ['150-Day'] });
 });
 
 test('an ordinary edit touches no authorization record', async () => {

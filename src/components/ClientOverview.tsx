@@ -264,16 +264,7 @@ export const ClientOverview: React.FC<{
 
   const save = async (confirmed = false) => {
     if (guardWrite()) return onDone?.();
-    // Removing an authorization changes its record, which is an administrator's.
     const removing = clearedAuthorizations(client, v);
-    if (removing.length && !isAdmin) {
-      toast({
-        title: 'Could not update the client',
-        description: `Only an administrator can remove the ${list(removing.map((r) => r.label))} authorization date. Put the date back to save your other changes.`,
-        variant: 'destructive',
-      });
-      return;
-    }
     // A cleared date removes the whole authorization, so ask first.
     if (removing.length && !confirmed) {
       setConfirmRemove(removing);

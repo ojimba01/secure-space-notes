@@ -140,19 +140,17 @@ export class PartialSaveError extends Error {
   readonly partial = true;
 }
 
-/** A date with a filed claim behind it is billing history, and stays. */
+/**
+ * A date with a filed claim behind it is billing history, and stays. Asked of
+ * the database, which can see the claims whoever is saving (case managers
+ * cannot read billing themselves).
+ */
 async function refuseIfBilled(clientId: string, cleared: { phase: string; label: string }[]): Promise<void> {
-  const { data: client } = await supabase.from('clients').select('billing_round').eq('id', clientId).maybeSingle();
-  const { data: cycles, error } = await supabase
-    .from('billing_cycles')
-    .select('phase, billing_status, payment_status, claim_number')
-    .eq('client_id', clientId)
-    .eq('round', client?.billing_round ?? 1)
-    .in('phase', cleared.map((c) => c.phase));
+  const { data, error } = await (supabase as unknown as {
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: string | null; error: { message: string } | null }>;
+  }).rpc('filed_claim_phase', { p_client_id: clientId, p_phases: cleared.map((c) => c.phase) });
   if (error) throw new Error(error.message);
-  const filed = cleared.find((c) =>
-    (cycles ?? []).some((y) => y.phase === c.phase && (y.billing_status === 'Submitted' || y.payment_status === 'Paid' || !!y.claim_number)),
-  );
+  const filed = cleared.find((c) => c.phase === data);
   if (filed) {
     throw new Error(`A claim has been filed for the ${filed.label} authorization, so its start date can't be cleared.`);
   }
