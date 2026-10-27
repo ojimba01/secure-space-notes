@@ -416,6 +416,10 @@ const SHOTS = {
     { as: 'staff', go: (p) => openClient(p, 'c-1', 'Authorizations'), target: (p) => btn(p, 'Add authorization', true), label: 'Add authorization' },
     { as: 'staff', go: async (p) => { await openClient(p, 'c-1', 'Authorizations'); await btn(p, 'Add authorization', true).click(); await wait(p, 900); }, target: (p) => dialog(p), label: 'Type, dates and number' },
   ],
+  'support-reply': [
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 3000); }, target: (p) => p.getByRole('dialog').getByRole('button', { name: 'Open message', exact: true }), label: 'Open message' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 3000); await p.getByRole('dialog').getByRole('button', { name: 'Later', exact: true }).click(); await wait(p, 1200); }, target: (p) => p.getByRole('button', { name: 'Refresh', exact: true }), label: 'Refresh' },
+  ],
   'add-event': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=calendar`), target: (p) => btn(p, 'Add Event'), label: 'Add Event' },
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=calendar`); await wait(p, 2000); await btn(p, 'Add Event').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: 'Add Event' }), label: 'Add Event' },
@@ -568,6 +572,16 @@ for (const [id, steps] of Object.entries(SHOTS)) {
   for (let i = 0; i < steps.length; i++) {
     const shot = steps[i];
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 760 } });
+    // The sample data carries an unread support reply and a resolved request,
+    // whose pop-up and banner would sit over every other screenshot.
+    if (id !== 'support-reply') {
+      await ctx.addInitScript(() => {
+        const get = Storage.prototype.getItem;
+        Storage.prototype.getItem = function (k) {
+          return String(k).startsWith('support-notice-') ? '1' : get.call(this, k);
+        };
+      });
+    }
     const p = await ctx.newPage();
     p.setDefaultTimeout(8000);
     // The first page load decides who is signed in (see mock/supabase.ts).

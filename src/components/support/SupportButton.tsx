@@ -9,14 +9,26 @@ import { format } from 'date-fns';
 import {
   ArrowLeft,
   Camera,
+  CheckCircle2,
   CircleHelp,
   Loader2,
+  MessageCircle,
   Paperclip,
+  RefreshCw,
   Square,
   Video,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +37,8 @@ import { ScreenshotMarkup } from '@/components/support/ScreenshotMarkup';
 import { TicketThread } from '@/components/support/TicketThread';
 import {
   hasNewReply,
+  newlyResolved,
+  loadMessages,
   loadMyTickets,
   markSeen,
   openTicket,
@@ -81,12 +95,77 @@ export const SupportButton: React.FC = () => {
     return () => window.removeEventListener('open-support', show);
   }, []);
 
-  // Look for replies on load and every few minutes, for the dot on the button.
+  // Look for replies on load, the moment support replies or changes a request
+  // (the database pushes it), and every minute in case that push is missed.
   useEffect(() => {
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 3 * 60_000);
-    return () => window.clearInterval(timer);
-  }, [refresh]);
+    const timer = window.setInterval(() => void refresh(), 60_000);
+    if (!user) return () => window.clearInterval(timer);
+    const channel = supabase
+      .channel(`support-tickets-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'support_tickets', filter: `created_by=eq.${user.id}` },
+        () => void refresh(),
+      )
+      .subscribe();
+    return () => {
+      window.clearInterval(timer);
+      void supabase.removeChannel(channel);
+    };
+  }, [refresh, user]);
+
+  /**
+   * What to put in front of the person: a reply from support as a pop-up in
+   * the middle of the screen, a resolved request as a banner. Each shows once:
+   * opening it marks it read, and Later / the X remembers it was shown.
+   */
+  const [replyNotice, setReplyNotice] = useState<{ ticket: Ticket; preview: string } | null>(null);
+  const [resolvedNotice, setResolvedNotice] = useState<Ticket | null>(null);
+  const shownKey = (kind: string, t: Ticket, at: string | null | undefined) => `support-notice-${kind}-${t.id}-${at ?? ''}`;
+  const wasShown = (key: string) => {
+    try {
+      return !!localStorage.getItem(key);
+    } catch {
+      return false;
+    }
+  };
+  const remember = (key: string) => {
+    try {
+      localStorage.setItem(key, '1');
+    } catch {
+      // Nothing to remember it in; it may show again next time.
+    }
+  };
+
+  useEffect(() => {
+    if (replyNotice || open) return;
+    const t = tickets.find((x) => hasNewReply(x) && !wasShown(shownKey('reply', x, x.last_support_reply_at)));
+    if (!t) return;
+    let cancelled = false;
+    (async () => {
+      const msgs = await loadMessages(t.id);
+      const last = [...msgs].reverse().find((m) => m.from_support);
+      if (!cancelled) setReplyNotice({ ticket: t, preview: last?.body ?? '' });
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tickets, open]);
+
+  useEffect(() => {
+    if (resolvedNotice) return;
+    const t = tickets.find((x) => newlyResolved(x) && !wasShown(shownKey('resolved', x, x.resolved_at)));
+    if (t) setResolvedNotice(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tickets]);
+
+  const openFromNotice = (t: Ticket) => {
+    setTab('mine');
+    setOpen(true);
+    openTicketView(t);
+  };
 
   if (!user || pathname.startsWith('/auth') || pathname.startsWith('/reset-password')) return null;
 
@@ -200,11 +279,109 @@ export const SupportButton: React.FC = () => {
 
   const openTicketView = (t: Ticket) => {
     setViewing(t);
-    if (hasNewReply(t)) void markSeen(t.id).then(refresh);
+    if (hasNewReply(t) || newlyResolved(t)) void markSeen(t.id).then(refresh);
   };
 
   return (
     <>
+      {/* A reply from support: in the middle of the screen, so it is seen. */}
+      <Dialog
+        open={!!replyNotice}
+        onOpenChange={(o) => {
+          if (!o && replyNotice) {
+            remember(shownKey('reply', replyNotice.ticket, replyNotice.ticket.last_support_reply_at));
+            setReplyNotice(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              Support just sent you a message
+            </DialogTitle>
+            <DialogDescription>About: {replyNotice ? ticketTitle(replyNotice.ticket) : ''}</DialogDescription>
+          </DialogHeader>
+          {replyNotice?.preview && (
+            <p className="line-clamp-4 whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-sm">{replyNotice.preview}</p>
+          )}
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (replyNotice) remember(shownKey('reply', replyNotice.ticket, replyNotice.ticket.last_support_reply_at));
+                setReplyNotice(null);
+              }}
+            >
+              Later
+            </Button>
+            <Button
+              onClick={() => {
+                if (!replyNotice) return;
+                remember(shownKey('reply', replyNotice.ticket, replyNotice.ticket.last_support_reply_at));
+                const t = replyNotice.ticket;
+                setReplyNotice(null);
+                openFromNotice(t);
+              }}
+            >
+              Open message
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* A resolved request: a banner across the top, with a refresh so the
+          fix is the version they are using. */}
+      {resolvedNotice && (
+        <div className="fixed inset-x-0 top-0 z-[95] flex justify-center p-3">
+          <div className="flex w-full max-w-2xl flex-wrap items-center gap-3 rounded-lg border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-950 shadow-lg">
+            <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+            <span className="min-w-0 flex-1">
+              <strong>Your request is resolved:</strong> {ticketTitle(resolvedNotice)}. Refresh the page to get the latest version.
+            </span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="bg-white"
+                onClick={() => {
+                  remember(shownKey('resolved', resolvedNotice, resolvedNotice.resolved_at));
+                  const t = resolvedNotice;
+                  setResolvedNotice(null);
+                  openFromNotice(t);
+                }}
+              >
+                View
+              </Button>
+              <Button
+                size="sm"
+                className="bg-green-600 text-white hover:bg-green-700"
+                onClick={() => {
+                  remember(shownKey('resolved', resolvedNotice, resolvedNotice.resolved_at));
+                  void markSeen(resolvedNotice.id).finally(() => window.location.reload());
+                }}
+              >
+                <RefreshCw className="mr-1.5 h-4 w-4" />
+                Refresh
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                aria-label="Dismiss"
+                onClick={() => {
+                  remember(shownKey('resolved', resolvedNotice, resolvedNotice.resolved_at));
+                  void markSeen(resolvedNotice.id).then(refresh);
+                  setResolvedNotice(null);
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {markup && (
         <ScreenshotMarkup
           image={markup}

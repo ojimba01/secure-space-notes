@@ -467,7 +467,14 @@ export const GUIDES: Guide[] = [
       s('Show the problem', 'Select Screenshot to circle the problem on the page, Record screen to record up to 3 minutes, or Attach file.'),
       s('Send it', 'Select Send to support. Your requests are listed by title under My requests, where replies also appear.'),
     ],
+  },  {
+    id: 'support-reply', section: 'Getting started', title: 'Read a reply from support', audience: 'everyone', minutes: 1,
+    steps: [
+      s('Open the message', 'When support replies, a message appears in the middle of the screen. Select Open message to read it and reply, or Later to read it from Support → My requests.'),
+      s('Refresh when resolved', 'When your request is resolved, a green banner appears at the top. Select Refresh so the page shows the latest version.'),
+    ],
   },
+
 ];
 
 export const shotFor = (guide: Guide, step: number) => `/help/${guide.id}-${step + 1}.jpg`;

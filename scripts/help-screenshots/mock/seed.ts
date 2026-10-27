@@ -188,9 +188,23 @@ export function seed(): Tables {
           { kind: 'screenshot', path: 'st-1/shot-2.png', name: 'Screenshot 2' },
         ],
       },
+      // A reply the case manager has not read yet, and a request just resolved:
+      // what the support pop-up and banner are shown on.
+      {
+        id: 'st-2', created_by: 'u-staff', title: 'Form will not save', message: 'Complete form does nothing on the IAT.',
+        page_url: '/?view=clients', status: 'in_progress', created_at: at(-1, 10), updated_at: at(0, 9), requester_seen_at: at(-1, 10), last_support_reply_at: at(0, 9), resolved_at: null,
+        attachments: [],
+      },
+      {
+        id: 'st-3', created_by: 'u-staff', title: 'Calendar shows too many visits', message: 'Every visit is on the same three days.',
+        page_url: '/?view=calendar', status: 'resolved', created_at: at(-2, 10), updated_at: at(0, 8), requester_seen_at: at(-2, 10), last_support_reply_at: null, resolved_at: at(0, 8),
+        attachments: [],
+      },
     ],
     display_settings: [],
-    support_ticket_messages: [],
+    support_ticket_messages: [
+      { id: 'sm-1', ticket_id: 'st-2', author: 'u-admin', body: 'Thanks for letting us know. The Save button on that form works again; please try once more and reply here if it still gets stuck.', from_support: true, attachments: [], created_at: at(0, 9) },
+    ],
     client_assignments_history: [],
     case_logs: [],
     staff_activity: [],

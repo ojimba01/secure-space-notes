@@ -43,6 +43,7 @@ export interface Ticket {
   updated_at: string;
   requester_seen_at: string;
   last_support_reply_at: string | null;
+  resolved_at?: string | null;
 }
 
 export interface TicketMessage {
@@ -56,11 +57,15 @@ export interface TicketMessage {
 }
 
 const TICKET_COLUMNS =
-  'id, created_by, title, message, page_url, status, attachments, created_at, updated_at, requester_seen_at, last_support_reply_at';
+  'id, created_by, title, message, page_url, status, attachments, created_at, updated_at, requester_seen_at, last_support_reply_at, resolved_at';
 
 /** A ticket has a reply the person has not read yet. */
 export const hasNewReply = (t: Ticket) =>
   !!t.last_support_reply_at && t.last_support_reply_at > t.requester_seen_at;
+
+/** Resolved since the person last looked: the cue for the resolved banner. */
+export const newlyResolved = (t: Ticket) =>
+  t.status === 'resolved' && !!t.resolved_at && t.resolved_at > t.requester_seen_at;
 
 /** Upload a screenshot, recording or file into the person's own folder. */
 export async function uploadAttachment(
