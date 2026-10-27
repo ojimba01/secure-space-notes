@@ -107,24 +107,10 @@ export const usePreview = (): { previewing: boolean; access: PreviewAccess | nul
   return { previewing: !!ctx?.isViewingAs, access: ctx?.previewAccess ?? null };
 };
 
-// Fallback when no provider is found (e.g. a briefly mismatched context
-// during a hot reload): behave as "not previewing" instead of blanking the app.
-const NOT_VIEWING: ViewAsState = {
-  viewAsEmployeeId: null,
-  viewAsName: null,
-  isViewingAs: false,
-  isSandbox: false,
-  previewAccess: null,
-  startViewAs: () => {},
-  exitViewAs: () => {},
-  guardWrite: () => false,
-};
-
 export const useViewAs = (): ViewAsState => {
   const ctx = useContext(ViewAsContext);
   if (!ctx) {
-    console.warn('useViewAs used outside a ViewAsProvider; treating as not previewing');
-    return NOT_VIEWING;
+    throw new Error('useViewAs must be used within a ViewAsProvider');
   }
   return ctx;
 };
