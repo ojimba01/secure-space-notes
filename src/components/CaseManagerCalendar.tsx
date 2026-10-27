@@ -33,6 +33,10 @@ import { AddCalendarEventDialog } from './AddCalendarEventDialog';
 import { EditCalendarEventDialog } from './EditCalendarEventDialog';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
+import { AddTouchpointDialog, type TouchpointContext } from '@/components/AddTouchpointDialog';
+import { regenerateTouchpointsForStaff } from '@/lib/touchpoints';
+import { todayAgency } from '@/lib/billing';
 import { isCaseClosed } from '@/lib/workflow';
 import {
   authPhaseOn,
@@ -58,6 +62,8 @@ interface CalendarEvent {
     last_name: string | null;
   };
   is_auto_generated?: boolean;
+  modality?: string | null;
+  touchpoint_type?: string | null;
   clients?: ({
     first_name: string;
     last_name: string;
@@ -105,9 +111,82 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
     setIsEditDialogOpen(true);
   };
 
+  const profileId = useEffectiveProfileId();
+  /** The touchpoint being recorded from the calendar. */
+  const [recording, setRecording] = useState<TouchpointContext | null>(null);
+  /**
+   * An administrator's own clients, or everybody's. Staff only ever see their
+   * own (the database decides that); an admin who carries a caseload starts on
+   * theirs, since the whole agency's is too many to work from.
+   */
+  const [scope, setScope] = useState<'mine' | 'all'>('all');
+  const showsScope = isAdmin && !isViewingAs;
+
+  useEffect(() => {
+    if (!showsScope || !profileId) return;
+    let cancelled = false;
+    (async () => {
+      const { count } = await supabase
+        .from('clients')
+        .select('id', { count: 'exact', head: true })
+        .eq('assigned_employee_id', profileId)
+        .eq('status', 'active');
+      if (!cancelled && (count ?? 0) > 0) setScope('mine');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showsScope, profileId]);
+
+  // Once a day, an administrator opening the calendar rebuilds every caseload's
+  // suggested touchpoints, so the whole agency's are spread out even for case
+  // managers who have not opened the app since.
+  useEffect(() => {
+    if (!showsScope) return;
+    const key = `touchpoints-respread-${todayAgency()}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+    } catch {
+      return;
+    }
+    (async () => {
+      const { data } = await supabase.from('clients').select('assigned_employee_id').eq('status', 'active');
+      const staff = [...new Set((data ?? []).map((r) => r.assigned_employee_id).filter((id): id is string => !!id))];
+      for (const id of staff) await regenerateTouchpointsForStaff(id).catch(() => {});
+      fetchEvents();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showsScope]);
+
+  /**
+   * A touchpoint is something to do, so opening one records it: the client,
+   * date and suggested contact method are filled in, and saving marks it done.
+   * Anything else, and a touchpoint already logged, opens to be edited.
+   */
+  const openEvent = (event: CalendarEvent) => {
+    if (event.event_type === 'touch_point' && event.client_id && event.status !== 'completed') {
+      const day = event.start_time.slice(0, 10);
+      const today = todayAgency();
+      setRecording({
+        clientId: event.client_id,
+        clientName: event.clients ? `${event.clients.first_name} ${event.clients.last_name}` : event.title,
+        locked: true,
+        calendarEventId: event.id,
+        // Recorded on the day it happened: a touchpoint planned for later and
+        // done today is today's.
+        date: day > today ? today : day,
+        contactMethod: event.modality ?? null,
+        touchpointType: event.touchpoint_type ?? null,
+      });
+      return;
+    }
+    openEditDialog(event);
+  };
+
   useEffect(() => {
     fetchEvents();
-  }, [currentDate, isViewingAs, viewAsEmployeeId, isAdmin, closedIds]);
+  }, [currentDate, isViewingAs, viewAsEmployeeId, isAdmin, closedIds, scope, profileId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,6 +251,8 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
 
       if (isViewingAs && viewAsEmployeeId) {
         query = query.eq('employee_id', viewAsEmployeeId);
+      } else if (showsScope && scope === 'mine' && profileId) {
+        query = query.eq('employee_id', profileId);
       }
 
       const { data, error } = await query;
@@ -462,12 +543,29 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
         <div className="space-y-1">
           <h1 className="text-3xl font-bold">Calendar</h1>
         </div>
-        {(
+        <div className="flex items-center gap-2">
+          {showsScope && (
+            <div className="flex rounded-lg border bg-background p-1" role="group" aria-label="Whose calendar">
+              {(['mine', 'all'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={scope === s}
+                  onClick={() => setScope(s)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    scope === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {s === 'mine' ? 'My caseload' : 'All staff'}
+                </button>
+              ))}
+            </div>
+          )}
           <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
             <Plus className="w-4 h-4" />
             Add Event
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Find an event without knowing its month. */}
@@ -526,7 +624,7 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
                 todayEvents.slice(todayPage * TODAY_PAGE, todayPage * TODAY_PAGE + TODAY_PAGE).map(event => (
                   <button
                     key={event.id}
-                    onClick={() => openEditDialog(event)}
+                    onClick={() => openEvent(event)}
                     className="w-full text-left p-2 rounded-lg bg-muted/50 space-y-1 hover:bg-muted transition-colors"
                   >
                     <div className={`w-2 h-2 rounded-full inline-block mr-2 ${dotColor(event)}`} />
@@ -655,12 +753,12 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
                           onDragEnd={() => { setDraggingId(null); setDragOverDay(null); }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            openEditDialog(event);
+                            openEvent(event);
                           }}
                           className={`flex items-center gap-1 w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight transition-opacity hover:opacity-80 ${chipTint(event)} ${
                             event.event_type === 'touch_point' ? 'cursor-grab active:cursor-grabbing' : ''
                           } ${draggingId === event.id ? 'opacity-40' : ''}`}
-                          title={event.event_type === 'touch_point' ? `${event.title} — drag to reschedule` : event.title}
+                          title={event.event_type === 'touch_point' ? `${event.title}: select to record, drag to reschedule` : event.title}
                         >
                           <span className="truncate">{event.title}</span>
                         </button>
@@ -744,7 +842,7 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
                 <button
                   onClick={() => {
                     setDayOpen(false);
-                    openEditDialog(event);
+                    openEvent(event);
                   }}
                   className="min-w-0 flex-1 space-y-2 text-left"
                 >
@@ -774,6 +872,20 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
                 {/* Only the auto-scheduled ones. Something a person put in the
                     calendar themselves is theirs to open and change, not to
                     lose to a button they were aiming near. */}
+                {/* Opening a touchpoint records it; changing it is here. */}
+                {event.event_type === 'touch_point' && event.status !== 'completed' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shrink-0"
+                    onClick={() => {
+                      setDayOpen(false);
+                      openEditDialog(event);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                )}
                 {event.event_type === 'touch_point' && event.is_auto_generated && (
                   <button
                     onClick={() => askThenRemove(event)}
@@ -790,6 +902,16 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
           </div>
         </DialogContent>
       </Dialog>
+
+      <AddTouchpointDialog
+        open={!!recording}
+        onOpenChange={(o) => !o && setRecording(null)}
+        context={recording}
+        onSaved={() => {
+          setRecording(null);
+          fetchEvents();
+        }}
+      />
 
       <AlertDialog open={!!pendingDelete} onOpenChange={(o) => !o && setPendingDelete(null)}>
         <AlertDialogContent>
