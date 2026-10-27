@@ -332,7 +332,7 @@ export const GUIDES: Guide[] = [
     id: 'support-tickets', section: 'Managing the team', title: 'Answer support tickets', audience: 'admins', minutes: 2,
     steps: [
       s('Open Support tickets', 'Select Support tickets in the left panel. The number shows open tickets.'),
-      s('Reply and update', 'Select a ticket. Select a screenshot to view it large, and use the arrows to see the others. Close it, write a reply and set the status to In progress, Resolved or Closed.'),
+      s('Reply and update', 'Select a ticket. Select a screenshot to view it large, and use the arrows to see the others. Close it, write a reply and set the status to In progress, Resolved or Closed. To ask the staff member something, write the question and select Ask follow-up; the status becomes Action required until they answer.'),
     ],
   },
   {
@@ -471,7 +471,8 @@ export const GUIDES: Guide[] = [
   },  {
     id: 'support-reply', section: 'Getting started', title: 'Read a reply from support', audience: 'everyone', minutes: 1,
     steps: [
-      s('Read the message', 'When support replies, the message appears in the middle of the screen. Select the X when you have read it. If support sent several, select Open messages to see the conversation. To reply, select Support, then My requests.'),
+      s('Read the message', 'When support replies, the message appears in the middle of the screen. Select the X when you have read it. To reply, select Support, then My requests.'),
+      s('Answer a follow-up question', 'If support needs more information, the request shows Action required. Select Respond to follow-up, type your answer and select Send reply.'),
       s('Refresh when resolved', 'When your request is resolved, a green banner appears at the top. Select Refresh so the page shows the latest version.'),
     ],
   },

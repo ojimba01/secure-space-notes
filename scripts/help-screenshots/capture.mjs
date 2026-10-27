@@ -419,6 +419,7 @@ const SHOTS = {
   ],
   'support-reply': [
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 3000); }, target: (p) => p.getByRole('dialog'), label: 'Message from support' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 3000); }, target: (p) => btn(p, 'Respond to follow-up'), label: 'Respond to follow-up' },
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 3000); await p.keyboard.press('Escape'); await wait(p, 1200); }, target: (p) => p.getByRole('button', { name: 'Refresh', exact: true }), label: 'Refresh' },
   ],
   'add-event': [

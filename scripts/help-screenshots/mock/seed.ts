@@ -192,7 +192,7 @@ export function seed(): Tables {
       // what the support pop-up and banner are shown on.
       {
         id: 'st-2', created_by: 'u-staff', title: 'Form will not save', message: 'Complete form does nothing on the IAT.',
-        page_url: '/?view=clients', status: 'in_progress', created_at: at(-1, 10), updated_at: at(0, 9), requester_seen_at: at(-1, 10), last_support_reply_at: at(0, 9), resolved_at: null,
+        page_url: '/?view=clients', status: 'action_required', created_at: at(-1, 10), updated_at: at(0, 9), requester_seen_at: at(-1, 10), last_support_reply_at: at(0, 9), resolved_at: null,
         attachments: [],
       },
       {
@@ -203,7 +203,7 @@ export function seed(): Tables {
     ],
     display_settings: [],
     support_ticket_messages: [
-      { id: 'sm-1', ticket_id: 'st-2', author: 'u-admin', body: 'Thanks for letting us know. The Save button on that form works again; please try once more and reply here if it still gets stuck.', from_support: true, attachments: [], created_at: at(0, 9) },
+      { id: 'sm-1', ticket_id: 'st-2', author: 'u-admin', body: 'Thanks for letting us know. Which client’s IAT were you completing, and does a message appear when you select Complete form?', from_support: true, attachments: [], created_at: at(0, 9) },
     ],
     client_assignments_history: [],
     case_logs: [],

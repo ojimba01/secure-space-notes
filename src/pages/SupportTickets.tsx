@@ -37,6 +37,7 @@ const FILTER_LABEL: Record<Filter, string> = {
   active: 'Open and in progress',
   open: 'Open',
   in_progress: 'In progress',
+  action_required: 'Action required',
   resolved: 'Resolved',
   closed: 'Closed',
   all: 'All tickets',

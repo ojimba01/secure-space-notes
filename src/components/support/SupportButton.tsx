@@ -126,6 +126,9 @@ export const SupportButton: React.FC = () => {
    */
   /** The unread replies on one request, newest last. */
   const [replyNotice, setReplyNotice] = useState<{ ticket: Ticket; messages: string[] } | null>(null);
+  // The latest copy, so a follow-up status that lands just after the reply still shows.
+  const noticeTicket = replyNotice ? tickets.find((t) => t.id === replyNotice.ticket.id) ?? replyNotice.ticket : null;
+  const followUp = noticeTicket?.status === 'action_required';
   const [resolvedNotice, setResolvedNotice] = useState<Ticket | null>(null);
   const shownKey = (kind: string, t: Ticket, at: string | null | undefined) => `support-notice-${kind}-${t.id}-${at ?? ''}`;
   const wasShown = (key: string) => {
@@ -295,8 +298,8 @@ export const SupportButton: React.FC = () => {
   return (
     <>
       {/* A reply from support: in the middle of the screen, so it is seen.
-          One reply is shown whole and the X closes it, read. Several are
-          listed, with Open messages for the conversation. */}
+          The X closes it, read. A follow-up question adds Respond to
+          follow-up, which opens the conversation to answer it. */}
       <Dialog
         open={!!replyNotice}
         onOpenChange={(o) => {
@@ -311,9 +314,11 @@ export const SupportButton: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageCircle className="h-5 w-5 text-primary" />
-              {replyNotice && replyNotice.messages.length > 1
-                ? `Support sent you ${replyNotice.messages.length} messages`
-                : 'Support just sent you a message'}
+              {followUp
+                ? 'Support has a follow-up question'
+                : replyNotice && replyNotice.messages.length > 1
+                  ? `Support sent you ${replyNotice.messages.length} messages`
+                  : 'Support just sent you a message'}
             </DialogTitle>
             <DialogDescription>About: {replyNotice ? ticketTitle(replyNotice.ticket) : ''}</DialogDescription>
           </DialogHeader>
@@ -324,17 +329,16 @@ export const SupportButton: React.FC = () => {
               </p>
             ))}
           </div>
-          {replyNotice && replyNotice.messages.length > 1 && (
+          {replyNotice && noticeTicket && followUp && (
             <DialogFooter>
               <Button
                 onClick={() => {
                   remember(shownKey('reply', replyNotice.ticket, replyNotice.ticket.last_support_reply_at));
-                  const t = replyNotice.ticket;
                   setReplyNotice(null);
-                  openFromNotice(t);
+                  openFromNotice(noticeTicket);
                 }}
               >
-                Open messages
+                Respond to follow-up
               </Button>
             </DialogFooter>
           )}

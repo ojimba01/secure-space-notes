@@ -3,13 +3,14 @@
 // page (support answering).
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, FileText, Loader2, Send } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CircleHelp, FileText, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
   loadMessages,
+  askFollowUp,
   reply,
   signedUrl,
   type Attachment,
@@ -139,11 +140,12 @@ export const TicketThread: React.FC<Props> = ({ ticket, asSupport, requesterName
     void loadMessages(ticket.id).then(setMessages);
   }, [ticket.id]);
 
-  const send = async () => {
+  const send = async (followUp = false) => {
     if (!draft.trim()) return;
     setSending(true);
     try {
-      await reply(ticket.id, draft, asSupport);
+      if (followUp) await askFollowUp(ticket.id, draft);
+      else await reply(ticket.id, draft, asSupport);
       setDraft('');
       setMessages(await loadMessages(ticket.id));
       onReplied?.();
@@ -202,7 +204,13 @@ export const TicketThread: React.FC<Props> = ({ ticket, asSupport, requesterName
           maxLength={4000}
           rows={3}
         />
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          {asSupport && (
+            <Button size="sm" variant="outline" onClick={() => void send(true)} disabled={sending || !draft.trim()}>
+              <CircleHelp className="mr-1.5 h-4 w-4" />
+              Ask follow-up
+            </Button>
+          )}
           <Button size="sm" onClick={() => void send()} disabled={sending || !draft.trim()}>
             {sending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}
             Send reply

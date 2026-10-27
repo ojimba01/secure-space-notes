@@ -8,11 +8,13 @@ const db = (table: string) => (supabase.from as any)(table);
 
 export const BUCKET = 'support-attachments';
 
-export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+/** action_required: support asked a follow-up question and waits on the person. */
+export type TicketStatus = 'open' | 'in_progress' | 'action_required' | 'resolved' | 'closed';
 
 export const STATUS_LABEL: Record<TicketStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
+  action_required: 'Action required',
   resolved: 'Resolved',
   closed: 'Closed',
 };
@@ -20,6 +22,7 @@ export const STATUS_LABEL: Record<TicketStatus, string> = {
 export const STATUS_CLASS: Record<TicketStatus, string> = {
   open: 'bg-amber-100 text-amber-900',
   in_progress: 'bg-sky-100 text-sky-800',
+  action_required: 'bg-orange-100 text-orange-900',
   resolved: 'bg-green-100 text-green-800',
   closed: 'bg-muted text-muted-foreground',
 };
@@ -148,6 +151,15 @@ export async function reply(ticketId: string, body: string, fromSupport: boolean
     .single();
   if (error) throw new Error(error.message);
   if (!fromSupport) void notifySupport(ticketId, data.id);
+}
+
+/**
+ * Support asks the person something. The status changes first, so the
+ * pop-up the reply raises already offers Respond to follow-up.
+ */
+export async function askFollowUp(ticketId: string, body: string): Promise<void> {
+  await setStatus(ticketId, 'action_required');
+  await reply(ticketId, body, true);
 }
 
 export async function markSeen(ticketId: string): Promise<void> {
