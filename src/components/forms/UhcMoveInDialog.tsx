@@ -247,7 +247,7 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
   const downloadCopy = async () => {
     try {
       const bytes = await workbook();
-      const url = URL.createObjectURL(new Blob([bytes], { type: XLSX_TYPE }));
+      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: XLSX_TYPE }));
       const a = document.createElement('a');
       a.href = url;
       a.download = fileName();
