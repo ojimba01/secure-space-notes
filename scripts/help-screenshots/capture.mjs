@@ -405,6 +405,17 @@ const SHOTS = {
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=compliance`), target: (p) => p.getByTitle(/Reschedule/).first(), label: 'Reschedule' },
   ],
 
+  'calendar-touchpoint': [
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=calendar`), target: (p) => p.locator('button[title*="select to record"]').first(), label: 'Select the touchpoint' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=calendar`); await wait(p, 2500); await p.locator('button[title*="select to record"]').first().click(); await wait(p, 1500); }, target: (p) => dialog(p), label: 'Touchpoint form' },
+  ],
+  'calendar-scope': [
+    { as: 'admin', go: (p) => p.goto(`${BASE}/?view=calendar`), target: (p) => p.getByRole('group', { name: 'Whose calendar' }), label: 'My caseload / All staff' },
+  ],
+  'add-authorization': [
+    { as: 'staff', go: (p) => openClient(p, 'c-1', 'Authorizations'), target: (p) => btn(p, 'Add authorization', true), label: 'Add authorization' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-1', 'Authorizations'); await btn(p, 'Add authorization', true).click(); await wait(p, 900); }, target: (p) => dialog(p), label: 'Type, dates and number' },
+  ],
   'add-event': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=calendar`), target: (p) => btn(p, 'Add Event'), label: 'Add Event' },
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=calendar`); await wait(p, 2000); await btn(p, 'Add Event').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: 'Add Event' }), label: 'Add Event' },

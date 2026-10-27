@@ -54,6 +54,13 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
+    id: 'add-authorization', section: 'Clients', title: 'Add or correct an authorization', audience: 'everyone', minutes: 1,
+    steps: [
+      s('Open Authorizations', 'Open the client and select the Authorizations tab.'),
+      s('Add or edit', 'Select Add authorization, or Edit on an existing one. Enter the type, dates and authorization number, then save. Billing and touchpoints update from it.'),
+    ],
+  },
+  {
     id: 'remove-authorization-date', section: 'Clients', title: 'Remove an authorization date entered by mistake', audience: 'admins', minutes: 1,
     steps: [
       s('Clear the date', 'Open the client, select Edit, and clear the 30, 150 or 180-day date.'),
@@ -260,6 +267,19 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Select Add Event', 'Open Calendar and select Add Event.'),
       s('Enter the details', 'Add a title, type, client and time, then select Add Event.'),
+    ],
+  },
+  {
+    id: 'calendar-touchpoint', section: 'Calendar', title: 'Record a touchpoint from the calendar', audience: 'everyone', minutes: 1,
+    steps: [
+      s('Select the touchpoint', 'On Calendar, select a client’s touchpoint. The touchpoint form opens with the client, the day and the suggested contact method filled in.'),
+      s('Save it', 'Complete the form and save. The touchpoint is marked done. To move it instead, drag it to another day, or open the day and select Edit.'),
+    ],
+  },
+  {
+    id: 'calendar-scope', section: 'Calendar', title: 'See your caseload or all staff', audience: 'admins', minutes: 1,
+    steps: [
+      s('Choose whose calendar', 'At the top of Calendar, select My caseload for your own clients or All staff for everyone’s. Case managers always see only their own clients.'),
     ],
   },
   {
