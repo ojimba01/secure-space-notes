@@ -65,6 +65,10 @@ guides, and superadmins also get the filter buttons.
   scmclinicalnotes.com). To publish: merge `origin/main`, push to the working
   branch and to `main`, wait about 80 seconds, check with `get_project` that
   `latest_commit_sha` is the pushed commit, then `deploy_project`.
+- Edge functions are not redeployed by a push or by publishing. After changing
+  anything in `supabase/functions/`, ask Lovable (`send_message`) to deploy
+  that function, then check its logs. A stale support-notify once kept
+  sending through old code for weeks.
 - Fix errors first: when staff are blocked, publish the fix on its own, then
   do the Help guide text and screenshots in a second push.
 - Database changes are run on the live database with `query_database` (test
