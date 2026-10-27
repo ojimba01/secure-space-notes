@@ -3,6 +3,7 @@
 // The stage a client sits in drives what the app asks staff to do next, and
 // which date anchors compliance and billing. Every screen reads these helpers
 // so the lifecycle is described in exactly one place.
+import { effectiveLevel } from '@/lib/billing';
 
 export const WORKFLOW_STAGES = [
   'initial_auth_pending',
@@ -170,12 +171,7 @@ export function serviceStartDate(c: WorkflowClient): string | null {
  * Superadmin work, so an incomplete client never reaches a staff work queue.
  */
 export function isSetupComplete(c: WorkflowClient): boolean {
-  const tier = c.level_of_need;
-  return (
-    hspSubmitted(c) &&
-    !!serviceStartDate(c) &&
-    (tier === 'High Level' || tier === 'Low Level')
-  );
+  return hspSubmitted(c) && !!serviceStartDate(c) && !!effectiveLevel(c.level_of_need);
 }
 
 /** Which setup pieces are missing — Admin/Superadmin facing. */
@@ -183,7 +179,8 @@ export function missingSetupParts(c: WorkflowClient): string[] {
   const parts: string[] = [];
   if (!hspSubmitted(c)) parts.push('HSP submission');
   if (!serviceStartDate(c)) parts.push('HSP approval / authorization start date');
-  if (c.level_of_need !== 'High Level' && c.level_of_need !== 'Low Level') parts.push('level of need');
+  // A blank level is Low Level; only a value that is neither is a gap.
+  if (!effectiveLevel(c.level_of_need)) parts.push('level of need');
   return parts;
 }
 
@@ -202,7 +199,7 @@ export function missingSetupShort(c: WorkflowClient): string[] {
   const parts: string[] = [];
   if (!hspSubmitted(c)) parts.push('add HSP');
   if (!serviceStartDate(c)) parts.push('add start date');
-  if (c.level_of_need !== 'High Level' && c.level_of_need !== 'Low Level') parts.push('add LoN');
+  if (!effectiveLevel(c.level_of_need)) parts.push('add LoN');
   return parts;
 }
 

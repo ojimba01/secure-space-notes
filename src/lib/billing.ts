@@ -93,9 +93,22 @@ export function monthKey(s: string): string {
   return s.slice(0, 7); // YYYY-MM
 }
 
+/**
+ * The level of need a client is worked and billed at. Every client is Low
+ * Level unless somebody records otherwise, so a blank level is Low, not
+ * missing. Anything else typed in that is not one of the two is still unknown.
+ */
+export function effectiveLevel(level: string | null | undefined): 'Low Level' | 'High Level' | null {
+  const v = (level ?? '').trim().toLowerCase();
+  if (!v || v === 'low' || v === 'low level') return 'Low Level';
+  if (v === 'high' || v === 'high level') return 'High Level';
+  return null;
+}
+
 export function rateForLevel(level: string | null | undefined): number | null {
-  if (level === 'Low Level') return RATE_LOW;
-  if (level === 'High Level') return RATE_HIGH;
+  const l = effectiveLevel(level);
+  if (l === 'Low Level') return RATE_LOW;
+  if (l === 'High Level') return RATE_HIGH;
   return null;
 }
 

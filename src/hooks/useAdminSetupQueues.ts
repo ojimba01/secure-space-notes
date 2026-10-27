@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { serviceStartDate, hspSubmitted, OPEN_CASE_STAGE_FILTER } from '@/lib/workflow';
 import {
+  effectiveLevel,
   daysToFinalDeadline,
   isStillBillable,
   todayAgency,
@@ -137,7 +138,8 @@ export function useAdminSetupQueues(): AdminSetupQueues {
         }
         // Anything that is not one of the two real tiers is missing, including
         // a value someone typed by hand that the rate table cannot price.
-        if (c.level_of_need !== 'Low Level' && c.level_of_need !== 'High Level') {
+        // Blank is Low Level by default; only a value that is neither is missing.
+        if (!effectiveLevel(c.level_of_need)) {
           next.noLevelOfNeed.push(base(c));
           held = true;
         }
