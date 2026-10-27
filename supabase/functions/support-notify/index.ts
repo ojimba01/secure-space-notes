@@ -68,6 +68,14 @@ Deno.serve(async (req) => {
     if (!message || message.from_support) return Response.json({ sent: false }, { headers: cors });
   }
 
+  // What happened is written on the ticket, so a missing email can be traced
+  // without the function logs.
+  const record = (result: string) =>
+    admin
+      .from('support_tickets')
+      .update({ email_result: result.slice(0, 500), email_result_at: new Date().toISOString() })
+      .eq('id', ticket.id);
+
   const { data: person } = await admin
     .from('profiles')
     .select('first_name, last_name, email')
@@ -111,6 +119,7 @@ Deno.serve(async (req) => {
   const key = Deno.env.get('RESEND_API_KEY');
   if (!key) {
     console.log('RESEND_API_KEY not set; support email not sent:', subject);
+    await record('Not sent: RESEND_API_KEY is not set');
     return Response.json({ sent: false, reason: 'Email is not set up' }, { headers: cors });
   }
   // SUPPORT_EMAIL overrides who receives it (comma-separated).
@@ -118,7 +127,10 @@ Deno.serve(async (req) => {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  if (!to.length) return Response.json({ sent: false, reason: 'No recipient' }, { headers: cors });
+  if (!to.length) {
+    await record('Not sent: no recipient');
+    return Response.json({ sent: false, reason: 'No recipient' }, { headers: cors });
+  }
   // Resend's shared test sender only delivers to the address the Resend
   // account was opened with. SUPPORT_FROM sets a sender on a verified domain.
   const sender = Deno.env.get('SUPPORT_FROM') || 'Clinical Notes Support <onboarding@resend.dev>';
@@ -126,15 +138,24 @@ Deno.serve(async (req) => {
   // stop the others.
   const results = await Promise.all(
     to.map(async (address) => {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: sender, to: [address], subject, html }),
-      });
+      let res: Response;
+      try {
+        res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: sender, to: [address], subject, html }),
+        });
+      } catch (err) {
+        console.error('support email failed', address, err);
+        return { address, sent: false, status: 0, detail: String(err) };
+      }
       const detail = res.ok ? '' : await res.text();
       if (!res.ok) console.error('support email failed', address, res.status, detail);
       return { address, sent: res.ok, status: res.status, detail };
     }),
+  );
+  await record(
+    results.map((r) => (r.sent ? `Sent to ${r.address}` : `Failed for ${r.address}: ${r.status} ${r.detail}`)).join('; '),
   );
   return Response.json({ sent: results.some((r) => r.sent), results }, { headers: cors });
 });
