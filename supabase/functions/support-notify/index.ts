@@ -6,7 +6,8 @@
 // attached, through signed links that expire after seven days.
 //
 // Needs RESEND_API_KEY (already used by compliance-cron). Emails go to
-// mdajimba@gmail.com unless SUPPORT_EMAIL (comma-separated) says otherwise.
+// mdajimba@gmail.com unless SUPPORT_EMAIL (comma-separated) says otherwise,
+// from SUPPORT_FROM when set (a sender on a domain verified in Resend).
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const cors = {
@@ -118,6 +119,9 @@ Deno.serve(async (req) => {
     .map((s) => s.trim())
     .filter(Boolean);
   if (!to.length) return Response.json({ sent: false, reason: 'No recipient' }, { headers: cors });
+  // Resend's shared test sender only delivers to the address the Resend
+  // account was opened with. SUPPORT_FROM sets a sender on a verified domain.
+  const sender = Deno.env.get('SUPPORT_FROM') || 'Clinical Notes Support <onboarding@resend.dev>';
   // One email per address, so an address the mail service refuses does not
   // stop the others.
   const results = await Promise.all(
@@ -125,7 +129,7 @@ Deno.serve(async (req) => {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: 'Clinical Notes Support <onboarding@resend.dev>', to: [address], subject, html }),
+        body: JSON.stringify({ from: sender, to: [address], subject, html }),
       });
       const detail = res.ok ? '' : await res.text();
       if (!res.ok) console.error('support email failed', address, res.status, detail);
@@ -133,5 +137,4 @@ Deno.serve(async (req) => {
     }),
   );
   return Response.json({ sent: results.some((r) => r.sent), results }, { headers: cors });
-});
 });
