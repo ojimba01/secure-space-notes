@@ -417,8 +417,8 @@ const SHOTS = {
     { as: 'staff', go: async (p) => { await openClient(p, 'c-1', 'Authorizations'); await btn(p, 'Add authorization', true).click(); await wait(p, 900); }, target: (p) => dialog(p), label: 'Type, dates and number' },
   ],
   'support-reply': [
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 3000); }, target: (p) => p.getByRole('dialog').getByRole('button', { name: 'Open message', exact: true }), label: 'Open message' },
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 3000); await p.getByRole('dialog').getByRole('button', { name: 'Later', exact: true }).click(); await wait(p, 1200); }, target: (p) => p.getByRole('button', { name: 'Refresh', exact: true }), label: 'Refresh' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 3000); }, target: (p) => p.getByRole('dialog'), label: 'Message from support' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 3000); await p.keyboard.press('Escape'); await wait(p, 1200); }, target: (p) => p.getByRole('button', { name: 'Refresh', exact: true }), label: 'Refresh' },
   ],
   'add-event': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=calendar`), target: (p) => btn(p, 'Add Event'), label: 'Add Event' },

@@ -470,7 +470,7 @@ export const GUIDES: Guide[] = [
   },  {
     id: 'support-reply', section: 'Getting started', title: 'Read a reply from support', audience: 'everyone', minutes: 1,
     steps: [
-      s('Open the message', 'When support replies, a message appears in the middle of the screen. Select Open message to read it and reply, or Later to read it from Support → My requests.'),
+      s('Read the message', 'When support replies, the message appears in the middle of the screen. Select the X when you have read it. If support sent several, select Open messages to see the conversation. To reply, select Support, then My requests.'),
       s('Refresh when resolved', 'When your request is resolved, a green banner appears at the top. Select Refresh so the page shows the latest version.'),
     ],
   },

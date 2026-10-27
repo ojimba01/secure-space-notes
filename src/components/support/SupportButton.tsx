@@ -120,7 +120,8 @@ export const SupportButton: React.FC = () => {
    * the middle of the screen, a resolved request as a banner. Each shows once:
    * opening it marks it read, and Later / the X remembers it was shown.
    */
-  const [replyNotice, setReplyNotice] = useState<{ ticket: Ticket; preview: string } | null>(null);
+  /** The unread replies on one request, newest last. */
+  const [replyNotice, setReplyNotice] = useState<{ ticket: Ticket; messages: string[] } | null>(null);
   const [resolvedNotice, setResolvedNotice] = useState<Ticket | null>(null);
   const shownKey = (kind: string, t: Ticket, at: string | null | undefined) => `support-notice-${kind}-${t.id}-${at ?? ''}`;
   const wasShown = (key: string) => {
@@ -145,8 +146,8 @@ export const SupportButton: React.FC = () => {
     let cancelled = false;
     (async () => {
       const msgs = await loadMessages(t.id);
-      const last = [...msgs].reverse().find((m) => m.from_support);
-      if (!cancelled) setReplyNotice({ ticket: t, preview: last?.body ?? '' });
+      const unreadReplies = msgs.filter((m) => m.from_support && m.created_at > t.requester_seen_at).map((m) => m.body);
+      if (!cancelled && unreadReplies.length) setReplyNotice({ ticket: t, messages: unreadReplies });
     })();
     return () => {
       cancelled = true;
@@ -284,12 +285,15 @@ export const SupportButton: React.FC = () => {
 
   return (
     <>
-      {/* A reply from support: in the middle of the screen, so it is seen. */}
+      {/* A reply from support: in the middle of the screen, so it is seen.
+          One reply is shown whole and the X closes it, read. Several are
+          listed, with Open messages for the conversation. */}
       <Dialog
         open={!!replyNotice}
         onOpenChange={(o) => {
           if (!o && replyNotice) {
             remember(shownKey('reply', replyNotice.ticket, replyNotice.ticket.last_support_reply_at));
+            void markSeen(replyNotice.ticket.id).then(refresh);
             setReplyNotice(null);
           }
         }}
@@ -298,35 +302,33 @@ export const SupportButton: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageCircle className="h-5 w-5 text-primary" />
-              Support just sent you a message
+              {replyNotice && replyNotice.messages.length > 1
+                ? `Support sent you ${replyNotice.messages.length} messages`
+                : 'Support just sent you a message'}
             </DialogTitle>
             <DialogDescription>About: {replyNotice ? ticketTitle(replyNotice.ticket) : ''}</DialogDescription>
           </DialogHeader>
-          {replyNotice?.preview && (
-            <p className="line-clamp-4 whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-sm">{replyNotice.preview}</p>
+          <div className="max-h-[50vh] space-y-2 overflow-y-auto">
+            {replyNotice?.messages.map((body, i) => (
+              <p key={i} className="whitespace-pre-wrap rounded-md border bg-muted/40 p-3 text-sm">
+                {body}
+              </p>
+            ))}
+          </div>
+          {replyNotice && replyNotice.messages.length > 1 && (
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  remember(shownKey('reply', replyNotice.ticket, replyNotice.ticket.last_support_reply_at));
+                  const t = replyNotice.ticket;
+                  setReplyNotice(null);
+                  openFromNotice(t);
+                }}
+              >
+                Open messages
+              </Button>
+            </DialogFooter>
           )}
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (replyNotice) remember(shownKey('reply', replyNotice.ticket, replyNotice.ticket.last_support_reply_at));
-                setReplyNotice(null);
-              }}
-            >
-              Later
-            </Button>
-            <Button
-              onClick={() => {
-                if (!replyNotice) return;
-                remember(shownKey('reply', replyNotice.ticket, replyNotice.ticket.last_support_reply_at));
-                const t = replyNotice.ticket;
-                setReplyNotice(null);
-                openFromNotice(t);
-              }}
-            >
-              Open message
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
