@@ -1,8 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { 
   Users, 
-  Stethoscope, 
   LogOut, 
   Shield, 
   ClipboardList,
@@ -46,7 +44,15 @@ const BetaBadge = () => (
 
 /** A menu item: tall and rounded; the current page is the dark pill. */
 const NAV_ITEM =
-  'w-full justify-start gap-3 h-11 rounded-xl px-3 text-[15px] font-normal text-primary [&.bg-primary]:font-medium [&.bg-primary]:text-primary-foreground [&:not(.bg-primary)]:hover:bg-white/60 [&_svg]:size-[18px]';
+  'w-full justify-start gap-3 h-11 rounded-xl px-3 text-[15px] font-normal text-white/85 [&.bg-primary]:bg-white [&.bg-primary]:font-medium [&.bg-primary]:text-primary [&.bg-primary]:shadow-sm [&:not(.bg-primary)]:hover:bg-white/10 [&:not(.bg-primary)]:hover:text-white [&_svg]:size-[18px]';
+
+/** The agency's name, set like its logo: blue over orange. */
+export const BrandMark: React.FC<{ onDark?: boolean }> = ({ onDark = true }) => (
+  <div className="min-w-0 leading-tight">
+    <div className={cn('text-lg font-bold tracking-tight', onDark ? 'text-white' : 'text-[#2e6da4]')}>Supportive Care</div>
+    <div className="text-base font-semibold tracking-tight text-[hsl(var(--brand-orange))]">Management</div>
+  </div>
+);
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
   const navigate = useNavigate();
@@ -107,10 +113,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
       <div className="flex flex-1 items-center gap-2 min-w-0">
-        <div className="p-1.5 bg-medical-blue rounded-md">
-          <Stethoscope className="w-4 h-4 text-white" />
-        </div>
-        <span className="font-semibold truncate">Clinical Notes</span>
+        <span className="truncate font-semibold text-[#2e6da4]">
+          Supportive Care <span className="text-[hsl(var(--brand-orange))]">Management</span>
+        </span>
       </div>
       <Button
         variant="ghost"
@@ -142,9 +147,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
       <MobileToolbar />
       <Overlay />
       <div className={cn(
-        // A soft blue panel that floats beside the page.
-        "bg-gradient-to-b from-sky-200 via-sky-100 to-white p-3 md:p-5 space-y-3 md:space-y-6 flex flex-col overflow-y-auto",
-        "border-r border-sky-100 md:border md:border-white/70 md:rounded-2xl md:shadow-sm md:m-3",
+        // The brand's dark blue, lightening toward the bottom, floating beside the page.
+        "bg-gradient-to-b from-[#0c3d66] via-[#14558c] to-[#2e6da4] text-white p-3 md:p-5 space-y-3 md:space-y-6 flex flex-col overflow-y-auto",
+        "md:rounded-2xl md:shadow-md md:m-3",
         "fixed md:sticky md:top-3 inset-y-0 left-0 z-40",
         "w-[85vw] max-w-72 md:w-72 md:max-w-none md:shrink-0",
         "transform transition-transform duration-300 ease-in-out",
@@ -160,13 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
               onClick={() => handleViewChange('clients')}
               className="flex flex-1 min-w-0 items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer text-left"
             >
-              <div className="p-2 bg-primary rounded-xl">
-                <Stethoscope className="w-5 h-5 text-white" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-xl font-bold tracking-tight text-primary">Clinical Notes</h2>
-                <p className="text-xs text-primary/70">HIPAA Compliant</p>
-              </div>
+              <BrandMark />
             </button>
             {/* Your own account: your signatures and your password. At the top
                 where a profile belongs, rather than at the foot of the
@@ -174,7 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             <Button
               variant="ghost"
               size="icon"
-              className="shrink-0 h-10 w-10"
+              className="shrink-0 h-10 w-10 text-white/80 hover:bg-white/10 hover:text-white"
               onClick={() => setAccountOpen(true)}
               title="Your account"
               aria-label="Your account"
@@ -303,26 +302,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           )}
         </div>
 
-        {/* Security Notice - Compact on mobile */}
-        <Card className="p-3 md:p-4 bg-white/60 border-white/70 shadow-none">
-          <div className="flex items-start gap-2 md:gap-3">
-            <Shield className="w-4 h-4 md:w-5 md:h-5 text-medical-green mt-0.5 shrink-0" />
-            <div className="space-y-1">
-              <h4 className="font-medium text-xs md:text-sm text-medical-green">HIPAA Compliant</h4>
-              <p className="text-xs text-medical-green/80 hidden md:block">
-                All notes are encrypted and stored securely according to healthcare privacy standards.
-              </p>
-            </div>
-          </div>
-        </Card>
-
         {/* Advanced Tools (superadmin only) - pinned to bottom */}
         <div className="!mt-auto space-y-2">
           <AdvancedTools />
           {/* Logout Button */}
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 h-11 rounded-xl text-[15px] text-destructive hover:text-destructive hover:bg-destructive/10"
+            className="w-full justify-start gap-3 h-11 rounded-xl text-[15px] text-white/80 hover:bg-white/10 hover:text-white"
             onClick={async () => {
               await signOut();
               navigate('/auth');

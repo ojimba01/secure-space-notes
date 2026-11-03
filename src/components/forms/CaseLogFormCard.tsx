@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ClipboardList, Eye, Plus } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { CaseLog } from '@/components/CaseLog';
 import { loadCaseLog, today, weekKey, weekLabel, type CaseLogRow } from '@/lib/caseLog';
 
@@ -63,21 +63,11 @@ export const CaseLogFormCard: React.FC<Props> = ({ profileId, caseManagerName })
     <>
       <FormTile
         title={CASE_LOG_LABEL}
-        icon={ClipboardList}
         detail={saved !== null ? `Draft for ${weekLabel(week)} · ${saved} ${saved === 1 ? 'row' : 'rows'}` : undefined}
+        label={saved !== null ? "Continue this week's draft" : "Open this week's case log"}
         disabled={!profileId}
-        primary={{
-          label: saved !== null ? 'Continue' : 'Open log',
-          icon: Plus,
-          title: saved !== null ? "Continue this week's draft" : "Open this week's case log",
-          onClick: () => setOpen('log'),
-        }}
-        secondary={{
-          label: 'View form',
-          icon: Eye,
-          title: "View this week's case log form",
-          onClick: () => setOpen('form'),
-        }}
+        onOpen={() => setOpen('log')}
+        aside={{ icon: Eye, label: "View this week's case log form", onClick: () => setOpen('form') }}
       />
 
       {/* The view button: the form on its own, and closing it is closing it. */}

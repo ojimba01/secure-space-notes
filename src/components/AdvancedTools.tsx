@@ -189,7 +189,7 @@ export const AdvancedTools: React.FC = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full justify-start gap-2 text-muted-foreground">
+        <Button variant="ghost" className="w-full justify-start gap-3 h-11 rounded-xl text-[15px] text-white/80 hover:bg-white/10 hover:text-white">
           <Settings2 className="h-4 w-4" />
           Advanced Tools
         </Button>

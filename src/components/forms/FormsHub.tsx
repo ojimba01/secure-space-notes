@@ -474,7 +474,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 p-4 md:p-8">
+    <div className="mx-auto max-w-6xl space-y-7 p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-semibold tracking-tight text-primary">
           {view === 'archive' ? 'Forms' : 'Blank forms'}
@@ -483,7 +483,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
           {/* Taking blanks to a meeting on paper, often several at once. */}
           <Button variant="outline" className="rounded-xl" onClick={() => setDownloadOpen(true)}>
             <Download className="mr-2 h-4 w-4" />
-            Download forms
+            Download
           </Button>
           <Button
             className="rounded-xl"
@@ -494,7 +494,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
             disabled={!profileId}
           >
             <Upload className="mr-2 h-4 w-4" />
-            Upload a completed form
+            Upload completed form
           </Button>
         </div>
       </div>
@@ -505,20 +505,15 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
         pre-fills the template — this is the escape hatch for everything else.
       */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-primary">General</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">General</h2>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {PDF_TEMPLATES.filter((t) => !t.mco).map((t) => (
             <FormTile
               key={t.file}
               title={t.label}
+              label={`Fill out the ${t.label}`}
               disabled={!profileId}
-              primary={{ label: 'Fill out', icon: Plus, title: `Fill out the ${t.label}`, onClick: () => setFillingTemplate(t) }}
-              secondary={{
-                label: 'Upload completed',
-                icon: Upload,
-                title: `Upload a completed ${t.label}`,
-                onClick: () => uploadFor(t.formType),
-              }}
+              onOpen={() => setFillingTemplate(t)}
             />
           ))}
           <CaseLogFormCard profileId={profileId} caseManagerName={signerName} />
@@ -528,25 +523,18 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
       {/* Each MCO's own forms, by what they ask for. */}
       {MCO_GROUPS.map((g) => (
         <section key={g.formType} className="space-y-3">
-          <h2 className="text-lg font-semibold text-primary">{g.title}</h2>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{g.title}</h2>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {mcoForms(g.formType).map((f) => {
               const mco = MCO_SHORT[f.mco] ?? f.mco;
               const name = `${mco} ${g.fullTitle}`;
               return (
                 <FormTile
                   key={f.key}
-                  title={f.mco === 'UnitedHealthcare' ? 'UnitedHealthcare (UHC)' : f.mco}
-                  detail={g.fullTitle}
-                  icon={Building2}
+                  title={f.mco === 'UnitedHealthcare' ? 'UnitedHealthcare' : f.mco}
+                  label={`Fill out the ${name}`}
                   disabled={!profileId}
-                  primary={{ label: 'Fill out', icon: Plus, title: `Fill out the ${name}`, onClick: f.onFill }}
-                  secondary={{
-                    label: 'Upload completed',
-                    icon: Upload,
-                    title: `Upload a completed ${name}`,
-                    onClick: () => uploadFor(g.formType),
-                  }}
+                  onOpen={f.onFill}
                 />
               );
             })}
