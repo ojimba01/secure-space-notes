@@ -177,7 +177,7 @@ export const GUIDES: Guide[] = [
     id: 'blank-form', section: 'Forms and documents', title: 'Start a blank form', audience: 'everyone', minutes: 3,
     steps: [
       s('Open Blank forms', 'Select Blank forms in the left panel.'),
-      s('Choose the form', 'Select + on the form you need, such as the UHC Move-in Supports Request. Select the upload icon to file one you completed elsewhere.'),
+      s('Choose the form', 'Select Fill out on the form you need, such as UnitedHealthcare under Move-in Supports Requests. To file one you completed elsewhere, select Upload completed.'),
     ],
   },
   {

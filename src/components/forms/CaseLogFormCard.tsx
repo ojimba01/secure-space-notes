@@ -6,8 +6,7 @@
 // Touchpoints because it is built from them; it is here too because this is
 // where people look for a form.
 import React, { useCallback, useEffect, useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { FormTile } from '@/components/forms/FormTile';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Eye, FileText, Plus } from 'lucide-react';
+import { ClipboardList, Eye, Plus } from 'lucide-react';
 import { CaseLog } from '@/components/CaseLog';
 import { loadCaseLog, today, weekKey, weekLabel, type CaseLogRow } from '@/lib/caseLog';
 
@@ -62,40 +61,24 @@ export const CaseLogFormCard: React.FC<Props> = ({ profileId, caseManagerName })
 
   return (
     <>
-      <Card className="flex items-center gap-2 p-3">
-        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="break-words text-sm font-medium leading-tight">{CASE_LOG_LABEL}</div>
-          {saved !== null && (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Draft for {weekLabel(week)} · {saved} {saved === 1 ? 'row' : 'rows'}
-            </p>
-          )}
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <Button
-            size="icon"
-            className="h-8 w-8 bg-green-600 text-white hover:bg-green-700"
-            onClick={() => setOpen('log')}
-            disabled={!profileId}
-            title={saved !== null ? "Continue this week's draft" : "Open this week's case log"}
-            aria-label={saved !== null ? "Continue this week's draft" : "Open this week's case log"}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setOpen('form')}
-            disabled={!profileId}
-            title="View this week's case log form"
-            aria-label="View this week's case log form"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-        </div>
-      </Card>
+      <FormTile
+        title={CASE_LOG_LABEL}
+        icon={ClipboardList}
+        detail={saved !== null ? `Draft for ${weekLabel(week)} · ${saved} ${saved === 1 ? 'row' : 'rows'}` : undefined}
+        disabled={!profileId}
+        primary={{
+          label: saved !== null ? 'Continue' : 'Open log',
+          icon: Plus,
+          title: saved !== null ? "Continue this week's draft" : "Open this week's case log",
+          onClick: () => setOpen('log'),
+        }}
+        secondary={{
+          label: 'View form',
+          icon: Eye,
+          title: "View this week's case log form",
+          onClick: () => setOpen('form'),
+        }}
+      />
 
       {/* The view button: the form on its own, and closing it is closing it. */}
       {open === 'form' && profileId && (

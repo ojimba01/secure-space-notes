@@ -44,6 +44,10 @@ const BetaBadge = () => (
   </span>
 );
 
+/** A menu item: tall and rounded; the current page is the dark pill. */
+const NAV_ITEM =
+  'w-full justify-start gap-3 h-11 rounded-xl px-3 text-[15px] font-normal text-primary [&.bg-primary]:font-medium [&.bg-primary]:text-primary-foreground [&:not(.bg-primary)]:hover:bg-white/60 [&_svg]:size-[18px]';
+
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -138,13 +142,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
       <MobileToolbar />
       <Overlay />
       <div className={cn(
-        "bg-card border-r border-border p-3 md:p-6 space-y-3 md:space-y-6 flex flex-col overflow-y-auto",
-        "fixed md:sticky md:top-0 inset-y-0 left-0 z-40",
-        "w-[85vw] max-w-72 md:w-80 md:max-w-none",
+        // A soft blue panel that floats beside the page.
+        "bg-gradient-to-b from-sky-200 via-sky-100 to-white p-3 md:p-5 space-y-3 md:space-y-6 flex flex-col overflow-y-auto",
+        "border-r border-sky-100 md:border md:border-white/70 md:rounded-2xl md:shadow-sm md:m-3",
+        "fixed md:sticky md:top-3 inset-y-0 left-0 z-40",
+        "w-[85vw] max-w-72 md:w-72 md:max-w-none md:shrink-0",
         "transform transition-transform duration-300 ease-in-out",
         isMobile && !isOpen ? "-translate-x-full" : "translate-x-0",
         isMobile ? "top-14" : "top-0", // Account for mobile toolbar
-        "md:h-screen"
+        "md:h-[calc(100vh-1.5rem)]"
       )}>
         {/* Header - hidden on mobile since toolbar shows it */}
         <div className="space-y-3 md:pt-0">
@@ -154,12 +160,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
               onClick={() => handleViewChange('clients')}
               className="flex flex-1 min-w-0 items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer text-left"
             >
-              <div className="p-2 bg-medical-blue rounded-lg">
+              <div className="p-2 bg-primary rounded-xl">
                 <Stethoscope className="w-5 h-5 text-white" />
               </div>
               <div className="min-w-0">
-                <h2 className="font-semibold text-lg">Clinical Notes</h2>
-                <p className="text-sm text-muted-foreground">HIPAA Compliant</p>
+                <h2 className="text-xl font-bold tracking-tight text-primary">Clinical Notes</h2>
+                <p className="text-xs text-primary/70">HIPAA Compliant</p>
               </div>
             </button>
             {/* Your own account: your signatures and your password. At the top
@@ -180,11 +186,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         </div>
 
         {/* Navigation */}
-        <div className={cn('space-y-1 md:space-y-2 transition-opacity', menuReady ? 'opacity-100' : 'pointer-events-none opacity-0')} aria-busy={!menuReady}>
+        <div className={cn('space-y-1 transition-opacity', menuReady ? 'opacity-100' : 'pointer-events-none opacity-0')} aria-busy={!menuReady}>
           {isAdmin && (
             <Button
               variant={routeVariant('/admin')}
-              className="w-full justify-start gap-2"
+              className={NAV_ITEM}
               onClick={() => handleNavigate('/admin')}
               data-tutorial="admin-nav"
             >
@@ -194,7 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           )}
           <Button
             variant={viewVariant('clients')}
-            className="w-full justify-start gap-2"
+            className={NAV_ITEM}
             onClick={() => handleViewChange('clients')}
             data-tutorial="clients-nav"
           >
@@ -203,7 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           </Button>
           <Button
             variant={viewVariant('forms')}
-            className="w-full justify-start gap-2"
+            className={NAV_ITEM}
             onClick={() => handleViewChange('forms')}
             data-tutorial="forms-nav"
           >
@@ -212,7 +218,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           </Button>
           <Button
             variant={routeVariant('/clinical-notes')}
-            className="w-full justify-start gap-2"
+            className={NAV_ITEM}
             onClick={() => handleNavigate('/clinical-notes')}
           >
             <NotebookPen className="h-4 w-4" />
@@ -222,7 +228,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           {isAdmin && (
             <Button
               variant={routeVariant('/workbook')}
-              className="w-full justify-start gap-2"
+              className={NAV_ITEM}
               onClick={() => handleNavigate('/workbook')}
             >
               <FileSpreadsheet className="h-4 w-4" />
@@ -233,7 +239,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           <Button
             data-tutorial="touchpoints-nav"
             variant={viewVariant('compliance')}
-            className="w-full justify-start gap-2"
+            className={NAV_ITEM}
             onClick={() => handleViewChange('compliance')}
           >
             <ClipboardList className="h-4 w-4" />
@@ -247,7 +253,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             <Button
               data-tutorial="billing-nav"
               variant={routeVariant('/billing')}
-              className="w-full justify-start gap-2"
+              className={NAV_ITEM}
               onClick={() => handleNavigate('/billing')}
             >
               <DollarSign className="h-4 w-4" />
@@ -256,7 +262,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           )}
           <Button
             variant={viewVariant('calendar')}
-            className="w-full justify-start gap-2"
+            className={NAV_ITEM}
             onClick={() => handleViewChange('calendar')}
             data-tutorial="calendar-nav"
           >
@@ -265,7 +271,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           </Button>
           <Button
             variant={routeVariant('/onboarding')}
-            className="w-full justify-start gap-2"
+            className={NAV_ITEM}
             onClick={() => handleNavigate('/onboarding')}
             data-tutorial="onboarding-nav"
           >
@@ -275,7 +281,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           {canViewActivity && (
             <Button
               variant={routeVariant('/staff-activity')}
-              className="w-full justify-start gap-2"
+              className={NAV_ITEM}
               onClick={() => handleNavigate('/staff-activity')}
             >
               <Activity className="h-4 w-4" />
@@ -285,7 +291,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           {isSuperadmin && !isViewingAs && (
             <Button
               variant={routeVariant('/support-tickets')}
-              className="w-full justify-start gap-2"
+              className={NAV_ITEM}
               onClick={() => handleNavigate('/support-tickets')}
             >
               <LifeBuoy className="h-4 w-4" />
@@ -298,7 +304,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         </div>
 
         {/* Security Notice - Compact on mobile */}
-        <Card className="p-3 md:p-4 bg-medical-green-light/20 border-medical-green/20">
+        <Card className="p-3 md:p-4 bg-white/60 border-white/70 shadow-none">
           <div className="flex items-start gap-2 md:gap-3">
             <Shield className="w-4 h-4 md:w-5 md:h-5 text-medical-green mt-0.5 shrink-0" />
             <div className="space-y-1">
@@ -311,12 +317,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         </Card>
 
         {/* Advanced Tools (superadmin only) - pinned to bottom */}
-        <div className="mt-auto space-y-2">
+        <div className="!mt-auto space-y-2">
           <AdvancedTools />
           {/* Logout Button */}
-          <Button 
-            variant="outline"
-            className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 h-11 rounded-xl text-[15px] text-destructive hover:text-destructive hover:bg-destructive/10"
             onClick={async () => {
               await signOut();
               navigate('/auth');

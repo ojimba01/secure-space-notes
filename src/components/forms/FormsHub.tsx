@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Building2,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -53,6 +54,7 @@ import {
   CASE_LOG_LABEL,
   CaseLogFormCard,
 } from '@/components/forms/CaseLogFormCard';
+import { FormTile } from '@/components/forms/FormTile';
 import { isCaseClosed } from '@/lib/workflow';
 import { loadBlankTemplate } from '@/lib/formTemplates';
 import {
@@ -76,13 +78,6 @@ const MCO_GROUPS = [
   { formType: 'Move-In Supports Request', title: 'Move-in Supports Requests', fullTitle: 'Move-in Supports Request' },
 ];
 
-/** Each MCO in its own colour, so the payer is the first thing read. */
-const MCO_TEXT: Record<string, string> = {
-  Aetna: 'text-violet-700',
-  Horizon: 'text-sky-700',
-  UnitedHealthcare: 'text-orange-700',
-  Wellpoint: 'text-emerald-700',
-};
 const MCO_SHORT: Record<string, string> = { UnitedHealthcare: 'UHC' };
 
 const PDFPreviewDialog = React.lazy(() => import('@/components/PDFPreviewDialog'));
@@ -464,41 +459,6 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
     return [...pdfs, ...uhc].sort((a, b) => a.mco.localeCompare(b.mco));
   };
 
-  /** + to fill a form in, and upload for one completed elsewhere. */
-  const formButtons = (name: string, onFill: () => void, onUpload: () => void) => (
-    <div className="flex shrink-0 items-center gap-2">
-      <Button
-        size="icon"
-        className="h-8 w-8 bg-green-600 text-white hover:bg-green-700"
-        onClick={onFill}
-        disabled={!profileId}
-        title={`Fill out the ${name}`}
-        aria-label={`Fill out the ${name}`}
-      >
-        <Plus className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-8 w-8"
-        onClick={onUpload}
-        disabled={!profileId}
-        title={`Upload a completed ${name}`}
-        aria-label={`Upload a completed ${name}`}
-      >
-        <Upload className="h-4 w-4" />
-      </Button>
-    </div>
-  );
-
-  const formCard = (c: { key: string; title: string; onFill: () => void; onUpload: () => void }) => (
-    <Card key={c.key} className="flex items-center gap-2 p-3">
-      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-      <div className="min-w-0 flex-1 text-sm font-medium leading-tight">{c.title}</div>
-      <div className="ml-auto">{formButtons(c.title, c.onFill, c.onUpload)}</div>
-    </Card>
-  );
-
   const openPreview = (form: FormRow) => {
     if (form.form_data) {
       setUhcForm(form);
@@ -514,81 +474,85 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="mx-auto max-w-6xl space-y-8 p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">{view === 'archive' ? 'Forms' : 'Blank forms'}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-primary">
+          {view === 'archive' ? 'Forms' : 'Blank forms'}
+        </h1>
+        <div className="flex flex-wrap gap-2">
+          {/* Taking blanks to a meeting on paper, often several at once. */}
+          <Button variant="outline" className="rounded-xl" onClick={() => setDownloadOpen(true)}>
+            <Download className="mr-2 h-4 w-4" />
+            Download forms
+          </Button>
+          <Button
+            className="rounded-xl"
+            onClick={() => {
+              setUploadType(null);
+              setUploadOpen(true);
+            }}
+            disabled={!profileId}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Upload a completed form
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => {
-            setUploadType(null);
-            setUploadOpen(true);
-          }}
-          disabled={!profileId}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Upload Form
-        </Button>
       </div>
-
 
       {/*
         Secondary route only. Ordinary IAT/LoN/HSP work starts from the
         client's own lifecycle card, which already knows the client and
         pre-fills the template — this is the escape hatch for everything else.
       */}
-      <div className="rounded-md border">
-        <div className="px-4 py-3 text-sm font-medium">Start a blank form</div>
-        <div className="border-t p-4 space-y-4">
-          {/* Forms every client has, then each MCO's own, split by what they ask
-              for. The MCO's name is a coloured tag so the payer stands out. */}
-          <section className="space-y-2 rounded-lg border bg-white p-3">
-            <h3 className="text-sm font-semibold">General</h3>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {PDF_TEMPLATES.filter((t) => !t.mco).map((t) =>
-                formCard({
-                  key: t.file,
-                  title: t.label,
-                  onFill: () => setFillingTemplate(t),
-                  onUpload: () => uploadFor(t.formType),
-                }),
-              )}
-              <CaseLogFormCard profileId={profileId} caseManagerName={signerName} />
-            </div>
-          </section>
-
-          <section className="space-y-3 rounded-lg border bg-white p-3">
-            <h3 className="text-sm font-semibold">MCO forms</h3>
-            {MCO_GROUPS.map((g) => (
-              <div key={g.formType} className="space-y-2">
-                <h4 className="text-base font-bold text-slate-900">{g.title}</h4>
-                {/* Just the MCO's name, in its colour, and the two buttons. */}
-                <div className="flex flex-wrap items-center gap-x-10 gap-y-2">
-                  {mcoForms(g.formType).map((f) => {
-                    const name = `${MCO_SHORT[f.mco] ?? f.mco} ${g.fullTitle}`;
-                    return (
-                      <div key={f.key} className="flex items-center gap-2">
-                        <span className={`mr-1 text-base font-bold ${MCO_TEXT[f.mco] ?? 'text-foreground'}`}>{MCO_SHORT[f.mco] ?? f.mco}</span>
-                        {formButtons(name, f.onFill, () => uploadFor(g.formType))}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </section>
-
-          {/* Filling one in is one thing; taking the blank to a meeting on
-              paper is another, and it is rarely just one form. */}
-          <div className="flex justify-end border-t pt-3">
-            <Button variant="outline" size="sm" onClick={() => setDownloadOpen(true)}>
-              <Download className="h-4 w-4 mr-2" />
-              Download Forms
-            </Button>
-          </div>
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-primary">General</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {PDF_TEMPLATES.filter((t) => !t.mco).map((t) => (
+            <FormTile
+              key={t.file}
+              title={t.label}
+              disabled={!profileId}
+              primary={{ label: 'Fill out', icon: Plus, title: `Fill out the ${t.label}`, onClick: () => setFillingTemplate(t) }}
+              secondary={{
+                label: 'Upload completed',
+                icon: Upload,
+                title: `Upload a completed ${t.label}`,
+                onClick: () => uploadFor(t.formType),
+              }}
+            />
+          ))}
+          <CaseLogFormCard profileId={profileId} caseManagerName={signerName} />
         </div>
-      </div>
+      </section>
+
+      {/* Each MCO's own forms, by what they ask for. */}
+      {MCO_GROUPS.map((g) => (
+        <section key={g.formType} className="space-y-3">
+          <h2 className="text-lg font-semibold text-primary">{g.title}</h2>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {mcoForms(g.formType).map((f) => {
+              const mco = MCO_SHORT[f.mco] ?? f.mco;
+              const name = `${mco} ${g.fullTitle}`;
+              return (
+                <FormTile
+                  key={f.key}
+                  title={f.mco === 'UnitedHealthcare' ? 'UnitedHealthcare (UHC)' : f.mco}
+                  detail={g.fullTitle}
+                  icon={Building2}
+                  disabled={!profileId}
+                  primary={{ label: 'Fill out', icon: Plus, title: `Fill out the ${name}`, onClick: f.onFill }}
+                  secondary={{
+                    label: 'Upload completed',
+                    icon: Upload,
+                    title: `Upload a completed ${name}`,
+                    onClick: () => uploadFor(g.formType),
+                  }}
+                />
+              );
+            })}
+          </div>
+        </section>
+      ))}
 
       {view === 'archive' && (
         <>
