@@ -64,6 +64,8 @@ interface FormSummary {
   status: string;
   external_status: string | null;
   created_at: string;
+  employee_id: string | null;
+  file_path: string | null;
 }
 
 // The forms a case is worked through, in the order they are done.
@@ -127,7 +129,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
   const loadForms = useCallback(async () => {
     const { data, error } = await supabase
       .from('client_forms')
-      .select('form_type, status, external_status, created_at')
+      .select('form_type, status, external_status, created_at, employee_id, file_path')
       .eq('client_id', client.id)
       // Only this round's forms count toward its packet.
       .gte('round', client.billing_round ?? 1)
@@ -179,6 +181,11 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
   const stage = displayStage(client);
   const action = nextAction(client, forms);
   const latest = (type: string) => forms.find((f) => f.form_type === type);
+  /** This staff member has an unfinished copy of the form to go back to. */
+  const hasOwnDraft = (type: string) =>
+    forms.some(
+      (f) => f.form_type === type && f.status === 'draft' && f.employee_id === profileId && !!f.file_path,
+    );
   const current = currentAuthorization(authorizations);
   const daysLeft = daysUntilEnd(current);
   const reauthDue = needsReauthorization(authorizations);
@@ -482,6 +489,13 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
                     {/* One already filed, and room for another beside it: a
                         continuation's plan, a level of need redone, an intake
                         retaken. Redo replaces what is there; this does not. */}
+                    {/* Back into a draft already started. The + beside it files a
+                        separate new copy, which is easy to mistake for this. */}
+                    {hasOwnDraft(type) && templateFor(type) && (
+                      <Button size="sm" onClick={() => openForm(type)}>
+                        Continue
+                      </Button>
+                    )}
                     {f && templateFor(type) && (
                       <Button
                         size="icon"

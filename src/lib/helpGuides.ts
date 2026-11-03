@@ -155,7 +155,7 @@ export const GUIDES: Guide[] = [
     id: 'drafts', section: 'Forms and documents', title: 'Save a draft', audience: 'everyone', minutes: 1,
     steps: [
       s('Save draft', 'While filling out a form, select Save draft.'),
-      s('Finish it later', 'A draft is marked Draft on the client’s Forms tab. Open the form’s row, select Continue, tick the confirmation and select Complete form. Opening the same form from the client’s next step reopens your draft too. Until then it stays a draft.'),
+      s('Finish it later', 'A draft is marked Draft on the client’s Forms tab. Open the form’s row, select Continue, tick the confirmation and select Complete form. You can also select Continue next to the form in the client’s Case overview. Until then it stays a draft.'),
     ],
   },
   {
