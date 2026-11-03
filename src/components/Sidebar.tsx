@@ -46,12 +46,14 @@ const BetaBadge = () => (
 const NAV_ITEM =
   'w-full justify-start gap-3 h-11 rounded-xl px-3 text-[15px] font-normal text-white/85 [&.bg-primary]:bg-white [&.bg-primary]:font-medium [&.bg-primary]:text-primary [&.bg-primary]:shadow-sm [&:not(.bg-primary)]:hover:bg-white/10 [&:not(.bg-primary)]:hover:text-white [&_svg]:size-[18px]';
 
-/** The agency's name, set like its logo: blue over orange. */
-export const BrandMark: React.FC<{ onDark?: boolean }> = ({ onDark = true }) => (
-  <div className="min-w-0 leading-tight">
-    <div className={cn('text-lg font-bold tracking-tight', onDark ? 'text-white' : 'text-[#2e6da4]')}>Supportive Care</div>
-    <div className="text-base font-semibold tracking-tight text-[hsl(var(--brand-orange))]">Management</div>
-  </div>
+/** The agency's name as it appears in its logo (lettering only, without the emblem). */
+export const BrandMark: React.FC<{ className?: string }> = ({ className }) => (
+  <img
+    src="/brand/scm-wordmark.png"
+    alt="Supportive Care Management LLC"
+    className={cn('h-auto w-full max-w-[190px] select-none', className)}
+    draggable={false}
+  />
 );
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
@@ -113,9 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
       <div className="flex flex-1 items-center gap-2 min-w-0">
-        <span className="truncate font-semibold text-[#2e6da4]">
-          Supportive Care <span className="text-[hsl(var(--brand-orange))]">Management</span>
-        </span>
+        <BrandMark className="max-h-9 w-auto" />
       </div>
       <Button
         variant="ghost"
@@ -165,7 +165,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
               onClick={() => handleViewChange('clients')}
               className="flex flex-1 min-w-0 items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer text-left"
             >
-              <BrandMark />
+              <span className="flex flex-1 items-center rounded-xl bg-white px-3 py-2.5 shadow-sm">
+                <BrandMark />
+              </span>
             </button>
             {/* Your own account: your signatures and your password. At the top
                 where a profile belongs, rather than at the foot of the

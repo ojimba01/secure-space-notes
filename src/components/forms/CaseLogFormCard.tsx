@@ -14,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Eye } from 'lucide-react';
 import { CaseLog } from '@/components/CaseLog';
 import { loadCaseLog, today, weekKey, weekLabel, type CaseLogRow } from '@/lib/caseLog';
 
@@ -67,7 +66,6 @@ export const CaseLogFormCard: React.FC<Props> = ({ profileId, caseManagerName })
         label={saved !== null ? "Continue this week's draft" : "Open this week's case log"}
         disabled={!profileId}
         onOpen={() => setOpen('log')}
-        aside={{ icon: Eye, label: "View this week's case log form", onClick: () => setOpen('form') }}
       />
 
       {/* The view button: the form on its own, and closing it is closing it. */}
