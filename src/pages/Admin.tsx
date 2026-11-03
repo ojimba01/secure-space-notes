@@ -4,14 +4,14 @@ import { FeatureWalkthrough } from '@/components/FeatureWalkthrough';
 import { ShadeDashboard } from '@/components/admin/ShadeDashboard';
 import { TutorialProvider } from '@/components/TutorialProvider';
 import { Sidebar } from '@/components/Sidebar';
-import { Navigate, useNavigate, Link } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { visibleProfiles } from '@/lib/testAccounts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, UserX, UserCheck, Stethoscope } from 'lucide-react';
+import { UserX, UserCheck } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { usePreview } from '@/components/ViewAsProvider';
@@ -222,23 +222,9 @@ const Admin = () => {
       <Sidebar onViewChange={(view) => navigate('/', { state: { view } })} />
       <div className="min-w-0 flex-1 space-y-6 p-6 pt-16 md:pt-6">
 
-        {/* Header with Logo */}
-        <div className="flex items-center justify-between border-b pb-4">
-          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div className="p-2 bg-medical-blue rounded-lg">
-              <Stethoscope className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-lg">Clinical Notes</h2>
-              <p className="text-xs text-muted-foreground">HIPAA Compliant</p>
-            </div>
-          </Link>
-        </div>
-
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Shield className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Admin dashboard</h1>
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Admin dashboard</h1>
           </div>
         </div>
 

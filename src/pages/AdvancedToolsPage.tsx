@@ -36,7 +36,7 @@ const AdvancedToolsPage: React.FC = () => {
       </div>
 
       <div>
-        <h1 className="text-2xl font-semibold">Advanced Tools</h1>
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Advanced Tools</h1>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>

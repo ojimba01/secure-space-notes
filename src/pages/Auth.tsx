@@ -4,12 +4,12 @@ import { useAuth } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { returnTo } from '@/lib/returnTo';
-import { Stethoscope } from 'lucide-react';
+import { BrandMark } from '@/components/Sidebar';
 
 // Set to null to allow any email domain, or specify domain like '@supportivecm.org'
 const ALLOWED_EMAIL_DOMAIN: string | null = '@supportivecm.org';
@@ -132,25 +132,15 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-sky-200 via-sky-100 to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
-        {/* Logo Header */}
-        <Link to="/" className="flex items-center justify-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="p-2 bg-medical-blue rounded-lg">
-            <Stethoscope className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-lg">Clinical Notes</h2>
-            <p className="text-xs text-muted-foreground">HIPAA compliant</p>
-          </div>
+        <Link to="/" className="mx-auto block w-fit transition-opacity hover:opacity-80">
+          <BrandMark className="w-64" />
         </Link>
 
-        <Card className="w-full">
+        <Card className="w-full rounded-2xl border-white/70 shadow-lg">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Clinical Notes</CardTitle>
-          <CardDescription>
-            Secure case management platform
-          </CardDescription>
+          <CardTitle className="text-2xl font-semibold tracking-tight text-primary">Clinical Notes</CardTitle>
         </CardHeader>
         <CardContent>
           {showForgotPassword ? (

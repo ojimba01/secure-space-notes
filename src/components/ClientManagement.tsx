@@ -475,7 +475,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       />
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
-          <h1 className="text-xl md:text-3xl font-bold truncate">Clients</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary truncate">Clients</h1>
         </div>
         {!selectionMode && (
           <div className="flex items-center gap-2 shrink-0">

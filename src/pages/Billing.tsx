@@ -9,7 +9,7 @@ export default function Billing() {
   if (!isAdmin) return <Navigate to="/" replace />;
   return <PageShell>
     <div className="mx-auto max-w-[1500px] p-4 md:p-8">
-      <div className="mb-5"><h1 className="text-2xl font-bold">Billing</h1></div>
+      <div className="mb-5"><h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Billing</h1></div>
       <BillingWorkspace />
     </div>
   </PageShell>;

@@ -63,8 +63,7 @@ export default function HelpGuide() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex items-center gap-3">
             <div>
-              <h1 className="text-2xl font-bold">Help guide</h1>
-              <p className="text-sm text-muted-foreground">Step-by-step instructions for your work in Clinical Notes.</p>
+              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Help guide</h1>
             </div>
           </div>
           <div className="relative w-full max-w-sm">

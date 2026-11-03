@@ -175,7 +175,7 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">My touchpoints</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">My touchpoints</h1>
         </div>
         <Button className="gap-2" onClick={() => openAdd(null)}>
           <Plus className="h-4 w-4" />

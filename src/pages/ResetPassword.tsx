@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Stethoscope } from 'lucide-react';
+import { BrandMark } from '@/components/Sidebar';
 
 const resetPasswordSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -76,22 +76,15 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background p-4">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-sky-200 via-sky-100 to-background p-4">
       <div className="w-full max-w-md space-y-6">
-        {/* Logo Header */}
-        <Link to="/" className="flex items-center justify-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="p-2 bg-medical-blue rounded-lg">
-            <Stethoscope className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-lg">Clinical Notes</h2>
-            <p className="text-xs text-muted-foreground">HIPAA compliant</p>
-          </div>
+        <Link to="/" className="mx-auto block w-fit transition-opacity hover:opacity-80">
+          <BrandMark className="w-64" />
         </Link>
 
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md rounded-2xl border-white/70 shadow-lg">
         <CardHeader>
-          <CardTitle>Reset password</CardTitle>
+          <CardTitle className="text-primary">Reset password</CardTitle>
           <CardDescription>Enter and confirm your new password.</CardDescription>
         </CardHeader>
         <CardContent>

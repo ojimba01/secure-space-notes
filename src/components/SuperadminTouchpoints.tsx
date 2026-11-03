@@ -127,7 +127,7 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
     <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Team touchpoints</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Team touchpoints</h1>
         </div>
         <Button variant="outline" className="gap-2" onClick={() => setReminderTarget({ employeeId: null, clientIds: [] })}>
           <BellRing className="h-4 w-4" />

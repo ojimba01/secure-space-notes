@@ -121,7 +121,7 @@ export default function SupportTickets() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div>
-              <h1 className="text-2xl font-bold">Support tickets</h1>
+              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Support tickets</h1>
             </div>
           </div>
           <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>

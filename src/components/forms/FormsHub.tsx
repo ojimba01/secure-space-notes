@@ -388,7 +388,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   return (
     <div className="mx-auto max-w-6xl space-y-7 p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight text-primary">
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">
           {view === 'archive' ? 'Forms' : 'Blank forms'}
         </h1>
         <div className="flex flex-wrap gap-2">

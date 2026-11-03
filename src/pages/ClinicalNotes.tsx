@@ -238,7 +238,7 @@ export default function ClinicalNotes() {
     <PageShell>
       <div className="mx-auto max-w-[1300px] space-y-5 p-4 md:p-8">
         <div>
-          <h1 className="text-2xl font-bold">Generate Notes</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Generate Notes</h1>
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as 'new' | 'notes')}>
