@@ -44,14 +44,14 @@ const BetaBadge = () => (
 
 /** A menu item: tall and rounded; the current page is the dark pill. */
 const NAV_ITEM =
-  'w-full justify-start gap-3 h-11 rounded-xl px-3 text-[15px] font-normal text-white/85 [&.bg-primary]:bg-white [&.bg-primary]:font-medium [&.bg-primary]:text-primary [&.bg-primary]:shadow-sm [&:not(.bg-primary)]:hover:bg-white/10 [&:not(.bg-primary)]:hover:text-white [&_svg]:size-[18px]';
+  'w-full justify-start gap-3 h-11 rounded-xl px-3 text-[15px] font-normal text-primary [&.bg-primary]:font-medium [&.bg-primary]:text-primary-foreground [&:not(.bg-primary)]:hover:bg-white/60 [&_svg]:size-[18px]';
 
-/** The agency's name as it appears in its logo (lettering only, without the emblem). */
+/** Supportive Care Management's logo. */
 export const BrandMark: React.FC<{ className?: string }> = ({ className }) => (
   <img
-    src="/brand/scm-wordmark.png"
+    src="/brand/scm-logo.png"
     alt="Supportive Care Management LLC"
-    className={cn('h-auto w-full max-w-[190px] select-none', className)}
+    className={cn('h-auto w-full select-none', className)}
     draggable={false}
   />
 );
@@ -147,9 +147,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
       <MobileToolbar />
       <Overlay />
       <div className={cn(
-        // The brand's dark blue, lightening toward the bottom, floating beside the page.
-        "bg-gradient-to-b from-[#0c3d66] via-[#14558c] to-[#2e6da4] text-white p-3 md:p-5 space-y-3 md:space-y-6 flex flex-col overflow-y-auto",
-        "md:rounded-2xl md:shadow-md md:m-3",
+        // A soft blue panel that floats beside the page.
+        "bg-gradient-to-b from-sky-200 via-sky-100 to-white p-3 md:p-5 space-y-3 md:space-y-6 flex flex-col overflow-y-auto",
+        "border-r border-sky-100 md:border md:border-white/70 md:rounded-2xl md:shadow-sm md:m-3",
         "fixed md:sticky md:top-3 inset-y-0 left-0 z-40",
         "w-[85vw] max-w-72 md:w-72 md:max-w-none md:shrink-0",
         "transform transition-transform duration-300 ease-in-out",
@@ -165,9 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
               onClick={() => handleViewChange('clients')}
               className="flex flex-1 min-w-0 items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer text-left"
             >
-              <span className="flex flex-1 items-center rounded-xl bg-white px-3 py-2.5 shadow-sm">
-                <BrandMark />
-              </span>
+              <BrandMark className="max-w-[200px]" />
             </button>
             {/* Your own account: your signatures and your password. At the top
                 where a profile belongs, rather than at the foot of the
@@ -175,7 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             <Button
               variant="ghost"
               size="icon"
-              className="shrink-0 h-10 w-10 text-white/80 hover:bg-white/10 hover:text-white"
+              className="shrink-0 h-10 w-10 text-primary hover:bg-white/60"
               onClick={() => setAccountOpen(true)}
               title="Your account"
               aria-label="Your account"
@@ -310,7 +308,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           {/* Logout Button */}
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 h-11 rounded-xl text-[15px] text-white/80 hover:bg-white/10 hover:text-white"
+            className="w-full justify-start gap-3 h-11 rounded-xl text-[15px] text-destructive hover:text-destructive hover:bg-destructive/10"
             onClick={async () => {
               await signOut();
               navigate('/auth');

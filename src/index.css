@@ -8,26 +8,26 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 207 40% 97%;
-    --foreground: 207 45% 15%;
+    --background: 207 45% 97%;
+    --foreground: 200 45% 13%;
 
     --card: 0 0% 100%;
-    --card-foreground: 207 45% 15%;
+    --card-foreground: 200 45% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 207 45% 15%;
+    --popover-foreground: 200 45% 13%;
 
-    --primary: 207 78% 27%;
+    --primary: 198 72% 15%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 207 45% 94%;
-    --secondary-foreground: 207 78% 27%;
+    --secondary-foreground: 198 72% 15%;
 
     --muted: 207 35% 95%;
     --muted-foreground: 205 15% 42%;
 
     --accent: 207 80% 94%;
-    --accent-foreground: 207 78% 27%;
+    --accent-foreground: 198 72% 15%;
 
     --success: 150 65% 45%;
     --success-foreground: 0 0% 100%;
@@ -37,7 +37,7 @@ All colors MUST be HSL.
 
     --border: 207 30% 89%;
     --input: 207 30% 89%;
-    --ring: 207 56% 41%;
+    --ring: 205 80% 45%;
 
     --medical-blue: 210 65% 45%;
     --medical-blue-light: 210 35% 85%;
@@ -50,9 +50,6 @@ All colors MUST be HSL.
     --table-border: 210 20% 88%;
 
     --radius: 0.75rem;
-
-    /* Supportive Care Management: the logo's blues and orange. */
-    --brand-orange: 28 86% 56%;
 
     --sidebar-background: 0 0% 98%;
 
