@@ -333,6 +333,7 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Open Support tickets', 'Select Support tickets in the left panel. The number shows open tickets.'),
       s('Reply and update', 'Select a ticket. Select a screenshot to view it large, and use the arrows to see the others. Close it, write a reply and set the status to In progress, Resolved or Closed. To ask the staff member something, write the question and select Ask follow-up; the status becomes Action required until they answer.'),
+      s('Format and add images', 'Use the buttons above the reply for bold, italics, bullet points and text colour. To add a picture, select Attach image, or paste or drag a screenshot into the reply. Point to it and select Draw to mark it up, then select Attach.'),
     ],
   },
   {

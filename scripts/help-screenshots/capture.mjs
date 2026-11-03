@@ -460,6 +460,7 @@ const SHOTS = {
   'support-tickets': [
     { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => p.getByRole('button', { name: /^Support tickets/ }).first(), label: 'Support tickets' },
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/support-tickets`); await wait(p, 2500); await p.getByText('Upload button does nothing').first().click(); await wait(p, 1500); }, target: (p) => p.getByTitle('View screenshot').first(), label: 'View a screenshot' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/support-tickets`); await wait(p, 2500); await p.getByText('Upload button does nothing').first().click(); await wait(p, 1500); await p.getByRole('textbox', { name: 'Reply' }).click(); await p.keyboard.type('Thanks, select Continue on the form.'); }, target: (p) => btn(p, 'Attach image'), label: 'Attach image' },
   ],
 
   'file-claim': [

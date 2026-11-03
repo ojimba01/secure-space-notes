@@ -57,6 +57,8 @@ export interface TicketMessage {
   from_support: boolean;
   attachments: Attachment[];
   created_at: string;
+  /** Formatted version of body (lib/richText), on replies written with formatting. */
+  body_rich?: unknown;
 }
 
 const TICKET_COLUMNS =
@@ -138,15 +140,32 @@ export async function loadAllTickets(): Promise<Ticket[]> {
 
 export async function loadMessages(ticketId: string): Promise<TicketMessage[]> {
   const { data } = await db('support_ticket_messages')
-    .select('id, ticket_id, author, body, from_support, attachments, created_at')
+    .select('id, ticket_id, author, body, body_rich, from_support, attachments, created_at')
     .eq('ticket_id', ticketId)
     .order('created_at', { ascending: true });
   return (data ?? []) as TicketMessage[];
 }
 
-export async function reply(ticketId: string, body: string, fromSupport: boolean): Promise<void> {
+export interface ReplyExtras {
+  /** The formatted version of body, when it uses any formatting. */
+  rich?: unknown;
+  attachments?: Attachment[];
+}
+
+export async function reply(
+  ticketId: string,
+  body: string,
+  fromSupport: boolean,
+  extras: ReplyExtras = {},
+): Promise<void> {
   const { data, error } = await db('support_ticket_messages')
-    .insert({ ticket_id: ticketId, body: body.trim(), from_support: fromSupport })
+    .insert({
+      ticket_id: ticketId,
+      body: body.trim(),
+      from_support: fromSupport,
+      body_rich: extras.rich ?? null,
+      attachments: extras.attachments ?? [],
+    })
     .select('id')
     .single();
   if (error) throw new Error(error.message);
@@ -157,9 +176,9 @@ export async function reply(ticketId: string, body: string, fromSupport: boolean
  * Support asks the person something. The status changes first, so the
  * pop-up the reply raises already offers Respond to follow-up.
  */
-export async function askFollowUp(ticketId: string, body: string): Promise<void> {
+export async function askFollowUp(ticketId: string, body: string, extras: ReplyExtras = {}): Promise<void> {
   await setStatus(ticketId, 'action_required');
-  await reply(ticketId, body, true);
+  await reply(ticketId, body, true, extras);
 }
 
 export async function markSeen(ticketId: string): Promise<void> {

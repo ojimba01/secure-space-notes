@@ -1,18 +1,23 @@
 // One support ticket: the request, its attachments and the conversation.
 // Shared by the Support panel (the person who asked) and the Support tickets
 // page (support answering).
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight, CircleHelp, FileText, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/AuthProvider';
+import { ReplyEditor, type ReplyEditorHandle } from '@/components/support/ReplyEditor';
+import { RichText } from '@/components/support/RichText';
+import { cleanRich, hasFormatting } from '@/lib/richText';
 import {
   loadMessages,
   askFollowUp,
   reply,
   signedUrl,
+  uploadAttachment,
   type Attachment,
   type Ticket,
   type TicketMessage,
@@ -132,8 +137,12 @@ interface Props {
 export const TicketThread: React.FC<Props> = ({ ticket, asSupport, requesterName, onReplied }) => {
   const { toast } = useToast();
   const [messages, setMessages] = useState<TicketMessage[] | null>(null);
+  const { user } = useAuth();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  // Support writes in the formatting editor; the person who asked keeps a plain box.
+  const editorRef = useRef<ReplyEditorHandle>(null);
+  const [editorHasContent, setEditorHasContent] = useState(false);
 
   useEffect(() => {
     setMessages(null);
@@ -141,12 +150,27 @@ export const TicketThread: React.FC<Props> = ({ ticket, asSupport, requesterName
   }, [ticket.id]);
 
   const send = async (followUp = false) => {
-    if (!draft.trim()) return;
+    const content = asSupport ? editorRef.current?.read() : null;
+    if (asSupport ? !content || (!content.plain && !content.images.length) : !draft.trim()) return;
     setSending(true);
     try {
-      if (followUp) await askFollowUp(ticket.id, draft);
-      else await reply(ticket.id, draft, asSupport);
-      setDraft('');
+      if (content) {
+        if (content.images.length && !user) throw new Error('Sign in again to attach images.');
+        const attachments: Attachment[] = [];
+        for (const img of content.images) {
+          attachments.push(await uploadAttachment(user!.id, img.blob, 'screenshot', img.name));
+        }
+        // A reply that is only images still says so in plain text.
+        const plain = content.plain || (attachments.length === 1 ? 'Image attached.' : 'Images attached.');
+        const extras = { rich: hasFormatting(content.blocks) ? content.blocks : undefined, attachments };
+        if (followUp) await askFollowUp(ticket.id, plain, extras);
+        else await reply(ticket.id, plain, true, extras);
+        editorRef.current?.clear();
+      } else {
+        if (followUp) await askFollowUp(ticket.id, draft);
+        else await reply(ticket.id, draft, asSupport);
+        setDraft('');
+      }
       setMessages(await loadMessages(ticket.id));
       onReplied?.();
     } catch (e) {
@@ -160,7 +184,14 @@ export const TicketThread: React.FC<Props> = ({ ticket, asSupport, requesterName
     }
   };
 
-  const bubble = (fromSupport: boolean, who: string, at: string, body: string, attachments: Attachment[]) => {
+  const bubble = (
+    fromSupport: boolean,
+    who: string,
+    at: string,
+    body: string,
+    attachments: Attachment[],
+    rich?: unknown,
+  ) => {
     const mine = fromSupport === asSupport;
     return (
       <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
@@ -168,12 +199,14 @@ export const TicketThread: React.FC<Props> = ({ ticket, asSupport, requesterName
           <div className="mb-1 text-xs text-muted-foreground">
             {who} · {format(new Date(at), "MMM d 'at' h:mm a")}
           </div>
-          <p className="whitespace-pre-wrap text-sm">{body}</p>
+          {cleanRich(rich).length ? <RichText value={rich} /> : <p className="whitespace-pre-wrap text-sm">{body}</p>}
           <Attachments items={attachments} />
         </div>
       </div>
     );
   };
+
+  const canSend = asSupport ? editorHasContent : !!draft.trim();
 
   const allShots = shotPaths([...ticket.attachments, ...(messages ?? []).flatMap((m) => m.attachments)]);
 
@@ -192,26 +225,36 @@ export const TicketThread: React.FC<Props> = ({ ticket, asSupport, requesterName
               m.created_at,
               m.body,
               m.attachments,
+              m.body_rich,
             )}
           </React.Fragment>
         ))
       )}
       <div className="space-y-2 border-t pt-3">
-        <Textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={asSupport ? 'Write a reply to the staff member…' : 'Add more detail or reply to support…'}
-          maxLength={4000}
-          rows={3}
-        />
+        {asSupport ? (
+          <ReplyEditor
+            ref={editorRef}
+            placeholder="Write a reply to the staff member…"
+            disabled={sending}
+            onChange={setEditorHasContent}
+          />
+        ) : (
+          <Textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Add more detail or reply to support…"
+            maxLength={4000}
+            rows={3}
+          />
+        )}
         <div className="flex justify-end gap-2">
           {asSupport && (
-            <Button size="sm" variant="outline" onClick={() => void send(true)} disabled={sending || !draft.trim()}>
+            <Button size="sm" variant="outline" onClick={() => void send(true)} disabled={sending || !canSend}>
               <CircleHelp className="mr-1.5 h-4 w-4" />
               Ask follow-up
             </Button>
           )}
-          <Button size="sm" onClick={() => void send()} disabled={sending || !draft.trim()}>
+          <Button size="sm" onClick={() => void send()} disabled={sending || !canSend}>
             {sending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}
             Send reply
           </Button>
