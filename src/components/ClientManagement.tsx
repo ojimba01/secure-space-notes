@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { PageBar } from '@/components/PageBar';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { isTestAccount, showTestAccounts } from '@/lib/testAccounts';
@@ -473,10 +474,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           setTouchpointFor({ id: r.client_id, name: r.clientName, levelOfNeed: r.levelOfNeed });
         }}
       />
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="min-w-0">
-          <h1 className="text-xl md:text-3xl font-bold truncate">Clients</h1>
-        </div>
+      <PageBar title="Clients">
         {!selectionMode && (
           <div className="flex items-center gap-2 shrink-0">
             {isAdmin && (
@@ -518,7 +516,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
             </Button>
           </div>
         )}
-      </div>
+      </PageBar>
 
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">

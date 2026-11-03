@@ -5,6 +5,7 @@
 // out of all of it. A client appears here as soon as they have a start date;
 // nothing else is a reason to hide their work from the person doing it.
 import React, { useEffect, useState } from 'react';
+import { PageBar } from '@/components/PageBar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -173,15 +174,12 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">My touchpoints</h1>
-        </div>
+      <PageBar title="My touchpoints">
         <Button className="gap-2" onClick={() => openAdd(null)}>
           <Plus className="h-4 w-4" />
           Add touchpoint
         </Button>
-      </div>
+      </PageBar>
 
       {/* The plan deadline. First, because it is the one that runs out
           soonest and the one people miss: the authorization runs 30 days but
