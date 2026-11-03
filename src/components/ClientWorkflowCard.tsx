@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -114,6 +115,7 @@ const workflowPurposeFor = (
 export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
+  const { isAdmin } = useIsAdmin();
   const { isViewingAs } = useViewAs();
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [authorizations, setAuthorizations] = useState<ClientAuthorization[]>([]);
@@ -346,6 +348,26 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
     setFilling(templateFor(formType) ?? null);
   };
 
+  /** Reopen a completed form to add to it. Approved forms stay locked for staff. */
+  const canEditDone = (f: FormSummary | undefined) =>
+    !!f && !!f.file_path && f.status !== 'draft' && f.status !== 'changes_requested' &&
+    (isAdmin || (f.employee_id === profileId && f.status !== 'approved'));
+  const editDone = async (f: FormSummary) => {
+    const { data, error } = await supabase
+      .from('client_forms')
+      .select(`${FORM_LIST_COLUMNS}, clients:client_id (first_name, last_name, status, workflow_stage)`)
+      .eq('client_id', client.id)
+      .eq('form_type', f.form_type)
+      .eq('created_at', f.created_at)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) {
+      toast({ title: 'Could not open the form', description: error?.message, variant: 'destructive' });
+      return;
+    }
+    setContinuing(data as unknown as FormRow);
+  };
+
   const actionButton = () => {
     switch (action.kind) {
       case 'submit_iat':
@@ -494,6 +516,11 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
                     {hasOwnDraft(type) && templateFor(type) && (
                       <Button size="sm" onClick={() => openForm(type)}>
                         Continue
+                      </Button>
+                    )}
+                    {canEditDone(f) && templateFor(type) && (
+                      <Button size="sm" variant="outline" onClick={() => editDone(f!)}>
+                        Edit
                       </Button>
                     )}
                     {f && templateFor(type) && (

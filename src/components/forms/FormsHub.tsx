@@ -564,6 +564,13 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
                           Continue
                         </Button>
                       )}
+                      {!reviewMode && !(form.status === 'draft' || form.status === 'changes_requested') &&
+                        (isAdmin || (form.employee_id === profileId && form.status !== 'approved')) &&
+                        (form.file_path || form.form_data) && (
+                        <Button size="sm" variant="outline" onClick={() => setEditingForm(form)}>
+                          Edit
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" onClick={() => handleDownload(form)}>
                         <Download className="h-4 w-4" />
                       </Button>
