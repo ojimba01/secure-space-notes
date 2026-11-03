@@ -6,7 +6,6 @@
 // case managers are the page now, the totals are a strip above them, and
 // pressing a name opens that person's weekly HMIS Case Log.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { PageBar } from '@/components/PageBar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -126,12 +125,15 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
-      <PageBar title="Team touchpoints">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Team touchpoints</h1>
+        </div>
         <Button variant="outline" className="gap-2" onClick={() => setReminderTarget({ employeeId: null, clientIds: [] })}>
           <BellRing className="h-4 w-4" />
           Send a reminder
         </Button>
-      </PageBar>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat icon={<AlertTriangle className="h-4 w-4" />} label="Overdue" value={data.overdueRows.length} tone="danger" hint="Across all staff" />

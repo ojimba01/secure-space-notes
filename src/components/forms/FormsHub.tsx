@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { PageBar } from '@/components/PageBar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -476,7 +475,11 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
 
   return (
     <div className="mx-auto max-w-6xl space-y-7 p-4 md:p-8">
-      <PageBar title={view === 'archive' ? 'Forms' : 'Blank forms'}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-semibold tracking-tight text-primary">
+          {view === 'archive' ? 'Forms' : 'Blank forms'}
+        </h1>
+        <div className="flex flex-wrap gap-2">
           {/* Taking blanks to a meeting on paper, often several at once. */}
           <Button variant="outline" className="rounded-xl" onClick={() => setDownloadOpen(true)}>
             <Download className="mr-2 h-4 w-4" />
@@ -493,7 +496,8 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
             <Upload className="mr-2 h-4 w-4" />
             Upload completed form
           </Button>
-      </PageBar>
+        </div>
+      </div>
 
       {/*
         Secondary route only. Ordinary IAT/LoN/HSP work starts from the

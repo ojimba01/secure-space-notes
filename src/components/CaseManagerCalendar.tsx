@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { PageBar } from '@/components/PageBar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -539,7 +538,11 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
 
   return (
     <div className="p-6 space-y-6">
-      <PageBar title="Calendar">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold">Calendar</h1>
+        </div>
         <div className="flex items-center gap-2">
           {showsScope && (
             <div className="flex rounded-lg border bg-background p-1" role="group" aria-label="Whose calendar">
@@ -563,7 +566,7 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
             Add Event
           </Button>
         </div>
-      </PageBar>
+      </div>
 
       {/* Find an event without knowing its month. */}
       <div className="relative">
