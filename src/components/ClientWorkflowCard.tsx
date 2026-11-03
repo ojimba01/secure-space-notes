@@ -26,6 +26,7 @@ import {
   type WorkflowClient,
 } from '@/lib/workflow';
 import { PDF_TEMPLATES, TemplateFillDialog, type PdfTemplate } from '@/components/forms/TemplateFillDialog';
+import { FORM_LIST_COLUMNS, type FormRow } from '@/components/forms/FormsHub';
 import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
 import { regenerateClientCycles } from '@/lib/billingSync';
 import { continuationOverlapsInitial } from '@/lib/billing';
@@ -115,6 +116,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [authorizations, setAuthorizations] = useState<ClientAuthorization[]>([]);
   const [filling, setFilling] = useState<PdfTemplate | null>(null);
+  const [continuing, setContinuing] = useState<FormRow | null>(null);
   const [uploadingType, setUploadingType] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState<AuthKind | null>(null);
   const [authNumber, setAuthNumber] = useState('');
@@ -305,25 +307,57 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
     }
   };
 
+  /**
+   * Open a form to work on. If this staff member already has an unfinished copy
+   * of it for this client (a draft, or one returned with changes requested),
+   * that copy reopens with its answers. Starting a blank form instead used to
+   * file a second draft beside the first, so earlier answers seemed to vanish.
+   */
+  const openForm = async (formType: string) => {
+    if (profileId) {
+      const { data, error } = await supabase
+        .from('client_forms')
+        .select(`${FORM_LIST_COLUMNS}, clients:client_id (first_name, last_name, status, workflow_stage)`)
+        .eq('client_id', client.id)
+        .eq('form_type', formType)
+        .eq('employee_id', profileId)
+        .in('status', ['draft', 'changes_requested'])
+        .not('file_path', 'is', null)
+        .gte('round', client.billing_round ?? 1)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        toast({ title: 'Could not open the form', description: error.message, variant: 'destructive' });
+        return;
+      }
+      if (data) {
+        setContinuing(data as unknown as FormRow);
+        return;
+      }
+    }
+    setFilling(templateFor(formType) ?? null);
+  };
+
   const actionButton = () => {
     switch (action.kind) {
       case 'submit_iat':
         return (
-          <Button onClick={() => setFilling(templateFor('Initial Assessment (IAT)') ?? null)}>
+          <Button onClick={() => openForm('Initial Assessment (IAT)')}>
             <FileText className="mr-2 h-4 w-4" />
             Open the IAT
           </Button>
         );
       case 'complete_lon':
         return (
-          <Button onClick={() => setFilling(templateFor('Level of Need (LON)') ?? null)}>
+          <Button onClick={() => openForm('Level of Need (LON)')}>
             <FileText className="mr-2 h-4 w-4" />
             Open the LoN assessment
           </Button>
         );
       case 'submit_hsp':
         return (
-          <Button onClick={() => setFilling(templateFor('Housing Stabilization Plan (HSP)') ?? null)}>
+          <Button onClick={() => openForm('Housing Stabilization Plan (HSP)')}>
             <FileText className="mr-2 h-4 w-4" />
             Open the HSP
           </Button>
@@ -333,7 +367,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
         // button stays for intakes taken by phone without the form.
         return (
           <>
-            <Button onClick={() => setFilling(templateFor('Client Intake') ?? null)}>
+            <Button onClick={() => openForm('Client Intake')}>
               <ClipboardList className="mr-2 h-4 w-4" />
               Open the Client Intake form
             </Button>
@@ -465,7 +499,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setFilling(templateFor(type) ?? null)}
+                          onClick={() => openForm(type)}
                         >
                           {f ? 'Redo' : 'Begin'}
                         </Button>
@@ -503,6 +537,20 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
           initialClientId={client.id}
           onSubmitted={() => {
             setUploadingType(null);
+            loadForms();
+            onUpdate();
+          }}
+        />
+      )}
+
+      {continuing && profileId && (
+        <TemplateFillDialog
+          existing={continuing}
+          profileId={profileId}
+          signerName={signerName}
+          onClose={() => setContinuing(null)}
+          onSubmitted={() => {
+            setContinuing(null);
             loadForms();
             onUpdate();
           }}
