@@ -21,6 +21,8 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { lazy, Suspense } from "react";
 import { usePageActivity } from "@/hooks/useStaffActivity";
 import { SupportButton } from "@/components/support/SupportButton";
+import { AppUpdate } from "@/components/AppUpdate";
+import { WhatsNew } from "@/components/WhatsNew";
 
 // The migration tooling pulls in ZIP/spreadsheet parsing, so it is only
 // fetched when an admin actually opens Advanced Tools.
@@ -62,6 +64,8 @@ const App = () => (
             <TextScale />
             <PageActivityTracker />
             <SupportButton />
+            <AppUpdate />
+            <WhatsNew />
             <ErrorBoundary>
             <Routes>
               <Route path="/" element={<Index />} />

@@ -2,9 +2,9 @@
 
 ## Keep the Help guide in step with the app
 
-Every change that affects what staff see or do must update the Help guide in
-the same change. That includes renamed buttons, moved screens, new features
-and removed ones.
+The Help guide is updated once a week, on Fridays, for all of that week's
+changes, not in each change. A scheduled task runs the weekly update. It covers
+renamed buttons, moved screens, new features and removed ones.
 
 - **Text:** `src/lib/helpGuides.ts` holds every guide. Update the steps and
   button names that the change affects. Add a guide for a new task, and remove
@@ -43,6 +43,18 @@ guides, and superadmins also get the filter buttons.
 - The optional AI rewording (`supabase/functions/clinical-note-wording`) runs
   only when `ANTHROPIC_API_KEY` is set, and must stay under a HIPAA BAA. It
   rewords the app's draft and is rejected if it adds a name, number or date.
+
+## Updates and what's new
+
+- Every published build writes `/version.json`. Open pages check it and reload
+  at the same address when a new build is out (`src/lib/appUpdate.ts`). A page
+  with work in progress (an open form, touchpoint or upload, an open dialog,
+  recent typing, or `setUnsavedWork`) shows a bar asking the person to save,
+  then reloads once they have.
+- To announce a feature, add it to `FEATURES` in `src/lib/whatsNew.ts` with
+  its audience and a last day. Its notice shows once per person for 5 seconds
+  at the top of the screen. Mark the new controls with `useNewRibbon` and
+  `NewRibbon`; the ribbon lasts 24 hours from the person's first sight of it.
 
 ## Other conventions
 

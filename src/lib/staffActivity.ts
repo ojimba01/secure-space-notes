@@ -27,6 +27,7 @@ export type TaskOutcome = 'completed' | 'draft' | 'closed';
 const rpc = (name: string, args: Record<string, unknown>) => (supabase.rpc as any)(name, args);
 
 interface Open {
+  kind: ActivityKind;
   id: Promise<string | null>;
   /** Seconds counted and not yet sent. */
   pending: number;
@@ -121,6 +122,7 @@ export function startActivity(
   ensureStarted();
   lastInput = Date.now();
   const entry: Open = {
+    kind,
     id: isExempt()
       .then((exempt) =>
         exempt
@@ -138,14 +140,33 @@ export function startActivity(
     ended: false,
   };
   open.add(entry);
+  notifyTasks();
   return {
     end: (outcome) => {
       if (entry.ended) return;
       entry.ended = true;
       open.delete(entry);
       send(entry, outcome);
+      notifyTasks();
     },
   };
+}
+
+const taskListeners = new Set<() => void>();
+function notifyTasks() {
+  for (const listener of taskListeners) listener();
+}
+
+/** Whether a form, touchpoint or upload is open right now. */
+export function hasOpenTask(): boolean {
+  for (const entry of open) if (entry.kind === 'task') return true;
+  return false;
+}
+
+/** Called whenever a task opens or closes. Returns a function that stops listening. */
+export function onTasksChange(listener: () => void): () => void {
+  taskListeners.add(listener);
+  return () => taskListeners.delete(listener);
 }
 
 /** Readable names for each part of the app, as the Staff activity page shows them. */

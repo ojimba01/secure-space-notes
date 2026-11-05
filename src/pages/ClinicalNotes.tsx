@@ -16,6 +16,7 @@
 // After a cycle's note is saved, a popup offers the next cycle or a different
 // client.
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { setUnsavedWork } from '@/lib/appUpdate';
 import { Navigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ClipboardCopy, Hand, UserRound } from 'lucide-react';
@@ -105,6 +106,13 @@ export default function ClinicalNotes() {
   const [openLabel, setOpenLabel] = useState<string | null>(null);
   /** After a cycle's note is saved: go on to the next cycle, or a different client. */
   const [afterSave, setAfterSave] = useState<{ label: string; cycle: number; start: string; ext: boolean; next: BacklogCycle | null } | null>(null);
+
+  // A note in progress on the builder holds back an app update until it is saved.
+  const writing = tab === 'new' && mode !== null && !afterSave;
+  useEffect(() => {
+    setUnsavedWork('clinical-notes', writing);
+    return () => setUnsavedWork('clinical-notes', false);
+  }, [writing]);
 
   const refresh = useCallback(() => {
     if (user) void loadMyDrafts(user.id).then(setDrafts).catch(() => setDrafts([]));

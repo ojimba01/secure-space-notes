@@ -9,6 +9,7 @@ const repo = path.resolve(__dirname, '../..');
 
 export default defineConfig({
   root: repo,
+  define: { __BUILD_ID__: JSON.stringify('screenshots') },
   plugins: [react()],
   resolve: {
     alias: [

@@ -29,6 +29,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
 import { supabase } from '@/integrations/supabase/client';
 import { useCanViewStaffActivity } from '@/hooks/useCanViewStaffActivity';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
@@ -244,6 +245,7 @@ async function loadVisits(from: Date, to: Date): Promise<{ data: Visit[]; error:
 
 export default function StaffActivity() {
   const { canView, loading: roleLoading } = useCanViewStaffActivity();
+  const newRibbon = useNewRibbon('staff-activity-60-days');
   const [range, setRange] = useState<Range>('today');
   const [customFrom, setCustomFrom] = useState(() => toDateInput(new Date(startOfToday().getTime() - 6 * DAY_MS)));
   const [customTo, setCustomTo] = useState(() => toDateInput(startOfToday()));
@@ -350,39 +352,56 @@ export default function StaffActivity() {
   const clientLabel = (id: string | null) => (id ? clientNames[id] ?? 'A client' : null);
 
   const rangePicker = (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col items-start gap-1.5">
       <div className="flex w-fit flex-wrap rounded-lg border bg-white p-1">
-        {(Object.keys(RANGE_LABEL) as Range[]).map((r) => (
-          <Button key={r} size="sm" variant={range === r ? 'default' : 'ghost'} onClick={() => setRange(r)}>
-            {RANGE_LABEL[r]}
-          </Button>
-        ))}
+        {(Object.keys(RANGE_LABEL) as Range[])
+          .filter((r) => r !== 'custom')
+          .map((r) => (
+            <span key={r} className="relative">
+              <Button size="sm" variant={range === r ? 'default' : 'ghost'} onClick={() => setRange(r)}>
+                {RANGE_LABEL[r]}
+              </Button>
+              {r === 'twoMonths' && newRibbon && <NewRibbon />}
+            </span>
+          ))}
       </div>
-      {range === 'custom' && (
-        <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="activity-from" className="text-sm text-muted-foreground">From</label>
-          <Input
-            id="activity-from"
-            type="date"
-            className="w-40"
-            value={customFrom}
-            min={earliestDate()}
-            max={customTo || toDateInput(startOfToday())}
-            onChange={(e) => setCustomFrom(clampDate(e.target.value))}
-          />
-          <label htmlFor="activity-to" className="text-sm text-muted-foreground">To</label>
-          <Input
-            id="activity-to"
-            type="date"
-            className="w-40"
-            value={customTo}
-            min={customFrom || earliestDate()}
-            max={toDateInput(startOfToday())}
-            onChange={(e) => setCustomTo(clampDate(e.target.value))}
-          />
-          {!customValid && <span className="text-sm text-red-700">Choose a From date on or before the To date.</span>}
-        </div>
-      )}
+      <div className="flex min-h-9 flex-wrap items-center gap-2 pl-1">
+        <span>
+          <button
+            type="button"
+            onClick={() => setRange('custom')}
+            className={`text-xs hover:underline ${range === 'custom' ? 'font-semibold text-primary underline' : 'text-muted-foreground'}`}
+          >
+            {RANGE_LABEL.custom}
+          </button>
+          {newRibbon && <NewRibbon inline />}
+        </span>
+        {range === 'custom' && (
+          <>
+            <label htmlFor="activity-from" className="ml-2 text-sm text-muted-foreground">From</label>
+            <Input
+              id="activity-from"
+              type="date"
+              className="h-8 w-40"
+              value={customFrom}
+              min={earliestDate()}
+              max={customTo || toDateInput(startOfToday())}
+              onChange={(e) => setCustomFrom(clampDate(e.target.value))}
+            />
+            <label htmlFor="activity-to" className="text-sm text-muted-foreground">To</label>
+            <Input
+              id="activity-to"
+              type="date"
+              className="h-8 w-40"
+              value={customTo}
+              min={customFrom || earliestDate()}
+              max={toDateInput(startOfToday())}
+              onChange={(e) => setCustomTo(clampDate(e.target.value))}
+            />
+            {!customValid && <span className="text-sm text-red-700">Choose a From date on or before the To date.</span>}
+          </>
+        )}
+      </div>
     </div>
   );
 
