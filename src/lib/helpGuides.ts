@@ -316,8 +316,10 @@ export const GUIDES: Guide[] = [
   {
     id: 'staff-activity', section: 'Managing the team', title: 'Review staff activity', audience: 'admins', minutes: 2,
     steps: [
-      s('Open Staff activity', 'Select Staff activity in the left panel and choose a period.'),
-      s('Select a staff member', 'See their time by section and client, the tasks they completed and a timeline of every change.'),
+      s('Open Staff activity', 'Select Staff activity in the left panel.'),
+      s('Choose a period', 'Choose a period up to Last 60 days. To pick exact dates, select Custom dates and set From and To within the last 60 days.'),
+      s('Select a staff member', 'See their time by section and client, and a timeline of their activity.'),
+      s('Filter the timeline', 'Choose Tasks, Changes, Pages viewed or All activity. Each task shows its start time, client, time spent and result.'),
     ],
   },
   {

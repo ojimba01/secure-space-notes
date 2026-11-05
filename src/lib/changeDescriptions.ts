@@ -200,15 +200,21 @@ export async function loadChanges(
   to: Date,
   clientId?: string | null,
 ): Promise<{ rows: ChangeRow[]; error: string | null }> {
-  // Newer than the generated types.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.rpc as any)('staff_activity_changes', {
-    _from: from.toISOString(),
-    _to: to.toISOString(),
-    _client_id: clientId ?? null,
-  });
-  if (error) return { rows: [], error: error.message };
-  return { rows: (data ?? []) as ChangeRow[], error: null };
+  // Read a page at a time so long periods are complete.
+  const page = 1000;
+  const rows: ChangeRow[] = [];
+  for (let start = 0; ; start += page) {
+    // Newer than the generated types.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)('staff_activity_changes', {
+      _from: from.toISOString(),
+      _to: to.toISOString(),
+      _client_id: clientId ?? null,
+    }).range(start, start + page - 1);
+    if (error) return { rows, error: error.message };
+    rows.push(...((data ?? []) as ChangeRow[]));
+    if (!data || data.length < page) return { rows, error: null };
+  }
 }
 
 /** "1 h 24 min", "12 min", "Under a minute". */

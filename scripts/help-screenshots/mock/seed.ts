@@ -207,7 +207,15 @@ export function seed(): Tables {
     ],
     client_assignments_history: [],
     case_logs: [],
-    staff_activity: [],
+    // Made-up activity for Taylor Brooks, for the Staff activity guide.
+    staff_activity: [
+      { id: 'sa-1', user_id: 'u-staff', kind: 'task', area: 'form', label: 'Progress note', client_id: 'c-1', started_at: at(-1, 14), last_seen_at: at(-1, 14), active_seconds: 1260, outcome: 'completed' },
+      { id: 'sa-2', user_id: 'u-staff', kind: 'task', area: 'touchpoint', label: 'Touchpoint', client_id: 'c-2', started_at: at(-1, 13), last_seen_at: at(-1, 13), active_seconds: 540, outcome: 'completed' },
+      { id: 'sa-3', user_id: 'u-staff', kind: 'task', area: 'form', label: 'IAT', client_id: 'c-3', started_at: at(-2, 15), last_seen_at: at(-2, 15), active_seconds: 1800, outcome: 'draft' },
+      { id: 'sa-4', user_id: 'u-staff', kind: 'task', area: 'upload', label: 'Upload document', client_id: 'c-4', started_at: at(-2, 11), last_seen_at: at(-2, 11), active_seconds: 180, outcome: 'closed' },
+      { id: 'sa-5', user_id: 'u-staff', kind: 'page', area: 'client', label: 'Client record', client_id: 'c-1', started_at: at(-1, 12), last_seen_at: at(-1, 12), active_seconds: 420, outcome: null },
+      { id: 'sa-6', user_id: 'u-staff', kind: 'page', area: 'calendar', label: 'Calendar', client_id: null, started_at: at(-2, 10), last_seen_at: at(-2, 10), active_seconds: 300, outcome: null },
+    ],
     audit_logs: [],
     signatures: [],
     staff_signatures: [

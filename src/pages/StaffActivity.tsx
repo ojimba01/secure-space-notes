@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useCanViewStaffActivity } from '@/hooks/useCanViewStaffActivity';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
@@ -42,24 +43,65 @@ import {
   type ChangeRow,
 } from '@/lib/changeDescriptions';
 
-type Range = 'today' | 'yesterday' | 'week' | 'month';
+type Range = 'today' | 'yesterday' | 'week' | 'month' | 'twoMonths' | 'custom';
 
 const RANGE_LABEL: Record<Range, string> = {
   today: 'Today',
   yesterday: 'Yesterday',
   week: 'Last 7 days',
   month: 'Last 30 days',
+  twoMonths: 'Last 60 days',
+  custom: 'Custom dates',
 };
 
-function rangeBounds(range: Range): { from: Date; to: Date } {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const day = 86_400_000;
-  const tomorrow = new Date(startOfToday.getTime() + day);
-  if (range === 'today') return { from: startOfToday, to: tomorrow };
-  if (range === 'yesterday') return { from: new Date(startOfToday.getTime() - day), to: startOfToday };
-  if (range === 'week') return { from: new Date(startOfToday.getTime() - 6 * day), to: tomorrow };
-  return { from: new Date(startOfToday.getTime() - 29 * day), to: tomorrow };
+/** The furthest back the page looks, in days including today. */
+const MAX_DAYS = 60;
+const DAY_MS = 86_400_000;
+
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** "2026-11-05" for a local date. */
+function toDateInput(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Local midnight of a "2026-11-05" date. */
+function fromDateInput(value: string): Date {
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function earliestDate(): string {
+  return toDateInput(new Date(startOfToday().getTime() - (MAX_DAYS - 1) * DAY_MS));
+}
+
+/** Clamps a typed or picked date to the last 60 days. */
+function clampDate(value: string): string {
+  const min = earliestDate();
+  const max = toDateInput(startOfToday());
+  if (!value) return value;
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
+}
+
+function rangeBounds(range: Range, customFrom: string, customTo: string): { from: Date; to: Date } {
+  const today = startOfToday();
+  const tomorrow = new Date(today.getTime() + DAY_MS);
+  const daysBack = (n: number) => new Date(today.getTime() - n * DAY_MS);
+  if (range === 'today') return { from: today, to: tomorrow };
+  if (range === 'yesterday') return { from: daysBack(1), to: today };
+  if (range === 'week') return { from: daysBack(6), to: tomorrow };
+  if (range === 'month') return { from: daysBack(29), to: tomorrow };
+  if (range === 'twoMonths') return { from: daysBack(MAX_DAYS - 1), to: tomorrow };
+  const from = fromDateInput(clampDate(customFrom));
+  const last = fromDateInput(clampDate(customTo));
+  return { from, to: new Date(last.getTime() + DAY_MS) };
 }
 
 interface Visit {
@@ -180,9 +222,34 @@ const Tile: React.FC<{ icon: React.ReactNode; label: string; value: string; hint
   </Card>
 );
 
+/** Every visit in the period, read a page at a time so long periods are complete. */
+async function loadVisits(from: Date, to: Date): Promise<{ data: Visit[]; error: string | null }> {
+  const page = 1000;
+  const rows: Visit[] = [];
+  for (let start = 0; ; start += page) {
+    // Newer than the generated types.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from as any)('staff_activity')
+      .select('id, user_id, kind, area, label, client_id, started_at, last_seen_at, active_seconds, outcome')
+      .gte('started_at', from.toISOString())
+      .lt('started_at', to.toISOString())
+      .order('started_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(start, start + page - 1);
+    if (error) return { data: rows, error: error.message };
+    rows.push(...((data ?? []) as Visit[]));
+    if (!data || data.length < page) return { data: rows, error: null };
+  }
+}
+
 export default function StaffActivity() {
   const { canView, loading: roleLoading } = useCanViewStaffActivity();
   const [range, setRange] = useState<Range>('today');
+  const [customFrom, setCustomFrom] = useState(() => toDateInput(new Date(startOfToday().getTime() - 6 * DAY_MS)));
+  const [customTo, setCustomTo] = useState(() => toDateInput(startOfToday()));
+  const customValid = !!customFrom && !!customTo && customFrom <= customTo;
+  // Reload only when the period changes, and not while the custom dates are out of order.
+  const periodKey = range === 'custom' ? (customValid ? `${customFrom}_${customTo}` : 'invalid') : range;
   const [staff, setStaff] = useState<Staff[]>([]);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [changes, setChanges] = useState<Change[]>([]);
@@ -190,7 +257,7 @@ export default function StaffActivity() {
   const [loading, setLoading] = useState(true);
   const [problem, setProblem] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'changes' | 'pages' | 'tasks'>('all');
+  const [filter, setFilter] = useState<'all' | 'changes' | 'pages' | 'tasks'>('tasks');
   // Only superadmins can deactivate an account.
   const { isSuperadmin } = useIsSuperadmin();
   const [deactivating, setDeactivating] = useState(false);
@@ -198,24 +265,18 @@ export default function StaffActivity() {
 
   useEffect(() => {
     if (!canView) return;
+    if (periodKey === 'invalid') return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       setProblem(null);
-      const { from, to } = rangeBounds(range);
+      const { from, to } = rangeBounds(range, customFrom, customTo);
       const [people, activity, changed] = await Promise.all([
         // Through the database rather than the profiles table, which a
         // viewer who is not an administrator could not read in full.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase.rpc as any)('staff_activity_people'),
-        // Newer than the generated types.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (supabase.from as any)('staff_activity')
-          .select('id, user_id, kind, area, label, client_id, started_at, last_seen_at, active_seconds, outcome')
-          .gte('started_at', from.toISOString())
-          .lt('started_at', to.toISOString())
-          .order('started_at', { ascending: false })
-          .limit(5000),
+        loadVisits(from, to),
         loadChanges(from, to),
       ]);
       if (cancelled) return;
@@ -259,7 +320,9 @@ export default function StaffActivity() {
     return () => {
       cancelled = true;
     };
-  }, [range, canView, reload]);
+    // The period key stands for range and the custom dates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodKey, canView, reload]);
 
   const byUser = useMemo(() => {
     const map = new Map<string, { visits: Visit[]; changes: Change[] }>();
@@ -287,12 +350,39 @@ export default function StaffActivity() {
   const clientLabel = (id: string | null) => (id ? clientNames[id] ?? 'A client' : null);
 
   const rangePicker = (
-    <div className="flex w-fit flex-wrap rounded-lg border bg-white p-1">
-      {(Object.keys(RANGE_LABEL) as Range[]).map((r) => (
-        <Button key={r} size="sm" variant={range === r ? 'default' : 'ghost'} onClick={() => setRange(r)}>
-          {RANGE_LABEL[r]}
-        </Button>
-      ))}
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex w-fit flex-wrap rounded-lg border bg-white p-1">
+        {(Object.keys(RANGE_LABEL) as Range[]).map((r) => (
+          <Button key={r} size="sm" variant={range === r ? 'default' : 'ghost'} onClick={() => setRange(r)}>
+            {RANGE_LABEL[r]}
+          </Button>
+        ))}
+      </div>
+      {range === 'custom' && (
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="activity-from" className="text-sm text-muted-foreground">From</label>
+          <Input
+            id="activity-from"
+            type="date"
+            className="w-40"
+            value={customFrom}
+            min={earliestDate()}
+            max={customTo || toDateInput(startOfToday())}
+            onChange={(e) => setCustomFrom(clampDate(e.target.value))}
+          />
+          <label htmlFor="activity-to" className="text-sm text-muted-foreground">To</label>
+          <Input
+            id="activity-to"
+            type="date"
+            className="w-40"
+            value={customTo}
+            min={customFrom || earliestDate()}
+            max={toDateInput(startOfToday())}
+            onChange={(e) => setCustomTo(clampDate(e.target.value))}
+          />
+          {!customValid && <span className="text-sm text-red-700">Choose a From date on or before the To date.</span>}
+        </div>
+      )}
     </div>
   );
 
@@ -434,7 +524,15 @@ const PersonDetail: React.FC<{
   const maxArea = Math.max(1, ...byArea.map(([, s]) => s));
   const maxClient = Math.max(1, ...byClient.map(([, s]) => s));
 
-  type Entry = { at: string; icon: React.ReactNode; text: string; client: string | null; extra?: React.ReactNode };
+  // Time spent and result sit on the right of each row, where they apply.
+  type Entry = {
+    at: string;
+    icon: React.ReactNode;
+    text: string;
+    client: string | null;
+    spent?: number;
+    result?: { label: string; className: string };
+  };
   const timeline: Entry[] = [];
   if (filter === 'all' || filter === 'changes') {
     for (const c of changes) {
@@ -448,7 +546,7 @@ const PersonDetail: React.FC<{
         icon: <Eye className="h-4 w-4 text-muted-foreground" />,
         text: `Viewed ${v.label}`,
         client: clientLabel(v.client_id),
-        extra: <span className="text-xs text-muted-foreground">{formatDuration(v.active_seconds)} active</span>,
+        spent: v.active_seconds,
       });
     }
   }
@@ -459,13 +557,10 @@ const PersonDetail: React.FC<{
         icon: <FileText className="h-4 w-4 text-muted-foreground" />,
         text: t.label,
         client: clientLabel(t.client_id),
-        extra: (
-          <span className="text-xs text-muted-foreground">
-            {formatDuration(t.active_seconds)}
-            {' · '}
-            {t.outcome ? OUTCOME_LABEL[t.outcome] : 'In progress'}
-          </span>
-        ),
+        spent: t.active_seconds,
+        result: t.outcome
+          ? { label: OUTCOME_LABEL[t.outcome], className: OUTCOME_CLASS[t.outcome] }
+          : { label: 'In progress', className: 'bg-sky-100 text-sky-800' },
       });
     }
   }
@@ -549,55 +644,16 @@ const PersonDetail: React.FC<{
         </Card>
       </div>
 
-      <Card className="overflow-x-auto">
-        <div className="px-4 py-3">
-          <h2 className="text-sm font-semibold">Tasks</h2>
-          
-        </div>
-        {summary.tasks.length === 0 ? (
-          <p className="border-t px-4 py-3 text-sm text-muted-foreground">No tasks in this period.</p>
-        ) : (
-          <table className="w-full min-w-[640px] border-t text-sm">
-            <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2 font-medium">Task</th>
-                <th className="px-4 py-2 font-medium">Client</th>
-                <th className="px-4 py-2 font-medium">Started</th>
-                <th className="px-4 py-2 font-medium">Time spent</th>
-                <th className="px-4 py-2 font-medium">Result</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {summary.tasks.map((t) => (
-                <tr key={t.id}>
-                  <td className="px-4 py-2">{t.label}</td>
-                  <td className="px-4 py-2">{clientLabel(t.client_id) ?? '—'}</td>
-                  <td className="px-4 py-2 text-muted-foreground">
-                    {new Date(t.started_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}, {timeOf(t.started_at)}
-                  </td>
-                  <td className="px-4 py-2">{formatDuration(t.active_seconds)}</td>
-                  <td className="px-4 py-2">
-                    <span className={`rounded-md px-2 py-0.5 text-xs ${t.outcome ? OUTCOME_CLASS[t.outcome] : 'bg-sky-100 text-sky-800'}`}>
-                      {t.outcome ? OUTCOME_LABEL[t.outcome] : 'In progress'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
-
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
           <h2 className="text-sm font-semibold">Timeline</h2>
-          <div className="flex rounded-lg border bg-white p-1">
+          <div className="flex flex-wrap rounded-lg border bg-white p-1">
             {(
               [
-                ['all', 'All activity'],
-                ['changes', 'Changes'],
                 ['tasks', 'Tasks'],
+                ['changes', 'Changes'],
                 ['pages', 'Pages viewed'],
+                ['all', 'All activity'],
               ] as const
             ).map(([value, label]) => (
               <Button key={value} size="sm" variant={filter === value ? 'default' : 'ghost'} onClick={() => setFilter(value)}>
@@ -618,12 +674,15 @@ const PersonDetail: React.FC<{
                     <span className="w-16 shrink-0 pt-0.5 text-xs text-muted-foreground">{timeOf(e.at)}</span>
                     <span className="pt-0.5">{e.icon}</span>
                     <div className="min-w-0 flex-1">
-                      <div>
-                        {e.text}
-                        {e.client && <span className="text-muted-foreground"> · {e.client}</span>}
-                      </div>
-                      {e.extra}
+                      {e.text}
+                      {e.client && <span className="text-muted-foreground"> · {e.client}</span>}
                     </div>
+                    {e.spent != null && (
+                      <span className="w-24 shrink-0 pt-0.5 text-right text-xs text-muted-foreground">{formatDuration(e.spent)}</span>
+                    )}
+                    {e.result && (
+                      <span className={`min-w-24 shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-center text-xs ${e.result.className}`}>{e.result.label}</span>
+                    )}
                   </div>
                 ))}
               </div>

@@ -65,7 +65,16 @@ const rpcs: Record<string, (args: any) => any> = {
 
 export const supabase: any = {
   from: makeFrom(db, log),
-  rpc: (name: string, args: any) => Promise.resolve({ data: rpcs[name] ? rpcs[name](args) : null, error: null }),
+  // Thenable, with range() for calls the app reads a page at a time.
+  rpc: (name: string, args: any) => {
+    const result = (a?: number, b?: number) => {
+      const data = rpcs[name] ? rpcs[name](args) : null;
+      return { data: Array.isArray(data) && a != null ? data.slice(a, (b ?? a) + 1) : data, error: null };
+    };
+    const call: any = Promise.resolve(result());
+    call.range = (a: number, b: number) => Promise.resolve(result(a, b));
+    return call;
+  },
   auth: {
     getSession: () => Promise.resolve({ data: { session }, error: null }),
     getUser: () => Promise.resolve({ data: { user: session ? user : null }, error: null }),

@@ -446,7 +446,9 @@ const SHOTS = {
   ],
   'staff-activity': [
     { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Staff activity'), label: 'Staff activity' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/staff-activity`); await wait(p, 2500); await btn(p, 'Custom dates').click(); await wait(p, 800); }, target: (p) => btn(p, 'Custom dates'), label: 'Custom dates' },
     { as: 'admin', go: (p) => p.goto(`${BASE}/staff-activity`), target: (p) => p.locator('tbody tr').first(), label: 'Select a staff member' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/staff-activity`); await wait(p, 2500); await btn(p, 'Last 7 days').click(); await wait(p, 1500); await p.locator('tbody tr').first().click(); await wait(p, 1500); }, target: (p) => p.getByRole('button', { name: 'Tasks', exact: true }).last(), label: 'Tasks' },
   ],
   'text-size': [
     { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'Advanced Tools'), label: 'Advanced Tools' },
