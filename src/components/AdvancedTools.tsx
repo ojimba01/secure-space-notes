@@ -66,7 +66,8 @@ export const AdvancedTools: React.FC = () => {
   // Read fresh every time the panel opens, so new, renamed and deactivated
   // staff show up without reloading the app.
   useEffect(() => {
-    if (!isSuperadmin || !open) return;
+    // Admins load the list too, for Deactivated staff.
+    if ((!isSuperadmin && !isAdmin) || !open) return;
     let cancelled = false;
     (async () => {
       // Every active team member, admins included: admins carry caseloads too.
@@ -126,7 +127,7 @@ export const AdvancedTools: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [isSuperadmin, open]);
+  }, [isSuperadmin, isAdmin, open]);
 
   useEffect(() => {
     setSize(null);
@@ -265,7 +266,7 @@ export const AdvancedTools: React.FC = () => {
           </div>
         )}
 
-        {isSuperadmin && inactive.length > 0 && (
+        {(isSuperadmin || (isAdmin && !isViewingAs)) && inactive.length > 0 && (
           <div className="space-y-1 border-t pt-3">
             <div className="flex items-center gap-2 text-sm font-medium"><UserX className="h-4 w-4" /> Deactivated staff</div>
             <p className="text-xs text-muted-foreground">They cannot sign in and are hidden from staff lists.</p>
@@ -283,7 +284,7 @@ export const AdvancedTools: React.FC = () => {
         )}
 
         {canUseMigration && (
-          <div className={isSuperadmin ? 'border-t pt-3 space-y-1' : 'space-y-1'}>
+          <div className={isSuperadmin || inactive.length > 0 ? 'border-t pt-3 space-y-1' : 'space-y-1'}>
             <div className="text-sm font-medium">Data migration</div>
             <MigrationLink
               icon={<FolderUp className="h-4 w-4" />}

@@ -32,7 +32,7 @@ import { Input } from '@/components/ui/input';
 import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
 import { supabase } from '@/integrations/supabase/client';
 import { useCanViewStaffActivity } from '@/hooks/useCanViewStaffActivity';
-import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { DeactivateStaffDialog } from '@/components/DeactivateStaffDialog';
 import { visibleProfiles } from '@/lib/testAccounts';
 import { AREA_LABEL } from '@/lib/staffActivity';
@@ -260,8 +260,8 @@ export default function StaffActivity() {
   const [problem, setProblem] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'changes' | 'pages' | 'tasks'>('tasks');
-  // Only superadmins can deactivate an account.
-  const { isSuperadmin } = useIsSuperadmin();
+  // Admins and superadmins can deactivate an account.
+  const { isAdmin } = useIsAdmin();
   const [deactivating, setDeactivating] = useState(false);
   const [reload, setReload] = useState(0);
 
@@ -419,10 +419,10 @@ export default function StaffActivity() {
               <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">{person ? staffName(person) : 'Staff activity'}</h1>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-start gap-2">
             {rangePicker}
-            {person && isSuperadmin && (
-              <Button variant="outline" className="border-red-300 text-red-700 hover:bg-red-50" onClick={() => setDeactivating(true)}>
+            {person && isAdmin && (
+              <Button variant="outline" className="h-[46px] border-red-300 text-red-700 hover:bg-red-50" onClick={() => setDeactivating(true)}>
                 <UserX className="mr-1.5 h-4 w-4" />
                 Deactivate account
               </Button>
