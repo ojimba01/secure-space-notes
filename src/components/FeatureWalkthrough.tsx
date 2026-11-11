@@ -31,9 +31,9 @@ const STAFF_STEPS: Step[] = [
   {
     title: 'Forms and documents',
     points: [
-      'Each client record has a Forms tab listing the four forms every client should have.',
-      'A green check means the form is filed. A red X means it is not.',
-      'A red X row offers three things: upload a document, Begin the form, or Mark as complete if it was done on paper.',
+      'Each client record lists the four forms every client should have in Case overview, on the Overview tab.',
+      'Each form shows Not started, Draft started or Completed.',
+      'A form not started offers three things: upload a document, Begin the form, or Mark as complete if it was done on paper.',
     ],
   },
   {

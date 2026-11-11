@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Check, ChevronDown, ChevronRight, Clock, Download, FileText, Plus, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Download, FileText, Plus, Upload, X } from 'lucide-react';
 import {
   EXTERNAL_STATUS_LABEL,
   FORM_STATUS_CLASS,
@@ -70,7 +70,18 @@ interface Props {
   refreshKey?: number;
   /** Called after this screen files or removes one, so the rest can catch up. */
   onChanged?: () => void;
+  /** Shown inside Case overview: no card of its own, a small heading instead. */
+  embedded?: boolean;
+  /** Buttons beside the heading, such as Upload documents. */
+  actions?: React.ReactNode;
 }
+
+/** Whether the client has a form: the label on its checklist row. */
+const CHECKLIST_STATUS = {
+  none: { label: 'Not started', className: 'bg-muted text-muted-foreground' },
+  draft: { label: 'Draft started', className: 'bg-amber-100 text-amber-900' },
+  done: { label: 'Completed', className: 'bg-green-100 text-green-800' },
+} as const;
 
 const AUTH_GROUP = 'MCO referrals and authorizations';
 
@@ -150,6 +161,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   clientLastName,
   refreshKey = 0,
   onChanged,
+  embedded = false,
+  actions,
 }) => {
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
@@ -577,12 +590,24 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     );
   };
 
+  /** A completed form opened again to correct it. Admins, or its author until it is approved. */
+  const canEdit = (f: DocumentRow) =>
+    isCompleted(f) && !!f.file_path && !f.form_data && !!templateFor(f.form_type) &&
+    (isAdmin || (f.employee_id === profileId && f.status !== 'approved'));
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Forms and Documents</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Card className={embedded ? 'border-0 bg-transparent shadow-none' : undefined}>
+      {embedded ? (
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium text-muted-foreground">Forms and documents</p>
+          {actions}
+        </div>
+      ) : (
+        <CardHeader>
+          <CardTitle className="text-lg">Forms and Documents</CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={embedded ? 'space-y-4 p-0' : 'space-y-4'}>
         {/* A restart needs some forms filed again; each is ticked once this round has one. */}
         {!loading && pending && !pending.type && (
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
@@ -636,24 +661,36 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                 // A draft is not the form done: only a completed copy ticks it.
                 const hasDraftOnly = hasDocument && !items.some(isCompleted);
                 const ticked = items.some(isCompleted) || manualTicks.has(type);
+                const status = CHECKLIST_STATUS[ticked ? 'done' : hasDraftOnly ? 'draft' : 'none'];
+                // Back into this person's own draft, and a completed copy to correct.
+                const ownDraft = items.find(
+                  (f) => !isCompleted(f) && f.employee_id === profileId && !!f.file_path && !f.form_data,
+                );
+                const editable = items.find(canEdit);
                 return collapsibleGroup(
                   type,
                   items,
                   // Not a control. It says whether the client has this form,
                   // and the way to change it is to add a document, begin one,
                   // or record that it was done elsewhere.
-                  ticked ? (
-                    <Check className="h-5 w-5 text-green-600" aria-label="Filed" />
-                  ) : hasDraftOnly ? (
-                    <Clock className="h-5 w-5 text-amber-500" aria-label="Draft, not completed" />
-                  ) : (
-                    <X className="h-5 w-5 text-destructive" aria-label="Not filed" />
-                  ),
+                  <span className={`w-24 shrink-0 rounded-md px-2 py-0.5 text-center text-xs ${status.className}`}>
+                    {status.label}
+                  </span>,
                   // A filed form used to take these away, which left replacing
                   // it as the only way to record a second one. A client can
                   // need the same form twice — a continuation's plan, a level
                   // of need redone — so the row keeps offering another.
                   <>
+                    {ownDraft && (
+                      <Button size="sm" onClick={() => setContinuing(ownDraft)}>
+                        Continue
+                      </Button>
+                    )}
+                    {editable && (
+                      <Button size="sm" variant="outline" onClick={() => setContinuing(editable)}>
+                        Edit
+                      </Button>
+                    )}
                     {templateFor(type) && (
                       <Button
                         variant="outline"

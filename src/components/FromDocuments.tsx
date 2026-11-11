@@ -208,7 +208,7 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Document edits</CardTitle>
+        <CardTitle className="text-lg">Suggested updates</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {lastAccept && (

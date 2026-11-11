@@ -237,7 +237,7 @@ export const RestartAuthorizationDialog: React.FC<Props> = ({ open, onOpenChange
                   Touchpoints start over on {formatAuthDate(start)}
                   {gap ? `; the ${gap}-day gap is cleared` : ''}.
                 </li>
-                <li>File a new {list(forms)} on the Forms tab.</li>
+                <li>File a new {list(forms)} in Case overview.</li>
               </ul>
             </div>
           )}
@@ -249,7 +249,7 @@ export const RestartAuthorizationDialog: React.FC<Props> = ({ open, onOpenChange
                 {closed && <li>The case is reopened.</li>}
                 <li>Earlier authorizations stay on record. Nothing already billed changes.</li>
                 <li>The client shows Restart pending. Billing and touchpoints wait.</li>
-                <li>{forms.length ? `File a new ${list(forms)} on the Forms tab.` : 'The forms needed show once the type is chosen.'}</li>
+                <li>{forms.length ? `File a new ${list(forms)} in Case overview.` : 'The forms needed show once the type is chosen.'}</li>
                 <li>Add the start date when the approval arrives.</li>
               </ul>
             </div>

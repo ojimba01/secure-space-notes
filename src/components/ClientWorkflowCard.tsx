@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,7 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { useViewAs } from '@/components/ViewAsProvider';
-import { CheckCircle2, ClipboardList, FileText, Plus, Upload } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FileText } from 'lucide-react';
 import {
   INTAKE_STATUS_LABEL,
   STAGE_CLASS,
@@ -28,7 +27,6 @@ import {
 } from '@/lib/workflow';
 import { PDF_TEMPLATES, TemplateFillDialog, type PdfTemplate } from '@/components/forms/TemplateFillDialog';
 import { FORM_LIST_COLUMNS, type FormRow } from '@/components/forms/FormsHub';
-import { UploadFormDialog } from '@/components/forms/UploadFormDialog';
 import { regenerateClientCycles } from '@/lib/billingSync';
 import { continuationOverlapsInitial } from '@/lib/billing';
 import { DIGITS_ONLY_HINT, digitsOnly } from '@/lib/ids';
@@ -57,7 +55,8 @@ interface Props {
     mco_housing_manager?: string | null;
   };
   onUpdate: () => void;
-  /** Jumps to the Client Intake tab on the client record. */
+  /** The client's forms and documents, shown at the bottom of the card. */
+  forms?: React.ReactNode;
 }
 
 interface FormSummary {
@@ -68,14 +67,6 @@ interface FormSummary {
   employee_id: string | null;
   file_path: string | null;
 }
-
-// The forms a case is worked through, in the order they are done.
-const TRACKED_FORMS = [
-  'Client Intake',
-  'Initial Assessment (IAT)',
-  'Level of Need (LON)',
-  'Housing Stabilization Plan (HSP)',
-];
 
 const AUTH_KIND: Record<string, AuthorizationType> = {
   initial: 'initial_30',
@@ -112,16 +103,14 @@ const workflowPurposeFor = (
  * authorization entry that moves the case forward (and rebuilds billing when
  * it does).
  */
-export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
+export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: formsList }) => {
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
-  const { isAdmin } = useIsAdmin();
   const { isViewingAs } = useViewAs();
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [authorizations, setAuthorizations] = useState<ClientAuthorization[]>([]);
   const [filling, setFilling] = useState<PdfTemplate | null>(null);
   const [continuing, setContinuing] = useState<FormRow | null>(null);
-  const [uploadingType, setUploadingType] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState<AuthKind | null>(null);
   const [authNumber, setAuthNumber] = useState('');
   const [authStart, setAuthStart] = useState('');
@@ -182,12 +171,6 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
 
   const stage = displayStage(client);
   const action = nextAction(client, forms);
-  const latest = (type: string) => forms.find((f) => f.form_type === type);
-  /** This staff member has an unfinished copy of the form to go back to. */
-  const hasOwnDraft = (type: string) =>
-    forms.some(
-      (f) => f.form_type === type && f.status === 'draft' && f.employee_id === profileId && !!f.file_path,
-    );
   const current = currentAuthorization(authorizations);
   const daysLeft = daysUntilEnd(current);
   const reauthDue = needsReauthorization(authorizations);
@@ -211,42 +194,6 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
       return;
     }
     toast({ title: 'Intake marked complete', description: 'The assessment packet is now the next step.' });
-    onUpdate();
-  };
-
-  /**
-   * These forms are often completed on paper or in a meeting. Recording that
-   * without a file keeps the lifecycle honest — the alternative is staff
-   * uploading a scan they do not have, or the case looking stuck when it is not.
-   */
-  const markFormComplete = async (formType: string) => {
-    if (guard()) return;
-    const { error } = await supabase.from('client_forms').insert({
-      client_id: client.id,
-      employee_id: profileId,
-      form_type: formType,
-      title: formType,
-      status: 'approved',
-      // client_forms has review_note, not notes. Writing to a column that is
-      // not there is what made Mark as complete fail here and work on the
-      // Forms tab, which never wrote it.
-      review_note: `Recorded as complete by ${signerName} without a file — completed outside the app.`,
-      // Named rather than left to the default, because the insert policy for a
-      // form with no file checks it.
-      source: 'created_in_app',
-      signature_name: signerName,
-      signed_by: profileId,
-      signed_at: new Date().toISOString(),
-    });
-    if (error) {
-      toast({ title: 'Could not record the form', description: error.message, variant: 'destructive' });
-      return;
-    }
-    toast({
-      title: `${formType} marked complete`,
-      description: 'Recorded without a file. Upload the document later if you have one.',
-    });
-    loadForms();
     onUpdate();
   };
 
@@ -346,26 +293,6 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
       }
     }
     setFilling(templateFor(formType) ?? null);
-  };
-
-  /** Reopen a completed form to add to it. Approved forms stay locked for staff. */
-  const canEditDone = (f: FormSummary | undefined) =>
-    !!f && !!f.file_path && f.status !== 'draft' && f.status !== 'changes_requested' &&
-    (isAdmin || (f.employee_id === profileId && f.status !== 'approved'));
-  const editDone = async (f: FormSummary) => {
-    const { data, error } = await supabase
-      .from('client_forms')
-      .select(`${FORM_LIST_COLUMNS}, clients:client_id (first_name, last_name, status, workflow_stage)`)
-      .eq('client_id', client.id)
-      .eq('form_type', f.form_type)
-      .eq('created_at', f.created_at)
-      .limit(1)
-      .maybeSingle();
-    if (error || !data) {
-      toast({ title: 'Could not open the form', description: error?.message, variant: 'destructive' });
-      return;
-    }
-    setContinuing(data as unknown as FormRow);
   };
 
   const actionButton = () => {
@@ -479,110 +406,10 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate }) => {
           </div>
         </div>
 
-        <div>
-          <p className="mb-2 text-sm font-medium text-muted-foreground">Forms</p>
-          <div className="divide-y rounded-md border">
-            {TRACKED_FORMS.map((type) => {
-              const f = latest(type);
-              return (
-                <div key={type} className="flex flex-wrap items-center justify-between gap-2 p-3">
-                  <span className="text-sm">{type}</span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Done, or not. Whether a form was approved internally and
-                        what an MCO said about it are different questions, asked
-                        on the form itself; here the only one that matters is
-                        whether the client has it. */}
-                    <Badge
-                      variant="secondary"
-                      className={
-                        !f
-                          ? ''
-                          : f.status === 'draft' || f.status === 'changes_requested'
-                            ? 'bg-amber-100 text-amber-900'
-                            : 'bg-green-100 text-green-800'
-                      }
-                    >
-                      {!f
-                        ? 'Not started'
-                        : f.status === 'draft' || f.status === 'changes_requested'
-                          ? 'Started'
-                          : 'Completed'}
-                    </Badge>
-                    {/* One already filed, and room for another beside it: a
-                        continuation's plan, a level of need redone, an intake
-                        retaken. Redo replaces what is there; this does not. */}
-                    {/* Back into a draft already started. The + beside it files a
-                        separate new copy, which is easy to mistake for this. */}
-                    {hasOwnDraft(type) && templateFor(type) && (
-                      <Button size="sm" onClick={() => openForm(type)}>
-                        Continue
-                      </Button>
-                    )}
-                    {canEditDone(f) && templateFor(type) && (
-                      <Button size="sm" variant="outline" onClick={() => editDone(f!)}>
-                        Edit
-                      </Button>
-                    )}
-                    {f && templateFor(type) && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        title={`Add an additional ${type}`}
-                        aria-label={`Add an additional ${type}`}
-                        onClick={() => setFilling(templateFor(type) ?? null)}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {(!f || f.status === 'changes_requested') && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openForm(type)}
-                        >
-                          {f ? 'Redo' : 'Begin'}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => markFormComplete(type)}>
-                          Mark as complete
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      title={`Upload a completed ${type}`}
-                      aria-label={`Upload a completed ${type}`}
-                      onClick={() => setUploadingType(type)}
-                    >
-                      <Upload className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
+        {/* The client's forms and documents, passed in by the record. */}
+        {formsList}
       </CardContent>
 
-      {uploadingType && profileId && (
-        <UploadFormDialog
-          open
-          onClose={() => setUploadingType(null)}
-          profileId={profileId}
-          signerName={signerName}
-          initialFormType={uploadingType}
-          initialClientId={client.id}
-          onSubmitted={() => {
-            setUploadingType(null);
-            loadForms();
-            onUpdate();
-          }}
-        />
-      )}
 
       {continuing && profileId && (
         <TemplateFillDialog

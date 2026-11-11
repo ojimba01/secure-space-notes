@@ -242,7 +242,7 @@ export const ReopenCaseDialog: React.FC<Props> = ({
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Submit a new IAT, LON, and HSP on the Forms tab.
+                Submit a new IAT, LON, and HSP in Case overview.
               </p>
             </div>
           )}

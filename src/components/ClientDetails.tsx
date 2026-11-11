@@ -71,7 +71,8 @@ interface ClientDetailsProps {
 export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, onUpdate, initialTab }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState(initialTab ?? 'overview');
+  // Forms now sit in the Overview, inside Case overview.
+  const [activeTab, setActiveTab] = useState(!initialTab || initialTab === 'forms' ? 'overview' : initialTab);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [hmisOpen, setHmisOpen] = useState(false);
@@ -182,8 +183,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
     { value: 'overview', label: 'Overview' },
     { value: 'authorizations', label: 'Authorizations' },
     { value: 'touchpoints', label: 'Touchpoints' },
-    { value: 'forms', label: 'Forms' },
-    { value: 'documents', label: 'Document edits' },
+    { value: 'documents', label: 'Suggested updates' },
     { value: 'calendar', label: 'Calendar' },
     { value: 'history', label: 'History' },
     ...(isSuperadmin ? [{ value: 'billing', label: 'Billing' }] : []),
@@ -279,6 +279,31 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             showCaseManager={isAdmin}
           />
 
+          <ClientWorkflowCard
+            key={`workflow-${client.id}-${formsVersion}-${recordVersion}`}
+            client={client}
+            onUpdate={() => {
+              formsChanged();
+              recordChanged();
+            }}
+            forms={
+              <ClientFormsDocuments
+                embedded
+                clientId={client.id}
+                clientFirstName={client.first_name}
+                clientLastName={client.last_name}
+                refreshKey={formsVersion}
+                onChanged={formsChanged}
+                actions={
+                  <Button variant="outline" size="sm" onClick={() => setIntakeOpen(true)}>
+                    <FileUp className="h-4 w-4 mr-2" />
+                    Upload documents
+                  </Button>
+                }
+              />
+            }
+          />
+
           {/* Where they are moving to, which a submitted Move-in Supports
               Request fills in and anybody can write in by hand. */}
           <MoveInDetailsCard
@@ -287,14 +312,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             readOnly={isViewingAs}
           />
 
-          <ClientWorkflowCard
-            key={`workflow-${client.id}-${formsVersion}-${recordVersion}`}
-            client={client}
-            onUpdate={() => {
-              formsChanged();
-              recordChanged();
-            }}
-          />
+          <FileManager clientId={client.id} />
 
           {isAdmin && !editDialogOpen && (
             <div className="border-t pt-6">
@@ -344,29 +362,6 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
               Touchpoints are only tracked while a case is open. Nothing logged has been deleted.
             </p>
           )}
-        </TabsContent>
-
-        <TabsContent value="forms" className="space-y-4">
-          {/* Both ways of getting a document onto a record live here now. They
-              were one button apart in wording and a whole screen apart in
-              place: "Upload forms" in the header read documents to fill in the
-              record, while the identical-sounding button in this section filed
-              one against a form type. */}
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIntakeOpen(true)}>
-              <FileUp className="h-4 w-4 mr-2" />
-              Upload documents
-            </Button>
-          </div>
-
-          <ClientFormsDocuments
-            clientId={client.id}
-            clientFirstName={client.first_name}
-            clientLastName={client.last_name}
-            refreshKey={formsVersion}
-            onChanged={formsChanged}
-          />
-          <FileManager clientId={client.id} />
         </TabsContent>
 
         <TabsContent value="calendar">
