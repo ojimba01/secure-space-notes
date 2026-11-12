@@ -717,7 +717,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         onOpenChange={setShowAddDialog}
         onClientAdded={async (created, next) => {
           await fetchClients();
-          // Both jobs start on the client's Overview, where Case overview lists the forms: the intake is the first
+          // Both jobs start on the client's Overview, where the Forms card lists them: the intake is the first
           // row of its checklist, and Upload forms sits at the top of the
           // record. Dropping somebody back on the client list to find their
           // way there is the step worth removing.

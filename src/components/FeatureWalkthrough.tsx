@@ -31,7 +31,7 @@ const STAFF_STEPS: Step[] = [
   {
     title: 'Forms and documents',
     points: [
-      'Each client record lists the four forms every client should have in Case overview, on the Overview tab.',
+      'Each client record lists the four forms every client should have under Forms, on the Overview tab.',
       'Each form shows Not started, Draft started or Completed.',
       'A form not started offers three things: upload a document, Begin the form, or Mark as complete if it was done on paper.',
     ],

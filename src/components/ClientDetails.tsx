@@ -71,7 +71,7 @@ interface ClientDetailsProps {
 export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, onUpdate, initialTab }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  // Forms now sit in the Overview, inside Case overview.
+  // Forms now sit in the Overview, inside the Forms card.
   const [activeTab, setActiveTab] = useState(!initialTab || initialTab === 'forms' ? 'overview' : initialTab);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [intakeOpen, setIntakeOpen] = useState(false);

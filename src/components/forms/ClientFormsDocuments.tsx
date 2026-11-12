@@ -79,7 +79,7 @@ interface Props {
   refreshKey?: number;
   /** Called after this screen files or removes one, so the rest can catch up. */
   onChanged?: () => void;
-  /** Shown inside Case overview: no card of its own, a small heading instead. */
+  /** Shown inside the Forms card on the Overview: no card of its own, a small heading instead. */
   embedded?: boolean;
   /** Buttons beside the heading, such as Upload documents. */
   actions?: React.ReactNode;

@@ -351,7 +351,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: f
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <ClipboardList className="h-5 w-5 text-muted-foreground" />
-            Case overview
+            Forms
           </CardTitle>
           <Badge variant="secondary" className={STAGE_CLASS[stage] ?? ''}>
             {STAGE_LABEL[stage] ?? stage}
