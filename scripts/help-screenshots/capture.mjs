@@ -44,6 +44,11 @@ async function openClient(p, id, tabName) {
   }
 }
 
+/** The Forms card's list on the client's Overview. */
+const formsList = (p) => text(p, 'Forms and documents').locator('xpath=..');
+/** The visible row (wide layout) for one form, by name. */
+const formRow = (p, name) => p.locator('.forms-row-wide', { hasText: name }).first();
+
 async function closedClient(p) {
   await p.goto(`${BASE}/?view=clients`);
   await wait(p, 2000);
@@ -61,8 +66,8 @@ async function openWorkbook(p) {
   await wait(p, 3000);
 }
 async function openUhc(p) {
-  await openClient(p, 'c-7', 'Forms');
-  await btn(p, 'UHC Move-in Supports Request', true).click();
+  await openClient(p, 'c-7');
+  await formRow(p, 'Move-in Supports Request').getByRole('button', { name: 'Begin', exact: true }).click();
   await wait(p, 2500);
 }
 
@@ -133,8 +138,8 @@ async function drawOn(p) {
   await p.mouse.up();
 }
 async function openForm(p) {
-  await openClient(p, 'c-2', 'Forms');
-  await btn(p, 'Begin', true).click();
+  await openClient(p, 'c-2');
+  await formRow(p, 'Client Intake').getByRole('button', { name: 'Begin', exact: true }).click();
   await wait(p, 4000);
   await btn(p, 'Add signature', true).scrollIntoViewIfNeeded();
 }
@@ -281,9 +286,13 @@ const SHOTS = {
     { as: 'staff', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p); }, target: (p) => btn(p, 'Update client'), label: 'Update client' },
   ],
   'document-edits': [
-    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => tab(p, 'Document edits'), label: 'Document edits' },
-    { as: 'staff', go: (p) => openClient(p, 'c-1', 'Document edits'), target: (p) => p.getByRole('checkbox').first().locator('xpath=..'), label: 'Tick the correct value' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-1', 'Document edits'); await p.getByRole('checkbox').first().click(); }, target: (p) => btn(p, /Accept/), label: 'Accept selected' },
+    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Update the record to 51277').locator('xpath=ancestor::div[contains(@class,"border-amber-300")][1]'), label: 'Update to …?' },
+    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Update the record to 51277'), label: 'Update' },
+    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => tab(p, 'Suggested updates'), label: 'Suggested updates' },
+  ],
+  'authorization-ended': [
+    { as: 'staff', go: clientsList, target: (p) => card(p, 'Kwame Asante'), label: 'Authorization ended' },
+    { as: 'staff', go: clientsList, target: (p) => card(p, 'Kwame Asante').getByRole('button', { name: 'Acknowledge', exact: true }), label: 'Acknowledge' },
   ],
   history: [
     { as: 'admin', go: (p) => openClient(p, 'c-1'), target: (p) => tab(p, 'History'), label: 'History' },
@@ -310,14 +319,14 @@ const SHOTS = {
   ],
 
   upload: [
-    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => tab(p, 'Forms'), label: 'Forms' },
-    { as: 'staff', go: (p) => openClient(p, 'c-1', 'Forms'), target: (p) => btn(p, 'Upload documents'), label: 'Upload documents' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-1', 'Forms'); await btn(p, 'Upload documents').click(); await wait(p); }, target: (p) => btn(p, 'Choose files'), label: 'Choose files' },
+    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => text(p, 'Forms and documents'), label: 'Forms' },
+    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Upload documents'), label: 'Upload documents' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Upload documents').click(); await wait(p); }, target: (p) => btn(p, 'Choose files'), label: 'Choose files' },
   ],
   'fill-form': [
-    { as: 'staff', go: (p) => openClient(p, 'c-2'), target: (p) => tab(p, 'Forms'), label: 'Forms' },
-    { as: 'staff', go: (p) => openClient(p, 'c-2', 'Forms'), target: (p) => btn(p, 'Begin', true), label: 'Begin' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-2', 'Forms'); await btn(p, 'Begin', true).click(); await wait(p, 4000); }, target: (p) => btn(p, 'Complete form'), label: 'Complete form' },
+    { as: 'staff', go: (p) => openClient(p, 'c-2'), target: (p) => text(p, 'Forms and documents'), label: 'Forms' },
+    { as: 'staff', go: (p) => openClient(p, 'c-2'), target: (p) => formRow(p, 'Client Intake').getByRole('button', { name: 'Begin', exact: true }), label: 'Begin' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await formRow(p, 'Client Intake').getByRole('button', { name: 'Begin', exact: true }).click(); await wait(p, 4000); }, target: (p) => btn(p, 'Complete form'), label: 'Complete form' },
   ],
   'your-phone': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => p.locator('[aria-label="Your account"]').last(), label: 'Your account' },
@@ -337,25 +346,20 @@ const SHOTS = {
     { as: 'staff', go: signForm, target: (p) => btn(p, 'Add another signature'), label: 'Add another signature' },
   ],
   drafts: [
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-2', 'Forms'); await btn(p, 'Begin', true).click(); await wait(p, 4000); }, target: (p) => btn(p, 'Save draft'), label: 'Save draft' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-1', 'Forms'); await text(p, 'Housing Stabilization Plan (HSP)').click(); await wait(p); }, target: (p) => btn(p, 'Continue', true), label: 'Continue' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await formRow(p, 'Client Intake').getByRole('button', { name: 'Begin', exact: true }).click(); await wait(p, 4000); }, target: (p) => btn(p, 'Save draft'), label: 'Save draft' },
+    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => formRow(p, 'Housing Stabilization Plan (HSP)').getByRole('button', { name: 'Continue', exact: true }), label: 'Continue' },
   ],
   'view-document': [
-    { as: 'staff', go: (p) => openClient(p, 'c-1', 'Forms'), target: (p) => text(p, 'Initial Assessment (IAT)').locator('xpath=ancestor::div[contains(@class,"rounded-md")][1]'), label: 'Show documents' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-1', 'Forms'); await text(p, 'Initial Assessment (IAT)').click(); await wait(p); }, target: (p) => p.getByTitle('Download').first(), label: 'Download' },
-  ],
-  'mco-status': [
-    { as: 'staff', go: (p) => openClient(p, 'c-1', 'Forms'), target: (p) => text(p, 'Housing Stabilization Plan (HSP)').locator('xpath=ancestor::div[contains(@class,"rounded-md")][1]'), label: 'Open the row' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-2', 'Forms'); await text(p, 'Initial Assessment (IAT)').click(); await wait(p); }, target: (p) => btn(p, 'Sent to MCO'), label: 'Sent to MCO' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-1', 'Forms'); await text(p, 'Initial Assessment (IAT)').click(); await wait(p); }, target: (p) => text(p, 'Accepted by MCO'), label: 'MCO response' },
+    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Show Initial Assessment (IAT) documents'), label: 'Show documents' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Show Initial Assessment (IAT) documents').click(); await wait(p); }, target: (p) => p.locator('.forms-row-wide').getByRole('button', { name: 'Download', exact: true }).first(), label: 'Download' },
   ],
   'blank-form': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Blank forms'), label: 'Blank forms' },
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=forms`), target: (p) => p.getByRole('button', { name: 'Fill out the UHC Move-in Supports Request' }), label: 'Start the form' },
   ],
   'move-in-request': [
-    { as: 'admin', go: (p) => openClient(p, 'c-7'), target: (p) => tab(p, 'Forms'), label: 'Forms' },
-    { as: 'admin', go: (p) => openClient(p, 'c-7', 'Forms'), target: (p) => btn(p, 'UHC Move-in Supports Request', true), label: 'UHC Move-in Supports Request' },
+    { as: 'admin', go: (p) => openClient(p, 'c-7'), target: (p) => text(p, 'Forms and documents'), label: 'Forms' },
+    { as: 'admin', go: (p) => openClient(p, 'c-7'), target: (p) => formRow(p, 'Move-in Supports Request').getByRole('button', { name: 'Begin', exact: true }), label: 'Begin' },
     { as: 'admin', go: openUhc, target: (p) => dialog(p).getByLabel('Member name'), label: 'Member details' },
     { as: 'admin', go: async (p) => { await openUhc(p); await tab(p, 'Food').click(); await wait(p); await dialog(p).getByRole('button', { name: 'Asparagus', exact: true }).click(); await btn(p, 'More Asparagus').click(); await wait(p, 400); }, target: (p) => btn(p, 'More Asparagus'), label: 'Set the quantity' },
     { as: 'admin', go: async (p) => { await openUhc(p); await tab(p, 'Household').click(); await wait(p); await dialog(p).getByRole('button', { name: 'Sofa', exact: true }).click(); await dialog(p).getByLabel('Cost of Sofa').fill('750'); await wait(p, 400); }, target: (p) => dialog(p).getByLabel('Cost of Sofa'), label: 'Cost' },
@@ -502,7 +506,7 @@ const SHOTS = {
     { as: 'admin', go: openRestart, target: (p) => dialog(p).getByRole('button', { name: '150-day', exact: true }), label: 'What the MCO approved' },
     { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByLabel('Start date'), label: 'Start date' },
     { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByRole('button', { name: 'Submit', exact: true }), label: 'Submit' },
-    { as: 'admin', go: (p) => restarted(p, 'Forms'), target: (p) => text(p, 'Needed for the restart on 10/12/2026').locator('xpath=..'), label: 'Forms to file' },
+    { as: 'admin', go: (p) => restarted(p, 'Overview'), target: (p) => text(p, 'Needed for the restart on 10/12/2026').locator('xpath=..'), label: 'Forms to file' },
   ],
   'complete-restart': [
     { as: 'admin', go: markPending, target: (p) => card(p, 'Helen Brooks').getByRole('button', { name: 'Add start date', exact: true }), label: 'Add start date' },

@@ -71,9 +71,16 @@ export const GUIDES: Guide[] = [
   {
     id: 'document-edits', section: 'Clients', title: 'Accept details from documents', audience: 'everyone', minutes: 1,
     steps: [
-      s('Open Document edits', 'Open the client and select the Document edits tab. It lists details found in uploaded files.'),
-      s('Select the correct values', 'Tick each value to add. Each shows the current value, the new value and its source.'),
-      s('Accept', 'Select Accept selected. Select Undo if you need to reverse it.'),
+      s('Check the Overview', 'When an uploaded document gives a different Member ID, Medicaid ID, NJ HMIS ID, date of birth or authorization, the client’s Overview asks “Update to …?” under that field, with the document it was found in.'),
+      s('Update or keep', 'Select the check to update the record, or the X to keep it as it is. After an update, select Undo in the message to reverse it.'),
+      s('See them all at once', 'Select the Suggested updates tab. Tick each value to add and select Accept selected.'),
+    ],
+  },
+  {
+    id: 'authorization-ended', section: 'Clients', title: 'See which authorizations have ended', audience: 'everyone', minutes: 1,
+    steps: [
+      s('Look for the red outline', 'On Clients, a card with a red dotted outline is a client whose latest authorization has ended. The card shows the date it ended.'),
+      s('Select Acknowledge', 'Select Acknowledge on the card to remove the outline for you. It comes back if a later authorization ends.'),
     ],
   },
   {
@@ -119,16 +126,16 @@ export const GUIDES: Guide[] = [
   {
     id: 'upload', section: 'Forms and documents', title: 'Upload a document', audience: 'everyone', minutes: 2,
     steps: [
-      s('Open the client’s Forms tab', 'Open the client and select Forms.'),
-      s('Select Upload documents', 'It is at the top right of the tab.'),
+      s('Open the client’s forms', 'Open the client. On the Overview tab, scroll down to Forms.'),
+      s('Select Upload documents', 'It is beside Forms and documents. To file a completed copy of one form, select the upload icon on that form’s row.'),
       s('Choose the files', 'Drag PDFs into the box or select Choose files. Each file is read and filed on this client.'),
     ],
   },
   {
     id: 'fill-form', section: 'Forms and documents', title: 'Fill out a form', audience: 'everyone', minutes: 5,
     steps: [
-      s('Open the client’s Forms tab', 'Open the client and select Forms.'),
-      s('Select Begin', 'Select Begin next to the form: Client Intake, IAT, LON or HSP.'),
+      s('Open the client’s forms', 'Open the client. On the Overview tab, scroll down to Forms.'),
+      s('Select Begin', 'Select Begin on the form’s row: Client Intake, IAT, LON or HSP. For another copy of a form already filed, select Create additional form.'),
       s('Complete the form', 'The client’s details are already filled in. Type in the boxes, add your signature (see Sign a form), tick the confirmation and select Complete form.'),
     ],
   },
@@ -155,22 +162,14 @@ export const GUIDES: Guide[] = [
     id: 'drafts', section: 'Forms and documents', title: 'Save a draft', audience: 'everyone', minutes: 1,
     steps: [
       s('Save draft', 'While filling out a form, select Save draft.'),
-      s('Finish it later', 'A draft is marked Draft on the client’s Forms tab. Open the form’s row, select Continue, tick the confirmation and select Complete form. You can also select Continue next to the form in the client’s Case overview. Until then it stays a draft.'),
+      s('Finish it later', 'Under Forms on the client’s Overview, the form shows Draft started. Select Continue on its row, tick the confirmation and select Complete form. Until then it stays a draft.'),
     ],
   },
   {
     id: 'view-document', section: 'Forms and documents', title: 'View or download a document', audience: 'everyone', minutes: 1,
     steps: [
-      s('Open the group', 'On the client’s Forms tab, select a row to show its documents.'),
-      s('View or download', 'Select the name to view it, or the download icon to save it.'),
-    ],
-  },
-  {
-    id: 'mco-status', section: 'Forms and documents', title: 'Record an MCO response', audience: 'everyone', minutes: 1,
-    steps: [
-      s('Open the IAT or HSP', 'On the client’s Forms tab, open the Initial Assessment (IAT) or HSP row.'),
-      s('Mark it sent', 'Select Sent to MCO after you send it.'),
-      s('Record the answer', 'When the MCO replies, select Accepted by MCO or Denied by MCO.'),
+      s('Show the documents', 'Under Forms on the client’s Overview, select the document count on a form’s row, such as 1 document.'),
+      s('View or download', 'Select the name to view it, or select Download to save it. To remove one, select ⋯ and then Remove.'),
     ],
   },
   {
@@ -183,8 +182,8 @@ export const GUIDES: Guide[] = [
   {
     id: 'move-in-request', section: 'Forms and documents', title: 'Fill out a Move-in Supports Request', audience: 'everyone', minutes: 10,
     steps: [
-      s('Open the client’s Forms tab', 'Open the client and select Forms.'),
-      s('Start the request', 'Under Move-in Supports Request, select the request for the client’s MCO: UHC, Horizon or Wellpoint. Horizon and Wellpoint open as PDFs, filled in like any other form.'),
+      s('Open the client’s forms', 'Open the client. On the Overview tab, scroll down to Forms.'),
+      s('Start the request', 'On the Move-in Supports Request row, select Begin. The row names the client’s MCO: UHC, Horizon or Wellpoint. Horizon and Wellpoint open as PDFs, filled in like any other form.'),
       s('Check the member details', 'The UHC request opens on Member, filled in from the client record and the client’s other documents. Anything you change here is saved to the client record too.'),
       s('Go through the items with the member', 'Open each tab (Services, Food, Pantry, Hygiene, Clothing, Household). Select an item to add it, set the quantity with + and −, and fill in a flavor or type where asked. Search finds an item; Selected only shows what you picked.'),
       s('Add the costs', 'Enter the estimated cost for each line, now or later. Totals add up by themselves. A furniture cost over UHC’s limit is flagged; UHC reviews it individually.'),
@@ -404,7 +403,7 @@ export const GUIDES: Guide[] = [
       s('Choose what the MCO approved', 'Select 30-day, 150-day or 180-day. If you do not know yet, select Not decided.'),
       s('Do you have the start date?', 'Select Yes and enter the start date. The end date fills in from the type; change it if the approval says otherwise. Add the authorization number if you have it. Select Not yet if the approval has not arrived.'),
       s('Check and submit', 'Read what will happen, then select Submit. Earlier authorizations and billing stay on record. Billing and touchpoints start over from the new date, and touchpoints from the gap are cleared. Without a date, the client shows Restart pending until you add one. To leave without changing anything, select Cancel.'),
-      s('File the forms', 'The client’s Forms tab lists the forms this restart needs (a new IAT, LON and HSP for 30 days; an HSP for 150 days; a LON and HSP for 180 days) until each is filed.'),
+      s('File the forms', 'Under Forms on the client’s Overview, a list shows the forms this restart needs (a new IAT, LON and HSP for 30 days; an HSP for 150 days; a LON and HSP for 180 days) until each is filed.'),
     ],
   },
   {
