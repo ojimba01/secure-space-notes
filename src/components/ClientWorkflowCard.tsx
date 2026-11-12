@@ -173,6 +173,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: f
   const action = nextAction(client, forms);
   const current = currentAuthorization(authorizations);
   const daysLeft = daysUntilEnd(current);
+  const lapsed = daysLeft !== null && daysLeft < 0;
   const reauthDue = needsReauthorization(authorizations);
 
   const guard = () => {
@@ -373,12 +374,14 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: f
         )}
 
         {reauthDue && (
-          <div className="rounded-md border border-amber-300 bg-amber-50 p-3">
-            <p className="text-sm font-medium text-amber-900">
-              The current authorization ends {formatAuthDate(current?.end_date)}
-              {daysLeft !== null && ` (${daysLeft} day${daysLeft === 1 ? '' : 's'} left)`}.
+          // Red once the end date has passed: the client is past their authorization.
+          <div className={`rounded-md border p-3 ${lapsed ? 'border-red-300 bg-red-50' : 'border-amber-300 bg-amber-50'}`}>
+            <p className={`text-sm font-medium ${lapsed ? 'text-red-800' : 'text-amber-900'}`}>
+              {lapsed
+                ? `The current authorization ended ${formatAuthDate(current?.end_date)} (${-daysLeft!} day${daysLeft === -1 ? '' : 's'} ago).`
+                : `The current authorization ends ${formatAuthDate(current?.end_date)}${daysLeft !== null ? ` (${daysLeft === 0 ? 'today' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`})` : ''}.`}
             </p>
-            <p className="text-sm text-amber-900/80">
+            <p className={`text-sm ${lapsed ? 'text-red-800/80' : 'text-amber-900/80'}`}>
               Record the next 180-day period as soon as the MCO approves it.
             </p>
             <Button size="sm" className="mt-3 h-11 w-full sm:h-9 sm:w-auto" onClick={() => openAuth('reauthorization')}>

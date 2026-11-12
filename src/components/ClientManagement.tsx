@@ -240,6 +240,34 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
     setDocumentCounts(counts);
   };
 
+  // Ended authorizations this person has acknowledged, so their cards lose
+  // the red outline (authorization_end_acknowledgements).
+  const [acknowledgedEnds, setAcknowledgedEnds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!user) return;
+    // Newer than the generated types.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    void Promise.resolve((supabase.from as any)('authorization_end_acknowledgements').select('client_id, end_date'))
+      .then(({ data }: { data: { client_id: string; end_date: string }[] | null }) =>
+        setAcknowledgedEnds(new Set((data ?? []).map((r) => `${r.client_id}:${r.end_date}`))),
+      )
+      .catch(() => undefined);
+  }, [user]);
+  const acknowledgeEnd = async (client: Client, endDate: string) => {
+    setAcknowledgedEnds((prev) => new Set(prev).add(`${client.id}:${endDate}`));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from as any)('authorization_end_acknowledgements')
+      .upsert({ client_id: client.id, end_date: endDate, user_id: user?.id }, { onConflict: 'user_id,client_id,end_date', ignoreDuplicates: true });
+    if (error) {
+      setAcknowledgedEnds((prev) => {
+        const next = new Set(prev);
+        next.delete(`${client.id}:${endDate}`);
+        return next;
+      });
+      toast({ title: 'Could not save', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const fetchClients = async () => {
     try {
       const { data, error } = await supabase
@@ -661,6 +689,8 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               // never offered to somebody who could not carry it out.
               onReopenCase={isAdmin ? setReopeningClient : undefined}
               onRestart={isAdmin ? setRestartingClient : undefined}
+              acknowledgedEnds={acknowledgedEnds}
+              onAcknowledgeEnd={acknowledgeEnd}
               assignedManagerName={
                 client.assigned_employee_id
                   ? managerMap.get(client.assigned_employee_id) ?? null

@@ -32,6 +32,9 @@ interface Client {
   auth_180_start?: string | null;
   auth_180_number?: string | null;
   billing_round?: number | null;
+  auth_30_end?: string | null;
+  auth_150_end?: string | null;
+  auth_180_end?: string | null;
   restart_pending_at?: string | null;
   restart_pending_type?: string | null;
 }
@@ -104,6 +107,10 @@ interface ClientCardProps {
   onReopenCase?: (client: Client) => void;
   /** Restart, or finish a pending restart. Admins only; omitted otherwise. */
   onRestart?: (client: Client) => void;
+  /** "clientId:endDate" for each ended authorization this person has acknowledged. */
+  acknowledgedEnds?: Set<string>;
+  /** Removes the red outline for this person until a later end date passes. */
+  onAcknowledgeEnd?: (client: Client, endDate: string) => void;
 }
 
 export const ClientCard: React.FC<ClientCardProps> = ({
@@ -118,6 +125,8 @@ export const ClientCard: React.FC<ClientCardProps> = ({
   onCloseCase,
   onReopenCase,
   onRestart,
+  acknowledgedEnds,
+  onAcknowledgeEnd,
 }) => {
   const restartPending = !!client.restart_pending_at;
   const handleClick = () => {
@@ -154,11 +163,23 @@ export const ClientCard: React.FC<ClientCardProps> = ({
   const pendingApproval =
     !isCaseClosed(client) && displayStage(client) === 'initial_auth_pending';
 
+  // Past the end of its latest authorization (a negative days left): a red
+  // dotted outline marks the card.
+  const latestEnd = [client.auth_30_end, client.auth_180_end, client.auth_150_end]
+    .filter((d): d is string => !!d)
+    .sort()
+    .pop();
+  const authEnded =
+    !isCaseClosed(client) &&
+    !!latestEnd &&
+    new Date(`${latestEnd}T00:00:00`) < today() &&
+    !acknowledgedEnds?.has(`${client.id}:${latestEnd}`);
+
   return (
     <Card
       className={`hover:shadow-md transition-shadow cursor-pointer ${
         selected ? 'ring-2 ring-primary' : ''
-      }`}
+      } ${authEnded ? 'border-2 border-dashed border-red-500' : ''}`}
       onClick={handleClick}
     >
       <CardHeader className="pb-3">
@@ -290,6 +311,23 @@ export const ClientCard: React.FC<ClientCardProps> = ({
         )}
       </CardHeader>
       <CardContent className="space-y-2">
+        {authEnded && latestEnd && (
+          <div className="flex items-center justify-between gap-2 rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-800">
+            <span>Authorization ended {formatDay(latestEnd)}</span>
+            {onAcknowledgeEnd && !selectionMode && (
+              <button
+                type="button"
+                className="shrink-0 rounded px-1.5 py-0.5 underline underline-offset-2 hover:bg-red-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAcknowledgeEnd(client, latestEnd);
+                }}
+              >
+                Acknowledge
+              </button>
+            )}
+          </div>
+        )}
         {client.email && (
           <div className="flex items-center gap-2 text-sm">
             <Mail className="h-4 w-4 text-muted-foreground" />
