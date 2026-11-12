@@ -128,7 +128,7 @@ interface RowSpec {
   status?: { label: string; className: string };
   /**
    * The one action. Begin is blue, Continue amber, New request green, and
-   * Add additional form underlined gray text.
+   * Create additional form underlined gray text.
    */
   action?: { label: React.ReactNode; title?: string; onClick: () => void; style: ActionStyle };
   upload?: { label: string; onClick: () => void };
@@ -782,14 +782,14 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                 // a level of need redone), so a filed form still offers another.
                 const fill = template
                   ? {
-                      label: hasDocument ? 'Add additional form' : 'Begin',
+                      label: hasDocument ? 'Create additional form' : 'Begin',
                       title: hasDocument ? `Fill in an additional ${type}` : `Fill in the ${type}`,
                       onClick: () => setFilling(template),
                       style: (hasDocument ? 'link' : 'filled') as ActionStyle,
                     }
                   : undefined;
                 const menu: MenuItem[] = [];
-                if (ownDraft && template) menu.push({ label: 'Add additional form', onSelect: () => setFilling(template) });
+                if (ownDraft && template) menu.push({ label: 'Create additional form', onSelect: () => setFilling(template) });
                 if (editable) menu.push({ label: 'Edit', onSelect: () => setContinuing(editable) });
                 if (!ticked && !hasDraftOnly) menu.push({ label: 'Mark as complete', onSelect: () => void markComplete(type) });
                 return groupRow({
@@ -814,7 +814,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                   items,
                   action: moveInStart
                     ? {
-                        label: items.length ? 'Add additional form' : 'Begin',
+                        label: items.length ? 'Create additional form' : 'Begin',
                         title: moveInStart.label,
                         onClick: moveInStart.start,
                         style: items.length ? 'link' : 'filled',
