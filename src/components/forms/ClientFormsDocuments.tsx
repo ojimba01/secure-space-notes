@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Check, ChevronDown, ChevronRight, FileText, MoreHorizontal, Plus, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, FileText, MoreHorizontal, Upload, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -127,7 +127,7 @@ interface RowSpec {
   items: DocumentRow[];
   status?: { label: string; className: string };
   /**
-   * The one action. Begin is blue, Continue amber, New request green, and
+   * The one action. Begin is blue, Continue amber, Request authorization green, and
    * Add additional form underlined gray text.
    */
   action?: { label: React.ReactNode; title?: string; onClick: () => void; style: ActionStyle };
@@ -837,12 +837,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                     action:
                       g.title === AUTH_GROUP && authTemplate
                         ? {
-                            label: (
-                              <>
-                                <Plus className="mr-1 h-4 w-4" />
-                                New request
-                              </>
-                            ),
+                            label: 'Request authorization',
                             title: authTemplate.label,
                             onClick: () => setFilling(authTemplate),
                             style: 'green',
