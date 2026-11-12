@@ -103,6 +103,16 @@ const CHECKLIST_STATUS = {
 const ROW_GRID = 'forms-row-wide grid-cols-[96px_minmax(0,1fr)_124px_168px_36px_36px] items-center gap-x-3';
 const ROW_STACK = 'forms-row-narrow';
 
+type ActionStyle = 'filled' | 'link' | 'green' | 'draft';
+
+const ACTION_CLASS: Record<ActionStyle, string> = {
+  filled: '',
+  link: 'text-muted-foreground underline underline-offset-4 hover:bg-transparent hover:text-foreground',
+  green: 'bg-green-600 text-white hover:bg-green-700',
+  // Continue: amber, like the Draft started label, so it is not mistaken for Begin.
+  draft: 'bg-amber-500 text-white hover:bg-amber-600',
+};
+
 interface MenuItem {
   label: string;
   onSelect: () => void;
@@ -116,8 +126,11 @@ interface RowSpec {
   name: string;
   items: DocumentRow[];
   status?: { label: string; className: string };
-  /** The one button. Only a person's own draft gets the filled variant. */
-  action?: { label: React.ReactNode; title?: string; onClick: () => void; filled?: boolean };
+  /**
+   * The one action. Begin is blue, Continue amber, New request green, and
+   * Add additional form underlined gray text.
+   */
+  action?: { label: React.ReactNode; title?: string; onClick: () => void; style: ActionStyle };
   upload?: { label: string; onClick: () => void };
   menu?: MenuItem[];
 }
@@ -515,20 +528,6 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     );
   }, [current]);
 
-  /** What the documents said about this client, once anything has been read. */
-  const readFacts = useMemo(() => {
-    const first = (key: keyof DocumentRow) =>
-      forms.find((f) => f[key])?.[key] as string | undefined;
-    return [
-      { label: 'Name on the documents', value: first('field_member_name') },
-      { label: 'Member ID', value: first('field_member_id') },
-      { label: 'Medicaid ID', value: first('field_medicaid_id') },
-      { label: 'Date of birth', value: first('field_member_dob') },
-      { label: 'Diagnosis', value: first('field_icd10_code') },
-      { label: 'Authorization number', value: first('field_authorization_number') },
-    ].filter((f) => f.value);
-  }, [forms]);
-
   const toggleOpen = (title: string) =>
     setOpen((current) => {
       const next = new Set(current);
@@ -608,11 +607,11 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     );
     const button = (className: string) =>
       continues ? (
-        <Button size="sm" className={className} onClick={() => setContinuing(form)}>
+        <Button size="sm" className={`${ACTION_CLASS.draft} ${className}`} onClick={() => setContinuing(form)}>
           Continue
         </Button>
       ) : (
-        <Button size="sm" variant="outline" className={className} disabled={!form.file_path} onClick={() => void download(form)}>
+        <Button size="sm" variant="secondary" className={className} disabled={!form.file_path} onClick={() => void download(form)}>
           Download
         </Button>
       );
@@ -662,8 +661,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       row.action ? (
         <Button
           size="sm"
-          variant={row.action.filled ? 'default' : 'outline'}
-          className={className}
+          variant={row.action.style === 'link' ? 'ghost' : 'default'}
+          className={`${ACTION_CLASS[row.action.style]} ${className}`}
           title={row.action.title}
           onClick={row.action.onClick}
         >
@@ -766,22 +765,6 @@ export const ClientFormsDocuments: React.FC<Props> = ({
           <p className="text-sm text-muted-foreground">Loading documents...</p>
         ) : (
           <>
-            {readFacts.length > 0 && (
-              <div className="rounded-md border bg-muted/40 p-3">
-                <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">
-                  What the documents say
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1.5">
-                  {readFacts.map((f) => (
-                    <div key={f.label} className="text-sm">
-                      <span className="text-muted-foreground">{f.label}: </span>
-                      {f.value}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="forms-list space-y-2">
               {CHECKLIST_TYPES.map((type) => {
                 const items = byType.get(type) ?? [];
@@ -799,20 +782,14 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                 // a level of need redone), so a filed form still offers another.
                 const fill = template
                   ? {
-                      label: hasDocument ? (
-                        <>
-                          <Plus className="mr-1 h-4 w-4" />
-                          Add additional
-                        </>
-                      ) : (
-                        'Begin'
-                      ),
+                      label: hasDocument ? 'Add additional form' : 'Begin',
                       title: hasDocument ? `Fill in an additional ${type}` : `Fill in the ${type}`,
                       onClick: () => setFilling(template),
+                      style: (hasDocument ? 'link' : 'filled') as ActionStyle,
                     }
                   : undefined;
                 const menu: MenuItem[] = [];
-                if (ownDraft && template) menu.push({ label: 'Add additional', onSelect: () => setFilling(template) });
+                if (ownDraft && template) menu.push({ label: 'Add additional form', onSelect: () => setFilling(template) });
                 if (editable) menu.push({ label: 'Edit', onSelect: () => setContinuing(editable) });
                 if (!ticked && !hasDraftOnly) menu.push({ label: 'Mark as complete', onSelect: () => void markComplete(type) });
                 return groupRow({
@@ -821,7 +798,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                   items,
                   status: CHECKLIST_STATUS[ticked ? 'done' : hasDraftOnly ? 'draft' : 'none'],
                   action: ownDraft
-                    ? { label: 'Continue', onClick: () => setContinuing(ownDraft), filled: true }
+                    ? { label: 'Continue', onClick: () => setContinuing(ownDraft), style: 'draft' }
                     : fill,
                   upload: { label: `Upload a completed ${type}`, onClick: () => setUploadFor(type) },
                   menu,
@@ -837,16 +814,10 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                   items,
                   action: moveInStart
                     ? {
-                        label: items.length ? (
-                          <>
-                            <Plus className="mr-1 h-4 w-4" />
-                            Add additional
-                          </>
-                        ) : (
-                          'Begin'
-                        ),
+                        label: items.length ? 'Add additional form' : 'Begin',
                         title: moveInStart.label,
                         onClick: moveInStart.start,
+                        style: items.length ? 'link' : 'filled',
                       }
                     : undefined,
                   upload: {
@@ -874,6 +845,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                             ),
                             title: authTemplate.label,
                             onClick: () => setFilling(authTemplate),
+                            style: 'green',
                           }
                         : undefined,
                   }),

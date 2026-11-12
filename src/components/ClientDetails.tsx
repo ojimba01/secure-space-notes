@@ -277,6 +277,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             onSaved={recordChanged}
             caseManagerName={caseManagerName}
             showCaseManager={isAdmin}
+            refreshKey={formsVersion + recordVersion}
           />
 
           <ClientWorkflowCard

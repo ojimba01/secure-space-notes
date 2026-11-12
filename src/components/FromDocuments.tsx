@@ -30,6 +30,7 @@ import {
   type AcceptSnapshot,
   type FieldProposal,
 } from '@/lib/documentProposals';
+import { authKey, fieldKey, loadDismissed } from '@/lib/documentSuggestions';
 
 interface Props {
   clientId: string;
@@ -87,8 +88,10 @@ export const FromDocuments: React.FC<Props> = ({ clientId, onApplied }) => {
           .eq('client_id', clientId)
           .not('file_path', 'is', null),
       ]);
-      setAuthSet(a);
-      setFields(f);
+      // Suggestions declined on the Overview stay declined here too.
+      const dismissed = await loadDismissed(clientId);
+      setAuthSet({ ...a, proposals: a.proposals.filter((p) => !dismissed.has(authKey(p))) });
+      setFields(f.filter((x) => !dismissed.has(fieldKey(x))));
       setDocumentCount(docs.count ?? null);
       setChosen(new Set());
     } catch (e) {

@@ -23,6 +23,19 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { VisitAvailabilitySection } from '@/components/VisitAvailability';
 import { formatDay } from '@/lib/dates';
+import { Check, X } from 'lucide-react';
+import { ToastAction } from '@/components/ui/toast';
+import { undoAccept, type FieldProposal } from '@/lib/documentProposals';
+import type { AuthorizationProposal } from '@/lib/authorizationProposals';
+import {
+  acceptAuthorization,
+  acceptField,
+  authKey,
+  dismissSuggestion,
+  fieldKey,
+  loadSuggestions,
+  type Suggestions,
+} from '@/lib/documentSuggestions';
 import { MCO_OPTIONS, addDays, hspDueDateFor } from '@/lib/billing';
 import { NJ_COUNTIES } from '@/lib/clientIntake';
 import { PartialSaveError, saveClientEdit, type ClientEditValues } from '@/lib/saveClientEdit';
@@ -104,15 +117,61 @@ const Row: React.FC<{
   hint?: string;
   /** Addresses and notes need the room; a phone number does not. */
   wide?: boolean;
-}> = ({ label, children, hint, wide }) => (
+  /** What a document says instead, under the value. */
+  suggestion?: React.ReactNode;
+}> = ({ label, children, hint, wide, suggestion }) => (
   <div className={wide ? 'sm:col-span-2 lg:col-span-3' : ''}>
     <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
       {label}
     </dt>
-    <dd className="mt-0.5 min-w-0 text-sm font-medium">
+    <dd className="mt-0.5 min-w-0 text-sm font-medium [overflow-wrap:anywhere]">
       {children || <span className="font-normal text-muted-foreground/40">—</span>}
       {hint && <p className="mt-0.5 text-xs font-normal text-muted-foreground">{hint}</p>}
+      {suggestion}
     </dd>
+  </div>
+);
+
+/**
+ * A value an uploaded document gives that the record does not hold: the
+ * document's value and the file, with a check to update the record and an X
+ * to keep it as it is.
+ */
+const SuggestionLine: React.FC<{
+  value: string;
+  source: string;
+  busy: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+}> = ({ value, source, busy, onAccept, onDecline }) => (
+  <div className="mt-1.5 flex flex-wrap items-center justify-end gap-x-1 rounded-md border border-amber-300 bg-amber-50 py-0.5 pl-2 pr-0.5 text-xs font-normal text-amber-950">
+    {/* In a narrow field the check and X wrap under the text instead of squeezing it. */}
+    <div className="min-w-0 shrink grow basis-28 py-0.5">
+      <span className="font-medium">Update to {value}?</span>
+      <span className="block break-words text-amber-900/70">Found in {source}</span>
+    </div>
+    <div className="flex shrink-0">
+    <button
+      type="button"
+      disabled={busy}
+      onClick={onAccept}
+      title="Update the record"
+      aria-label={`Update the record to ${value}`}
+      className="grid size-8 shrink-0 place-items-center rounded text-green-700 hover:bg-green-100 disabled:opacity-50"
+    >
+      <Check className="h-4 w-4" />
+    </button>
+    <button
+      type="button"
+      disabled={busy}
+      onClick={onDecline}
+      title="Keep the record as it is"
+      aria-label={`Keep the record instead of ${value}`}
+      className="grid size-8 shrink-0 place-items-center rounded text-destructive hover:bg-red-100 disabled:opacity-50"
+    >
+      <X className="h-4 w-4" />
+    </button>
+    </div>
   </div>
 );
 
@@ -183,7 +242,9 @@ export const ClientOverview: React.FC<{
   onSaved?: () => void | Promise<void>;
   caseManagerName?: string | null;
   showCaseManager?: boolean;
-}> = ({ client, editing = false, onDone, onSaved, caseManagerName, showCaseManager }) => {
+  /** Bumped when documents are added or removed, so suggestions are read again. */
+  refreshKey?: number;
+}> = ({ client, editing = false, onDone, onSaved, caseManagerName, showCaseManager, refreshKey = 0 }) => {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
   const { guardWrite } = useViewAs();
@@ -193,6 +254,9 @@ export const ClientOverview: React.FC<{
   const [closing, setClosing] = useState(false);
   const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
   const [reassigning, setReassigning] = useState(false);
+  /** Where the documents disagree with the record, shown under each field. */
+  const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
+  const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
   /** Authorizations whose date was cleared, waiting for "remove it" to be confirmed. */
   const [confirmRemove, setConfirmRemove] = useState<ClearedPeriod[] | null>(null);
 
@@ -201,6 +265,98 @@ export const ClientOverview: React.FC<{
   useEffect(() => {
     if (editing) setV(initialValues(client));
   }, [editing, client]);
+
+  const readSuggestions = React.useCallback(() => {
+    loadSuggestions(client.id)
+      .then(setSuggestions)
+      .catch(() => setSuggestions(null));
+  }, [client.id]);
+  useEffect(() => {
+    if (!editing) readSuggestions();
+  }, [editing, readSuggestions, refreshKey]);
+
+  const acceptSuggestion = async (key: string, label: string, run: () => Promise<Parameters<typeof undoAccept>[0]>) => {
+    if (guardWrite()) return;
+    setSuggestionBusy(key);
+    try {
+      const snapshot = await run();
+      await onSaved?.();
+      readSuggestions();
+      toast({
+        title: `${label} updated`,
+        action: (
+          <ToastAction
+            altText="Undo"
+            onClick={async () => {
+              await undoAccept(snapshot);
+              await onSaved?.();
+              readSuggestions();
+            }}
+          >
+            Undo
+          </ToastAction>
+        ),
+      });
+    } catch (e) {
+      toast({ title: 'Could not update the record', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally {
+      setSuggestionBusy(null);
+    }
+  };
+
+  const declineSuggestion = async (key: string) => {
+    if (guardWrite()) return;
+    setSuggestionBusy(key);
+    try {
+      await dismissSuggestion(client.id, key);
+      readSuggestions();
+    } catch (e) {
+      toast({ title: 'Could not save', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally {
+      setSuggestionBusy(null);
+    }
+  };
+
+  /** The suggestions for one client column, under its field. Hidden while editing. */
+  const fieldSuggestions = (column: string) => {
+    if (editing || !suggestions) return undefined;
+    const list = suggestions.fields.filter((f: FieldProposal) => f.column === column);
+    if (!list.length) return undefined;
+    return list.map((f) => {
+      const key = fieldKey(f);
+      const value = f.kind === 'date' ? formatDay(f.updated) : f.updated;
+      return (
+        <SuggestionLine
+          key={key}
+          value={value}
+          source={f.documentName}
+          busy={suggestionBusy === key}
+          onAccept={() => void acceptSuggestion(key, f.label, () => acceptField(client.id, f))}
+          onDecline={() => void declineSuggestion(key)}
+        />
+      );
+    });
+  };
+
+  /** An authorization period a document gives differently, across the period's row. */
+  const authSuggestion = (prefix: string) => {
+    if (editing || !suggestions) return null;
+    const p = suggestions.authorizations.find((a: AuthorizationProposal) => a.prefix === prefix);
+    if (!p) return null;
+    const key = authKey(p);
+    const value = `${formatDay(p.start)} to ${formatDay(p.end)}${p.number ? ` · Auth # ${p.number}` : ''}`;
+    return (
+      <div className="-mt-2 sm:col-span-2 lg:col-span-3">
+        <SuggestionLine
+          value={value}
+          source={p.documentName}
+          busy={suggestionBusy === key}
+          onAccept={() => void acceptSuggestion(key, p.label, () => acceptAuthorization(client.id, p))}
+          onDecline={() => void declineSuggestion(key)}
+        />
+      </div>
+    );
+  };
 
   const set = (k: keyof Values) => (value: string) => setV((p) => ({ ...p, [k]: value }));
 
@@ -359,10 +515,10 @@ export const ClientOverview: React.FC<{
             {text('first_name', client.first_name, !isAdmin)}
           </Row>
           <Row label="Last name">{text('last_name', client.last_name, !isAdmin)}</Row>
-          <Row label="Member ID">{text('member_id', client.member_id)}</Row>
-          <Row label="Medicaid ID">{text('medicaid_id', client.medicaid_id)}</Row>
-          <Row label="NJ HMIS ID">{text('njhmis_id', client.njhmis_id)}</Row>
-          <Row label="Date of birth">{date('date_of_birth')}</Row>
+          <Row label="Member ID" suggestion={fieldSuggestions('member_id')}>{text('member_id', client.member_id)}</Row>
+          <Row label="Medicaid ID" suggestion={fieldSuggestions('medicaid_id')}>{text('medicaid_id', client.medicaid_id)}</Row>
+          <Row label="NJ HMIS ID" suggestion={fieldSuggestions('njhmis_id')}>{text('njhmis_id', client.njhmis_id)}</Row>
+          <Row label="Date of birth" suggestion={fieldSuggestions('date_of_birth')}>{date('date_of_birth')}</Row>
           {/* Phone before email on purpose. An email address runs long enough
               to crowd the field beside it; a phone number never does. */}
           <Row label="Phone">{text('phone', client.phone)}</Row>
@@ -442,18 +598,21 @@ export const ClientOverview: React.FC<{
           <Row label="30-day start">{date('iat_date')}</Row>
           <Row label="30-day end"><Derived start={v.iat_date} days={30} /></Row>
           <Row label="30-day auth #">{text('auth_30_number', client.auth_30_number)}</Row>
+          {authSuggestion('auth_30')}
 
           <Row label="150-day start" hint={editing && lock150 ? 'Unlocks once the 30-day period is due' : undefined}>
             {date('hsp_150_date', lock150)}
           </Row>
           <Row label="150-day end"><Derived start={v.hsp_150_date} days={150} /></Row>
           <Row label="150-day auth #">{text('auth_150_number', client.auth_150_number)}</Row>
+          {authSuggestion('auth_150')}
 
           <Row label="180-day start" hint={editing && lock180 ? 'Unlocks once the 150-day period is due' : undefined}>
             {date('hsp_180_date', lock180)}
           </Row>
           <Row label="180-day end"><Derived start={v.hsp_180_date} days={180} /></Row>
           <Row label="180-day auth #">{text('auth_180_number', client.auth_180_number)}</Row>
+          {authSuggestion('auth_180')}
         </Block>
 
         {(editing || client.closed_date || client.reason_closed) && (
