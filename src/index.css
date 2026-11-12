@@ -142,3 +142,20 @@ All colors MUST be HSL.
   background-color: #fff;
   box-shadow: 0 4px 14px rgb(15 23 42 / 22%);
 }
+
+/* Forms and documents list (ClientFormsDocuments): an aligned grid when the
+   list is wide enough for its fixed columns, stacked lines when it is not. */
+.forms-list {
+  container-type: inline-size;
+}
+.forms-row-wide {
+  display: none;
+}
+@container (min-width: 700px) {
+  .forms-row-wide {
+    display: grid;
+  }
+  .forms-row-narrow {
+    display: none;
+  }
+}

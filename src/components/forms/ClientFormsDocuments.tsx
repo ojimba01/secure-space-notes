@@ -15,7 +15,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Check, ChevronDown, ChevronRight, Download, FileText, Plus, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, FileText, MoreHorizontal, Plus, Upload, X } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   EXTERNAL_STATUS_LABEL,
   FORM_STATUS_CLASS,
@@ -83,6 +92,76 @@ const CHECKLIST_STATUS = {
   done: { label: 'Completed', className: 'bg-green-100 text-green-800' },
 } as const;
 
+/**
+ * One grid for every row in the list, so status, name, document count and
+ * buttons line up whatever a row offers. Empty cells keep their width.
+ * Columns: status, name, documents, action, upload, more.
+ *
+ * The list switches by its own width, not the screen's (src/index.css): with
+ * the side panel open a laptop screen leaves it too narrow for the grid.
+ */
+const ROW_GRID = 'forms-row-wide grid-cols-[96px_minmax(0,1fr)_124px_168px_36px_36px] items-center gap-x-3';
+const ROW_STACK = 'forms-row-narrow';
+
+interface MenuItem {
+  label: string;
+  onSelect: () => void;
+  destructive?: boolean;
+}
+
+/** One row of the list: the form or collection, and what can be done with it. */
+interface RowSpec {
+  /** Stable id for the open/closed state. */
+  id: string;
+  name: string;
+  items: DocumentRow[];
+  status?: { label: string; className: string };
+  /** The one button. Only a person's own draft gets the filled variant. */
+  action?: { label: React.ReactNode; title?: string; onClick: () => void; filled?: boolean };
+  upload?: { label: string; onClick: () => void };
+  menu?: MenuItem[];
+}
+
+const StatusLabel: React.FC<{ status: { label: string; className: string } }> = ({ status }) => (
+  <span className={`w-24 shrink-0 rounded-md px-2 py-0.5 text-center text-xs ${status.className}`}>
+    {status.label}
+  </span>
+);
+
+/** The ⋯ menu. Renders nothing when it would be empty. */
+const MoreMenu: React.FC<{ label: string; items: MenuItem[]; rounds?: React.ReactNode; className: string }> = ({
+  label,
+  items,
+  rounds,
+  className,
+}) => {
+  if (!items.length && !rounds) return null;
+  const last = items.filter((i) => i.destructive);
+  const first = items.filter((i) => !i.destructive);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className={`p-0 ${className}`} aria-label={`More actions for ${label}`} title="More actions">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {first.map((i) => (
+          <DropdownMenuItem key={i.label} onSelect={i.onSelect}>
+            {i.label}
+          </DropdownMenuItem>
+        ))}
+        {rounds}
+        {last.map((i) => (
+          <DropdownMenuItem key={i.label} onSelect={i.onSelect} className="text-destructive focus:text-destructive">
+            {i.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
 const AUTH_GROUP = 'MCO referrals and authorizations';
 
 /** Collections below the checklist: documents that arrive, rather than forms owed. */
@@ -103,6 +182,9 @@ const EXTRA_GROUPS: { title: string; match: (f: DocumentRow) => boolean }[] = [
 ];
 
 /**
+ * Not shown for now: document rows no longer offer the MCO buttons. Kept,
+ * with setMcoStatus, so they can be brought back.
+ *
  * The MCO's answer, one step at a time.
  *
  * Six words in a dropdown asked somebody to pick a status. There is only one
@@ -468,124 +550,170 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     return round > 1 ? `${line} · Round ${form.round ?? 1}` : line;
   };
 
-  const documentRow = (form: DocumentRow) => (
-    <div key={form.id} className="flex flex-wrap items-center justify-between gap-2 p-2.5">
-      <button
-        type="button"
-        disabled={!form.file_path && !form.form_data}
-        onClick={() =>
-          form.form_data
-            ? setUhc({ id: form.id, client_id: form.client_id, status: form.status, form_data: form.form_data })
-            : !isCompleted(form) && form.file_path
-              ? setContinuing(form)
-              : form.file_path &&
+  /** Opening a document: a draft goes back into the editor, anything else is previewed. */
+  const openDocument = (form: DocumentRow) =>
+    form.form_data
+      ? setUhc({ id: form.id, client_id: form.client_id, status: form.status, form_data: form.form_data })
+      : !isCompleted(form) && form.file_path
+        ? setContinuing(form)
+        : form.file_path &&
           setPreview({
             id: form.id,
             file_name: form.title || `${form.form_type}.pdf`,
             file_path: form.file_path,
             file_type: 'application/pdf',
-          })
-        }
-        title={form.file_path || form.form_data ? 'Open this document' : 'No file is stored for this document'}
-        className="flex items-center gap-2 min-w-0 text-left disabled:cursor-default"
+          });
+
+  const documentRow = (form: DocumentRow) => {
+    const canOpen = !!form.file_path || !!form.form_data;
+    // A draft is unfinished work: the way back into it is the row's button.
+    const continues = !isCompleted(form) && !!form.file_path && !form.form_data;
+    const title = form.title || form.form_type;
+    const statusLabel = (
+      <span className={`w-fit rounded-md px-2 py-0.5 text-xs ${FORM_STATUS_CLASS[form.status] ?? ''}`}>
+        {FORM_STATUS_LABEL[form.status] ?? form.status}
+      </span>
+    );
+    const menu: MenuItem[] = [
+      ...(continues && form.file_path ? [{ label: 'Download', onSelect: () => void download(form) }] : []),
+      { label: 'Remove', onSelect: () => setConfirmDelete(form), destructive: true },
+    ];
+    const rounds =
+      isAdmin && round > 1 ? (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Move to round</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {Array.from({ length: round }, (_, i) => i + 1).map((n) => (
+              <DropdownMenuItem key={n} disabled={(form.round ?? 1) === n} onSelect={() => void moveToRound(form, n)}>
+                Round {n}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      ) : undefined;
+    const name = (wide: boolean) => (
+      <button
+        type="button"
+        disabled={!canOpen}
+        onClick={() => openDocument(form)}
+        title={canOpen ? 'Open this document' : 'No file is stored for this document'}
+        className="flex min-w-0 items-start gap-2 text-left disabled:cursor-default"
       >
-        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+        <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0">
-          <div className={`text-sm truncate ${form.file_path || form.form_data ? 'hover:underline' : ''}`}>
-            {form.title || form.form_type}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {filledOutLine(form)}
-          </div>
+          <div className={`text-sm ${wide ? 'truncate' : ''} ${canOpen ? 'hover:underline' : ''}`}>{title}</div>
+          <div className="text-xs text-muted-foreground">{filledOutLine(form)}</div>
         </div>
       </button>
-
-      <div className="flex items-center gap-1.5">
-        <span
-          className={`rounded-md px-2 py-1 text-xs ${FORM_STATUS_CLASS[form.status] ?? ''}`}
-        >
-          {FORM_STATUS_LABEL[form.status] ?? form.status}
-        </span>
-        {goesToMco(form.form_type) && isCompleted(form) && (
-          <McoStep form={form} onSet={setMcoStatus} />
-        )}
-        {/* A draft is unfinished work: the way back into it is right here. */}
-        {!isCompleted(form) && form.file_path && !form.form_data && (
-          <Button size="sm" onClick={() => setContinuing(form)}>
-            Continue
-          </Button>
-        )}
-        {isAdmin && round > 1 && (
-          <select
-            className="h-8 rounded-md border bg-background px-1.5 text-xs"
-            value={form.round ?? 1}
-            aria-label="Round"
-            title="Move to another round"
-            onChange={(e) => moveToRound(form, Number(e.target.value))}
-          >
-            {Array.from({ length: round }, (_, i) => i + 1).map((n) => (
-              <option key={n} value={n}>
-                Round {n}
-              </option>
-            ))}
-          </select>
-        )}
-
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={!form.file_path}
-          onClick={() => download(form)}
-          title="Download"
-        >
-          <Download className="h-4 w-4" />
+    );
+    const button = (className: string) =>
+      continues ? (
+        <Button size="sm" className={className} onClick={() => setContinuing(form)}>
+          Continue
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setConfirmDelete(form)}
-          title="Remove this document"
-        >
-          <X className="h-4 w-4" />
+      ) : (
+        <Button size="sm" variant="outline" className={className} disabled={!form.file_path} onClick={() => void download(form)}>
+          Download
         </Button>
-      </div>
-    </div>
-  );
-
-  const collapsibleGroup = (
-    title: string,
-    items: DocumentRow[],
-    lead: React.ReactNode,
-    /** Ways to add another of this form. Checklist rows have them; the
-        collections of documents that simply arrive do not. */
-    actions?: React.ReactNode,
-  ) => {
-    const isOpen = open.has(title);
+      );
     return (
-      <div key={title} className="rounded-md border">
-        <div className="flex items-center gap-2 p-2.5">
-          {lead}
-          <button
-            type="button"
-            onClick={() => items.length && toggleOpen(title)}
-            className="flex flex-1 items-center justify-between gap-2 min-w-0 text-left"
-          >
-            <span className="text-sm font-medium truncate">{title}</span>
-            <span className="flex items-center gap-1.5 shrink-0 text-xs text-muted-foreground">
-              {items.length === 0
-                ? 'None filed'
-                : `${items.length} document${items.length === 1 ? '' : 's'}`}
-              {items.length > 0 &&
-                (isOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                ))}
-            </span>
-          </button>
-          {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
+      <div key={form.id}>
+        <div className={`${ROW_GRID} p-2 pl-2.5`}>
+          <span />
+          {name(true)}
+          {statusLabel}
+          {button('w-full')}
+          <span />
+          <div>
+            <MoreMenu label={title} items={menu} rounds={rounds} className="h-9 w-9" />
+          </div>
         </div>
-        {isOpen && items.length > 0 && <div className="divide-y border-t">{items.map(documentRow)}</div>}
+        <div className={`${ROW_STACK} space-y-2 p-3`}>
+          {name(false)}
+          {statusLabel}
+          <div className="flex items-center gap-2">
+            {button('h-11 flex-1')}
+            <MoreMenu label={title} items={menu} rounds={rounds} className="size-11" />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const groupRow = (row: RowSpec) => {
+    const isOpen = open.has(row.id);
+    const has = row.items.length > 0;
+    const count = has ? `${row.items.length} document${row.items.length === 1 ? '' : 's'}` : 'None filed';
+    const Chevron = isOpen ? ChevronDown : ChevronRight;
+    const documents = (className: string) => (
+      <button
+        type="button"
+        disabled={!has}
+        onClick={() => toggleOpen(row.id)}
+        aria-expanded={has ? isOpen : undefined}
+        aria-label={has ? `${isOpen ? 'Hide' : 'Show'} ${row.name} documents` : undefined}
+        className={`flex items-center justify-between gap-1.5 text-xs text-muted-foreground disabled:cursor-default ${className}`}
+      >
+        <span>{count}</span>
+        <Chevron className={`h-4 w-4 shrink-0 ${has ? '' : 'opacity-25'}`} />
+      </button>
+    );
+    const action = (className: string) =>
+      row.action ? (
+        <Button
+          size="sm"
+          variant={row.action.filled ? 'default' : 'outline'}
+          className={className}
+          title={row.action.title}
+          onClick={row.action.onClick}
+        >
+          {row.action.label}
+        </Button>
+      ) : null;
+    const upload = (className: string) =>
+      row.upload ? (
+        <Button
+          variant="ghost"
+          className={`p-0 ${className}`}
+          title={row.upload.label}
+          aria-label={row.upload.label}
+          onClick={row.upload.onClick}
+        >
+          <Upload className="h-4 w-4" />
+        </Button>
+      ) : null;
+    const menu = row.menu ?? [];
+    return (
+      <div key={row.id} className="rounded-md border">
+        <div className={`${ROW_GRID} p-2 pl-2.5`}>
+          {row.status ? <StatusLabel status={row.status} /> : <span />}
+          <span className="truncate text-sm font-medium" title={row.name}>
+            {row.name}
+          </span>
+          {documents('h-9 w-full')}
+          {action('w-full') ?? <span />}
+          {upload('h-9 w-9') ?? <span />}
+          <div>
+            <MoreMenu label={row.name} items={menu} className="h-9 w-9" />
+          </div>
+        </div>
+        <div className={`${ROW_STACK} space-y-2 p-3`}>
+          <div className="flex items-start justify-between gap-2">
+            <span className="pt-2.5 text-sm font-medium">{row.name}</span>
+            <MoreMenu label={row.name} items={menu} className="size-11 shrink-0" />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            {row.status ? <StatusLabel status={row.status} /> : <span />}
+            {documents('h-11 min-w-[124px]')}
+          </div>
+          {(row.action || row.upload) && (
+            <div className="flex items-center gap-2">
+              {action('h-11 flex-1')}
+              {upload('size-11 shrink-0')}
+            </div>
+          )}
+        </div>
+        {isOpen && has && <div className="divide-y border-t bg-muted/40">{row.items.map(documentRow)}</div>}
       </div>
     );
   };
@@ -654,132 +782,105 @@ export const ClientFormsDocuments: React.FC<Props> = ({
               </div>
             )}
 
-            <div className="space-y-2">
+            <div className="forms-list space-y-2">
               {CHECKLIST_TYPES.map((type) => {
                 const items = byType.get(type) ?? [];
                 const hasDocument = items.length > 0;
                 // A draft is not the form done: only a completed copy ticks it.
                 const hasDraftOnly = hasDocument && !items.some(isCompleted);
                 const ticked = items.some(isCompleted) || manualTicks.has(type);
-                const status = CHECKLIST_STATUS[ticked ? 'done' : hasDraftOnly ? 'draft' : 'none'];
+                const template = templateFor(type);
                 // Back into this person's own draft, and a completed copy to correct.
                 const ownDraft = items.find(
                   (f) => !isCompleted(f) && f.employee_id === profileId && !!f.file_path && !f.form_data,
                 );
                 const editable = items.find(canEdit);
-                return collapsibleGroup(
-                  type,
+                // A client can need the same form twice (a continuation's plan,
+                // a level of need redone), so a filed form still offers another.
+                const fill = template
+                  ? {
+                      label: hasDocument ? (
+                        <>
+                          <Plus className="mr-1 h-4 w-4" />
+                          Add additional
+                        </>
+                      ) : (
+                        'Begin'
+                      ),
+                      title: hasDocument ? `Fill in an additional ${type}` : `Fill in the ${type}`,
+                      onClick: () => setFilling(template),
+                    }
+                  : undefined;
+                const menu: MenuItem[] = [];
+                if (ownDraft && template) menu.push({ label: 'Add additional', onSelect: () => setFilling(template) });
+                if (editable) menu.push({ label: 'Edit', onSelect: () => setContinuing(editable) });
+                if (!ticked && !hasDraftOnly) menu.push({ label: 'Mark as complete', onSelect: () => void markComplete(type) });
+                return groupRow({
+                  id: type,
+                  name: type,
                   items,
-                  // Not a control. It says whether the client has this form,
-                  // and the way to change it is to add a document, begin one,
-                  // or record that it was done elsewhere.
-                  <span className={`w-24 shrink-0 rounded-md px-2 py-0.5 text-center text-xs ${status.className}`}>
-                    {status.label}
-                  </span>,
-                  // A filed form used to take these away, which left replacing
-                  // it as the only way to record a second one. A client can
-                  // need the same form twice — a continuation's plan, a level
-                  // of need redone — so the row keeps offering another.
-                  <>
-                    {ownDraft && (
-                      <Button size="sm" onClick={() => setContinuing(ownDraft)}>
-                        Continue
-                      </Button>
-                    )}
-                    {editable && (
-                      <Button size="sm" variant="outline" onClick={() => setContinuing(editable)}>
-                        Edit
-                      </Button>
-                    )}
-                    {templateFor(type) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setFilling(templateFor(type) as PdfTemplate)}
-                        title={
-                          hasDocument
-                            ? `Fill in an additional ${type}, filed alongside the one already here`
-                            : `Fill in the ${type}`
-                        }
-                      >
-                        {hasDocument ? (
+                  status: CHECKLIST_STATUS[ticked ? 'done' : hasDraftOnly ? 'draft' : 'none'],
+                  action: ownDraft
+                    ? { label: 'Continue', onClick: () => setContinuing(ownDraft), filled: true }
+                    : fill,
+                  upload: { label: `Upload a completed ${type}`, onClick: () => setUploadFor(type) },
+                  menu,
+                });
+              })}
+
+              {/* Move-in supports: the request for this client's MCO. */}
+              {(() => {
+                const items = byType.get(UHC_FORM_TYPE) ?? [];
+                return groupRow({
+                  id: 'move-in',
+                  name: mco ? `Move-in Supports Request (${mco})` : 'Move-in Supports Request',
+                  items,
+                  action: moveInStart
+                    ? {
+                        label: items.length ? (
                           <>
                             <Plus className="mr-1 h-4 w-4" />
                             Add additional
                           </>
                         ) : (
                           'Begin'
-                        )}
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      title={`Upload a completed ${type}`}
-                      aria-label={`Upload a completed ${type}`}
-                      onClick={() => setUploadFor(type)}
-                    >
-                      <Upload className="h-4 w-4" />
-                    </Button>
-                    {!ticked && !hasDraftOnly && (
-                      <Button variant="ghost" size="sm" onClick={() => markComplete(type)}>
-                        Mark as complete
-                      </Button>
-                    )}
-                  </>,
-                );
-              })}
-            </div>
+                        ),
+                        title: moveInStart.label,
+                        onClick: moveInStart.start,
+                      }
+                    : undefined,
+                  upload: {
+                    label: 'Upload a completed Move-in Supports Request',
+                    onClick: () => setUploadFor(UHC_FORM_TYPE),
+                  },
+                });
+              })()}
 
-            {/* Move-in supports: the request for this client's MCO. */}
-            <div className="space-y-2">
-              {collapsibleGroup(
-                'Move-in Supports Request',
-                byType.get(UHC_FORM_TYPE) ?? [],
-                <span className="w-5" />,
-                <>
-                  {moveInStart && (
-                    <Button variant="outline" size="sm" onClick={moveInStart.start} title={`Fill in the ${moveInStart.label}`}>
-                      <Plus className="mr-1 h-4 w-4" />
-                      {moveInStart.label}
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    title="Upload a completed Move-in Supports Request"
-                    aria-label="Upload a completed Move-in Supports Request"
-                    onClick={() => setUploadFor(UHC_FORM_TYPE)}
-                  >
-                    <Upload className="h-4 w-4" />
-                  </Button>
-                </>,
-              )}
-            </div>
-
-            <div className="space-y-2">
               {extras
                 .filter((g) => g.items.length > 0 || (g.title === AUTH_GROUP && authTemplate))
                 .map((g) =>
-                  collapsibleGroup(
-                    g.title,
-                    g.items,
-                    <span className="w-4" />,
-                    g.title === AUTH_GROUP && authTemplate ? (
-                      <Button variant="outline" size="sm" onClick={() => setFilling(authTemplate)} title={`Fill in the ${authTemplate.label}`}>
-                        <Plus className="mr-1 h-4 w-4" />
-                        {authTemplate.label}
-                      </Button>
-                    ) : undefined,
-                  ),
+                  groupRow({
+                    id: g.title === AUTH_GROUP ? 'auth' : 'other',
+                    name: g.title,
+                    items: g.items,
+                    action:
+                      g.title === AUTH_GROUP && authTemplate
+                        ? {
+                            label: (
+                              <>
+                                <Plus className="mr-1 h-4 w-4" />
+                                New request
+                              </>
+                            ),
+                            title: authTemplate.label,
+                            onClick: () => setFilling(authTemplate),
+                          }
+                        : undefined,
+                  }),
                 )}
-            </div>
 
-            {earlier.length > 0 && (
-              <div className="space-y-2">
-                {collapsibleGroup(`Earlier rounds`, earlier, <span className="w-4" />)}
-              </div>
-            )}
+              {earlier.length > 0 && groupRow({ id: 'earlier', name: 'Earlier rounds', items: earlier })}
+            </div>
 
             {forms.length === 0 && manualTicks.size === 0 && (
               <p className="text-sm text-muted-foreground">

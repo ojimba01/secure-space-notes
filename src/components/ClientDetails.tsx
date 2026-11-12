@@ -297,7 +297,8 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                 actions={
                   <Button variant="outline" size="sm" onClick={() => setIntakeOpen(true)}>
                     <FileUp className="h-4 w-4 mr-2" />
-                    Upload documents
+                    <span className="sm:hidden">Upload</span>
+                    <span className="hidden sm:inline">Upload documents</span>
                   </Button>
                 }
               />

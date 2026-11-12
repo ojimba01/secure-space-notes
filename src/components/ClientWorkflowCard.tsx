@@ -368,7 +368,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: f
             <p className="text-xs font-medium uppercase text-muted-foreground">Next step</p>
             <p className="font-medium">{action.label}</p>
             <p className="text-sm text-muted-foreground">{action.detail}</p>
-            <div className="mt-3 flex flex-wrap gap-2">{actionButton()}</div>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap [&>button]:h-11 [&>button]:w-full sm:[&>button]:h-10 sm:[&>button]:w-auto">{actionButton()}</div>
           </div>
         )}
 
@@ -381,29 +381,29 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: f
             <p className="text-sm text-amber-900/80">
               Record the next 180-day period as soon as the MCO approves it.
             </p>
-            <Button size="sm" className="mt-3" onClick={() => openAuth('reauthorization')}>
+            <Button size="sm" className="mt-3 h-11 w-full sm:h-9 sm:w-auto" onClick={() => openAuth('reauthorization')}>
               Record new reauthorization
             </Button>
           </div>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Intake conversation</p>
-            <p>{INTAKE_STATUS_LABEL[client.intake_status ?? 'not_started'] ?? client.intake_status}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Services started</p>
-            <p>{fmt(serviceStartDate(client))}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Current authorization</p>
-            <p>
-              {current
+        {/* Label and value side by side on a phone; three columns from sm. */}
+        <div className="space-y-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:space-y-0">
+          {[
+            ['Intake conversation', INTAKE_STATUS_LABEL[client.intake_status ?? 'not_started'] ?? client.intake_status],
+            ['Services started', fmt(serviceStartDate(client))],
+            [
+              'Current authorization',
+              current
                 ? `${AUTHORIZATION_TYPE_LABEL[current.authorization_type] ?? current.authorization_type} — ends ${formatAuthDate(current.end_date)}`
-                : 'None active'}
-            </p>
-          </div>
+                : 'None active',
+            ],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-3 sm:block">
+              <p className="text-sm font-medium text-muted-foreground">{label}</p>
+              <p className="text-right sm:text-left">{value}</p>
+            </div>
+          ))}
         </div>
 
         {/* The client's forms and documents, passed in by the record. */}
