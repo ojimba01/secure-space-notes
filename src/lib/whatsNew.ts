@@ -19,6 +19,11 @@ export interface Feature {
   audience: FeatureAudience;
   /** The last day (YYYY-MM-DD) the notice is shown. */
   announceUntil: string;
+  /**
+   * For a change people have to find: a popup with steps, shown once, in
+   * place of the five-second notice.
+   */
+  popup?: { title: string; steps: string[]; goTo?: { label: string; path: string; state?: unknown } };
 }
 
 export const FEATURES: Feature[] = [
@@ -27,6 +32,21 @@ export const FEATURES: Feature[] = [
     message: 'New in Staff activity: Last 60 days and custom dates.',
     audience: 'staffActivity',
     announceUntil: '2026-11-19',
+  },
+  {
+    key: 'client-forms-moved',
+    message: 'Forms have moved to the client’s Overview tab.',
+    audience: 'everyone',
+    announceUntil: '2026-11-26',
+    popup: {
+      title: 'Forms have moved',
+      steps: [
+        'Select Clients, then select a client’s card.',
+        'On the Overview tab, scroll down to Forms.',
+        'Begin, continue, upload and download each form there. The Forms tab is gone.',
+      ],
+      goTo: { label: 'Go to Clients', path: '/', state: { view: 'clients' } },
+    },
   },
 ];
 

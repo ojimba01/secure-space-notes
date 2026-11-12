@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -106,6 +107,8 @@ const workflowPurposeFor = (
 export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: formsList }) => {
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
+  // "New" beside the title for 24 hours from first sight, after the forms moved here.
+  const formsRibbon = useNewRibbon('client-forms-moved');
   const { isViewingAs } = useViewAs();
   const [forms, setForms] = useState<FormSummary[]>([]);
   const [authorizations, setAuthorizations] = useState<ClientAuthorization[]>([]);
@@ -352,6 +355,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: f
           <CardTitle className="flex items-center gap-2 text-lg">
             <ClipboardList className="h-5 w-5 text-muted-foreground" />
             Forms
+            {formsRibbon && <NewRibbon inline />}
           </CardTitle>
           <Badge variant="secondary" className={STAGE_CLASS[stage] ?? ''}>
             {STAGE_LABEL[stage] ?? stage}

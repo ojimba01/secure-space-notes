@@ -209,7 +209,10 @@ export function seed(): Tables {
     case_logs: [],
     // Made-up activity for Taylor Brooks, for the Staff activity guide.
     // Already seen, so the notice and ribbons stay out of the screenshots.
-    feature_views: [{ user_id: 'u-admin', feature: 'staff-activity-60-days', notified_at: at(-30), first_seen_at: at(-30) }],
+    feature_views: [
+      { user_id: 'u-admin', feature: 'staff-activity-60-days', notified_at: at(-30), first_seen_at: at(-30) },
+      ...staff.map((p) => ({ user_id: p.user_id, feature: 'client-forms-moved', notified_at: at(-30), first_seen_at: at(-30) })),
+    ],
     staff_activity: [
       { id: 'sa-1', user_id: 'u-staff', kind: 'task', area: 'form', label: 'Progress note', client_id: 'c-1', started_at: at(-1, 14), last_seen_at: at(-1, 14), active_seconds: 1260, outcome: 'completed' },
       { id: 'sa-2', user_id: 'u-staff', kind: 'task', area: 'touchpoint', label: 'Touchpoint', client_id: 'c-2', started_at: at(-1, 13), last_seen_at: at(-1, 13), active_seconds: 540, outcome: 'completed' },
