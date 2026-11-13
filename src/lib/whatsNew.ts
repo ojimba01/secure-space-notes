@@ -42,7 +42,7 @@ export const FEATURES: Feature[] = [
       title: 'Forms have moved',
       steps: [
         'Select Clients, then select a client’s card.',
-        'On the Overview tab, scroll down to Forms.',
+        'Forms is at the top of the Overview tab.',
         'Begin, continue, upload and download each form there. The Forms tab is gone.',
       ],
       goTo: { label: 'Go to Clients', path: '/', state: { view: 'clients' } },

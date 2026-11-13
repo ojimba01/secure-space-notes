@@ -270,16 +270,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <ClientOverview
-            client={client as unknown as React.ComponentProps<typeof ClientOverview>['client']}
-            editing={editDialogOpen}
-            onDone={() => setEditDialogOpen(false)}
-            onSaved={recordChanged}
-            caseManagerName={caseManagerName}
-            showCaseManager={isAdmin}
-            refreshKey={formsVersion + recordVersion}
-          />
-
+          {/* Forms first: it is what staff open a record for. */}
           <ClientWorkflowCard
             key={`workflow-${client.id}-${formsVersion}-${recordVersion}`}
             client={client}
@@ -304,6 +295,16 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                 }
               />
             }
+          />
+
+          <ClientOverview
+            client={client as unknown as React.ComponentProps<typeof ClientOverview>['client']}
+            editing={editDialogOpen}
+            onDone={() => setEditDialogOpen(false)}
+            onSaved={recordChanged}
+            caseManagerName={caseManagerName}
+            showCaseManager={isAdmin}
+            refreshKey={formsVersion + recordVersion}
           />
 
           {/* Where they are moving to, which a submitted Move-in Supports
