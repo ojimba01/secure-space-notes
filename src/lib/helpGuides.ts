@@ -126,7 +126,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'upload', section: 'Forms and documents', title: 'Upload a document', audience: 'everyone', minutes: 2,
     steps: [
-      s('Open the client’s forms', 'Open the client. Forms is at the top of the Overview tab.'),
+      s('Open the client’s forms', 'Open the client. On the Overview tab, scroll down to Forms.'),
       s('Select Upload documents', 'It is beside Forms and documents. To file a completed copy of one form, select the upload icon on that form’s row.'),
       s('Choose the files', 'Drag PDFs into the box or select Choose files. Each file is read and filed on this client.'),
     ],
@@ -134,7 +134,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'fill-form', section: 'Forms and documents', title: 'Fill out a form', audience: 'everyone', minutes: 5,
     steps: [
-      s('Open the client’s forms', 'Open the client. Forms is at the top of the Overview tab.'),
+      s('Open the client’s forms', 'Open the client. On the Overview tab, scroll down to Forms.'),
       s('Select Begin', 'Select Begin on the form’s row: Client Intake, IAT, LON or HSP. For another copy of a form already filed, select Create additional form.'),
       s('Complete the form', 'The client’s details are already filled in. Type in the boxes, add your signature (see Sign a form), tick the confirmation and select Complete form.'),
     ],
@@ -182,7 +182,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'move-in-request', section: 'Forms and documents', title: 'Fill out a Move-in Supports Request', audience: 'everyone', minutes: 10,
     steps: [
-      s('Open the client’s forms', 'Open the client. Forms is at the top of the Overview tab.'),
+      s('Open the client’s forms', 'Open the client. On the Overview tab, scroll down to Forms.'),
       s('Start the request', 'On the Move-in Supports Request row, select Begin. The row names the client’s MCO: UHC, Horizon or Wellpoint. Horizon and Wellpoint open as PDFs, filled in like any other form.'),
       s('Check the member details', 'The UHC request opens on Member, filled in from the client record and the client’s other documents. Anything you change here is saved to the client record too.'),
       s('Go through the items with the member', 'Open each tab (Services, Food, Pantry, Hygiene, Clothing, Household). Select an item to add it, set the quantity with + and −, and fill in a flavor or type where asked. Search finds an item; Selected only shows what you picked.'),
