@@ -15,7 +15,7 @@ import { useViewAs } from '@/components/ViewAsProvider';
 import { GUIDES, SECTIONS, shotFor, type Guide } from '@/lib/helpGuides';
 import { PageShell } from '@/components/PageShell';
 
-type Filter = 'all' | 'everyone' | 'admins';
+type Filter = 'all' | 'everyone' | 'admins' | 'superadmins';
 
 export default function HelpGuide() {
   const { isAdmin } = useIsAdmin();
@@ -33,10 +33,15 @@ export default function HelpGuide() {
   // guides. Listed in section order, so Getting started comes last.
   const available = useMemo(
     () =>
-      GUIDES.filter((g) => admin || g.audience === 'everyone').sort(
+      GUIDES.filter(
+        (g) =>
+          g.audience === 'everyone' ||
+          (admin && g.audience === 'admins') ||
+          (isSuperadmin && g.audience === 'superadmins'),
+      ).sort(
         (a, b) => SECTIONS.indexOf(a.section as (typeof SECTIONS)[number]) - SECTIONS.indexOf(b.section as (typeof SECTIONS)[number]),
       ),
-    [admin],
+    [admin, isSuperadmin],
   );
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -84,6 +89,7 @@ export default function HelpGuide() {
               ['all', 'All guides'],
               ['everyone', 'Case managers'],
               ['admins', 'Admins'],
+              ['superadmins', 'Superadmins'],
             ] as const).map(([value, label]) => (
               <Button
                 key={value}
@@ -119,8 +125,10 @@ export default function HelpGuide() {
                       }`}
                     >
                       <span className="flex-1">{g.title}</span>
-                      {g.audience === 'admins' && (
-                        <span className="rounded border px-1.5 text-[11px] font-semibold text-muted-foreground">Admin</span>
+                      {g.audience !== 'everyone' && (
+                        <span className="rounded border px-1.5 text-[11px] font-semibold text-muted-foreground">
+                          {g.audience === 'admins' ? 'Admin' : 'Superadmin'}
+                        </span>
                       )}
                     </button>
                   ))}
@@ -136,7 +144,7 @@ export default function HelpGuide() {
                 <p className="text-sm text-muted-foreground">{current.section}</p>
                 <h2 className="text-2xl font-bold">{current.title}</h2>
                 <p className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">{current.audience === 'admins' ? 'For admins' : 'For everyone'}</span>
+                  <span className="font-semibold text-foreground">{current.audience === 'admins' ? 'For admins' : current.audience === 'superadmins' ? 'For superadmins' : 'For everyone'}</span>
                   <span>{current.steps.length} steps</span>
                   <span>About {current.minutes} minute{current.minutes === 1 ? '' : 's'}</span>
                 </p>

@@ -5,7 +5,8 @@
 // again whenever a screen changes). Keep the ids and step counts here in step
 // with the shots listed there.
 
-export type Audience = 'everyone' | 'admins';
+/** Case managers see everyone guides; admins also admins; superadmins all three. */
+export type Audience = 'everyone' | 'admins' | 'superadmins';
 
 export interface GuideStep {
   title: string;
@@ -347,26 +348,54 @@ export const GUIDES: Guide[] = [
 
   // ---- Billing
   {
+    id: 'to-bill', section: 'Billing', title: 'Find the claims to file', audience: 'admins', minutes: 2,
+    steps: [
+      s('Open To bill', 'Select Billing in the left panel. To bill is the first tab.'),
+      s('Read the four lists', 'File before the deadline: the last day to bill is within 30 days. Ready to bill: the cycle has ended, with more than 30 days left. Coming up: the cycle is still running. Missed deadlines: the six-month window has closed, shown for reference.'),
+      s('Find a client', 'Type a name, member ID or MCO in the filter box. Each list shows 7 rows at a time; use the arrows to see more.'),
+      s('See a client’s cycles', 'Select a row to see every cycle for that client, with its service dates, last day to bill and status. Select Open billing details to file the cycle you need.'),
+    ],
+  },
+  {
     id: 'file-claim', section: 'Billing', title: 'File a claim', audience: 'admins', minutes: 5,
     steps: [
-      s('Open To bill', 'Select Billing. File before the deadline lists the claims closest to their last day to bill, 7 at a time. Use the arrows to see more.'),
-      s('Open the cycle', 'Select the client’s row to see every cycle, then select Open billing details.'),
-      s('Copy into Availity', 'Copy each box from Eligibility and Benefits, then Claims and Encounters. Check orange boxes first.'),
-      s('Mark it billed', 'Select Mark cycle as billed. The claim moves to Filed claims.'),
+      s('Choose the client', 'In To bill, select a client under “The following claims must be submitted this month”, or search for another client by name or member ID. You can also select Open billing details on a client’s row.'),
+      s('Check eligibility', 'The Availity window opens on Eligibility and Benefits. Copy each box into Availity with the copy button beside it, then press Submit on the Availity page.'),
+      s('Choose the cycle', 'Select Claims and Encounters, then select the cycle under Eligible billing cycles. Each shows its days left; a cycle past the six-month window cannot be chosen.'),
+      s('Copy the claim', 'Copy each box into Availity. Check orange boxes first: a blank date of birth, member ID or address can be typed in here and is saved to the client. Choose the diagnosis code from the list, or Another code to type one. In Availity, press Continue, then submit the claim.'),
+      s('Mark it billed', 'After Availity accepts the claim, select Mark cycle as billed. It saves today as the date billed and the control number as the claim number, and the claim moves to Filed claims. Select Save to client details to keep any changes without marking it billed.'),
+      s('Answer the touchpoint question', 'Billing then asks whether the client’s touchpoints are entered. Select Yes, already entered, or No, add a touchpoint now to log one.'),
     ],
   },
   {
     id: 'record-payment', section: 'Billing', title: 'Record a payment or denial', audience: 'admins', minutes: 1,
     steps: [
-      s('Open Filed claims', 'In Billing, select Filed claims, then Pending.'),
-      s('Record the outcome', 'Select Mark paid, or Denied to return the cycle to To bill.'),
+      s('Open Filed claims', 'In Billing, select Filed claims. Choose All, Pending or Paid, or search by name or member ID.'),
+      s('Record the outcome', 'Select Mark paid when the MCO pays. Select Denied to send the cycle back to To bill to file again.'),
+      s('Correct a payment', 'If a claim was marked paid by mistake, select Not paid after all. It goes back to Pending.'),
     ],
   },
   {
-    id: 'revenue', section: 'Billing', title: 'Check revenue', audience: 'admins', minutes: 1,
+    id: 'revenue', section: 'Billing', title: 'Check revenue', audience: 'superadmins', minutes: 2,
     steps: [
       s('Open Revenue', 'In Billing, select Revenue.'),
-      s('Read the months', 'The cards show this month’s billing, collections and pending claims. The table covers two months back and three ahead.'),
+      s('Read the months', 'The cards show what was collected this month (claims marked paid) and what is waiting on the MCO (filed, not paid yet). By month covers two months back and three ahead, with billed against expected.'),
+      s('Find lost and pending income', 'Select Analyze lost and pending income. Lost income is ended cycles never billed and now past the six-month deadline. Pending income is ended cycles not billed yet that can still be filed.'),
+      s('See the cycles behind a total', 'Select a month to list its clients, then select Open cycle breakdown beside a client. Select Back to current revenue to return.'),
+    ],
+  },
+  {
+    id: 'client-billing', section: 'Billing', title: 'See one client’s billing', audience: 'superadmins', minutes: 1,
+    steps: [
+      s('Open the Billing tab', 'Open the client and select Billing.'),
+      s('Read the cycles', 'Each cycle shows what is expected, submitted, collected, outstanding and past due, with the client’s phase, level of need and next due date.'),
+    ],
+  },
+  {
+    id: 'add-level-of-need', section: 'Billing', title: 'Add a level of need', audience: 'admins', minutes: 1,
+    steps: [
+      s('Find the client', 'Near the bottom of To bill, Add a level of need lists clients with an HSP approval start date but no level of need. Their billing cycles cannot be made until it is added.'),
+      s('Choose and save', 'Choose Low or High and select Save. The client joins the lists above right away.'),
     ],
   },
   {
@@ -377,6 +406,21 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
+    id: 'billing-profile', section: 'Billing', title: 'Check a client’s billing details', audience: 'admins', minutes: 2,
+    steps: [
+      s('Open the profile', 'In Add a level of need or Confirm a 180-day extension, select the person icon beside the client’s name.'),
+      s('Edit the details', 'The profile shows the client’s contact details, authorizations and billing setup. Select Edit authorization details to change the authorization dates and numbers.'),
+      s('Save', 'Select Save changes. If the details match another client, a message asks whether this client already exists: select Go to that client to check it, or No, keep the new client.'),
+    ],
+  },
+  {
+    id: 'agency-details', section: 'Billing', title: 'Enter the agency’s Availity details', audience: 'admins', minutes: 3,
+    steps: [
+      s('Open the agency details', 'In To bill, select Edit agency details at the top right. A message in the Availity window says when some are missing.'),
+      s('Fill in and save', 'Enter the organization, provider name, NPI, EIN, specialty code, billing address, contact and payer names. Select Save Availity details. They fill the agency’s boxes on every claim.'),
+    ],
+  },
+  {
     id: 'workbook', section: 'Billing', title: 'Use the Workbook', audience: 'admins', minutes: 3,
     steps: [
       s('Open the Workbook', 'Select Workbook in the left panel. Select Full screen for more room.'),
@@ -384,8 +428,18 @@ export const GUIDES: Guide[] = [
       s('Add a row', 'Select Add row, beside the search box, to add a client.'),
       s('Arrange columns and rows', 'Drag a column heading by its dotted handle, or a row number, to move it. Drag an edge to resize. The layout is shared with your team.'),
       s('Sort and filter', 'Select Filter. Sort client names A–Z or Z–A, and choose a value under columns with only a few options, such as MCO.'),
-      s('Add and rename tabs', 'Select + beside the tabs to add one. Right-click a tab to rename it. An added tab keeps its own search, filters and sort.'),
+      s('Use the tabs', 'Master lists every client. Pending approval, Approved and Closed show those clients. Billing tracker lists each client’s next claim, soonest deadline first. 2nd authorization lists lapsed authorizations (see Follow up a lapsed authorization).'),
+      s('Add and rename tabs', 'Select + beside the tabs to add one. Right-click a tab to rename it, or to delete one you added. An added tab keeps its own search, MCO, filters and sort.'),
+      s('Show and hide columns', 'Select Columns to bring back a removed column, or Reset column and row layout to start over. To remove a column, select Edit and then the X on its heading. Select Undo in the message to bring it back.'),
+      s('Delete a client', 'Select Edit, then the trash icon on the client’s row, then Delete client. They are removed from the workbook, billing and the client list, and can be recovered for 30 days. Select Done editing when finished.'),
       s('Export', 'Select Download as Excel to save every tab.'),
+    ],
+  },
+  {
+    id: 'recover-client', section: 'Billing', title: 'Recover a deleted client', audience: 'admins', minutes: 1,
+    steps: [
+      s('Find the client', 'At the bottom of To bill, Recently deleted lists clients deleted in the last 30 days.'),
+      s('Select Recover', 'Select Recover beside the client. They return to the client list, billing and the workbook.'),
     ],
   },
   {

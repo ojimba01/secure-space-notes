@@ -21,7 +21,7 @@ const staff = [
   { id: 'p-sam', user_id: 'u-sam', first_name: 'Sam', last_name: 'Ellis', email: 'sam.ellis@example.org', role: 'employee', active: false },
 ];
 
-interface C { f: string; l: string; mco: string; mem: string; owner: string; start: number; level?: string; status?: string; approval?: string; lapsed?: boolean }
+interface C { f: string; l: string; mco: string; mem: string; owner: string; start: number; level?: string; status?: string; approval?: string; lapsed?: boolean; deleted?: number }
 const people: C[] = [
   { f: 'Dana', l: 'Whitfield', mco: 'Horizon', mem: '70114238', owner: 'p-staff', start: -140, level: 'Low Level' },
   { f: 'Marcus', l: 'Bell', mco: 'Aetna', mem: '042219388101', owner: 'p-staff', start: -95, level: 'Low Level' },
@@ -32,6 +32,10 @@ const people: C[] = [
   { f: 'Anita', l: 'Rowe', mco: 'UnitedHealthcare', mem: 'UH4410078', owner: 'p-morgan', start: -120, level: 'Low Level' },
   { f: 'Samuel', l: 'Otieno', mco: 'Horizon', mem: '70331876', owner: 'p-morgan', start: -12 },
   { f: 'Helen', l: 'Brooks', mco: 'Wellpoint', mem: 'WP90550127', owner: 'p-riley', start: -75, level: 'Low Level', lapsed: true },
+  // No level of need yet, for Billing's Add a level of need.
+  { f: 'Grace', l: 'Holloway', mco: 'Aetna', mem: '042551203307', owner: 'p-morgan', start: -70 },
+  // Deleted three days ago, for Billing's Recently deleted.
+  { f: 'Owen', l: 'Pratt', mco: 'Horizon', mem: '70419902', owner: 'p-riley', start: -90, level: 'Low Level', deleted: -3 },
   { f: 'Carla', l: 'Mendes', mco: 'Aetna', mem: '031550982201', owner: 'p-staff', start: -300, level: 'Low Level', status: 'closed' },
 ];
 
@@ -75,7 +79,7 @@ export function seed(): Tables {
       closed_date: p.status === 'closed' ? day(-20) : null,
       reason_closed: p.status === 'closed' ? 'Housed' : null,
       notes: null,
-      deleted_at: null,
+      deleted_at: p.deleted !== undefined ? at(p.deleted) : null,
       created_at: at(p.start - 5),
       updated_at: at(-1),
       county: 'Mercer',

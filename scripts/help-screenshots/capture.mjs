@@ -27,6 +27,14 @@ const billing = async (p) => {
   await p.waitForSelector('tbody tr', { timeout: 15000 });
   await wait(p, 600);
 };
+/** The Availity window for an open client, picked by search. */
+const availityFor = async (p, name = 'Whitfield') => {
+  await billing(p);
+  await p.getByPlaceholder('Search for another client by name or member ID').fill(name);
+  await wait(p, 500);
+  await p.getByRole('button', { name: new RegExp(name) }).first().click();
+  await wait(p, 1800);
+};
 const billingDetails = async (p) => {
   await billing(p);
   await p.locator('tbody tr').first().click();
@@ -469,23 +477,55 @@ const SHOTS = {
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/support-tickets`); await wait(p, 2500); await p.getByText('Upload button does nothing').first().click(); await wait(p, 1500); await p.getByRole('textbox', { name: 'Reply' }).click(); await p.keyboard.type('Thanks, select Continue on the form.'); }, target: (p) => btn(p, 'Attach image'), label: 'Attach image' },
   ],
 
-  'file-claim': [
-    { as: 'admin', go: billing, target: (p) => text(p, 'File before the deadline').locator('xpath=ancestor::button[1]'), label: 'File before the deadline' },
+  'to-bill': [
+    { as: 'admin', go: billing, target: (p) => btn(p, /To bill/), label: 'To bill' },
+    { as: 'admin', go: billing, target: (p) => text(p, 'Ready to bill').locator('xpath=ancestor::button[1]'), label: 'The four lists' },
+    { as: 'admin', go: billing, target: (p) => p.getByPlaceholder('Filter by client name, member ID or MCO'), label: 'Filter' },
     { as: 'admin', go: async (p) => { await billing(p); await p.locator('tbody tr').first().click(); await wait(p); }, target: (p) => btn(p, 'Open billing details'), label: 'Open billing details' },
-    { as: 'admin', go: billingDetails, target: (p) => dialog(p).getByRole('button', { name: 'Claims and Encounters' }), label: 'Claims and Encounters' },
-    { as: 'admin', go: async (p) => { await billingDetails(p); await dialog(p).getByRole('button', { name: 'Claims and Encounters' }).click(); await wait(p, 800); }, target: (p) => dialog(p).getByRole('button', { name: /^Mark cycle \d+ as billed$/ }), label: 'Mark as billed' },
+  ],
+  'file-claim': [
+    { as: 'admin', go: billing, target: (p) => p.getByPlaceholder('Search for another client by name or member ID'), label: 'Choose the client' },
+    { as: 'admin', go: availityFor, target: (p) => dialog(p).getByRole('button', { name: 'Eligibility and Benefits' }), label: 'Eligibility and Benefits' },
+    { as: 'admin', go: async (p) => { await availityFor(p); await dialog(p).getByRole('button', { name: 'Claims and Encounters' }).click(); await wait(p, 800); }, target: (p) => dialog(p).getByText('Eligible billing cycles').locator('xpath=..').locator('xpath=..'), label: 'Eligible billing cycles' },
+    { as: 'admin', go: async (p) => { await availityFor(p); await dialog(p).getByRole('button', { name: 'Claims and Encounters' }).click(); await wait(p, 800); }, target: (p) => dialog(p).getByLabel('Copy Principal Diagnosis Code').locator('xpath=..').locator('xpath=..'), label: 'Copy each box' },
+    { as: 'admin', go: async (p) => { await availityFor(p); await dialog(p).getByRole('button', { name: 'Claims and Encounters' }).click(); await wait(p, 800); }, target: (p) => dialog(p).getByRole('button', { name: /^Mark cycle \d+ as billed$/ }), label: 'Mark as billed' },
+    { as: 'admin', go: async (p) => { await availityFor(p); await dialog(p).getByRole('button', { name: 'Claims and Encounters' }).click(); await wait(p, 800); await dialog(p).getByRole('button', { name: /^Mark cycle \d+ as billed$/ }).click(); await wait(p, 1500); }, target: (p) => btn(p, 'Yes, already entered'), label: 'Touchpoints entered?' },
   ],
   'record-payment': [
     { as: 'admin', go: (p) => p.goto(`${BASE}/billing`), target: (p) => btn(p, /Filed claims/), label: 'Filed claims' },
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, /Filed claims/).click(); await wait(p); await btn(p, /Pending \(/).click(); await wait(p); }, target: (p) => btn(p, 'Mark paid'), label: 'Mark paid' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, /Filed claims/).click(); await wait(p); await btn(p, /Paid \(/).click(); await wait(p); }, target: (p) => btn(p, 'Not paid after all'), label: 'Not paid after all' },
   ],
   revenue: [
     { as: 'admin', go: (p) => p.goto(`${BASE}/billing`), target: (p) => btn(p, /Revenue/), label: 'Revenue' },
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, /Revenue/).click(); await wait(p); }, target: (p) => text(p, 'By month').locator('xpath=ancestor::div[contains(@class,"rounded")][1]'), label: 'By month' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, /Revenue/).click(); await wait(p); }, target: (p) => btn(p, 'Analyze lost and pending income'), label: 'Analyze lost and pending income' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2200); await btn(p, /Revenue/).click(); await wait(p); await btn(p, 'Analyze lost and pending income').click(); await wait(p); await p.locator('tbody tr').filter({ hasText: /[A-Z][a-z]+ \d{4}/ }).first().click(); await wait(p, 600); }, target: (p) => btn(p, 'Open cycle breakdown'), label: 'Open cycle breakdown' },
+  ],
+  'client-billing': [
+    { as: 'admin', go: (p) => openClient(p, 'c-1'), target: (p) => tab(p, 'Billing'), label: 'Billing' },
+    { as: 'admin', go: (p) => openClient(p, 'c-1', 'Billing'), target: (p) => text(p, 'Outstanding').locator('xpath=ancestor::div[contains(@class,"rounded")][1]'), label: 'Cycles' },
+  ],
+  'add-level-of-need': [
+    { as: 'admin', go: async (p) => { await billing(p); await text(p, /Add a level of need/).scrollIntoViewIfNeeded(); }, target: (p) => text(p, /Add a level of need/), label: 'Add a level of need' },
+    { as: 'admin', go: async (p) => { await billing(p); await text(p, /Add a level of need/).scrollIntoViewIfNeeded(); }, target: (p) => p.locator('div.border-amber-300', { hasText: /Add a level of need/ }).getByRole('combobox').first().locator('xpath=..'), label: 'Choose, then Save' },
   ],
   'confirm-extension': [
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2500); await text(p, /Confirm a 180-day extension/).scrollIntoViewIfNeeded(); }, target: (p) => text(p, /Confirm a 180-day extension/), label: 'Confirm a 180-day extension' },
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/billing`); await wait(p, 2500); await p.getByRole('button', { name: /not approved for/ }).first().scrollIntoViewIfNeeded(); }, target: (p) => p.getByRole('button', { name: /approved for/ }).first().locator('xpath=..'), label: 'Approved or not approved' },
+  ],
+  'billing-profile': [
+    { as: 'admin', go: async (p) => { await billing(p); await text(p, /Add a level of need/).scrollIntoViewIfNeeded(); }, target: (p) => p.locator('div.border-amber-300', { hasText: /Add a level of need/ }).getByRole('button', { name: 'View profile' }).first(), label: 'View profile' },
+    { as: 'admin', go: async (p) => { await billing(p); await p.locator('div.border-amber-300', { hasText: /Add a level of need/ }).getByRole('button', { name: 'View profile' }).first().click(); await wait(p, 1500); }, target: (p) => dialog(p).getByRole('button', { name: 'Edit authorization details' }), label: 'Edit authorization details' },
+    { as: 'admin', go: async (p) => { await billing(p); await p.locator('div.border-amber-300', { hasText: /Add a level of need/ }).getByRole('button', { name: 'View profile' }).first().click(); await wait(p, 1500); await dialog(p).getByRole('button', { name: 'Edit authorization details' }).click(); await wait(p, 600); }, target: (p) => dialog(p).getByRole('button', { name: 'Save changes' }), label: 'Save changes' },
+  ],
+  'agency-details': [
+    { as: 'admin', go: billing, target: (p) => btn(p, 'Edit agency details'), label: 'Edit agency details' },
+    { as: 'admin', go: async (p) => { await billing(p); await btn(p, 'Edit agency details').click(); await wait(p, 1200); }, target: (p) => btn(p, 'Save Availity details'), label: 'Save Availity details' },
+  ],
+  'recover-client': [
+    { as: 'admin', go: async (p) => { await billing(p); await text(p, 'Recently deleted').scrollIntoViewIfNeeded(); }, target: (p) => text(p, 'Recently deleted').locator('xpath=..'), label: 'Recently deleted' },
+    { as: 'admin', go: async (p) => { await billing(p); await text(p, 'Recently deleted').scrollIntoViewIfNeeded(); }, target: (p) => btn(p, 'Recover'), label: 'Recover' },
   ],
   workbook: [
     { as: 'admin', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => nav(p, 'Workbook'), label: 'Workbook' },
@@ -493,7 +533,10 @@ const SHOTS = {
     { as: 'admin', go: openWorkbook, target: (p) => btn(p, 'Add row', true), label: 'Add row' },
     { as: 'admin', go: openWorkbook, target: (p) => p.locator('thead tr').nth(1).locator('th').nth(2), label: 'Drag the handle to move' },
     { as: 'admin', go: async (p) => { await openWorkbook(p); await btn(p, 'Filter', true).click(); await wait(p, 800); }, target: (p) => p.getByLabel('Sort by client name'), label: 'A–Z or Z–A' },
+    { as: 'admin', go: openWorkbook, target: (p) => p.getByRole('tab', { name: /Billing tracker/ }), label: 'Tabs' },
     { as: 'admin', go: openWorkbook, target: (p) => p.getByLabel('Add a tab'), label: 'Add a tab; right-click to rename' },
+    { as: 'admin', go: openWorkbook, target: (p) => btn(p, 'Columns', true), label: 'Columns' },
+    { as: 'admin', go: async (p) => { await openWorkbook(p); await btn(p, 'Edit', true).click(); await wait(p, 600); }, target: (p) => p.locator('tbody tr').first().getByRole('button', { name: /^Delete / }), label: 'Delete this client' },
     { as: 'admin', go: openWorkbook, target: (p) => btn(p, 'Download as Excel'), label: 'Download as Excel' },
   ],
   lapsed: [
