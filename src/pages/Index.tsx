@@ -177,9 +177,12 @@ const Index = () => {
     <TutorialProvider>
       <FeatureWalkthrough />
       <div className={`flex h-screen bg-background w-full overflow-hidden ${isViewingAs ? 'pt-9' : ''}`}>
-        <Sidebar activeView={activeView} onViewChange={handleViewChange} />
+        <Sidebar activeView={defaultApplied ? activeView : undefined} onViewChange={handleViewChange} />
         <main className="flex-1 overflow-y-auto min-w-0 pt-14 md:pt-0">
-          {activeView === 'compliance' ? (
+          {/* Until the role is known the landing page is not either: showing
+              the default first made admins see the dashboard flash before
+              Clients. */}
+          {!defaultApplied ? null : activeView === 'compliance' ? (
             /* Admins and superadmins carry caseloads of their own -- the two
                largest in the agency belong to them -- so they need the
                supervisory view *and* their own work queue, not one or the

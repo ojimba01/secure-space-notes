@@ -612,60 +612,11 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
         )}
       </div>
 
-      <div className="space-y-6">
-        {/* Today at a glance, without having to click today. */}
-        <Card className="p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <h3 className="font-semibold">Today's Schedule</h3>
-            </div>
-            <div className="space-y-2">
-              {todayEvents.length > 0 ? (
-                todayEvents.slice(todayPage * TODAY_PAGE, todayPage * TODAY_PAGE + TODAY_PAGE).map(event => (
-                  <button
-                    key={event.id}
-                    onClick={() => openEvent(event)}
-                    className="w-full text-left p-2 rounded-lg bg-muted/50 space-y-1 hover:bg-muted transition-colors"
-                  >
-                    <div className={`w-2 h-2 rounded-full inline-block mr-2 ${dotColor(event)}`} />
-                    <span className="text-sm font-medium">{event.title}</span>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(event.start_time), 'h:mm a')} - {format(new Date(event.end_time), 'h:mm a')}
-                    </p>
-                  </button>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No events today.</p>
-              )}
-
-              {todayEvents.length > TODAY_PAGE && (
-                <div className="flex items-center gap-2 pt-1 text-xs">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={todayPage === 0}
-                    onClick={() => setTodayPage(p => Math.max(0, p - 1))}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={(todayPage + 1) * TODAY_PAGE >= todayEvents.length}
-                    onClick={() => setTodayPage(p => p + 1)}
-                  >
-                    Next
-                  </Button>
-                  <span className="text-muted-foreground">
-                    {todayPage * TODAY_PAGE + 1}–
-                    {Math.min((todayPage + 1) * TODAY_PAGE, todayEvents.length)} of{' '}
-                    {todayEvents.length}
-                  </span>
-                </div>
-              )}
-            </div>
-        </Card>
-        {/* The calendar has the width to itself. A day's events open over it. */}
+      {/* Side by side on a wide screen: the month on the left, today's
+          schedule beside it. Stacked on a narrow one. */}
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+        {/* A day's events open over the calendar. */}
         <Card className="p-6">
           {/* Calendar Controls */}
           <div className="flex items-center justify-between mb-6">
@@ -798,6 +749,61 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
             </div>
           </div>
         </Card>
+        </div>
+        <div className="lg:sticky lg:top-4">
+        {/* Today at a glance, without having to click today. */}
+        <Card className="p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <h3 className="font-semibold">Today's Schedule</h3>
+            </div>
+            <div className="space-y-2">
+              {todayEvents.length > 0 ? (
+                todayEvents.slice(todayPage * TODAY_PAGE, todayPage * TODAY_PAGE + TODAY_PAGE).map(event => (
+                  <button
+                    key={event.id}
+                    onClick={() => openEvent(event)}
+                    className="w-full text-left p-2 rounded-lg bg-muted/50 space-y-1 hover:bg-muted transition-colors"
+                  >
+                    <div className={`w-2 h-2 rounded-full inline-block mr-2 ${dotColor(event)}`} />
+                    <span className="text-sm font-medium">{event.title}</span>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(event.start_time), 'h:mm a')} - {format(new Date(event.end_time), 'h:mm a')}
+                    </p>
+                  </button>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No events today.</p>
+              )}
+
+              {todayEvents.length > TODAY_PAGE && (
+                <div className="flex items-center gap-2 pt-1 text-xs">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={todayPage === 0}
+                    onClick={() => setTodayPage(p => Math.max(0, p - 1))}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={(todayPage + 1) * TODAY_PAGE >= todayEvents.length}
+                    onClick={() => setTodayPage(p => p + 1)}
+                  >
+                    Next
+                  </Button>
+                  <span className="text-muted-foreground">
+                    {todayPage * TODAY_PAGE + 1}–
+                    {Math.min((todayPage + 1) * TODAY_PAGE, todayEvents.length)} of{' '}
+                    {todayEvents.length}
+                  </span>
+                </div>
+              )}
+            </div>
+        </Card>
+        </div>
 
       </div>
 
