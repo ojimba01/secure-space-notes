@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
@@ -262,6 +263,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
   const { isAdmin } = useIsAdmin();
+  const editRibbon = useNewRibbon('forms-update-nov-17');
   const [forms, setForms] = useState<DocumentRow[]>([]);
   const [manualTicks, setManualTicks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -620,9 +622,13 @@ export const ClientFormsDocuments: React.FC<Props> = ({
           Continue
         </Button>
       ) : edits ? (
-        <Button size="sm" variant="outline" className={className} onClick={() => editForm(form)}>
-          Edit
-        </Button>
+        // New for 24 hours from first sight (src/lib/whatsNew.ts).
+        <span className={`relative ${className.includes('flex-1') ? 'flex-1' : 'w-full'}`}>
+          <Button size="sm" variant="outline" className={`w-full ${className.includes('h-11') ? 'h-11' : ''}`} onClick={() => editForm(form)}>
+            Edit
+          </Button>
+          {editRibbon && <NewRibbon />}
+        </span>
       ) : (
         <Button size="sm" variant="secondary" className={className} disabled={!form.file_path} onClick={() => void download(form)}>
           Download
@@ -657,6 +663,19 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     const has = row.items.length > 0;
     const count = has ? `${row.items.length} document${row.items.length === 1 ? '' : 's'}` : 'None filed';
     const Chevron = isOpen ? ChevronDown : ChevronRight;
+    // The name opens and closes the row too, not only the document count.
+    const name = (className: string) => (
+      <button
+        type="button"
+        disabled={!has}
+        onClick={() => toggleOpen(row.id)}
+        aria-expanded={has ? isOpen : undefined}
+        title={row.name}
+        className={`min-w-0 text-left text-sm font-medium disabled:cursor-default ${has ? 'hover:underline' : ''} ${className}`}
+      >
+        {row.name}
+      </button>
+    );
     const documents = (className: string) => (
       <button
         type="button"
@@ -699,9 +718,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       <div key={row.id} className="rounded-md border">
         <div className={`${ROW_GRID} p-2 pl-2.5`}>
           {row.status ? <StatusLabel status={row.status} /> : <span />}
-          <span className="truncate text-sm font-medium" title={row.name}>
-            {row.name}
-          </span>
+          {name('truncate')}
           {documents('h-9 w-full')}
           {action('w-full') ?? <span />}
           {upload('h-9 w-9') ?? <span />}
@@ -711,7 +728,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         </div>
         <div className={`${ROW_STACK} space-y-2 p-3`}>
           <div className="flex items-start justify-between gap-2">
-            <span className="pt-2.5 text-sm font-medium">{row.name}</span>
+            {name('pt-2.5')}
             <MoreMenu label={row.name} items={menu} className="size-11 shrink-0" />
           </div>
           <div className="flex items-center justify-between gap-2">
