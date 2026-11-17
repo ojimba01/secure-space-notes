@@ -568,7 +568,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           : 'Form completed',
         description: asDraft
           ? 'Saved to the client record as a draft. Open it again to finish it.'
-          : 'Saved to the client record.',
+          : 'Saved to the client record. To change it later, select Edit on it under Forms.',
       });
       finishTask(asDraft ? 'draft' : 'completed');
       onSubmitted();

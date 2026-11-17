@@ -388,8 +388,14 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     try {
       if (form.file_path) {
         // A file left behind costs disk. A record pointing at a deleted file
-        // breaks the client's tab, so the record is what must go.
-        await supabase.storage.from('client-files').remove([form.file_path]);
+        // breaks the client's tab, so the record is what must go. A file that
+        // is also in Client files stays, since it is still listed there.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: shared } = await (supabase.from as any)('client_files')
+          .select('id')
+          .eq('file_path', form.file_path)
+          .limit(1);
+        if (!shared?.length) await supabase.storage.from('client-files').remove([form.file_path]);
       }
       const { error } = await supabase.from('client_forms').delete().eq('id', form.id);
       if (error) throw error;
@@ -573,8 +579,11 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         {FORM_STATUS_LABEL[form.status] ?? form.status}
       </span>
     );
+    // A completed form its author (or an admin) can change gets Edit as its
+    // button, where people look for it; Download moves into the menu.
+    const edits = !continues && canEdit(form);
     const menu: MenuItem[] = [
-      ...(continues && form.file_path ? [{ label: 'Download', onSelect: () => void download(form) }] : []),
+      ...((continues || edits) && form.file_path ? [{ label: 'Download', onSelect: () => void download(form) }] : []),
       { label: 'Remove', onSelect: () => setConfirmDelete(form), destructive: true },
     ];
     const rounds =
@@ -609,6 +618,10 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       continues ? (
         <Button size="sm" className={`${ACTION_CLASS.draft} ${className}`} onClick={() => setContinuing(form)}>
           Continue
+        </Button>
+      ) : edits ? (
+        <Button size="sm" variant="outline" className={className} onClick={() => editForm(form)}>
+          Edit
         </Button>
       ) : (
         <Button size="sm" variant="secondary" className={className} disabled={!form.file_path} onClick={() => void download(form)}>
@@ -718,9 +731,22 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   };
 
   /** A completed form opened again to correct it. Admins, or its author until it is approved. */
+  // Any form the app can fill in: the four checklist forms, and the MCO's
+  // Move-in Supports and authorization requests (PDFs, or UHC's spreadsheet).
   const canEdit = (f: DocumentRow) =>
-    isCompleted(f) && !!f.file_path && !f.form_data && !!templateFor(f.form_type) &&
+    isCompleted(f) &&
+    (!!f.form_data || (!!f.file_path && PDF_TEMPLATES.some((t) => t.formType === f.form_type))) &&
     (isAdmin || (f.employee_id === profileId && f.status !== 'approved'));
+  /** Edit, in a row's menu, for the first completed form there the person can change. */
+  const editMenu = (items: DocumentRow[]): MenuItem[] => {
+    const editable = items.find(canEdit);
+    return editable ? [{ label: 'Edit', onSelect: () => editForm(editable) }] : [];
+  };
+  /** Open a completed form again to change it. */
+  const editForm = (f: DocumentRow) =>
+    f.form_data
+      ? setUhc({ id: f.id, client_id: f.client_id, status: f.status, form_data: f.form_data })
+      : setContinuing(f);
 
   return (
     <Card className={embedded ? 'border-0 bg-transparent shadow-none' : undefined}>
@@ -790,7 +816,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                   : undefined;
                 const menu: MenuItem[] = [];
                 if (ownDraft && template) menu.push({ label: 'Create additional form', onSelect: () => setFilling(template) });
-                if (editable) menu.push({ label: 'Edit', onSelect: () => setContinuing(editable) });
+                if (editable) menu.push({ label: 'Edit', onSelect: () => editForm(editable) });
                 if (!ticked && !hasDraftOnly) menu.push({ label: 'Mark as complete', onSelect: () => void markComplete(type) });
                 return groupRow({
                   id: type,
@@ -824,6 +850,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                     label: 'Upload a completed Move-in Supports Request',
                     onClick: () => setUploadFor(UHC_FORM_TYPE),
                   },
+                  menu: editMenu(items),
                 });
               })()}
 
@@ -848,6 +875,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                             style: 'green',
                           }
                         : undefined,
+                    menu: editMenu(g.items),
                   }),
                 )}
 

@@ -314,7 +314,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             readOnly={isViewingAs}
           />
 
-          <FileManager clientId={client.id} />
+          <FileManager clientId={client.id} onFiled={formsChanged} />
 
           {isAdmin && !editDialogOpen && (
             <div className="border-t pt-6">

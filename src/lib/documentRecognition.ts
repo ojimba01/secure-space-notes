@@ -409,6 +409,7 @@ const FILENAME_RULES: { documentType: DocumentType; pattern: RegExp; period?: 30
   { documentType: 'Approval Letter', pattern: /\bAUTH(ORIZATION)?\s*(APPROVAL|APPROVED|LETTER)\b/i },
   { documentType: 'Move-In Supports Request', pattern: /\bMOVE[\s-]?IN\b|\bSECURITY\s*DEPOSIT\b|\bAPPLICATION\s*FEE\b/i },
   { documentType: 'Initial Assessment (IAT)', pattern: /\bIAT\b|\bINITIAL\s*ASSESS/i },
+  { documentType: 'Client Intake', pattern: /\bINTAKE\b/i },
   { documentType: 'Level of Need (LON)', pattern: /\bLON\b|\bLEVEL\s*OF\s*NEED\b/i },
   { documentType: 'Housing Stabilization Plan (HSP)', pattern: /\bHSP\b|\bSTABILI[SZ]ATION\b/i },
   { documentType: 'Prior Authorization Request', pattern: /\bAUTH\s*FORM\b|\bSUPPORT\s*SERVICES\s*REQUEST\b|\bEXT\s*FORM\b/i },
@@ -503,8 +504,11 @@ export function classifyFilename(filename: string): {
   documentType: DocumentType | null;
   authorizationPeriod?: 30 | 150 | 180;
 } {
+  // Underscores separate words in names like BOOKMAN_SHANIKA_HSP_2026-11-12.pdf,
+  // but count as letters to \b, so they are read as spaces.
+  const name = filename.replace(/_/g, ' ');
   for (const rule of FILENAME_RULES) {
-    if (rule.pattern.test(filename)) {
+    if (rule.pattern.test(name)) {
       return { documentType: rule.documentType, authorizationPeriod: rule.period };
     }
   }

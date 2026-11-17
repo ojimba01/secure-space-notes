@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { sortAllClientFiles } from '@/lib/clientFileSorting';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { setShowTestAccounts, showTestAccounts, visibleProfiles } from '@/lib/testAccounts';
@@ -58,6 +59,23 @@ export const AdvancedTools: React.FC = () => {
   const [search, setSearch] = useState('');
   const [inactive, setInactive] = useState<Employee[]>([]);
   const [reactivating, setReactivating] = useState<string | null>(null);
+  /** Progress while every client's Client files are read, or null. */
+  const [sorting, setSorting] = useState<string | null>(null);
+  const sortAll = async () => {
+    if (sorting) return;
+    setSorting('Reading files…');
+    try {
+      const { read, filed } = await sortAllClientFiles((done, total) => setSorting(`Reading files ${done} of ${total}…`));
+      toast({
+        title: read ? `Filed ${filed} of ${read} Client files into Forms` : 'Every Client file has already been read',
+        description: read > filed ? 'Files that were not recognised stay in Client files.' : undefined,
+      });
+    } catch (e) {
+      toast({ title: 'Could not sort the files', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally {
+      setSorting(null);
+    }
+  };
   // Text size: anyone active, superadmins included (it is about eyesight, not role).
   const [everyone, setEveryone] = useState<{ id: string; name: string }[]>([]);
   const [sizeFor, setSizeFor] = useState('');
@@ -325,6 +343,13 @@ export const AdvancedTools: React.FC = () => {
                 setOpen(false);
                 navigate('/advanced-tools?tab=templates');
               }}
+            />
+            {/* Every client's Client files, read and filed into Forms. Opening a
+                record does this for that client; this does them all now. */}
+            <MigrationLink
+              icon={<FileSearch className="h-4 w-4" />}
+              label={sorting ?? 'Sort Client files into Forms'}
+              onClick={() => void sortAll()}
             />
           </div>
         )}

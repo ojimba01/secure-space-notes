@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useViewAs } from '@/components/ViewAsProvider';
+import { sortClientFile, sortClientFiles, type SortableFile } from '@/lib/clientFileSorting';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -25,9 +27,12 @@ interface ClientFile {
 
 interface FileManagerProps {
   clientId: string;
+  /** Called after a file is filed into Forms, so the forms list reloads. */
+  onFiled?: () => void;
 }
 
-export const FileManager: React.FC<FileManagerProps> = ({ clientId }) => {
+export const FileManager: React.FC<FileManagerProps> = ({ clientId, onFiled }) => {
+  const { isViewingAs } = useViewAs();
   const { user } = useAuth();
   const { toast } = useToast();
   const [files, setFiles] = useState<ClientFile[]>([]);
@@ -38,6 +43,26 @@ export const FileManager: React.FC<FileManagerProps> = ({ clientId }) => {
   useEffect(() => {
     fetchFiles();
   }, [clientId]);
+
+  // Files uploaded before Client files were read: read them once, file what is
+  // recognised into Forms (src/lib/clientFileSorting.ts). Not during a preview,
+  // which saves nothing.
+  useEffect(() => {
+    if (isViewingAs) return;
+    let cancelled = false;
+    void sortClientFiles(clientId).then((filed) => {
+      if (cancelled || !filed.length) return;
+      toast({
+        title: `Filed ${filed.length} document${filed.length === 1 ? '' : 's'} into Forms`,
+        description: [...new Set(filed)].join(', '),
+      });
+      onFiled?.();
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, isViewingAs]);
 
   const fetchFiles = async () => {
     try {
@@ -109,17 +134,28 @@ export const FileManager: React.FC<FileManagerProps> = ({ clientId }) => {
         file_size: file.size,
       };
 
-      const { error: dbError } = await supabase
+      const { data: saved, error: dbError } = await supabase
         .from('client_files')
-        .insert([fileData]);
+        .insert([fileData])
+        .select('id, file_name, file_path')
+        .single();
 
       if (dbError) {
         throw dbError;
       }
 
+      // Read it, and file it under its form in Forms when it is recognised.
+      let filedAs: string | null = null;
+      try {
+        filedAs = await sortClientFile(saved as SortableFile);
+      } catch {
+        filedAs = null;
+      }
+      if (filedAs) onFiled?.();
+
       toast({
         title: "File Uploaded",
-        description: "File has been uploaded successfully.",
+        description: filedAs ? `Also filed under ${filedAs} in Forms.` : "File has been uploaded successfully.",
       });
 
       fetchFiles();
