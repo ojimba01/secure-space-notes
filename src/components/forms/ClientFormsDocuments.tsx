@@ -748,11 +748,14 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   };
 
   /** A completed form opened again to correct it. Admins, or its author until it is approved. */
-  // Any form the app can fill in: the four checklist forms, and the MCO's
+  // Forms filled out in the app: the four checklist forms, and the MCO's
   // Move-in Supports and authorization requests (PDFs, or UHC's spreadsheet).
+  // An uploaded document is usually a scan with nothing to type into, so it
+  // gets Download, not Edit.
   const canEdit = (f: DocumentRow) =>
     isCompleted(f) &&
-    (!!f.form_data || (!!f.file_path && PDF_TEMPLATES.some((t) => t.formType === f.form_type))) &&
+    (!!f.form_data ||
+      (f.source === 'created_in_app' && !!f.file_path && PDF_TEMPLATES.some((t) => t.formType === f.form_type))) &&
     (isAdmin || (f.employee_id === profileId && f.status !== 'approved'));
   /** Edit, in a row's menu, for the first completed form there the person can change. */
   const editMenu = (items: DocumentRow[]): MenuItem[] => {
