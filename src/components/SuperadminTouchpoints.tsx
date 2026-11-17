@@ -142,38 +142,9 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         <Stat icon={<ClipboardList className="h-4 w-4" />} label="Logged" value={managers.rows.reduce((n, r) => n + r.logged, 0)} hint={monthLabel(month)} />
       </div>
 
-      <CaseLogArchive managers={managers.rows} />
-
-      {/* Replaces "Incomplete setups": what came in, rather than what is missing. */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Logged this week</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {fmtD(week.weekStart)}–{fmtD(week.weekEnd)}. Every touchpoint staff have recorded.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {week.loading && <p className="text-sm text-muted-foreground">Loading…</p>}
-          {!week.loading && week.contacts.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Nothing logged yet this week. Touchpoints appear here as staff record them.
-            </p>
-          )}
-          {week.contacts.map((c) => (
-            <button key={c.id} onClick={() => onOpenClient(c.clientId)}
-              className="flex w-full items-center justify-between gap-3 rounded-md border p-2.5 text-left transition-colors hover:border-primary/50 hover:bg-muted/40">
-              <div className="min-w-0">
-                <div className="truncate text-sm font-medium">{c.clientName} — {c.staffName}</div>
-                <div className="text-xs text-muted-foreground">
-                  {fmtD(c.date)} · {MODALITY[c.modality] ?? c.modality}
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </button>
-          ))}
-        </CardContent>
-      </Card>
-
+      {/* Side by side on a wide screen: who is on the team, and what came in
+          this week. Overdue and past case logs follow, full width. */}
+      <div className="grid items-start gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Case managers</CardTitle>
@@ -209,6 +180,38 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
           })}
         </CardContent>
       </Card>
+
+      {/* Replaces "Incomplete setups": what came in, rather than what is missing. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Logged this week</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {fmtD(week.weekStart)}–{fmtD(week.weekEnd)}. Every touchpoint staff have recorded.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {week.loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+          {!week.loading && week.contacts.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nothing logged yet this week. Touchpoints appear here as staff record them.
+            </p>
+          )}
+          {week.contacts.map((c) => (
+            <button key={c.id} onClick={() => onOpenClient(c.clientId)}
+              className="flex w-full items-center justify-between gap-3 rounded-md border p-2.5 text-left transition-colors hover:border-primary/50 hover:bg-muted/40">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium">{c.clientName} — {c.staffName}</div>
+                <div className="text-xs text-muted-foreground">
+                  {fmtD(c.date)} · {MODALITY[c.modality] ?? c.modality}
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+
+      </div>
 
       {data.overdueRows.length > 0 && (
         <Card>
@@ -255,6 +258,10 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
           </CardContent>
         </Card>
       )}
+
+
+      <CaseLogArchive managers={managers.rows} />
+
 
       <SendReminderDialog
         target={reminderTarget}

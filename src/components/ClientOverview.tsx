@@ -175,8 +175,8 @@ const SuggestionLine: React.FC<{
   </div>
 );
 
-const Block: React.FC<{ title: string; children: React.ReactNode; wide?: boolean }> = ({
-  title, children, wide = false,
+const Block: React.FC<{ title: string; children: React.ReactNode; wide?: boolean; threeColumns?: boolean }> = ({
+  title, children, wide = false, threeColumns = false,
 }) => (
   <Card className={wide ? 'lg:col-span-2' : ''}>
     <CardContent className="pt-5">
@@ -186,7 +186,7 @@ const Block: React.FC<{ title: string; children: React.ReactNode; wide?: boolean
         {title}
       </h3>
       <dl
-        className={`grid gap-x-6 gap-y-4 sm:grid-cols-2 ${wide ? 'lg:grid-cols-3' : ''}`}
+        className={`grid gap-x-6 gap-y-4 ${threeColumns ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} ${wide ? 'lg:grid-cols-3' : ''}`}
       >
         {children}
       </dl>
@@ -346,7 +346,7 @@ export const ClientOverview: React.FC<{
     const key = authKey(p);
     const value = `${formatDay(p.start)} to ${formatDay(p.end)}${p.number ? ` · Auth # ${p.number}` : ''}`;
     return (
-      <div className="-mt-2 sm:col-span-2 lg:col-span-3">
+      <div className="-mt-2 sm:col-span-3">
         <SuggestionLine
           value={value}
           source={p.documentName}
@@ -510,6 +510,8 @@ export const ClientOverview: React.FC<{
       )}
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
+        {/* Contact on the left; Case and Authorizations stacked beside it, so
+            the space beside the tall Contact block is used. */}
         <Block title="Contact">
           <Row label="First name" hint={editing && !isAdmin ? 'Only admins can edit names' : undefined}>
             {text('first_name', client.first_name, !isAdmin)}
@@ -527,6 +529,7 @@ export const ClientOverview: React.FC<{
           <Row label="County">{choice('county', NJ_COUNTIES, client.county)}</Row>
         </Block>
 
+        <div className="space-y-4">
         <Block title="Case">
           {/* Active or Closed — not "inactive", which was a third word for a
               state the rest of the app does not have. Choosing Closed opens
@@ -594,7 +597,7 @@ export const ClientOverview: React.FC<{
           )}
         </Block>
 
-        <Block title="Authorizations" wide>
+        <Block title="Authorizations" threeColumns>
           <Row label="30-day start">{date('iat_date')}</Row>
           <Row label="30-day end"><Derived start={v.iat_date} days={30} /></Row>
           <Row label="30-day auth #">{text('auth_30_number', client.auth_30_number)}</Row>
@@ -623,6 +626,7 @@ export const ClientOverview: React.FC<{
             </Row>
           </Block>
         )}
+        </div>
 
         {/* Reachable only from inside the old edit dialog until now, so it
             went where the dialog went. It is a repeating list rather than a

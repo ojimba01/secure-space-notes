@@ -331,8 +331,10 @@ export function BillingWorkspace() {
         onOpenClaim={(clientId,cycleId)=>setClaimRequest({clientId,cycleId})}
       />
 
-      {lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
       {extensionClients.length>0 && <ExtensionQueue clients={extensionClients} save={saveClient} openProfile={setProfileId}/>}
+      {/* The two short lists side by side on a wide screen; either alone takes the width. */}
+      <div className={`grid items-start gap-4 ${lonPending.length>0 && deletedClients.length>0 ? 'lg:grid-cols-2' : ''}`}>
+      {lonPending.length>0 && <LonQueue clients={lonPending} save={saveClient} openProfile={setProfileId}/>}
       {deletedClients.length>0 && <Card className="p-4">
         <h3 className="font-semibold">Recently deleted</h3>
         <p className="mt-1 text-sm text-muted-foreground">Deleted clients can be recovered for {RECOVERY_WINDOW_DAYS} days.</p>
@@ -343,6 +345,7 @@ export function BillingWorkspace() {
           </div>)}
         </div>
       </Card>}
+      </div>
     </>
     : null}
   </div>;
