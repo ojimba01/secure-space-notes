@@ -294,6 +294,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
                 clientLastName={client.last_name}
                 refreshKey={formsVersion}
                 onChanged={formsChanged}
+                onRecordChanged={recordChanged}
                 actions={
                   <Button variant="outline" size="sm" onClick={() => setIntakeOpen(true)}>
                     <FileUp className="h-4 w-4 mr-2" />
@@ -378,6 +379,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             clientLastName={client.last_name}
             refreshKey={formsVersion}
             onChanged={formsChanged}
+            onRecordChanged={recordChanged}
           />
         </TabsContent>
 

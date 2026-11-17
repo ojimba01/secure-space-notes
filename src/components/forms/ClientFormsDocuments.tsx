@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { fillFromLon } from '@/lib/lonToRecord';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { sortClientFiles } from '@/lib/clientFileSorting';
 import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
@@ -82,6 +83,8 @@ interface Props {
   refreshKey?: number;
   /** Called after this screen files or removes one, so the rest can catch up. */
   onChanged?: () => void;
+  /** Called when the client record changed (a level of need read off the LON). */
+  onRecordChanged?: () => void;
   /** Shown inside the Forms card on the Overview: no card of its own, a small heading instead. */
   embedded?: boolean;
   /** Buttons beside the heading, such as Upload documents. */
@@ -261,6 +264,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   onChanged,
   embedded = false,
   actions,
+  onRecordChanged,
 }) => {
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
@@ -363,6 +367,11 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     let cancelled = false;
     void sortClientFiles(clientId).then((filed) => {
       if (!cancelled && filed.length) load();
+    });
+    // A blank level of need or LON score, filled in from the client's LON
+    // (src/lib/lonToRecord.ts). Never over a value already on the record.
+    void fillFromLon(clientId, { overwrite: false }).then((changed) => {
+      if (!cancelled && changed) onRecordChanged?.();
     });
     return () => {
       cancelled = true;

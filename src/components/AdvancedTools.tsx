@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { fillAllFromLon } from '@/lib/lonToRecord';
 import { sortAllClientFiles } from '@/lib/clientFileSorting';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -59,6 +60,23 @@ export const AdvancedTools: React.FC = () => {
   const [search, setSearch] = useState('');
   const [inactive, setInactive] = useState<Employee[]>([]);
   const [reactivating, setReactivating] = useState<string | null>(null);
+  /** Progress while levels of need are read off LON forms, or null. */
+  const [filling, setFilling] = useState<string | null>(null);
+  const fillAll = async () => {
+    if (filling) return;
+    setFilling('Reading LON forms…');
+    try {
+      const { checked, updated } = await fillAllFromLon((done, total) => setFilling(`Reading LON forms ${done} of ${total}…`));
+      toast({
+        title: `Updated ${updated} of ${checked} clients from their LON`,
+        description: checked > updated ? 'The rest have no LON with a level of need or score that can be read.' : undefined,
+      });
+    } catch (e) {
+      toast({ title: 'Could not read the LON forms', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally {
+      setFilling(null);
+    }
+  };
   /** Progress while every client's Client files are read, or null. */
   const [sorting, setSorting] = useState<string | null>(null);
   const sortAll = async () => {
@@ -350,6 +368,12 @@ export const AdvancedTools: React.FC = () => {
               icon={<FileSearch className="h-4 w-4" />}
               label={sorting ?? 'File old Client files into Forms'}
               onClick={() => void sortAll()}
+            />
+            {/* Level of need and LON score from each client's LON, where blank. */}
+            <MigrationLink
+              icon={<FileSearch className="h-4 w-4" />}
+              label={filling ?? 'Fill level of need from LON forms'}
+              onClick={() => void fillAll()}
             />
           </div>
         )}

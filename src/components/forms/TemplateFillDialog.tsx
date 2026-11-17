@@ -47,6 +47,7 @@ import { nextFormTitle } from '@/lib/formTitles';
 import { fitMultilineText, relaxPdfFormFields } from '@/lib/pdfFormFields';
 import { wireAutoGrowFields } from '@/lib/pdfAutoGrow';
 import { isLonScoreChange, updateLonTotal } from '@/lib/pdfLonTotal';
+import { fillFromLon } from '@/lib/lonToRecord';
 import { loadBlankTemplate } from '@/lib/formTemplates';
 
 export interface PdfTemplate {
@@ -550,6 +551,12 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       // the form staff fill in; client_intakes is what the rest of the app reads
       // — the client header, the Availity claims page. A failure here never
       // loses the form, which is already saved above.
+      // A completed LON is the new assessment: its level of need and score go
+      // on the client record (src/lib/lonToRecord.ts).
+      if (!asDraft && formType === 'Level of Need (LON)') {
+        await fillFromLon(clientId, { overwrite: true }).catch(() => null);
+      }
+
       if (!asDraft && formType === 'Client Intake') {
         try {
           const values = await extractPdfFieldValues(await blob.arrayBuffer());
