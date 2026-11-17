@@ -491,8 +491,20 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   }, [mco]);
 
   /** This round's documents; earlier rounds' stay on record, folded away. */
-  const current = useMemo(() => forms.filter((f) => (f.round ?? 1) >= round), [forms, round]);
-  const earlier = useMemo(() => forms.filter((f) => (f.round ?? 1) < round), [forms, round]);
+  // A "Mark as complete" entry has no document behind it. Once the same form
+  // has a real one (filled out or uploaded), the mark only repeats it, so it
+  // is not listed. It is not deleted, and the form still counts as completed.
+  const shown = useMemo(() => {
+    const hasDocument = (f: DocumentRow) => !!f.file_path || !!f.form_data;
+    const withDocument = new Set(
+      forms.filter((f) => isCompleted(f) && hasDocument(f)).map((f) => `${f.form_type}:${f.round ?? 1}`),
+    );
+    return forms.filter(
+      (f) => hasDocument(f) || !isCompleted(f) || !withDocument.has(`${f.form_type}:${f.round ?? 1}`),
+    );
+  }, [forms]);
+  const current = useMemo(() => shown.filter((f) => (f.round ?? 1) >= round), [shown, round]);
+  const earlier = useMemo(() => shown.filter((f) => (f.round ?? 1) < round), [shown, round]);
 
   /** The type of the restart that opened this round, once it is known. */
   const restartType = pending ? pending.type : round > 1 ? restart?.authorization_type ?? null : null;
