@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, FileUp, Edit, Trash2, UserCog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { FileManager } from '@/components/FileManager';
 import { ClientOverview } from '@/components/ClientOverview';
 import { ReassignClientDialog } from '@/components/ReassignClientDialog';
 import { CaseHistory } from '@/components/CaseHistory';
@@ -71,8 +70,7 @@ interface ClientDetailsProps {
 export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, onUpdate, initialTab }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  // Forms now sit in the Overview, inside the Forms card.
-  const [activeTab, setActiveTab] = useState(!initialTab || initialTab === 'forms' ? 'overview' : initialTab);
+  const [activeTab, setActiveTab] = useState(initialTab ?? 'overview');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [hmisOpen, setHmisOpen] = useState(false);
@@ -183,6 +181,7 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
     { value: 'overview', label: 'Overview' },
     { value: 'authorizations', label: 'Authorizations' },
     { value: 'touchpoints', label: 'Touchpoints' },
+    { value: 'forms', label: 'Forms' },
     { value: 'documents', label: 'Suggested updates' },
     { value: 'calendar', label: 'Calendar' },
     { value: 'history', label: 'History' },
@@ -314,7 +313,6 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
             readOnly={isViewingAs}
           />
 
-          <FileManager clientId={client.id} onFiled={formsChanged} />
 
           {isAdmin && !editDialogOpen && (
             <div className="border-t pt-6">
@@ -364,6 +362,23 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
               Touchpoints are only tracked while a case is open. Nothing logged has been deleted.
             </p>
           )}
+        </TabsContent>
+
+        {/* The same list as the Forms card on the Overview, on its own tab. */}
+        <TabsContent value="forms" className="space-y-4">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIntakeOpen(true)}>
+              <FileUp className="h-4 w-4 mr-2" />
+              Upload documents
+            </Button>
+          </div>
+          <ClientFormsDocuments
+            clientId={client.id}
+            clientFirstName={client.first_name}
+            clientLastName={client.last_name}
+            refreshKey={formsVersion}
+            onChanged={formsChanged}
+          />
         </TabsContent>
 
         <TabsContent value="calendar">

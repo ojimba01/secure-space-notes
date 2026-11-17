@@ -90,11 +90,12 @@ guides, and superadmins also get the filter buttons.
 
 ## Agency rules learned so far
 
-- Client files and Forms are linked: every file in Client files is read with
-  the document reader once (`src/lib/clientFileSorting.ts`), and a recognised
-  one is also filed under its form in Forms, pointing at the same stored file
-  (`file_client_file_as_form`). Staff can open every Client file on a client
-  they are assigned to, whoever uploaded it.
+- There is no separate Client files list any more. Its old files are read once
+  with the document reader (`src/lib/clientFileSorting.ts`) and filed in Forms,
+  under their form or under Other documents, pointing at the same stored file
+  (`file_client_file_as_form`). Staff can open every file on a client they are
+  assigned to, whoever uploaded it. The forms list shows on the Overview (in
+  the Forms card) and on the Forms tab.
 
 - A blank level of need is Low Level (`effectiveLevel` in `src/lib/billing.ts`;
   the database rate function agrees). Only an unrecognised value is missing.

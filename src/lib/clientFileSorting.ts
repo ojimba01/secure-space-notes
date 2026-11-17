@@ -1,9 +1,11 @@
-// Client files, filed into Forms.
+// The old Client files list, filed into Forms.
 //
-// A file uploaded to Client files used to stay there only. Each one is now read
+// Client files was a separate list on the client record, and a file uploaded
+// there stayed there only. The list is gone; each of its files is read
 // with the same reader as Upload documents (documentRecognition.ts): a fillable
 // PDF's fields, its printed title, then its file name. A recognised document is
-// filed under that form in Forms as well, through file_client_file_as_form
+// filed under that form in Forms, and anything else under Other documents,
+// through file_client_file_as_form
 // (supabase/migrations/20261117120000_sort_client_files_into_forms.sql), which
 // keeps the uploader and upload date and points at the same stored file.
 // Every file is read once: the function marks it sorted either way.
@@ -22,7 +24,7 @@ const rpc = (name: string, args: Record<string, unknown>) => (supabase.rpc as an
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const files = () => (supabase.from as any)('client_files');
 
-/** Read one Client file and file it in Forms. Returns the form type, or null if not recognised. */
+/** Read one Client file and file it in Forms. Returns the form type it was filed under. */
 export async function sortClientFile(file: SortableFile): Promise<string | null> {
   const isPdf = /\.pdf$/i.test(file.file_name) || /\.pdf$/i.test(file.file_path);
   let bytes: ArrayBuffer | undefined;
@@ -39,9 +41,10 @@ export async function sortClientFile(file: SortableFile): Promise<string | null>
   } catch {
     type = null;
   }
+  // Not recognised: filed under Other documents (Unsorted) by the function.
   const { error } = await rpc('file_client_file_as_form', { _file_id: file.id, _form_type: type });
   if (error) throw new Error(error.message);
-  return type;
+  return type ?? 'Unsorted';
 }
 
 /** File every not-yet-read Client file for one client. Returns the types filed. */
@@ -57,7 +60,7 @@ export async function sortClientFiles(clientId: string): Promise<string[]> {
       const type = await sortClientFile(f);
       if (type) filed.push(type);
     } catch {
-      // A file that cannot be read stays in Client files; the next visit tries again.
+      // A file that cannot be read is tried again on the next visit.
     }
   }
   return filed;

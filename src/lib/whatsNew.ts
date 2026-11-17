@@ -43,22 +43,22 @@ export const FEATURES: Feature[] = [
       steps: [
         'Select Clients, then select a client’s card.',
         'On the Overview tab, scroll down to Forms.',
-        'Begin, continue, upload and download each form there. The Forms tab is gone.',
+        'Begin, continue, upload and download each form there, or on the Forms tab.',
       ],
       goTo: { label: 'Go to Clients', path: '/', state: { view: 'clients' } },
     },
   },
   {
     key: 'forms-update-nov-17',
-    message: 'Updates to Forms: Edit for completed forms, and Client files now show under their form.',
+    message: 'Updates to Forms: Edit for completed forms, and Client files moved into Forms.',
     audience: 'everyone',
     announceUntil: '2026-12-01',
     popup: {
       title: 'Updates to Forms',
       steps: [
         'To change a completed form, open its row under Forms and select Edit. Save draft keeps it unfinished; Complete form finishes it again.',
-        'Files uploaded to Client files now also show under their form in Forms when the app recognizes them.',
-        'You can open every Client file on your clients, whoever uploaded it.',
+        'Client files is gone. Its files are now in Forms, under their form or under Other documents. To add a file, select Upload documents.',
+        'You can open every file on your clients, whoever uploaded it.',
         'Select a form’s name, or its document count, to show its documents.',
       ],
     },

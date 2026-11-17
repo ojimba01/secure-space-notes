@@ -67,8 +67,8 @@ export const AdvancedTools: React.FC = () => {
     try {
       const { read, filed } = await sortAllClientFiles((done, total) => setSorting(`Reading files ${done} of ${total}…`));
       toast({
-        title: read ? `Filed ${filed} of ${read} Client files into Forms` : 'Every Client file has already been read',
-        description: read > filed ? 'Files that were not recognised stay in Client files.' : undefined,
+        title: read ? `Filed ${read} files from Client files into Forms` : 'Every file from Client files is already in Forms',
+        description: read ? 'Files that were not recognised are under Other documents.' : undefined,
       });
     } catch (e) {
       toast({ title: 'Could not sort the files', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
@@ -348,7 +348,7 @@ export const AdvancedTools: React.FC = () => {
                 record does this for that client; this does them all now. */}
             <MigrationLink
               icon={<FileSearch className="h-4 w-4" />}
-              label={sorting ?? 'Sort Client files into Forms'}
+              label={sorting ?? 'File old Client files into Forms'}
               onClick={() => void sortAll()}
             />
           </div>

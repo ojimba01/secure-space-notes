@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useViewAs } from '@/components/ViewAsProvider';
+import { sortClientFiles } from '@/lib/clientFileSorting';
 import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -352,6 +354,21 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     load();
   }, [load, refreshKey]);
 
+  // Files added to the old Client files list are read once and filed here,
+  // under their form or under Other documents (src/lib/clientFileSorting.ts).
+  // Not during a preview, which saves nothing.
+  const { isViewingAs } = useViewAs();
+  useEffect(() => {
+    if (isViewingAs) return;
+    let cancelled = false;
+    void sortClientFiles(clientId).then((filed) => {
+      if (!cancelled && filed.length) load();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, isViewingAs, load]);
+
   // Whose name goes on a form begun from here.
   useEffect(() => {
     if (!profileId) return;
@@ -391,7 +408,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       if (form.file_path) {
         // A file left behind costs disk. A record pointing at a deleted file
         // breaks the client's tab, so the record is what must go. A file that
-        // is also in Client files stays, since it is still listed there.
+        // came from the old Client files list is kept in storage.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: shared } = await (supabase.from as any)('client_files')
           .select('id')
