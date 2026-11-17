@@ -142,6 +142,8 @@ function memberFromFacts(f: ClientFacts, cm: Awaited<ReturnType<typeof loadCaseM
 const lineMatches = (l: UhcLine, q: string) => !q || `${l.group ?? ''} ${l.label ?? ''}`.toLowerCase().includes(q);
 
 export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lockedClientName, existing, onClose, onSaved }) => {
+  /** A completed request opened again: its button updates it. */
+  const updating = !!existing && existing.status !== 'draft' && existing.status !== 'changes_requested';
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
   const { isViewingAs } = useViewAs();
@@ -310,7 +312,7 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
       }
       await writeBack();
       toast({
-        title: complete ? 'Form completed' : 'Draft saved',
+        title: complete ? (updating ? 'Form updated' : 'Form completed') : 'Draft saved',
         description: complete ? 'UHC’s spreadsheet is saved to the client’s forms.' : 'Open it again from the client’s forms to finish it.',
       });
       onSaved();
@@ -587,7 +589,7 @@ export const UhcMoveInDialog: React.FC<Props> = ({ profileId, lockedClientId, lo
               Save draft
             </Button>
             <Button className="bg-green-600 text-white hover:bg-green-700" onClick={() => save(true)} disabled={saving || !clientId}>
-              {saving ? 'Saving…' : 'Complete'}
+              {saving ? 'Saving…' : updating ? 'Update form' : 'Complete'}
             </Button>
           </div>
         </div>

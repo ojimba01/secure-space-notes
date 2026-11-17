@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTaskActivity } from '@/hooks/useStaffActivity';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
-import { Download, Maximize2, Minimize2, Upload, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, Maximize2, Minimize2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { COMPLETED_STATUS, type FormType } from '@/lib/formSigning';
 import type { FormRow } from '@/components/forms/FormsHub';
 import {
@@ -395,6 +395,9 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     ((docRef.current as unknown as { annotationStorage?: { size?: number } } | null)
       ?.annotationStorage?.size ?? 0) > 0;
 
+  /** Opened with Edit on a completed form: the button updates it. */
+  const updating = !!existing && existing.status !== 'draft' && existing.status !== 'changes_requested';
+
   const handleSubmit = async (asDraft = false) => {
     if (!clientId) {
       toast({ title: 'Select a client', variant: 'destructive' });
@@ -565,7 +568,9 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       toast({
         title: asDraft
           ? 'Draft saved'
-          : 'Form completed',
+          : updating
+            ? 'Form updated'
+            : 'Form completed',
         description: asDraft
           ? 'Saved to the client record as a draft. Open it again to finish it.'
           : 'Saved to the client record. To change it later, select Edit on it under Forms.',
@@ -1211,8 +1216,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
               disabled={saving || (!numPages && !showReplacementPicker)}
               className="bg-green-600 text-white hover:bg-green-700"
             >
-              <Upload className="h-4 w-4 mr-2" />
-              {saving ? 'Saving...' : 'Complete form'}
+              {saving ? 'Saving...' : updating ? 'Update form' : 'Complete form'}
             </Button>
           </div>
         </DialogFooter>
