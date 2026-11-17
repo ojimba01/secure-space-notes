@@ -46,6 +46,7 @@ import { recordFormVersion, sha256Hex } from '@/lib/formVersions';
 import { nextFormTitle } from '@/lib/formTitles';
 import { fitMultilineText, relaxPdfFormFields } from '@/lib/pdfFormFields';
 import { wireAutoGrowFields } from '@/lib/pdfAutoGrow';
+import { isLonScoreChange, updateLonTotal } from '@/lib/pdfLonTotal';
 import { loadBlankTemplate } from '@/lib/formTemplates';
 
 export interface PdfTemplate {
@@ -360,6 +361,25 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       cancelled = true;
     };
   }, [documentKey]);
+
+  // The LON's TOTAL SCORE is added up from its score dropdowns as they change
+  // (src/lib/pdfLonTotal.ts). The fields are pdf.js's, not React's, so the
+  // listener is a plain one; pdf.js stores the choice first, so the sum runs
+  // just after.
+  const pagesRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = pagesRef.current;
+    if (!el || formType !== 'Level of Need (LON)') return;
+    const onChange = (e: Event) => {
+      if (isLonScoreChange(e.target)) window.setTimeout(() => void updateLonTotal(docRef.current as never), 0);
+    };
+    el.addEventListener('change', onChange);
+    el.addEventListener('input', onChange);
+    return () => {
+      el.removeEventListener('change', onChange);
+      el.removeEventListener('input', onChange);
+    };
+  }, [formType, numPages]);
 
   /** The current PDF bytes including everything typed into the form fields. */
   const collectFilledPdf = async (): Promise<Blob> => {
@@ -1032,7 +1052,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                 </div>
               }
             >
-              <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center gap-4" ref={pagesRef}>
                 {Array.from({ length: numPages }, (_, i) => (
                   <div
                     key={i}
