@@ -60,6 +60,7 @@ export function seed(): Tables {
       workflow_stage: p.status === 'closed' ? 'closed' : has150 ? 'active_authorization' : 'initial_30_active',
       approval_status: p.approval ?? 'Approved',
       level_of_need: p.level ?? null,
+      lon_score: p.level === 'High Level' ? 26 : p.level ? 15 : null,
       auth_30_start: day(p.start),
       auth_30_end: day(p.start + 29),
       auth_30_number: `${p.mco.slice(0, 2).toUpperCase()}-77${i}0321`,

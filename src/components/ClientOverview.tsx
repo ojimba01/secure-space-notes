@@ -223,6 +223,7 @@ const initialValues = (c: OverviewClient): Values => ({
   njhmis_id: c.njhmis_id ?? '',
   insurance: c.insurance ?? '',
   level_of_need: c.level_of_need ?? '',
+  lon_score: c.lon_score == null ? '' : String(c.lon_score),
   county: c.county ?? '',
   mco_housing_manager: c.mco_housing_manager ?? '',
   date_of_birth: c.date_of_birth ?? '',
@@ -568,7 +569,31 @@ export const ClientOverview: React.FC<{
             </Row>
           )}
           <Row label="Level of need">
-            {choice('level_of_need', ['Low Level', 'High Level'], client.level_of_need)}
+            {editing ? (
+              <div className="flex gap-2">
+                <div className="flex-1">{choice('level_of_need', ['Low Level', 'High Level'], null)}</div>
+                <Input
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={v.lon_score ?? ''}
+                  onChange={(e) => set('lon_score')(e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  placeholder="Score"
+                  aria-label="LON score"
+                  className="h-8 w-20"
+                />
+              </div>
+            ) : (client.level_of_need || client.lon_score != null) && (
+              <>
+                {client.level_of_need}
+                {client.lon_score != null && (
+                  <span className="font-normal text-muted-foreground">
+                    {client.level_of_need ? ' · ' : ''}Score {client.lon_score}
+                  </span>
+                )}
+              </>
+            )}
           </Row>
           {showCaseManager && (
             <Row

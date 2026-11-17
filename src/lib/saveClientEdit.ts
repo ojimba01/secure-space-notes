@@ -22,9 +22,8 @@ export interface ClientEditValues {
   insurance?: string;
   level_of_need?: string;
   /**
-   * Left out, the column is left alone. The record no longer shows a LoN
-   * score, and writing an absent one as null would erase every score on the
-   * next save of a phone number.
+   * Left out, the column is left alone, so a caller that does not show the
+   * score cannot erase it by saving a phone number.
    */
   lon_score?: string;
   county?: string;
@@ -66,6 +65,7 @@ export interface SaveClientEditResult {
 export interface EditableClient {
   id: string;
   level_of_need?: string | null;
+  lon_score?: number | null;
   auth_30_start?: string | null;
   auth_150_start?: string | null;
   auth_180_start?: string | null;
@@ -83,6 +83,12 @@ export async function saveClientEdit(
   /** True while retrying a save that failed after the row was already written. */
   retrying = false,
 ): Promise<SaveClientEditResult> {
+  if (data.lon_score) {
+    const score = Number(data.lon_score);
+    if (!Number.isInteger(score) || score < 0 || score > 60) {
+      throw new Error('The LON score must be a whole number from 0 to 60.');
+    }
+  }
   const datePatch = authorizationDatePatch(client, data);
   const cleared = clearedAuthorizations(client, data);
   if (cleared.length) await refuseIfBilled(client.id, cleared);
@@ -182,7 +188,12 @@ async function rebuildAfterSave(
   // against, and it lives on the authorization record, not here.
   const authorizationChanged =
     Object.keys(datePatch).length > 0 || Object.keys(numberPatch).length > 0;
-  const billingChanged = (data.level_of_need || '') !== (client.level_of_need || '');
+  // A score under 18 makes the level Low Level (a database trigger), so a new
+  // score can change billing even when the level box was left alone.
+  const scoreChanged =
+    data.lon_score !== undefined &&
+    (data.lon_score ? Number(data.lon_score) : null) !== (client.lon_score ?? null);
+  const billingChanged = (data.level_of_need || '') !== (client.level_of_need || '') || scoreChanged;
 
   // Retrying a partial save must run the synchronisation again even when the
   // client row already holds the requested date.
