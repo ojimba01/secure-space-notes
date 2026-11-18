@@ -169,7 +169,25 @@ export function seed(): Tables {
     ocr_applied: false, text_truncated: false, ...((f as any).fields ?? {}),
   }));
 
+  // Waiting for their intake call (src/lib/intakeCalls.ts): one called twice
+  // without an answer, one not called yet.
+  const awaiting = [
+    { id: 'c-aw1', first_name: 'Marisol', last_name: 'Vega', phone: '(609) 555-0181', created_at: at(-3, 9) },
+    { id: 'c-aw2', first_name: 'Darnell', last_name: 'Hayes', phone: '(609) 555-0193', created_at: at(-1, 14) },
+  ].map((c) => ({
+    ...c, email: null, address: null, member_id: null, medicaid_id: null, insurance: null, county: null,
+    assigned_employee_id: 'p-staff', status: 'active', workflow_stage: 'referred', approval_status: null,
+    level_of_need: null, intake_status: 'not_started', intake_date: null, date_of_birth: null, deleted_at: null,
+    updated_at: c.created_at, intake_call_status: 'awaiting',
+  }));
+  clients.push(...(awaiting as never[]));
+  const intakeCalls = [
+    { id: 'ic-1', client_id: 'c-aw1', called_by: 'p-staff', called_at: at(-2, 15), outcome: 'no_answer' },
+    { id: 'ic-2', client_id: 'c-aw1', called_by: 'p-staff', called_at: at(-1, 19), outcome: 'voicemail' },
+  ];
+
   return {
+    intake_calls: intakeCalls,
     profiles: staff.map(({ role: _r, ...p }) => ({ active: true, ...p, created_at: at(-400), touchpoint_tutorial_acknowledged_at: at(-300), touchpoint_go_live_date: day(-300) })),
     user_roles: staff.map((s) => ({ id: `r-${s.id}`, user_id: s.user_id, role: s.role })),
     clients,

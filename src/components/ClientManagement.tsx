@@ -11,7 +11,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users } from 'lucide-react';
+import { Plus, Search, CheckSquare, X, UserCog, Filter, ChevronDown, Flag, Users, PhoneMissed } from 'lucide-react';
+import { AwaitingIntakeCalls } from '@/components/intakeCalls/AwaitingIntakeCalls';
+import { ReportCallDialog, type ReportCallFor } from '@/components/intakeCalls/ReportCallDialog';
+import { markIntakeCallReached } from '@/lib/intakeCalls';
+import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
 import { useToast } from '@/hooks/use-toast';
 import { AddClientDialog } from '@/components/AddClientDialog';
 import { AddTouchpointDialog } from '@/components/AddTouchpointDialog';
@@ -43,6 +47,9 @@ interface Client {
   hsp_180_date?: string | null;
   level_of_need?: string | null;
   workflow_stage?: string | null;
+  created_at?: string;
+  /** 'awaiting' until the intake call reaches them (src/lib/intakeCalls.ts). */
+  intake_call_status?: string | null;
 }
 
 interface ManagerOption {
@@ -132,6 +139,10 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
     { id: string; name: string; levelOfNeed: string | null } | null
   >(null);
   const myProfileId = useEffectiveProfileId();
+  /** An unanswered intake call being reported: for a new client, or one already waiting. */
+  const [reportFor, setReportFor] = useState<ReportCallFor | null>(null);
+  const [callsKey, setCallsKey] = useState(0);
+  const callsRibbon = useNewRibbon('intake-calls');
   /** Bumped after a reminder's touchpoint is handled, so the rest show again. */
   const [reminderRound, setReminderRound] = useState(0);
   const [fromReminder, setFromReminder] = useState(false);
@@ -330,7 +341,17 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
     [managerOptions],
   );
 
-  const filteredClients = clients.filter((client) => {
+  /**
+   * Waiting for their intake call: shown together at the top, whatever the
+   * filters say, so none of them is missed.
+   */
+  const awaitingClients = clients.filter(
+    (c) =>
+      c.intake_call_status === 'awaiting' &&
+      `${c.first_name} ${c.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
+
+  const filteredClients = clients.filter((client) => client.intake_call_status !== 'awaiting').filter((client) => {
     const matchesSearch =
       `${client.first_name} ${client.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       client.member_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -513,6 +534,18 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
                 <span className="hidden md:inline">Select</span>
               </Button>
             )}
+            <span className="relative">
+              <Button
+                size="sm"
+                variant="outline"
+                className="md:size-default border-amber-400"
+                onClick={() => setReportFor({ kind: 'new' })}
+              >
+                <PhoneMissed className="h-4 w-4 md:mr-2 text-amber-600" />
+                <span className="hidden md:inline">Report unanswered call</span>
+              </Button>
+              {callsRibbon && <NewRibbon />}
+            </span>
             <Button
               size="sm"
               className="md:size-default"
@@ -669,6 +702,41 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
         )}
       </div>
 
+      {!loading && (
+        <AwaitingIntakeCalls
+          clients={awaitingClients}
+          refreshKey={callsKey}
+          managerName={isAdmin ? (id) => (id ? managerMap.get(id) ?? null : null) : undefined}
+          onOpen={(c) => {
+            setSelectedClient(clients.find((x) => x.id === c.id) ?? null);
+            onOpenClientChange?.(c.id);
+          }}
+          onReportCall={(c) => setReportFor({ kind: 'existing', clientId: c.id, clientName: `${c.first_name} ${c.last_name}` })}
+          onStartIntake={async (c) => {
+            if (!myProfileId) return;
+            try {
+              await markIntakeCallReached(c.id, myProfileId);
+            } catch (e) {
+              toast({ title: 'Could not start the intake', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+              return;
+            }
+            await fetchClients();
+            // The record's Forms tab, where the Client Intake is the first row.
+            setSelectedClientTab('forms');
+            setPendingOpenId(c.id);
+          }}
+        />
+      )}
+
+      <ReportCallDialog
+        target={reportFor}
+        onClose={() => setReportFor(null)}
+        onSaved={async () => {
+          await fetchClients();
+          setCallsKey((k) => k + 1);
+        }}
+      />
+
       {loading ? (
         <div className="text-center py-8">Loading clients...</div>
       ) : (
@@ -730,6 +798,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           await fetchClients();
           setTouchpointFor(created);
         }}
+        onNoAnswer={() => setReportFor({ kind: 'new' })}
       />
 
       <AddTouchpointDialog
