@@ -19,6 +19,7 @@ import HelpGuide from "./pages/HelpGuide";
 import NotFound from "./pages/NotFound";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { lazy, Suspense } from "react";
+import { PageShell } from "@/components/PageShell";
 import { usePageActivity } from "@/hooks/useStaffActivity";
 import { SupportButton } from "@/components/support/SupportButton";
 import { AppUpdate } from "@/components/AppUpdate";
@@ -29,6 +30,16 @@ import { WhatsNew } from "@/components/WhatsNew";
 const AdvancedToolsPage = lazy(() => import("./pages/AdvancedToolsPage"));
 const StaffActivity = lazy(() => import("./pages/StaffActivity"));
 const SupportTickets = lazy(() => import("./pages/SupportTickets"));
+
+// These pages load on first use. Fetching them shortly after the app opens
+// means the first click on one shows the page, not a blank screen.
+if (typeof window !== "undefined") {
+  window.setTimeout(() => {
+    void import("./pages/StaffActivity");
+    void import("./pages/SupportTickets");
+    void import("./pages/AdvancedToolsPage");
+  }, 4000);
+}
 
 /** Records which page each signed-in person has open, for Staff activity. */
 const PageActivityTracker = () => {
@@ -48,7 +59,7 @@ const SuperadminRoute = ({ children }: { children: JSX.Element }) => children;
 const AdminRoute = ({ children }: { children: JSX.Element }) => {
   const { isViewingAs } = useViewAs();
   const { isAdmin, loading } = useIsAdmin();
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (loading) return <PageShell>{null}</PageShell>;
   return isAdmin && !isViewingAs ? children : <Navigate to="/" replace />;
 };
 
@@ -79,11 +90,7 @@ const App = () => (
                 element={
                   <AdminRoute>
                     <Suspense
-                      fallback={
-                        <div className="flex items-center justify-center min-h-screen">
-                          Loading...
-                        </div>
-                      }
+                      fallback={<PageShell>{null}</PageShell>}
                     >
                       <AdvancedToolsPage />
                     </Suspense>
@@ -95,7 +102,7 @@ const App = () => (
                 element={
                   <SuperadminRoute>
                     <Suspense
-                      fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}
+                      fallback={<PageShell>{null}</PageShell>}
                     >
                       <StaffActivity />
                     </Suspense>
@@ -107,7 +114,7 @@ const App = () => (
                 element={
                   <SuperadminRoute>
                     <Suspense
-                      fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}
+                      fallback={<PageShell>{null}</PageShell>}
                     >
                       <SupportTickets />
                     </Suspense>

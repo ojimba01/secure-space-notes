@@ -5,7 +5,7 @@ import { PageShell } from '@/components/PageShell';
 
 export default function Billing() {
   const { isAdmin, loading } = useIsAdmin();
-  if (loading) return <div className="min-h-screen grid place-items-center">Loading…</div>;
+  if (loading) return <PageShell>{null}</PageShell>;
   if (!isAdmin) return <Navigate to="/" replace />;
   return <PageShell>
     <div className="mx-auto max-w-[1500px] p-4 md:p-8">

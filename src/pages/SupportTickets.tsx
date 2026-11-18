@@ -89,7 +89,7 @@ export default function SupportTickets() {
     [tickets, filter],
   );
 
-  if (roleLoading) return <div className="grid min-h-screen place-items-center">Loading…</div>;
+  if (roleLoading) return <PageShell>{null}</PageShell>;
   if (!isSuperadmin) return <Navigate to="/" replace />;
 
   const selected = tickets?.find((t) => t.id === selectedId) ?? null;

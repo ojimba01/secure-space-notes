@@ -87,12 +87,21 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlView = searchParams.get('view');
   const urlClient = searchParams.get('client');
-  const [activeView, setActiveView] = useState<View>(isView(urlView) ? urlView : 'compliance');
+  // A view another page asked for (the menu on Billing, Workbook and the rest
+  // sends one) is known before the first render. Read it here, not only in an
+  // effect: the landing default below used to run in the same pass and send
+  // every such click to Clients.
+  const askedView = (location.state as { view?: View; clientId?: string } | null) ?? null;
+  const [activeView, setActiveView] = useState<View>(
+    askedView?.clientId ? 'clients' : askedView?.view ?? (isView(urlView) ? urlView : 'compliance'),
+  );
   const [clientsKey, setClientsKey] = useState(0);
   const [initialClientId, setInitialClientId] = useState<string | null>(urlClient);
   // A view read off the URL is the answer already; the landing default below
   // must not overwrite it on the first render after a refresh.
-  const [defaultApplied, setDefaultApplied] = useState(isView(urlView));
+  const [defaultApplied, setDefaultApplied] = useState(
+    isView(urlView) || !!askedView?.view || !!askedView?.clientId,
+  );
   const [wasViewingAs, setWasViewingAs] = useState(false);
   /** The record currently open, so a refresh reopens it rather than the list. */
   const [openClientId, setOpenClientId] = useState<string | null>(urlClient);

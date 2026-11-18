@@ -345,7 +345,7 @@ export default function StaffActivity() {
     [staff, byUser],
   );
 
-  if (roleLoading) return <div className="min-h-screen grid place-items-center">Loading…</div>;
+  if (roleLoading) return <PageShell>{null}</PageShell>;
   if (!canView) return <Navigate to="/" replace />;
 
   const person = selected ? staff.find((s) => s.user_id === selected) : undefined;

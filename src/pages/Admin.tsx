@@ -14,7 +14,9 @@ import { useToast } from '@/hooks/use-toast';
 import { UserX, UserCheck } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { usePreview } from '@/components/ViewAsProvider';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
+import { PageShell } from '@/components/PageShell';
 import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
@@ -45,54 +47,21 @@ const Admin = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { toast } = useToast();
-  const [realAdmin, setIsAdmin] = useState(false);
-  const [realSuperadmin, setIsSuperadmin] = useState(false);
-  // A preview shows the previewed person's access; superadmins are never previewed.
-  const { previewing, access } = usePreview();
-  const isAdmin = previewing ? !!access?.isAdmin : realAdmin;
-  const isSuperadmin = previewing ? false : realSuperadmin;
-  const [checkingAdmin, setCheckingAdmin] = useState(true);
+  // The remembered access checks the menu uses, so the page draws at once
+  // instead of blanking while it asks the database again. Both follow a
+  // preview; superadmins are never previewed.
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const { isSuperadmin, loading: superLoading } = useIsSuperadmin();
+  const checkingAdmin = adminLoading || superLoading;
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [pendingDeactivation, setPendingDeactivation] = useState<Employee | null>(null);
   const [confirmText, setConfirmText] = useState('');
 
   useEffect(() => {
-    if (user) {
-      checkAdminStatus();
-    }
-  }, [user]);
-
-  const checkAdminStatus = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user?.id)
-        .in('role', ['admin', 'superadmin']);
-
-      if (error) throw error;
-
-      const roles = (data || []).map((r) => r.role);
-      const admin = roles.length > 0;
-      const superadmin = roles.includes('superadmin');
-
-      setIsAdmin(admin);
-      setIsSuperadmin(superadmin);
-
-      if (admin) {
-        fetchEmployees();
-      }
-    } catch (error) {
-      toast({
-        title: "Error checking permissions",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
-    } finally {
-      setCheckingAdmin(false);
-    }
-  };
+    if (user && isAdmin) fetchEmployees();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isAdmin]);
 
   const fetchEmployees = async () => {
     try {
@@ -208,7 +177,7 @@ const Admin = () => {
 
 
   if (loading || checkingAdmin) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return <PageShell>{null}</PageShell>;
   }
 
   if (!user || !isAdmin) {

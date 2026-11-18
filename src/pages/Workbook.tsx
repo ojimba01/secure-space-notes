@@ -9,7 +9,7 @@ import { PageShell } from '@/components/PageShell';
 export default function Workbook() {
   const { isAdmin, loading } = useIsAdmin();
   const { cycles, refresh } = useBilling();
-  if (loading) return <div className="grid min-h-screen place-items-center">Loading…</div>;
+  if (loading) return <PageShell>{null}</PageShell>;
   if (!isAdmin) return <Navigate to="/" replace />;
   return (
     <PageShell>
