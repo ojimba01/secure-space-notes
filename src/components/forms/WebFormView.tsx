@@ -14,6 +14,8 @@ interface FieldObject {
   type: string;
   value?: unknown;
   exportValues?: string;
+  /** A dropdown's options. */
+  items?: { exportValue: string; displayValue: string }[];
 }
 
 type Storage = {
@@ -33,16 +35,15 @@ export const WebFormView: React.FC<{
   schema: WebFormSchema;
   /** Any answer changed. */
   onChange: () => void;
-}> = ({ doc, schema, onChange }) => {
+  /** Runs after a change, before the answers are read back (the LON's total). */
+  afterChange?: () => Promise<void>;
+}> = ({ doc, schema, onChange, afterChange }) => {
   const storage = (doc as unknown as { annotationStorage: Storage }).annotationStorage;
   const [fields, setFields] = useState<Record<string, FieldObject[]> | null>(null);
   const [values, setValues] = useState<Record<string, string | boolean>>({});
 
-  useEffect(() => {
-    let cancelled = false;
-    void doc.getFieldObjects().then((objs) => {
-      if (cancelled) return;
-      const all = (objs ?? {}) as Record<string, FieldObject[]>;
+  /** Every answer, as the PDF holds it now. */
+  const readAll = (all: Record<string, FieldObject[]>) => {
       const read: Record<string, string | boolean> = {};
       for (const [name, list] of Object.entries(all)) {
         const first = list[0];
@@ -51,12 +52,23 @@ export const WebFormView: React.FC<{
           read[name] = list.find((o) => isChecked(storage, o))?.exportValues ?? '';
         } else if (first.type === 'checkbox') {
           read[name] = isChecked(storage, first);
+        } else if (first.type === 'combobox' || first.type === 'listbox') {
+          const v = storage.getValue(first.id, { value: first.value ?? '' }).value;
+          read[name] = String((Array.isArray(v) ? v[0] : v) ?? '').trim();
         } else {
           read[name] = String(storage.getValue(first.id, { value: first.value ?? '' }).value ?? '');
         }
       }
+      return read;
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    void doc.getFieldObjects().then((objs) => {
+      if (cancelled) return;
+      const all = (objs ?? {}) as Record<string, FieldObject[]>;
       setFields(all);
-      setValues(read);
+      setValues(readAll(all));
     });
     return () => {
       cancelled = true;
@@ -80,6 +92,19 @@ export const WebFormView: React.FC<{
     onChange();
   };
 
+  /** After any change: let the form work out what follows from it, then show it. */
+  const settle = () => {
+    if (!afterChange || !fields) return;
+    void afterChange().then(() => setValues(readAll(fields)));
+  };
+
+  const setSelect = (name: string, option: string) => {
+    for (const o of fields?.[name] ?? []) storage.setValue(o.id, { value: option });
+    setValues((v) => ({ ...v, [name]: option }));
+    onChange();
+    settle();
+  };
+
   const setCheck = (name: string, checked: boolean) => {
     for (const o of fields?.[name] ?? []) storage.setValue(o.id, { value: checked });
     setValues((v) => ({ ...v, [name]: checked }));
@@ -96,7 +121,7 @@ export const WebFormView: React.FC<{
     if (!fields) return [];
     return schema.flatMap((s) =>
       s.items.flatMap((i) =>
-        i.kind === 'text' || i.kind === 'choice'
+        i.kind === 'text' || i.kind === 'choice' || i.kind === 'select'
           ? fields[i.field] ? [] : [i.field]
           : i.kind === 'checks'
             ? i.options.filter((o) => !fields[o.field]).map((o) => o.field)
@@ -145,6 +170,29 @@ export const WebFormView: React.FC<{
                     ) : (
                       <Input id={id} value={String(values[item.field] ?? '')} onChange={(e) => setText(item.field, e.target.value)} />
                     )}
+                  </div>
+                );
+              }
+              if (item.kind === 'select') {
+                const options = fields[item.field]?.[0]?.items ?? [];
+                return (
+                  <div key={item.field} className="space-y-1.5">
+                    <label htmlFor={`wf-${item.field}`} className="text-sm font-medium">
+                      {item.label}
+                    </label>
+                    <select
+                      id={`wf-${item.field}`}
+                      value={String(values[item.field] ?? '')}
+                      onChange={(e) => setSelect(item.field, e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Select</option>
+                      {options.map((o) => (
+                        <option key={o.exportValue} value={o.exportValue}>
+                          {o.displayValue}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 );
               }
