@@ -693,7 +693,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         </Button>
       ) : edits ? (
         // New for 24 hours from first sight (src/lib/whatsNew.ts).
-        <span className={`relative ${className.includes('flex-1') ? 'flex-1' : 'w-fit'}`}>
+        <span className={`relative ${className.includes('flex-1') ? 'flex-1' : 'w-fit justify-self-center'}`}>
           <Button size="sm" variant="outline" className={`${className.includes('h-11') ? 'h-11 w-full' : 'px-5'}`} onClick={() => editForm(form)}>
             Edit
           </Button>
@@ -713,7 +713,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
             {historyLink}
           </div>
           {statusLabel}
-          {button('justify-self-start px-5')}
+          {button('justify-self-center px-5')}
           <span />
           <div>
             <MoreMenu label={title} items={menu} rounds={rounds} className="h-9 w-9" />
@@ -806,7 +806,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
             {editLink}
           </div>
           {documents('h-9 w-full')}
-          {action('justify-self-start px-4') ?? <span />}
+          {action('justify-self-center px-4') ?? <span />}
           {upload('h-9 w-9') ?? <span />}
           <div>
             <MoreMenu label={row.name} items={menu} className="h-9 w-9" />
