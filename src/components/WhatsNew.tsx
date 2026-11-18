@@ -35,8 +35,13 @@ export const WhatsNew = () => {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const { canView, loading: activityLoading } = useCanViewStaffActivity();
   const navigate = useNavigate();
-  /** A feature whose popup is open. One at a time; the next waits for a later visit. */
-  const [popup, setPopup] = useState<Feature | null>(null);
+  /**
+   * Every popup this person has not seen yet, shown one after another. Each
+   * has to be acknowledged with Got it before the next, so nobody misses one.
+   */
+  const [queue, setQueue] = useState<Feature[]>([]);
+  const [index, setIndex] = useState(0);
+  const popup = queue[index] ?? null;
 
   useEffect(() => {
     if (!user || previewing || adminLoading || activityLoading) return;
@@ -45,18 +50,20 @@ export const WhatsNew = () => {
     let cancelled = false;
     void loadViews(user.id).then((views) => {
       if (cancelled) return;
-      let shownPopup = false;
+      const popups: Feature[] = [];
       for (const f of FEATURES) {
         if (!fits[f.audience] || today > f.announceUntil || views.get(f.key)?.notified_at) continue;
         if (f.popup) {
-          if (shownPopup) continue;
-          shownPopup = true;
-          setPopup(f);
+          // Counted as seen when its Got it is pressed, so one left unread
+          // comes back on the next visit.
+          popups.push(f);
         } else {
           toast(f.message, { position: 'top-center', duration: 5000 });
+          void markNotified(user.id, f.key);
         }
-        void markNotified(user.id, f.key);
       }
+      setQueue(popups);
+      setIndex(0);
     });
     return () => {
       cancelled = true;
@@ -65,18 +72,36 @@ export const WhatsNew = () => {
 
   if (!popup?.popup) return null;
   const { title, steps, body, illustration, goTo } = popup.popup;
-  const close = () => setPopup(null);
+  /** Got it: this one is seen; on to the next. */
+  const close = () => {
+    if (user) void markNotified(user.id, popup.key);
+    setIndex((i) => i + 1);
+  };
+  /** "1 of 2" when there is more than one. */
+  const counter =
+    queue.length > 1 ? (
+      <p className="text-xs font-medium text-muted-foreground">
+        {index + 1} of {queue.length}
+      </p>
+    ) : null;
+  /** Only Got it closes it: not a click outside, Escape or an X. */
+  const stay = {
+    hideClose: true,
+    onInteractOutside: (e: Event) => e.preventDefault(),
+    onEscapeKeyDown: (e: KeyboardEvent) => e.preventDefault(),
+  };
 
   if (illustration) {
     const Picture = ILLUSTRATIONS[illustration];
     return (
-      <Dialog open onOpenChange={(o) => !o && close()}>
-        <DialogContent className="max-w-lg gap-0 overflow-visible rounded-2xl border-0 p-0 sm:rounded-2xl">
+      <Dialog open>
+        <DialogContent key={popup.key} {...stay} className="max-w-lg gap-0 overflow-visible rounded-2xl border-0 p-0 sm:rounded-2xl">
           <CornerRibbon />
           <div className="overflow-hidden rounded-t-2xl bg-gradient-to-br from-sky-100 via-sky-50 to-orange-50 px-6 pb-2 pt-8">
             <Picture className="mx-auto h-48 w-full max-w-sm" />
           </div>
           <div className="space-y-3 px-8 pb-8 pt-6 text-center">
+            {counter}
             <DialogTitle className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">{title}</DialogTitle>
             {body && <p className="text-base text-muted-foreground">{body}</p>}
             <div className="flex justify-center gap-2 pt-3">
@@ -103,9 +128,10 @@ export const WhatsNew = () => {
   }
 
   return (
-    <Dialog open onOpenChange={(o) => !o && setPopup(null)}>
-      <DialogContent className="max-w-md">
+    <Dialog open>
+      <DialogContent key={popup.key} {...stay} className="max-w-md">
         <DialogHeader>
+          {counter}
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <ol className="list-decimal space-y-2 pl-5 text-sm">
@@ -114,13 +140,13 @@ export const WhatsNew = () => {
           ))}
         </ol>
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => setPopup(null)}>
+          <Button variant="outline" onClick={close}>
             Got it
           </Button>
           {goTo && (
             <Button
               onClick={() => {
-                setPopup(null);
+                close();
                 navigate(goTo.path, { state: goTo.state });
               }}
             >

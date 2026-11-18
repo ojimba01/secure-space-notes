@@ -59,6 +59,9 @@ guides, and superadmins also get the filter buttons.
   `src/components/illustrations/`): a picture across the top, a NEW corner
   ribbon, a big bold title, one or two sentences and a Got it button.
 - Draft every announcement and show it to the owner before publishing it.
+- Everyone sees every new popup in turn ("1 of 2"), and only Got it moves
+  on: no clicking outside, Escape or X. A popup counts as seen when its Got it
+  is pressed, so one left unread comes back on the next visit.
 
 ### How to write announcements
 
