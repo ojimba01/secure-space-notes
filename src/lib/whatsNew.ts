@@ -43,7 +43,7 @@ export const FEATURES: Feature[] = [
     announceUntil: '2026-12-02',
     popup: {
       title: 'Never lose your work again!',
-      body: 'Forms now save automatically 10 seconds after you stop typing. Look for the green cloud at the bottom of the form. Autosave is already on.',
+      body: 'Forms now save automatically as you work. A green cloud at the bottom of each form confirms your changes are saved. Autosave has been enabled on your account.',
       illustration: 'autosave',
     },
   },

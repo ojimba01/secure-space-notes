@@ -1,5 +1,5 @@
 /**
- * A form flying up to a cloud with a check mark: the picture on the autosave
+ * A form being written and saved to a cloud with a check mark: the picture on the autosave
  * announcement. Drawn inline so it scales cleanly and needs no image file.
  */
 export const AutosaveIllustration = ({ className }: { className?: string }) => (
@@ -54,12 +54,12 @@ export const AutosaveIllustration = ({ className }: { className?: string }) => (
       <path d="m54 50 6 6 11-11" fill="none" stroke="#fff" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
     </g>
 
-    {/* A small timer badge: saved 10 seconds after typing stops */}
-    <g transform="translate(176 140)">
-      <circle r={20} fill="#ffffff" stroke="#f08a3c" strokeWidth={3} />
-      <text textAnchor="middle" y={5} fontSize={13} fontWeight={700} fill="#f08a3c" fontFamily="inherit">
-        10s
-      </text>
+    {/* A pencil writing on the form */}
+    <g transform="translate(150 150) rotate(-40)">
+      <rect x={-5} y={-30} width={10} height={36} rx={2} fill="#f08a3c" />
+      <rect x={-5} y={-36} width={10} height={7} rx={2} fill="#0f4c81" />
+      <path d="M-5 6 L0 16 L5 6Z" fill="#f6d2b4" />
+      <path d="M-1.6 12.8 L0 16 L1.6 12.8Z" fill="#0f4c81" />
     </g>
 
     {/* Sparkles and dots */}
