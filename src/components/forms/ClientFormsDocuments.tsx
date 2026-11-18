@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Check, ChevronDown, ChevronRight, FileText, MoreHorizontal, Plus, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, FileText, MoreHorizontal, Upload, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -141,6 +141,8 @@ interface RowSpec {
   action?: { label: React.ReactNode; title?: string; onClick: () => void; style: ActionStyle };
   upload?: { label: string; onClick: () => void };
   menu?: MenuItem[];
+  /** Edit, as an underlined word beside the name, for a completed form that can be changed. */
+  edit?: () => void;
 }
 
 const StatusLabel: React.FC<{ status: { label: string; className: string } }> = ({ status }) => (
@@ -622,11 +624,15 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     const continues = !isCompleted(form) && !!form.file_path && !form.form_data;
     const title = form.title || form.form_type;
     const toFix = commentCounts.get(form.id) ?? 0;
+    // Completed shows once, beside the form's name above; a document says
+    // its status only when it is something else, such as a draft.
     const statusLabel = (
       <span className="flex flex-wrap items-center gap-1">
-        <span className={`w-fit rounded-md px-2 py-0.5 text-xs ${FORM_STATUS_CLASS[form.status] ?? ''}`}>
-          {FORM_STATUS_LABEL[form.status] ?? form.status}
-        </span>
+        {!isCompleted(form) && (
+          <span className={`w-fit rounded-md px-2 py-0.5 text-xs ${FORM_STATUS_CLASS[form.status] ?? ''}`}>
+            {FORM_STATUS_LABEL[form.status] ?? form.status}
+          </span>
+        )}
         {toFix > 0 && (
           <span className="w-fit rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
             {toFix} {toFix === 1 ? 'comment' : 'comments'}
@@ -687,8 +693,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         </Button>
       ) : edits ? (
         // New for 24 hours from first sight (src/lib/whatsNew.ts).
-        <span className={`relative ${className.includes('flex-1') ? 'flex-1' : 'w-full'}`}>
-          <Button size="sm" variant="outline" className={`w-full ${className.includes('h-11') ? 'h-11' : ''}`} onClick={() => editForm(form)}>
+        <span className={`relative ${className.includes('flex-1') ? 'flex-1' : 'w-fit'}`}>
+          <Button size="sm" variant="outline" className={`${className.includes('h-11') ? 'h-11 w-full' : 'px-5'}`} onClick={() => editForm(form)}>
             Edit
           </Button>
           {editRibbon && <NewRibbon />}
@@ -707,7 +713,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
             {historyLink}
           </div>
           {statusLabel}
-          {button('w-full')}
+          {button('justify-self-start px-5')}
           <span />
           <div>
             <MoreMenu label={title} items={menu} rounds={rounds} className="h-9 w-9" />
@@ -782,13 +788,25 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         </Button>
       ) : null;
     const menu = row.menu ?? [];
+    const editLink = row.edit ? (
+      <button
+        type="button"
+        onClick={row.edit}
+        className="shrink-0 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+      >
+        Edit
+      </button>
+    ) : null;
     return (
       <div key={row.id} className="rounded-md border">
         <div className={`${ROW_GRID} p-2 pl-2.5`}>
           {row.status ? <StatusLabel status={row.status} /> : <span />}
-          {name('truncate')}
+          <div className="flex min-w-0 items-center gap-3">
+            {name('truncate')}
+            {editLink}
+          </div>
           {documents('h-9 w-full')}
-          {action('w-full') ?? <span />}
+          {action('justify-self-start px-4') ?? <span />}
           {upload('h-9 w-9') ?? <span />}
           <div>
             <MoreMenu label={row.name} items={menu} className="h-9 w-9" />
@@ -796,7 +814,10 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         </div>
         <div className={`${ROW_STACK} space-y-2 p-3`}>
           <div className="flex items-start justify-between gap-2">
-            {name('pt-2.5')}
+            <div className="flex min-w-0 items-center gap-3 pt-2.5">
+              {name('')}
+              {editLink}
+            </div>
             <MoreMenu label={row.name} items={menu} className="size-11 shrink-0" />
           </div>
           <div className="flex items-center justify-between gap-2">
@@ -826,9 +847,10 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       (f.source === 'created_in_app' && !!f.file_path && PDF_TEMPLATES.some((t) => t.formType === f.form_type))) &&
     (isAdmin || (f.employee_id === profileId && f.status !== 'approved'));
   /** Edit, in a row's menu, for the first completed form there the person can change. */
-  const editMenu = (items: DocumentRow[]): MenuItem[] => {
+  /** Edit for a group: its first document that can be changed. */
+  const editTarget = (items: DocumentRow[]) => {
     const editable = items.find(canEdit);
-    return editable ? [{ label: 'Edit', onSelect: () => editForm(editable) }] : [];
+    return editable ? () => editForm(editable) : undefined;
   };
   /** Open a completed form again to change it. */
   const editForm = (f: DocumentRow) =>
@@ -904,7 +926,6 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                   : undefined;
                 const menu: MenuItem[] = [];
                 if (ownDraft && template) menu.push({ label: 'Create additional form', onSelect: () => setFilling(template) });
-                if (editable) menu.push({ label: 'Edit', onSelect: () => editForm(editable) });
                 if (!ticked && !hasDraftOnly) menu.push({ label: 'Mark as complete', onSelect: () => void markComplete(type) });
                 return groupRow({
                   id: type,
@@ -916,6 +937,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                     : fill,
                   upload: { label: `Upload a completed ${type}`, onClick: () => setUploadFor(type) },
                   menu,
+                  edit: editable ? () => editForm(editable) : undefined,
                 });
               })}
 
@@ -938,7 +960,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                     label: 'Upload a completed Move-in Supports Request',
                     onClick: () => setUploadFor(UHC_FORM_TYPE),
                   },
-                  menu: editMenu(items),
+                  edit: editTarget(items),
                 });
               })()}
 
@@ -952,18 +974,13 @@ export const ClientFormsDocuments: React.FC<Props> = ({
                     action:
                       g.title === AUTH_GROUP && authTemplate
                         ? {
-                            label: (
-                              <>
-                                <Plus className="mr-1 h-4 w-4" />
-                                New request
-                              </>
-                            ),
+                            label: 'New request',
                             title: authTemplate.label,
                             onClick: () => setFilling(authTemplate),
                             style: 'green',
                           }
                         : undefined,
-                    menu: editMenu(g.items),
+                    edit: editTarget(g.items),
                   }),
                 )}
 

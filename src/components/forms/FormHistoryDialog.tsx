@@ -37,10 +37,14 @@ async function readFields(path: string): Promise<Record<string, string> | null> 
   }
 }
 
+/**
+ * Answers that were changed: ones that had an answer before and now have a
+ * different one (or none). Filling in a box that was blank is not a change.
+ */
 function diff(before: Record<string, string>, after: Record<string, string>): Change[] {
   const fields = [...new Set([...Object.keys(before), ...Object.keys(after)])];
   return fields
-    .filter((f) => (before[f] ?? '').trim() !== (after[f] ?? '').trim())
+    .filter((f) => (before[f] ?? '').trim() !== '' && (before[f] ?? '').trim() !== (after[f] ?? '').trim())
     .map((f) => ({ field: f, before: before[f] ?? '', after: after[f] ?? '' }));
 }
 
@@ -51,7 +55,6 @@ export const FormHistoryDialog: React.FC<{ formId: string; title: string; onClos
 }) => {
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [openFirst, setOpenFirst] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,7 +81,8 @@ export const FormHistoryDialog: React.FC<{ formId: string; title: string; onClos
           });
           if (now) previous = now;
         });
-        if (!cancelled) setEntries(out.reverse());
+        // Only saves that changed an answer, and the one that created the form.
+        if (!cancelled) setEntries(out.filter((e) => e.first || e.changes === null || e.changes.length > 0).reverse());
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
@@ -114,19 +118,7 @@ export const FormHistoryDialog: React.FC<{ formId: string; title: string; onClos
                   {e.changes === null ? (
                     <p className="text-muted-foreground">This version's file could not be read.</p>
                   ) : e.first ? (
-                    <div className="space-y-2">
-                      <p>
-                        Created the form with {e.filled} {e.filled === 1 ? 'answer' : 'answers'}.{' '}
-                        {e.changes.length > 0 && (
-                          <button type="button" className="underline" onClick={() => setOpenFirst((o) => !o)}>
-                            {openFirst ? 'Hide answers' : 'Show answers'}
-                          </button>
-                        )}
-                      </p>
-                      {openFirst && <Changes changes={e.changes} first />}
-                    </div>
-                  ) : e.changes.length === 0 ? (
-                    <p className="text-muted-foreground">Saved with no changes to the answers.</p>
+                    <p className="text-muted-foreground">Created the form.</p>
                   ) : (
                     <Changes changes={e.changes} />
                   )}
