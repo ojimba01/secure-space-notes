@@ -37,6 +37,17 @@ export interface Feature {
 
 export const FEATURES: Feature[] = [
   {
+    key: 'web-client-intake',
+    message: 'The Client Intake now opens as a web form.',
+    audience: 'everyone',
+    announceUntil: '2026-12-02',
+    popup: {
+      title: 'Intakes just got easier!',
+      body: 'The Client Intake now opens as a simple web form. Your answers fill in the PDF automatically.',
+      illustration: 'webIntake',
+    },
+  },
+  {
     key: 'form-edit-history',
     message: 'Forms now keep a full edit history.',
     audience: 'admins',
