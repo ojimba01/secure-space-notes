@@ -4,7 +4,7 @@
 /** Show an item only while another answer is the given one. */
 export interface ShowIf {
   field: string;
-  /** A choice's value, or true for a ticked box. */
+  /** A choice's value, true for a ticked box, or '*' for any answer at all. */
   value: string | boolean;
 }
 
@@ -12,7 +12,9 @@ export type WebFormItem =
   | { kind: 'heading'; label: string; showIf?: ShowIf }
   | { kind: 'text'; field: string; label: string; wide?: boolean; multiline?: boolean; showIf?: ShowIf }
   | { kind: 'choice'; field: string; label: string; options: { value: string; label: string }[]; showIf?: ShowIf }
-  | { kind: 'checks'; label: string; options: { field: string; label: string }[]; showIf?: ShowIf };
+  | { kind: 'checks'; label: string; options: { field: string; label: string }[]; showIf?: ShowIf }
+  /** A dropdown on the PDF; its options are the PDF's own. */
+  | { kind: 'select'; field: string; label: string; showIf?: ShowIf };
 
 export interface WebFormSection {
   title: string;
@@ -25,7 +27,7 @@ export type WebFormSchema = WebFormSection[];
 export function schemaFields(schema: WebFormSchema): string[] {
   return schema.flatMap((s) =>
     s.items.flatMap((i) =>
-      i.kind === 'text' || i.kind === 'choice' ? [i.field] : i.kind === 'checks' ? i.options.map((o) => o.field) : [],
+      i.kind === 'text' || i.kind === 'choice' || i.kind === 'select' ? [i.field] : i.kind === 'checks' ? i.options.map((o) => o.field) : [],
     ),
   );
 }

@@ -1329,6 +1329,14 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                 <WebFormView
                   doc={docRef.current}
                   schema={webSchema}
+                  // The LON's total adds itself up from its scores.
+                  afterChange={
+                    formType === 'Level of Need (LON)'
+                      ? async () => {
+                          await updateLonTotal(docRef.current as never);
+                        }
+                      : undefined
+                  }
                   onChange={() => {
                     dirtyRef.current = true;
                     setEditTick((t) => t + 1);
