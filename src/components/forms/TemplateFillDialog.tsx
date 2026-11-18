@@ -10,6 +10,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -209,6 +218,22 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     (AutofillClient & { id: string }) | null
   >(null);
 
+  // Saving as people go. Answers used to live only in the open window until
+  // someone pressed Save draft or Complete form, so a click outside the form,
+  // Escape, Cancel or a closed tab threw away everything typed or pasted in.
+  /** The form row this window saves into: the one opened, or the draft autosave made. */
+  const savedIdRef = useRef<string | null>(existing?.id ?? null);
+  /** Answers changed since the last save. */
+  const dirtyRef = useRef(false);
+  const [editTick, setEditTick] = useState(0);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [autosaveState, setAutosaveState] = useState<'idle' | 'saving' | 'failed'>('idle');
+  const autosaveRunning = useRef<Promise<void> | null>(null);
+  /** A file only autosave points at, removed once a later save replaces it. */
+  const autosaveFileRef = useRef<string | null>(null);
+  const lastSaveTimeRef = useRef(Date.now());
+  const [confirmClose, setConfirmClose] = useState(false);
+
   const formType = existing ? existing.form_type : template?.formType ?? '';
   const clientName = existing?.clients
     ? `${existing.clients.last_name}, ${existing.clients.first_name}`
@@ -286,7 +311,16 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         });
         // The registry copy is whatever an admin last uploaded, so it is
         // relaxed here rather than trusted to have been built that way.
-        if (!cancelled) setPrefilledBytes(await relaxPdfFormFields(bytes));
+        const relaxed = await relaxPdfFormFields(bytes);
+        // Loading the client's details takes a few seconds, and swapping in
+        // the pre-filled copy replaces the form on screen. Anything typed or
+        // pasted into the blank one meanwhile would go with it, so the blank
+        // one stays.
+        const typedSince =
+          dirtyRef.current ||
+          ((docRef.current as unknown as { annotationStorage?: { size?: number } } | null)
+            ?.annotationStorage?.size ?? 0) > 0;
+        if (!cancelled && !typedSince) setPrefilledBytes(relaxed);
       } catch (err: any) {
         // The blank template still works; pre-fill is a convenience.
         if (!cancelled) {
@@ -419,7 +453,19 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   /** Opened with Edit on a completed form: the button updates it. */
   const updating = !!existing && existing.status !== 'draft' && existing.status !== 'changes_requested';
 
+
+
   const handleSubmit = async (asDraft = false) => {
+    // An autosave still writing would otherwise race this save for the row.
+    await autosaveRunning.current;
+    await saveForm(asDraft, false);
+  };
+
+  const saveForm = async (asDraft: boolean, silent: boolean) => {
+    if (silent) {
+      await writeForm(asDraft, true);
+      return;
+    }
     if (!clientId) {
       toast({ title: 'Select a client', variant: 'destructive' });
       return;
@@ -439,6 +485,28 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
 
     setSaving(true);
     try {
+      await writeForm(asDraft, false);
+    } catch (err: any) {
+      const raw = err?.message ?? '';
+      toast({
+        title: 'Could not submit the form',
+        // Permission errors used to be reported as the client not being
+        // assigned, whatever the reason. Say what the database said.
+        description: raw.includes('row-level security')
+          ? `You don't have permission to save this form for this client. If this client is assigned to you, report this message using Support. (${raw})`
+          : raw,
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Write the form to storage and its row. Silent is autosave: no messages, the window stays open. */
+  const writeForm = async (asDraft: boolean, silent: boolean) => {
+    // Edits made while this save runs belong to the next one.
+    dirtyRef.current = false;
+    {
       let blob: Blob;
       if (existing && hasFields === false) {
         // Scanned/flattened PDFs have nothing to edit in-page; a corrected
@@ -477,7 +545,8 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       if (uploadError) throw uploadError;
 
       let formId: string;
-      if (existing) {
+      const targetId = savedIdRef.current;
+      if (targetId) {
         // Repoint the same row at the corrected file; the previously
         // submitted file stays in storage as history. original_file_path
         // keeps the first submission for the audit trail.
@@ -492,9 +561,9 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             signed_by: asDraft ? null : profileId,
             signed_at: asDraft ? null : new Date().toISOString(),
           })
-          .eq('id', existing.id);
+          .eq('id', targetId);
         if (error) throw error;
-        formId = existing.id;
+        formId = targetId;
       } else {
         // A second form of a kind is filed beside the first, not over it, so
         // it needs a name of its own to be told apart by.
@@ -526,6 +595,19 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           .single();
         if (error) throw error;
         formId = inserted.id;
+        savedIdRef.current = formId;
+      }
+
+      // The file the previous autosave wrote is no longer pointed at by
+      // anything, so it goes. Never a file a person saved.
+      const replaced = autosaveFileRef.current;
+      autosaveFileRef.current = silent && targetId ? filePath : null;
+      if (replaced) void supabase.storage.from('client-files').remove([replaced]).catch(() => {});
+      lastSaveTimeRef.current = Date.now();
+
+      if (silent) {
+        setLastSavedAt(new Date());
+        return;
       }
 
       // Every file the form has ever pointed at stays downloadable from
@@ -605,19 +687,6 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       finishTask(asDraft ? 'draft' : 'completed');
       onSubmitted();
       onClose();
-    } catch (err: any) {
-      const raw = err?.message ?? '';
-      toast({
-        title: 'Could not submit the form',
-        // Permission errors used to be reported as the client not being
-        // assigned, whatever the reason. Say what the database said.
-        description: raw.includes('row-level security')
-          ? `You don't have permission to save this form for this client. If this client is assigned to you, report this message using Support. (${raw})`
-          : raw,
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -920,6 +989,107 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       return false;
     }
   });
+  /**
+   * New forms and drafts save themselves as a draft. A completed form being
+   * edited, or one sent back for changes, does not: saving it as a draft would
+   * take it out of its current state without anyone choosing that.
+   */
+  const canAutosave =
+    !updating &&
+    (!existing || existing.status === 'draft') &&
+    hasFields !== false &&
+    !!clientId &&
+    numPages > 0;
+
+  // Every answer typed, pasted or picked in the form marks it as changed.
+  useEffect(() => {
+    const el = pagesRef.current;
+    if (!el) return;
+    const changed = () => {
+      dirtyRef.current = true;
+      setEditTick((t) => t + 1);
+    };
+    el.addEventListener('input', changed);
+    el.addEventListener('change', changed);
+    return () => {
+      el.removeEventListener('input', changed);
+      el.removeEventListener('change', changed);
+    };
+  }, [numPages]);
+
+  // Placing, moving or removing a signature is a change too.
+  const firstSignatures = useRef(true);
+  useEffect(() => {
+    if (firstSignatures.current) {
+      firstSignatures.current = false;
+      return;
+    }
+    dirtyRef.current = true;
+    setEditTick((t) => t + 1);
+  }, [signatures]);
+
+  const runAutosave = () => {
+    if (!canAutosave || saving || autosaveRunning.current || !dirtyRef.current) return;
+    setAutosaveState('saving');
+    autosaveRunning.current = saveForm(true, true)
+      .then(() => setAutosaveState('idle'))
+      .catch(() => {
+        dirtyRef.current = true;
+        setAutosaveState('failed');
+      })
+      .finally(() => {
+        autosaveRunning.current = null;
+      });
+  };
+  const runAutosaveRef = useRef(runAutosave);
+  runAutosaveRef.current = runAutosave;
+
+  // Saved 10 seconds after the last change, and at least once a minute while
+  // someone keeps typing.
+  useEffect(() => {
+    if (!canAutosave || !dirtyRef.current) return;
+    const overdue = Date.now() - lastSaveTimeRef.current > 60_000;
+    const timer = window.setTimeout(() => runAutosaveRef.current(), overdue ? 0 : 10_000);
+    return () => window.clearTimeout(timer);
+  }, [editTick, canAutosave]);
+
+  // Closing the tab or reloading with unsaved answers asks first.
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current && !autosaveRunning.current) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, []);
+
+  /** Close, letting the list know about a draft autosave made. */
+  const closeNow = () => {
+    if (!existing && savedIdRef.current) {
+      finishTask('draft');
+      onSubmitted();
+    } else if (existing && lastSavedAt) {
+      onSubmitted();
+    }
+    onClose();
+  };
+
+  /** Cancel, the X, Escape: ask first when there is anything unsaved. */
+  const requestClose = () => {
+    if (saving) return;
+    if (dirtyRef.current || autosaveRunning.current || (replacementFile && !lastSavedAt)) {
+      setConfirmClose(true);
+      return;
+    }
+    closeNow();
+  };
+
+  const saveAndClose = async () => {
+    setConfirmClose(false);
+    await autosaveRunning.current;
+    await saveForm(true, false);
+  };
   const toggleExpanded = () =>
     setExpanded((wide) => {
       try {
@@ -931,8 +1101,15 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     });
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
+    <Dialog open onOpenChange={(o) => !o && requestClose()}>
       <DialogContent
+        // A click outside the form never closes it: people click away to copy
+        // from another window and come back.
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => {
+          e.preventDefault();
+          requestClose();
+        }}
         className={
           expanded
             ? 'left-0 top-0 h-screen w-screen max-w-none translate-x-0 translate-y-0 flex flex-col gap-3 rounded-none border-0 p-4 sm:rounded-none'
@@ -1028,7 +1205,11 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         ) : (
           <p className="text-xs text-muted-foreground">
             Type directly into the form fields below — including typing names on the signature
-            lines. Your entries stay on this page until you press Complete form. If a handwritten
+            lines. {updating
+              ? 'Your changes are kept when you press Update form.'
+              : existing?.status === 'changes_requested'
+                ? 'Press Save draft to keep your answers.'
+                : 'Your answers save as a draft 10 seconds after you stop typing.'} If a handwritten
             signature is required, use <span className="font-medium">Download copy</span> to
             print and sign, then submit it via Upload Form instead.
           </p>
@@ -1220,15 +1401,27 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         </label>
 
         <DialogFooter className="gap-2 sm:justify-between">
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" onClick={handleDownloadCopy} disabled={!numPages}>
               <Download className="h-4 w-4 mr-1" />
               Download copy
             </Button>
+            {canAutosave && (autosaveState !== 'idle' || lastSavedAt) && (
+              <span
+                className={`text-xs ${autosaveState === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}
+                aria-live="polite"
+              >
+                {autosaveState === 'saving'
+                  ? 'Saving…'
+                  : autosaveState === 'failed'
+                    ? 'Not saved. Select Save draft.'
+                    : `Draft saved ${lastSavedAt!.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`}
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} disabled={saving}>
-              Cancel
+            <Button variant="outline" onClick={requestClose} disabled={saving}>
+              Close
             </Button>
             <Button
               variant="outline"
@@ -1248,6 +1441,34 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save your changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your latest changes to this form have not been saved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <Button
+              variant="outline"
+              className="text-destructive"
+              onClick={() => {
+                setConfirmClose(false);
+                dirtyRef.current = false;
+                closeNow();
+              }}
+            >
+              Discard changes
+            </Button>
+            {!updating && clientId && (
+              <Button onClick={() => void saveAndClose()}>Save draft</Button>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };
