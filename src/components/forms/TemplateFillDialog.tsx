@@ -26,6 +26,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { ClientPicker } from '@/components/ClientPicker';
 import { loadCaseManagerFacts, loadClientFacts } from '@/lib/clientFacts';
 import { SignOnForm } from '@/components/forms/SignOnForm';
+import { WebFormView } from '@/components/forms/WebFormView';
+import { WEB_FORMS } from '@/lib/webForms';
 import {
   defaultPlacement,
   stampSignature,
@@ -256,6 +258,11 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const unrecordedFileRef = useRef<{ path: string; hash: string; size: number } | null>(null);
 
   const formType = existing ? existing.form_type : template?.formType ?? '';
+  /** Forms with a web version open on it; the PDF view is one press away. */
+  const webSchema = WEB_FORMS[formType] ?? null;
+  const [view, setView] = useState<'form' | 'pdf'>(webSchema ? 'form' : 'pdf');
+  /** Bumped on the way into the PDF view, so its boxes show the web form's answers. */
+  const [pagesKey, setPagesKey] = useState(0);
   const clientName = existing?.clients
     ? `${existing.clients.last_name}, ${existing.clients.first_name}`
     : lockedClientName ?? null;
@@ -811,7 +818,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         },
       ]);
       setSelectedSig(id);
-      toast({ title: `Signed with ${label}`, description: 'Drag it to where it belongs.' });
+      toast({
+        title: `Signed with ${label}`,
+        description: view === 'form' && webSchema ? 'Select PDF to see it or move it.' : 'Drag it to where it belongs.',
+      });
     } catch (err: any) {
       toast({ title: 'Could not sign it', description: err.message, variant: 'destructive' });
     }
@@ -1228,6 +1238,26 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             </div>
           )}
           <div className="flex items-center gap-2">
+            {webSchema && hasFields !== false && (
+              <div className="flex rounded-lg border bg-muted/40 p-0.5 text-sm" role="tablist" aria-label="View">
+                {(['form', 'pdf'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    role="tab"
+                    aria-selected={view === v}
+                    onClick={() => {
+                      if (v === 'pdf' && view !== 'pdf') setPagesKey((k) => k + 1);
+                      setView(v);
+                    }}
+                    className={`rounded-md px-3 py-1 ${view === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground'}`}
+                  >
+                    {v === 'form' ? 'Form' : 'PDF'}
+                  </button>
+                ))}
+              </div>
+            )}
+            {view === 'pdf' && (<>
             <Button
               variant="outline"
               size="sm"
@@ -1243,6 +1273,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             >
               <ZoomIn className="h-4 w-4" />
             </Button>
+            </>)}
           </div>
         </div>
 
@@ -1294,10 +1325,21 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                 </div>
               }
             >
-              <div className="flex flex-col items-center gap-4" ref={pagesRef}>
+              {view === 'form' && webSchema && numPages > 0 && docRef.current && (
+                <WebFormView
+                  doc={docRef.current}
+                  schema={webSchema}
+                  onChange={() => {
+                    dirtyRef.current = true;
+                    setEditTick((t) => t + 1);
+                  }}
+                />
+              )}
+              {/* Kept loaded behind the web form: it is the document saved. */}
+              <div className={`flex flex-col items-center gap-4 ${view === 'form' && webSchema ? 'hidden' : ''}`} ref={pagesRef}>
                 {Array.from({ length: numPages }, (_, i) => (
                   <div
-                    key={i}
+                    key={`${i}-${pagesKey}`}
                     ref={(el) => {
                       pageRefs.current[i] = el;
                     }}
