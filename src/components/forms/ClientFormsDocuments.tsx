@@ -644,7 +644,6 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     // button, where people look for it; Download moves into the menu.
     const edits = !continues && canEdit(form);
     const menu: MenuItem[] = [
-      ...((continues || edits) && form.file_path ? [{ label: 'Download', onSelect: () => void download(form) }] : []),
       { label: 'Remove', onSelect: () => setConfirmDelete(form), destructive: true },
     ];
     const rounds =
@@ -676,15 +675,25 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       </button>
     );
     // In plain sight on the row, where admins look for it, rather than in the menu.
+    // In plain sight under the name: Download (to send the form to the MCO,
+    // say) when the row's button is Edit or Continue, and Edit history for admins.
+    const linkClass = 'text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground';
+    const showDownload = (continues || edits) && !!form.file_path;
+    const showHistory = isAdmin && !!form.file_path;
     const historyLink =
-      isAdmin && form.file_path ? (
-        <button
-          type="button"
-          onClick={() => setHistoryFor(form)}
-          className="ml-6 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-        >
-          Edit history
-        </button>
+      showDownload || showHistory ? (
+        <div className="ml-6 flex gap-4">
+          {showDownload && (
+            <button type="button" onClick={() => void download(form)} className={linkClass}>
+              Download
+            </button>
+          )}
+          {showHistory && (
+            <button type="button" onClick={() => setHistoryFor(form)} className={linkClass}>
+              Edit history
+            </button>
+          )}
+        </div>
       ) : null;
     const button = (className: string) =>
       continues ? (
