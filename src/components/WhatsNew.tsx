@@ -10,9 +10,14 @@ import { useCanViewStaffActivity } from '@/hooks/useCanViewStaffActivity';
 import { todayAgency } from '@/lib/billing';
 import { AutosaveIllustration } from '@/components/illustrations/AutosaveIllustration';
 import { EditHistoryIllustration } from '@/components/illustrations/EditHistoryIllustration';
+import { WebIntakeIllustration } from '@/components/illustrations/WebIntakeIllustration';
 import { FEATURES, RIBBON_MS, loadViews, markNotified, markSeen, type Feature, type FeatureAudience } from '@/lib/whatsNew';
 
-const ILLUSTRATIONS = { autosave: AutosaveIllustration, editHistory: EditHistoryIllustration } as const;
+const ILLUSTRATIONS = {
+  autosave: AutosaveIllustration,
+  editHistory: EditHistoryIllustration,
+  webIntake: WebIntakeIllustration,
+} as const;
 
 /**
  * A NEW band across the top left corner, wrapping round the card's edges: the
