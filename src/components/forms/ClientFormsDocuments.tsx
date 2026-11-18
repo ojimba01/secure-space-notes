@@ -627,7 +627,6 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     const edits = !continues && canEdit(form);
     const menu: MenuItem[] = [
       ...((continues || edits) && form.file_path ? [{ label: 'Download', onSelect: () => void download(form) }] : []),
-      ...(isAdmin && form.file_path ? [{ label: 'Edit history', onSelect: () => setHistoryFor(form) }] : []),
       { label: 'Remove', onSelect: () => setConfirmDelete(form), destructive: true },
     ];
     const rounds =
@@ -658,6 +657,17 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         </div>
       </button>
     );
+    // In plain sight on the row, where admins look for it, rather than in the menu.
+    const historyLink =
+      isAdmin && form.file_path ? (
+        <button
+          type="button"
+          onClick={() => setHistoryFor(form)}
+          className="ml-6 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Edit history
+        </button>
+      ) : null;
     const button = (className: string) =>
       continues ? (
         <Button size="sm" className={`${ACTION_CLASS.draft} ${className}`} onClick={() => setContinuing(form)}>
@@ -680,7 +690,10 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       <div key={form.id}>
         <div className={`${ROW_GRID} p-2 pl-2.5`}>
           <span />
-          {name(true)}
+          <div className="min-w-0">
+            {name(true)}
+            {historyLink}
+          </div>
           {statusLabel}
           {button('w-full')}
           <span />
@@ -690,6 +703,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         </div>
         <div className={`${ROW_STACK} space-y-2 p-3`}>
           {name(false)}
+          {historyLink}
           {statusLabel}
           <div className="flex items-center gap-2">
             {button('h-11 flex-1')}
