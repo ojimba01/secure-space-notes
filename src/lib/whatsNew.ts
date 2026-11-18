@@ -37,6 +37,17 @@ export interface Feature {
 
 export const FEATURES: Feature[] = [
   {
+    key: 'form-edit-history',
+    message: 'Forms now keep a full edit history.',
+    audience: 'admins',
+    announceUntil: '2026-12-02',
+    popup: {
+      title: 'Every change, accounted for!',
+      body: 'Forms now keep a full edit history. Edit history has been enabled on your account.',
+      illustration: 'editHistory',
+    },
+  },
+  {
     key: 'forms-autosave',
     message: 'Forms now save automatically.',
     audience: 'everyone',
