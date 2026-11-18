@@ -37,7 +37,9 @@ export const WebFormView: React.FC<{
   onChange: () => void;
   /** Runs after a change, before the answers are read back (the LON's total). */
   afterChange?: () => Promise<void>;
-}> = ({ doc, schema, onChange, afterChange }) => {
+  /** Shown under a question: its comments, and a way to add one. */
+  renderExtras?: (field: string, label: string) => React.ReactNode;
+}> = ({ doc, schema, onChange, afterChange, renderExtras }) => {
   const storage = (doc as unknown as { annotationStorage: Storage }).annotationStorage;
   const [fields, setFields] = useState<Record<string, FieldObject[]> | null>(null);
   const [values, setValues] = useState<Record<string, string | boolean>>({});
@@ -171,6 +173,7 @@ export const WebFormView: React.FC<{
                     ) : (
                       <Input id={id} value={String(values[item.field] ?? '')} onChange={(e) => setText(item.field, e.target.value)} />
                     )}
+                    {renderExtras?.(item.field, item.label)}
                   </div>
                 );
               }
@@ -194,6 +197,7 @@ export const WebFormView: React.FC<{
                         </option>
                       ))}
                     </select>
+                    {renderExtras?.(item.field, item.label)}
                   </div>
                 );
               }
@@ -220,6 +224,7 @@ export const WebFormView: React.FC<{
                         );
                       })}
                     </div>
+                    {renderExtras?.(item.field, item.label)}
                   </div>
                 );
               }
@@ -234,6 +239,7 @@ export const WebFormView: React.FC<{
                       </label>
                     ))}
                   </div>
+                  {renderExtras?.(item.options[0]?.field ?? item.label, item.label)}
                 </div>
               );
             })}

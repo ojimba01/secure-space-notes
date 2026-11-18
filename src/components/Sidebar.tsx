@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { 
   Users, 
   LogOut, 
@@ -117,6 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
       <div className="flex flex-1 items-center gap-2 min-w-0">
         <BrandMark className="max-h-9 w-auto" />
       </div>
+      <NotificationBell className="h-10 w-10 shrink-0" />
       <Button
         variant="ghost"
         size="icon"
@@ -170,6 +172,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             {/* Your own account: your signatures and your password. At the top
                 where a profile belongs, rather than at the foot of the
                 navigation under everything else. */}
+            <NotificationBell className="shrink-0 h-10 w-10 text-primary hover:bg-white/60" />
             <Button
               variant="ghost"
               size="icon"

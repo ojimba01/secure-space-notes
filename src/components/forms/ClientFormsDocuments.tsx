@@ -51,6 +51,7 @@ import {
 import { nextFormTitle } from '@/lib/formTitles';
 import { UhcMoveInDialog, type UhcExistingForm } from '@/components/forms/UhcMoveInDialog';
 import { FormHistoryDialog } from '@/components/forms/FormHistoryDialog';
+import { openCommentCounts } from '@/lib/formComments';
 import { fetchClientAuthorizations, formatAuthDate, type ClientAuthorization } from '@/lib/authorizations';
 import { FORMS_FOR_RESTART, latestRestart, pendingRestart, type PendingRestart } from '@/lib/restartAuthorization';
 import { UHC_FORM_LABEL, UHC_FORM_TYPE, UHC_MCO } from '@/lib/uhcMoveIn/model';
@@ -294,6 +295,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const [signerName, setSignerName] = useState('Case manager');
   /** The form whose edit history is open. */
   const [historyFor, setHistoryFor] = useState<DocumentRow | null>(null);
+  /** Comments still to fix, per form (src/lib/formComments.ts). */
+  const [commentCounts, setCommentCounts] = useState<Map<string, number>>(new Map());
   const [preview, setPreview] = useState<{
     id: string;
     file_name: string;
@@ -328,6 +331,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       if (formsResult.error) throw formsResult.error;
       const rows = (formsResult.data as unknown as DocumentRow[]) ?? [];
       setForms(rows);
+      void openCommentCounts(rows.map((r) => r.id)).then(setCommentCounts).catch(() => {});
       setManualTicks(ticks);
 
       const ids = [...new Set(rows.map((f) => f.employee_id).filter((id): id is string => !!id))];
@@ -617,9 +621,17 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     // A draft is unfinished work: the way back into it is the row's button.
     const continues = !isCompleted(form) && !!form.file_path && !form.form_data;
     const title = form.title || form.form_type;
+    const toFix = commentCounts.get(form.id) ?? 0;
     const statusLabel = (
-      <span className={`w-fit rounded-md px-2 py-0.5 text-xs ${FORM_STATUS_CLASS[form.status] ?? ''}`}>
-        {FORM_STATUS_LABEL[form.status] ?? form.status}
+      <span className="flex flex-wrap items-center gap-1">
+        <span className={`w-fit rounded-md px-2 py-0.5 text-xs ${FORM_STATUS_CLASS[form.status] ?? ''}`}>
+          {FORM_STATUS_LABEL[form.status] ?? form.status}
+        </span>
+        {toFix > 0 && (
+          <span className="w-fit rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+            {toFix} {toFix === 1 ? 'comment' : 'comments'}
+          </span>
+        )}
       </span>
     );
     // A completed form its author (or an admin) can change gets Edit as its

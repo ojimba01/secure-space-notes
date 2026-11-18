@@ -25,6 +25,14 @@ const log = (m: string) => console.debug('[mock]', m);
 const user = { id: who.user, email: who === STAFF ? 'taylor.brooks@example.org' : 'jordan.price@example.org', user_metadata: {}, app_metadata: {}, aud: 'authenticated', created_at: '' };
 const session = signedOut ? null : { user, access_token: 'mock', refresh_token: 'mock', expires_in: 3600, token_type: 'bearer' };
 
+/** The blank template each saved form opens as. */
+const FORM_TEMPLATE: Record<string, string> = {
+  'Client Intake': '/form-templates/client-intake.pdf',
+  'Initial Assessment (IAT)': '/form-templates/initial-assessment-tool.pdf',
+  'Level of Need (LON)': '/form-templates/level-of-need-assessment-tool.pdf',
+  'Housing Stabilization Plan (HSP)': '/form-templates/housing-stabilization-plan.pdf',
+};
+
 const blankPdf = () =>
   new Blob(
     ['%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF'],
@@ -90,8 +98,17 @@ export const supabase: any = {
   },
   storage: {
     from: (bucket: string) => ({
-      download: (path: string) =>
-        Promise.resolve({ data: bucket === 'signatures' ? dataUrlBlob(signaturePng(path)) : blankPdf(), error: null }),
+      download: async (path: string) => {
+        if (bucket === 'signatures') return { data: dataUrlBlob(signaturePng(path)), error: null };
+        // A saved form opens as its blank template, so it can be read and edited.
+        const form = (db.client_forms ?? []).find((f: any) => f.file_path === path);
+        const template = form && FORM_TEMPLATE[form.form_type as string];
+        if (template) {
+          const res = await fetch(template);
+          if (res.ok) return { data: await res.blob(), error: null };
+        }
+        return { data: blankPdf(), error: null };
+      },
       upload: () => Promise.resolve({ data: { path: 'x' }, error: null }),
       createSignedUrl: (path: string) =>
         Promise.resolve({ data: { signedUrl: bucket === 'signatures' || bucket === 'support-attachments' ? signaturePng(path) : 'about:blank' }, error: null }),
