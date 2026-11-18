@@ -30,7 +30,7 @@ export interface Feature {
     /** One short paragraph, for an announcement with a picture. */
     body?: string;
     /** A picture across the top, with a NEW ribbon on the corner. */
-    illustration?: 'autosave';
+    illustration?: 'autosave' | 'editHistory';
     goTo?: { label: string; path: string; state?: unknown };
   };
 }
