@@ -55,6 +55,29 @@ guides, and superadmins also get the filter buttons.
   its audience and a last day. Its notice shows once per person for 5 seconds
   at the top of the screen. Mark the new controls with `useNewRibbon` and
   `NewRibbon`; the ribbon lasts 24 hours from the person's first sight of it.
+- A major feature can get a picture popup (`popup.illustration`, drawn in
+  `src/components/illustrations/`): a picture across the top, a NEW corner
+  ribbon, a big bold title, one or two sentences and a Got it button.
+- Draft every announcement and show it to the owner before publishing it.
+
+### How to write announcements
+
+The owner's edits to the autosave announcement set the style. The approved
+text was:
+
+> **Never lose your work again!**
+> Forms now save automatically as you work. Autosave has been enabled on your account.
+
+- Lead with a short, upbeat headline about the benefit, like marketing
+  ("Never lose your work again!"), not a label ("Forms now save as you go").
+- Follow with at most two short sentences: what changed, then that it is
+  already set up for them.
+- Use professional language. Say "has been enabled on your account", not
+  "is already on".
+- Leave out details people do not need: no timings ("10 seconds"), no
+  numbered steps, no instructions on where to look or what an icon means.
+- Keep the picture consistent with the text; drop anything in it that the
+  text no longer mentions (the "10s" timer went when the timing did).
 
 ## Other conventions
 
