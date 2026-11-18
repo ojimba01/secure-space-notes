@@ -43,7 +43,7 @@ export const FEATURES: Feature[] = [
     announceUntil: '2026-12-02',
     popup: {
       title: 'Never lose your work again!',
-      body: 'Forms now save automatically as you work. A green cloud at the bottom of each form confirms your changes are saved. Autosave has been enabled on your account.',
+      body: 'Forms now save automatically as you work. Autosave has been enabled on your account.',
       illustration: 'autosave',
     },
   },
