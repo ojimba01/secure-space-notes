@@ -213,9 +213,9 @@ const Admin = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="grid gap-3 xl:grid-cols-2">
               {(showActiveOnly ? employees.filter((e) => e.active) : employees).map((employee) => (
-                <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={employee.id} className="flex flex-col gap-3 p-4 border rounded-lg">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="font-medium">
@@ -242,7 +242,7 @@ const Admin = () => {
                       Joined: {new Date(employee.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
                       {employee.user_roles?.map((ur) => (
                         <Badge key={ur.role} variant={ur.role === 'admin' ? 'default' : 'secondary'}>
@@ -274,7 +274,7 @@ const Admin = () => {
                 </div>
               ))}
               {(showActiveOnly ? employees.filter((e) => e.active) : employees).length === 0 && (
-                <p className="text-center text-muted-foreground py-8">No staff found</p>
+                <p className="text-center text-muted-foreground py-8 xl:col-span-2">No staff found</p>
               )}
             </div>
           </CardContent>

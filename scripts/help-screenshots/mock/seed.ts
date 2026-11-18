@@ -157,11 +157,14 @@ export function seed(): Tables {
     { client: 'c-1', type: 'Housing Stabilization Plan (HSP)', status: 'draft', d: -1, by: 'p-staff', src: 'created_in_app' },
     { client: 'c-1', type: 'Approval Letter', status: 'submitted', d: -110, by: 'p-riley', src: 'manual_upload', title: 'Approval letter · 150-day', fields: { field_njhmis_id: '51277', fields_extracted_at: at(-110) } },
     { client: 'c-2', type: 'Initial Assessment (IAT)', status: 'submitted', d: -94, by: 'p-staff', src: 'created_in_app' },
+    { client: 'c-3', type: 'Client Intake', status: 'submitted', d: -1, by: 'p-riley', src: 'created_in_app' },
+    { client: 'c-4', type: 'Client Intake', status: 'submitted', d: -3, by: 'p-staff', src: 'created_in_app' },
+    { client: 'c-4', type: 'Level of Need (LON)', status: 'submitted', d: -2, by: 'p-staff', src: 'created_in_app' },
   ].map((f, i) => ({
     id: `f-${i}`, client_id: f.client, employee_id: f.by, form_type: f.type, title: f.title ?? f.type, status: f.status,
     file_path: `forms/${f.client}/f-${i}/form.pdf`, original_file_path: null, external_status: f.ext ?? 'not_sent',
     sent_to_mco_at: null, mco_response_at: null, due_date: null, workflow_purpose: null, source: f.src, source_filename: null,
-    template_version: null, authorization_id: null, signature_name: null, signed_at: null, approved_at: null, review_note: null,
+    template_version: null, authorization_id: null, signature_name: null, signed_at: f.status === 'submitted' ? at(f.d, 11) : null, approved_at: null, review_note: null,
     created_at: at(f.d, 11), processing_status: 'done', processing_error: null, text_char_count: 1200, page_count: 4,
     ocr_applied: false, text_truncated: false, ...((f as any).fields ?? {}),
   }));

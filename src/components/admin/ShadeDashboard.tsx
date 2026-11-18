@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { FormsToReview } from '@/components/admin/FormsToReview';
 import { useSuperadminCompliance } from '@/hooks/useSuperadminCompliance';
 import { todayAgency } from '@/lib/compliance';
 import {
@@ -115,6 +116,13 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
           </Button>
         </div>
       )}
+      {/* Forms to review beside the two short lists; the wide Touchpoints table below. */}
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+      <div className="lg:col-span-2">
+        <FormsToReview onOpenClient={onOpenClient} />
+      </div>
+      <div className="space-y-4">
+
       {/* ------------------------------------------------ claims ---------- */}
       <Card>
         <CardHeader>
@@ -192,6 +200,48 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
         </CardContent>
       </Card>
 
+      {/* ---------------------------------------------------- HSP --------- */}
+      <Card>
+        <CardHeader>
+          <CardTitle data-tutorial="hsp-panel" className="text-lg">HSPs</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm">
+            {hsp?.overdue.length ?? 0} overdue. {hsp?.dueSoon.length ?? 0} due within 5 days.{' '}
+            {hsp?.submittedLate.length ?? 0} submitted late. Due on day 25.
+          </p>
+
+          {(hsp?.unknownDate ?? 0) > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {hsp?.unknownDate} submitted before dates were recorded.
+            </p>
+          )}
+
+          {[...(hsp?.overdue ?? []), ...(hsp?.dueSoon ?? [])].length > 0 && (
+            <div className="divide-y rounded-md border">
+              {[...(hsp?.overdue ?? []), ...(hsp?.dueSoon ?? [])].slice(0, 15).map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => onOpenClient(r.id)}
+                  className="flex w-full flex-wrap items-center justify-between gap-2 p-2.5 text-left text-sm hover:bg-muted/50"
+                >
+                  <span className="truncate">{r.clientName}</span>
+                  <Badge
+                    variant="secondary"
+                    className={r.daysLate > 0 ? 'bg-destructive/15 text-destructive' : 'bg-amber-100 text-amber-900'}
+                  >
+                    {r.daysLate > 0 ? `${r.daysLate} days over` : `due ${r.dueDate}`}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      </div>
+      </div>
+
       {/* -------------------------------------------- touchpoints --------- */}
       <Card>
         <CardHeader>
@@ -268,45 +318,6 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
         </CardContent>
       </Card>
 
-      {/* ---------------------------------------------------- HSP --------- */}
-      <Card>
-        <CardHeader>
-          <CardTitle data-tutorial="hsp-panel" className="text-lg">HSPs</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm">
-            {hsp?.overdue.length ?? 0} overdue. {hsp?.dueSoon.length ?? 0} due within 5 days.{' '}
-            {hsp?.submittedLate.length ?? 0} submitted late. Due on day 25.
-          </p>
-
-          {(hsp?.unknownDate ?? 0) > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {hsp?.unknownDate} submitted before dates were recorded.
-            </p>
-          )}
-
-          {[...(hsp?.overdue ?? []), ...(hsp?.dueSoon ?? [])].length > 0 && (
-            <div className="divide-y rounded-md border">
-              {[...(hsp?.overdue ?? []), ...(hsp?.dueSoon ?? [])].slice(0, 15).map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => onOpenClient(r.id)}
-                  className="flex w-full flex-wrap items-center justify-between gap-2 p-2.5 text-left text-sm hover:bg-muted/50"
-                >
-                  <span className="truncate">{r.clientName}</span>
-                  <Badge
-                    variant="secondary"
-                    className={r.daysLate > 0 ? 'bg-destructive/15 text-destructive' : 'bg-amber-100 text-amber-900'}
-                  >
-                    {r.daysLate > 0 ? `${r.daysLate} days over` : `due ${r.dueDate}`}
-                  </Badge>
-                </button>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };
