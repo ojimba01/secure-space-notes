@@ -244,6 +244,13 @@ const TEXT_MARKERS: TextMarker[] = [
     issuer: 'State',
     needles: ['initial assessment tool'],
   },
+  // The agency's own intake. Its questions mention Medicaid, which used to
+  // file two intakes as Medicaid Eligibility before this title was known.
+  {
+    documentType: 'Client Intake',
+    issuer: null,
+    needles: ['client intake form'],
+  },
   {
     documentType: 'Level of Need (LON)',
     issuer: 'State',
@@ -481,6 +488,12 @@ const loadPdf = async (bytes: ArrayBuffer | Uint8Array) => {
 };
 
 /** Page-1 text via pdfjs, which the app already ships for the PDF viewer. */
+/** The document type a page's printed text names, by its title; null when none. */
+export function typeFromText(text: string): DocumentType | null {
+  const low = text.toLowerCase();
+  return TEXT_MARKERS.find((m) => markerMatches(low, m))?.documentType ?? null;
+}
+
 async function firstPageText(bytes: ArrayBuffer | Uint8Array): Promise<string> {
   try {
     const { pdfjs } = await import('react-pdf');
