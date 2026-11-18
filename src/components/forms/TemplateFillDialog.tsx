@@ -252,6 +252,8 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const [confirmClose, setConfirmClose] = useState(false);
   /** Anything saved without the window closing, so the list is refreshed on close. */
   const autosavedRef = useRef(false);
+  /** The file the latest autosave wrote, not yet kept as a version. */
+  const unrecordedFileRef = useRef<{ path: string; hash: string; size: number } | null>(null);
 
   const formType = existing ? existing.form_type : template?.formType ?? '';
   const clientName = existing?.clients
@@ -631,6 +633,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       if (replaced) void supabase.storage.from('client-files').remove([replaced]).catch(() => {});
       lastSaveTimeRef.current = Date.now();
 
+      unrecordedFileRef.current = silent ? { path: filePath, hash: fileHash, size: blob.size } : null;
       if (silent) {
         autosavedRef.current = true;
         setLastSavedAt(new Date());
@@ -1090,6 +1093,21 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
 
   /** Close, letting the list know about a draft autosave made. */
   const closeNow = () => {
+    // What autosave wrote is kept as a version, so Edit history shows who
+    // made these changes rather than the next person to save.
+    const last = unrecordedFileRef.current;
+    if (last && savedIdRef.current) {
+      unrecordedFileRef.current = null;
+      autosaveFileRef.current = null;
+      void recordFormVersion({
+        clientFormId: savedIdRef.current,
+        filePath: last.path,
+        versionType: existing && existing.status !== 'draft' ? 'corrected' : 'draft',
+        createdBy: profileId,
+        fileHash: last.hash,
+        fileSize: last.size,
+      }).catch(() => {});
+    }
     if (!existing && savedIdRef.current) {
       finishTask('draft');
       onSubmitted();

@@ -50,6 +50,7 @@ import {
 } from '@/components/forms/TemplateFillDialog';
 import { nextFormTitle } from '@/lib/formTitles';
 import { UhcMoveInDialog, type UhcExistingForm } from '@/components/forms/UhcMoveInDialog';
+import { FormHistoryDialog } from '@/components/forms/FormHistoryDialog';
 import { fetchClientAuthorizations, formatAuthDate, type ClientAuthorization } from '@/lib/authorizations';
 import { FORMS_FOR_RESTART, latestRestart, pendingRestart, type PendingRestart } from '@/lib/restartAuthorization';
 import { UHC_FORM_LABEL, UHC_FORM_TYPE, UHC_MCO } from '@/lib/uhcMoveIn/model';
@@ -291,6 +292,8 @@ export const ClientFormsDocuments: React.FC<Props> = ({
   const [round, setRound] = useState(1);
   const [pending, setPending] = useState<PendingRestart | null>(null);
   const [signerName, setSignerName] = useState('Case manager');
+  /** The form whose edit history is open. */
+  const [historyFor, setHistoryFor] = useState<DocumentRow | null>(null);
   const [preview, setPreview] = useState<{
     id: string;
     file_name: string;
@@ -624,6 +627,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
     const edits = !continues && canEdit(form);
     const menu: MenuItem[] = [
       ...((continues || edits) && form.file_path ? [{ label: 'Download', onSelect: () => void download(form) }] : []),
+      ...(isAdmin && form.file_path ? [{ label: 'Edit history', onSelect: () => setHistoryFor(form) }] : []),
       { label: 'Remove', onSelect: () => setConfirmDelete(form), destructive: true },
     ];
     const rounds =
@@ -991,6 +995,14 @@ export const ClientFormsDocuments: React.FC<Props> = ({
             load();
             onChanged?.();
           }}
+        />
+      )}
+
+      {historyFor && (
+        <FormHistoryDialog
+          formId={historyFor.id}
+          title={historyFor.title || historyFor.form_type}
+          onClose={() => setHistoryFor(null)}
         />
       )}
 
