@@ -35,7 +35,24 @@ import { useToast } from '@/hooks/use-toast';
 import { useTaskActivity } from '@/hooks/useStaffActivity';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
-import { Download, Maximize2, Minimize2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { CloudAlert, CloudUpload, Download, Maximize2, Minimize2, X, ZoomIn, ZoomOut } from 'lucide-react';
+
+/** A cloud with a check mark: the form is saved. Drawn like the other icons. */
+const CloudCheck: React.FC<{ className?: string; 'aria-hidden'?: boolean }> = (props) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+    <path d="m8.5 14.5 2.5 2.5 4.5-4.5" />
+  </svg>
+);
 import { COMPLETED_STATUS, type FormType } from '@/lib/formSigning';
 import type { FormRow } from '@/components/forms/FormsHub';
 import {
@@ -233,6 +250,8 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const autosaveFileRef = useRef<string | null>(null);
   const lastSaveTimeRef = useRef(Date.now());
   const [confirmClose, setConfirmClose] = useState(false);
+  /** Anything saved without the window closing, so the list is refreshed on close. */
+  const autosavedRef = useRef(false);
 
   const formType = existing ? existing.form_type : template?.formType ?? '';
   const clientName = existing?.clients
@@ -550,16 +569,23 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         // Repoint the same row at the corrected file; the previously
         // submitted file stays in storage as history. original_file_path
         // keeps the first submission for the audit trail.
+        // Autosave on a completed form, or one sent back for changes, saves
+        // the answers and leaves its status and signature as they are.
+        const keepStatus = silent && !!existing && existing.status !== 'draft';
         const { error } = await supabase
           .from('client_forms')
           .update({
             file_path: filePath,
             file_size: blob.size,
             file_hash: fileHash,
-            status: asDraft ? 'draft' : COMPLETED_STATUS,
-            signature_name: asDraft ? null : signerName,
-            signed_by: asDraft ? null : profileId,
-            signed_at: asDraft ? null : new Date().toISOString(),
+            ...(keepStatus
+              ? {}
+              : {
+                  status: asDraft ? 'draft' : COMPLETED_STATUS,
+                  signature_name: asDraft ? null : signerName,
+                  signed_by: asDraft ? null : profileId,
+                  signed_at: asDraft ? null : new Date().toISOString(),
+                }),
           })
           .eq('id', targetId);
         if (error) throw error;
@@ -606,6 +632,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       lastSaveTimeRef.current = Date.now();
 
       if (silent) {
+        autosavedRef.current = true;
         setLastSavedAt(new Date());
         return;
       }
@@ -990,13 +1017,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     }
   });
   /**
-   * New forms and drafts save themselves as a draft. A completed form being
-   * edited, or one sent back for changes, does not: saving it as a draft would
-   * take it out of its current state without anyone choosing that.
+   * Every form saves itself. New forms and drafts save as a draft; a completed
+   * form being edited, or one sent back for changes, keeps its status.
    */
   const canAutosave =
-    !updating &&
-    (!existing || existing.status === 'draft') &&
     hasFields !== false &&
     !!clientId &&
     numPages > 0;
@@ -1069,7 +1093,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     if (!existing && savedIdRef.current) {
       finishTask('draft');
       onSubmitted();
-    } else if (existing && lastSavedAt) {
+    } else if (existing && autosavedRef.current) {
       onSubmitted();
     }
     onClose();
@@ -1088,6 +1112,23 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const saveAndClose = async () => {
     setConfirmClose(false);
     await autosaveRunning.current;
+    if (existing && existing.status !== 'draft') {
+      // Saved as autosave does, so a completed form stays completed.
+      setSaving(true);
+      try {
+        await saveForm(true, true);
+        closeNow();
+      } catch (err: unknown) {
+        toast({
+          title: 'Could not save the form',
+          description: err instanceof Error ? err.message : String(err),
+          variant: 'destructive',
+        });
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     await saveForm(true, false);
   };
   const toggleExpanded = () =>
@@ -1205,11 +1246,9 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         ) : (
           <p className="text-xs text-muted-foreground">
             Type directly into the form fields below — including typing names on the signature
-            lines. {updating
-              ? 'Your changes are kept when you press Update form.'
-              : existing?.status === 'changes_requested'
-                ? 'Press Save draft to keep your answers.'
-                : 'Your answers save as a draft 10 seconds after you stop typing.'} If a handwritten
+            lines. {existing && existing.status !== 'draft'
+              ? 'Your changes save 10 seconds after you stop typing.'
+              : 'Your answers save as a draft 10 seconds after you stop typing.'} If a handwritten
             signature is required, use <span className="font-medium">Download copy</span> to
             print and sign, then submit it via Upload Form instead.
           </p>
@@ -1408,14 +1447,21 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             </Button>
             {canAutosave && (autosaveState !== 'idle' || lastSavedAt) && (
               <span
-                className={`text-xs ${autosaveState === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}
+                className={`flex items-center gap-1.5 text-xs ${autosaveState === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}
                 aria-live="polite"
               >
+                {autosaveState === 'saving' ? (
+                  <CloudUpload className="h-5 w-5" aria-hidden />
+                ) : autosaveState === 'failed' ? (
+                  <CloudAlert className="h-5 w-5" aria-hidden />
+                ) : (
+                  <CloudCheck className="h-5 w-5 text-green-600" aria-hidden />
+                )}
                 {autosaveState === 'saving'
                   ? 'Saving…'
                   : autosaveState === 'failed'
-                    ? 'Not saved. Select Save draft.'
-                    : `Draft saved ${lastSavedAt!.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`}
+                    ? `Not saved. Select ${updating ? 'Update form' : 'Save draft'}.`
+                    : `${existing && existing.status !== 'draft' ? 'Saved' : 'Draft saved'} ${lastSavedAt!.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`}
               </span>
             )}
           </div>
@@ -1463,8 +1509,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             >
               Discard changes
             </Button>
-            {!updating && clientId && (
-              <Button onClick={() => void saveAndClose()}>Save draft</Button>
+            {clientId && (
+              <Button onClick={() => void saveAndClose()}>
+                {existing && existing.status !== 'draft' ? 'Save changes' : 'Save draft'}
+              </Button>
             )}
           </AlertDialogFooter>
         </AlertDialogContent>
