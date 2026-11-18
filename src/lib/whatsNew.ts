@@ -23,10 +23,30 @@ export interface Feature {
    * For a change people have to find: a popup with steps, shown once, in
    * place of the five-second notice.
    */
-  popup?: { title: string; steps: string[]; goTo?: { label: string; path: string; state?: unknown } };
+  popup?: {
+    title: string;
+    /** Numbered steps, for a change people have to find. */
+    steps?: string[];
+    /** One short paragraph, for an announcement with a picture. */
+    body?: string;
+    /** A picture across the top, with a NEW ribbon on the corner. */
+    illustration?: 'autosave';
+    goTo?: { label: string; path: string; state?: unknown };
+  };
 }
 
 export const FEATURES: Feature[] = [
+  {
+    key: 'forms-autosave',
+    message: 'Forms now save automatically.',
+    audience: 'everyone',
+    announceUntil: '2026-12-02',
+    popup: {
+      title: 'Never lose your work again!',
+      body: 'Forms now save automatically 10 seconds after you stop typing. Look for the green cloud at the bottom of the form. Autosave is already on.',
+      illustration: 'autosave',
+    },
+  },
   {
     key: 'staff-activity-60-days',
     message: 'New in Staff activity: Last 60 days and custom dates.',

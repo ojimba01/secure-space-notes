@@ -8,7 +8,24 @@ import { usePreview } from '@/components/ViewAsProvider';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useCanViewStaffActivity } from '@/hooks/useCanViewStaffActivity';
 import { todayAgency } from '@/lib/billing';
+import { AutosaveIllustration } from '@/components/illustrations/AutosaveIllustration';
 import { FEATURES, RIBBON_MS, loadViews, markNotified, markSeen, type Feature, type FeatureAudience } from '@/lib/whatsNew';
+
+const ILLUSTRATIONS = { autosave: AutosaveIllustration } as const;
+
+/**
+ * A NEW band across the top left corner, wrapping round the card's edges: the
+ * two dark triangles are the band's ends folding behind.
+ */
+const CornerRibbon = () => (
+  <div className="pointer-events-none absolute -left-2 -top-2 z-10 h-28 w-28 overflow-hidden">
+    <span className="absolute right-0 top-0 h-2 w-2 bg-red-800" />
+    <span className="absolute bottom-0 left-0 h-2 w-2 bg-red-800" />
+    <span className="absolute -left-10 top-7 block w-44 -rotate-45 bg-gradient-to-r from-red-600 to-orange-500 py-1.5 text-center text-sm font-bold uppercase tracking-widest text-white shadow-md">
+      New
+    </span>
+  </div>
+);
 
 /** Shows each new feature's notice once, to the people it is for (src/lib/whatsNew.ts). */
 export const WhatsNew = () => {
@@ -46,7 +63,44 @@ export const WhatsNew = () => {
   }, [user, previewing, isAdmin, adminLoading, canView, activityLoading]);
 
   if (!popup?.popup) return null;
-  const { title, steps, goTo } = popup.popup;
+  const { title, steps, body, illustration, goTo } = popup.popup;
+  const close = () => setPopup(null);
+
+  if (illustration) {
+    const Picture = ILLUSTRATIONS[illustration];
+    return (
+      <Dialog open onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-lg gap-0 overflow-visible rounded-2xl border-0 p-0 sm:rounded-2xl">
+          <CornerRibbon />
+          <div className="overflow-hidden rounded-t-2xl bg-gradient-to-br from-sky-100 via-sky-50 to-orange-50 px-6 pb-2 pt-8">
+            <Picture className="mx-auto h-48 w-full max-w-sm" />
+          </div>
+          <div className="space-y-3 px-8 pb-8 pt-6 text-center">
+            <DialogTitle className="text-2xl font-bold tracking-tight text-primary sm:text-3xl">{title}</DialogTitle>
+            {body && <p className="text-base text-muted-foreground">{body}</p>}
+            <div className="flex justify-center gap-2 pt-3">
+              {goTo ? (
+                <Button
+                  size="lg"
+                  onClick={() => {
+                    close();
+                    navigate(goTo.path, { state: goTo.state });
+                  }}
+                >
+                  {goTo.label}
+                </Button>
+              ) : (
+                <Button size="lg" className="min-w-36" onClick={close}>
+                  Got it
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open onOpenChange={(o) => !o && setPopup(null)}>
       <DialogContent className="max-w-md">
@@ -54,7 +108,7 @@ export const WhatsNew = () => {
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <ol className="list-decimal space-y-2 pl-5 text-sm">
-          {steps.map((step) => (
+          {(steps ?? []).map((step) => (
             <li key={step}>{step}</li>
           ))}
         </ol>
