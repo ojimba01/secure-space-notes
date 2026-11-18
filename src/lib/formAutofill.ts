@@ -82,6 +82,7 @@ export function templateFieldValues(
       return prune({
         full_name: fullName(client),
         birth_date: mmddyyyy(client.date_of_birth),
+        client_phone: client.phone ?? '',
         medicaid_number: client.medicaid_id ?? '',
         mco_number: client.member_id ?? '',
         present_address: client.address ?? '',

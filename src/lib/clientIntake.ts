@@ -235,12 +235,13 @@ export async function markLifecycleIntakeComplete(clientId: string): Promise<voi
 // ---------------------------------------------------------------------------
 
 /** The client columns an intake answer can populate. */
-export type WriteThroughKey = 'date_of_birth' | 'member_id' | 'medicaid_id';
+export type WriteThroughKey = 'date_of_birth' | 'member_id' | 'medicaid_id' | 'phone';
 
 export interface ClientWriteThroughSource {
   date_of_birth?: string | null;
   member_id?: string | null;
   medicaid_id?: string | null;
+  phone?: string | null;
 }
 
 export interface WriteThroughField {
@@ -270,6 +271,8 @@ const norm = (v: string | null | undefined) => (v ?? '').trim();
 export function writeThroughPlan(
   draft: IntakeDraft,
   client: ClientWriteThroughSource,
+  /** The client's phone, from the intake's Phone box; it has no intake column. */
+  phone?: string | null,
 ): WriteThroughPlan {
   const candidates: WriteThroughField[] = [];
   const add = (key: WriteThroughKey, label: string, intakeValue: string | null | undefined) => {
@@ -287,6 +290,7 @@ export function writeThroughPlan(
   add('date_of_birth', 'Date of birth', draft.birth_date);
   add('member_id', 'MCO number', draft.mco_number);
   add('medicaid_id', 'Medicaid number', draft.medicaid_number);
+  add('phone', 'Phone', phone);
 
   return {
     fill: candidates.filter((c) => !c.clientValue),
@@ -499,6 +503,8 @@ const DATE_COLUMNS = new Set([
  *  a drawn signature is not data. Absent from the maps on purpose, not by omission. */
 const INTENTIONALLY_UNSTORED = new Set([
   'full_name', 'cert_client_signature', 'cert_staff_signature',
+  // The client's own phone belongs on the client record (writeThroughPlan).
+  'client_phone',
 ]);
 
 /** Identifiers the rest of the app keeps as bare digits, so a hand-written

@@ -17,6 +17,8 @@ interface Props {
   onSign: (png: ArrayBuffer, label: string) => void;
   /** How many marks are already on the form, so the button can say so. */
   count?: number;
+  /** A plain button among the form's other buttons, without the count beside it. */
+  compact?: boolean;
 }
 
 /**
@@ -29,7 +31,7 @@ interface Props {
  * question rather than a second button standing beside it, which is where it
  * used to be and where it took up as much room as signing did.
  */
-export const SignOnForm: React.FC<Props> = ({ onSign, count = 0 }) => {
+export const SignOnForm: React.FC<Props> = ({ onSign, count = 0, compact = false }) => {
   const { toast } = useToast();
   const profileId = useEffectiveProfileId();
   const [saved, setSaved] = useState<SavedSignature[] | null>(null);
@@ -87,11 +89,11 @@ export const SignOnForm: React.FC<Props> = ({ onSign, count = 0 }) => {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button type="button" onClick={addSignature} disabled={busy}>
+      <Button type="button" variant={compact ? 'outline' : 'default'} onClick={addSignature} disabled={busy}>
         <PenLine className="h-4 w-4 mr-2" />
         {count > 0 ? 'Add another signature' : 'Add signature'}
       </Button>
-      {count > 0 && (
+      {count > 0 && !compact && (
         <span className="text-xs text-muted-foreground">
           {count === 1 ? '1 signature on the form.' : `${count} signatures on the form.`}
         </span>

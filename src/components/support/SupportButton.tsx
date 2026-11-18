@@ -438,7 +438,8 @@ export const SupportButton: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <div data-support-widget className="fixed bottom-4 right-4 z-[90] flex flex-col items-end gap-2">
+      {/* Under an open window (z-50), never over its buttons. */}
+      <div data-support-widget className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
         {open && (
           <div className="flex max-h-[min(640px,calc(100vh-6rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border bg-background shadow-2xl">
             <div className="flex items-center justify-between border-b px-4 py-3">

@@ -679,10 +679,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
 
             const { data: clientRow } = await supabase
               .from('clients')
-              .select('date_of_birth, member_id, medicaid_id')
+              .select('date_of_birth, member_id, medicaid_id, phone')
               .eq('id', clientId)
               .maybeSingle();
-            const plan = writeThroughPlan(draft, clientRow ?? {});
+            const plan = writeThroughPlan(draft, clientRow ?? {}, values.client_phone);
             await applyWriteThrough(clientId, plan.fill);
             // Identifiers that already disagree are never overwritten silently —
             // a wrong member_id or medicaid_id is expensive to unpick later.
@@ -1198,9 +1198,6 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           </div>
         </DialogHeader>
 
-        {/* Signing is part of filling the form in, so it sits with it. */}
-        {!showReplacementPicker && <SignOnForm count={signatures.length} onSign={sign} />}
-
         {existing?.status === 'changes_requested' && existing.review_note && (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
             <div className="text-xs font-medium">Note on this form</div>
@@ -1487,6 +1484,8 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             <Button variant="outline" onClick={requestClose} disabled={saving}>
               Close
             </Button>
+            {/* Signing comes last, with the buttons that finish the form. */}
+            {!showReplacementPicker && <SignOnForm compact count={signatures.length} onSign={sign} />}
             <Button
               variant="outline"
               onClick={() => handleSubmit(true)}
@@ -1497,7 +1496,8 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             </Button>
             <Button
               onClick={() => handleSubmit(false)}
-              disabled={saving || (!numPages && !showReplacementPicker)}
+              // Never finishable before it can be saved.
+              disabled={saving || !clientId || (!numPages && !showReplacementPicker)}
               className="bg-green-600 text-white hover:bg-green-700"
             >
               {saving ? 'Saving...' : updating ? 'Update form' : 'Complete form'}

@@ -55,7 +55,8 @@ import {
 import { X } from 'lucide-react';
 
 import { UhcMoveInDialog } from '@/components/forms/UhcMoveInDialog';
-import { UHC_FORM_TYPE, UHC_MCO } from '@/lib/uhcMoveIn/model';
+import { ChooseClientDialog } from '@/components/forms/ChooseClientDialog';
+import { UHC_FORM_LABEL, UHC_FORM_TYPE, UHC_MCO } from '@/lib/uhcMoveIn/model';
 
 /** The MCO forms, by what they ask for. */
 const MCO_GROUPS = [
@@ -157,7 +158,19 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
   const [uploadOpen, setUploadOpen] = useState(false);
   /** Pre-selects the kind of form being uploaded, when it is already known. */
   const [uploadType, setUploadType] = useState<string | null>(null);
-  const [fillingTemplate, setFillingTemplate] = useState<PdfTemplate | null>(null);
+  /** A blank form waiting for its client to be chosen. */
+  const [choosingFor, setChoosingFor] = useState<PdfTemplate | 'uhc' | null>(null);
+  /** The client a new form is for, chosen first. */
+  const [chosenClient, setChosenClient] = useState<{ id: string; name: string } | null>(null);
+  const [fillingTemplate, setFillingTemplateState] = useState<PdfTemplate | null>(null);
+  // Starting a blank form asks for the client first; closing it forgets them.
+  const setFillingTemplate = (t: PdfTemplate | null) => {
+    if (t) setChoosingFor(t);
+    else {
+      setFillingTemplateState(null);
+      setChosenClient(null);
+    }
+  };
   const [editingPdf, setEditingPdf] = useState<FormRow | null>(null);
   /** The UHC request: new, or a saved one opened again. */
   const [uhcForm, setUhcForm] = useState<FormRow | 'new' | null>(null);
@@ -366,7 +379,7 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
     }));
     const uhc =
       formType === UHC_FORM_TYPE
-        ? [{ key: 'uhc-move-in', mco: UHC_MCO, onFill: () => setUhcForm('new') }]
+        ? [{ key: 'uhc-move-in', mco: UHC_MCO, onFill: () => setChoosingFor('uhc') }]
         : [];
     return [...pdfs, ...uhc].sort((a, b) => a.mco.localeCompare(b.mco));
   };
@@ -619,11 +632,30 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
         </>
       )}
 
+      {choosingFor && profileId && (
+        <ChooseClientDialog
+          formName={choosingFor === 'uhc' ? UHC_FORM_LABEL : choosingFor.label}
+          profileId={profileId}
+          onCancel={() => setChoosingFor(null)}
+          onChoose={(client) => {
+            setChosenClient(client);
+            if (choosingFor === 'uhc') setUhcForm('new');
+            else setFillingTemplateState(choosingFor);
+            setChoosingFor(null);
+          }}
+        />
+      )}
+
       {uhcForm && profileId && (
         <UhcMoveInDialog
           profileId={profileId}
+          lockedClientId={uhcForm === 'new' ? chosenClient?.id : undefined}
+          lockedClientName={uhcForm === 'new' ? chosenClient?.name : undefined}
           existing={uhcForm === 'new' ? null : { id: uhcForm.id, client_id: uhcForm.client_id, status: uhcForm.status, form_data: uhcForm.form_data }}
-          onClose={() => setUhcForm(null)}
+          onClose={() => {
+            setUhcForm(null);
+            setChosenClient(null);
+          }}
           onSaved={fetchForms}
         />
       )}
@@ -633,6 +665,8 @@ export const FormsHub: React.FC<FormsHubProps> = ({ view = 'forms' }) => {
           template={fillingTemplate}
           profileId={profileId}
           signerName={signerName}
+          lockedClientId={chosenClient?.id}
+          lockedClientName={chosenClient?.name}
           onClose={() => setFillingTemplate(null)}
           onSubmitted={fetchForms}
         />
