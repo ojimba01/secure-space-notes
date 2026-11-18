@@ -27,12 +27,29 @@ export async function readLon(filePath: string): Promise<{ level: string | null;
   if (error || !data) return { level: null, score: null };
   const raw = await extractPdfFieldValues(await data.arrayBuffer());
   const values = interpretFormValues(LON, raw);
-  const score = values.lonScore !== undefined && values.lonScore > 0 && values.lonScore <= 60 ? values.lonScore : null;
+  // The TOTAL SCORE box, or where it was left blank (it was added up by hand
+  // until the app started filling it in), the score dropdowns added up.
+  const total = values.lonScore !== undefined && values.lonScore > 0 ? values.lonScore : sumScores(raw);
+  const score = total !== null && total > 0 && total <= 60 ? total : null;
   // Only the level the form states. It is never worked out from the score:
   // that could raise a client's billing without anyone choosing it, which the
   // agency decided against. A score with no stated level fills the score only.
   const level = normalizeLevel(raw['Level of Need category']);
   return { level: level ? `${level} Level` : null, score };
+}
+
+/** The LON's score dropdowns (Score_2 … Score_19) added up, or null when none was chosen. */
+export function sumScores(raw: Record<string, string>): number | null {
+  let total = 0;
+  let any = false;
+  for (const [name, value] of Object.entries(raw)) {
+    if (!/^Score_\d+$/.test(name)) continue;
+    const n = Number(String(value).split(',')[0].trim());
+    if (!Number.isFinite(n) || String(value).trim() === '') continue;
+    total += n;
+    any = true;
+  }
+  return any ? total : null;
 }
 
 /**

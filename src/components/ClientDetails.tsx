@@ -125,14 +125,14 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('first_name, last_name, email')
+        .select('first_name, last_name')
         .eq('id', client.assigned_employee_id)
         .maybeSingle();
       
       if (error) throw error;
       
       if (data) {
-        setCaseManagerName(`${data.first_name || ''} ${data.last_name || ''} (${data.email})`.trim());
+        setCaseManagerName(`${data.first_name || ''} ${data.last_name || ''}`.trim() || null);
       } else {
         setCaseManagerName(null);
       }
