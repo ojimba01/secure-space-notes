@@ -114,6 +114,7 @@ export const WebFormView: React.FC<{
   const shown = (item: WebFormItem) => {
     if (!item.showIf) return true;
     const current = values[item.showIf.field];
+    if (item.showIf.value === '*') return current === true || (typeof current === 'string' && current.trim() !== '');
     return typeof item.showIf.value === 'boolean' ? current === item.showIf.value : same(current, item.showIf.value);
   };
 

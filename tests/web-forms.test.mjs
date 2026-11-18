@@ -12,6 +12,7 @@ const bundle = await build({
     contents: `export { CLIENT_INTAKE_WEB_FORM } from './src/lib/webForms/clientIntake';
 export { INITIAL_ASSESSMENT_WEB_FORM } from './src/lib/webForms/initialAssessment';
 export { LEVEL_OF_NEED_WEB_FORM } from './src/lib/webForms/levelOfNeed';
+export { HOUSING_STABILIZATION_PLAN_WEB_FORM } from './src/lib/webForms/housingStabilizationPlan';
 export { schemaFields } from './src/lib/webForms/types';`,
     resolveDir: process.cwd(),
   },
@@ -27,6 +28,7 @@ const FORMS = [
   ['Client Intake', mod.CLIENT_INTAKE_WEB_FORM, 'client-intake.pdf'],
   ['Initial Assessment (IAT)', mod.INITIAL_ASSESSMENT_WEB_FORM, 'initial-assessment-tool.pdf'],
   ['Level of Need (LON)', mod.LEVEL_OF_NEED_WEB_FORM, 'level-of-need-assessment-tool.pdf'],
+  ['Housing Stabilization Plan (HSP)', mod.HOUSING_STABILIZATION_PLAN_WEB_FORM, 'housing-stabilization-plan.pdf'],
 ];
 
 const norm = (s) => String(s).replace(/[^a-z0-9]/gi, '').toLowerCase();

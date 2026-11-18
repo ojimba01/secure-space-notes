@@ -4,7 +4,7 @@
 /** Show an item only while another answer is the given one. */
 export interface ShowIf {
   field: string;
-  /** A choice's value, or true for a ticked box. */
+  /** A choice's value, true for a ticked box, or '*' for any answer at all. */
   value: string | boolean;
 }
 
