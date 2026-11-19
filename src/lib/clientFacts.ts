@@ -5,7 +5,7 @@
 // IAT's date of birth) and their intake fill the gap, so a form started for a
 // client never asks for something one of their papers already says.
 import { supabase } from '@/integrations/supabase/client';
-import type { AutofillCaseManager, AutofillClient } from '@/lib/formAutofill';
+import { extractPdfFieldValues, type AutofillCaseManager, type AutofillClient } from '@/lib/formAutofill';
 import { loadAvailitySettings } from '@/lib/availity';
 
 export interface ClientFacts extends AutofillClient {
@@ -36,12 +36,12 @@ export async function loadClientFacts(clientId: string): Promise<ClientFacts> {
     db.from('clients').select(CLIENT_COLUMNS).eq('id', clientId).maybeSingle(),
     db
       .from('client_forms')
-      .select('field_medicaid_id, field_member_id, field_member_dob, field_njhmis_id, created_at')
+      .select('form_type, file_path, field_medicaid_id, field_member_id, field_member_dob, field_njhmis_id, created_at, updated_at')
       .eq('client_id', clientId)
       .order('created_at', { ascending: false }),
     db
       .from('client_intakes')
-      .select('id, emergency_contact_name, emergency_contact_phone, updated_at')
+      .select('id, emergency_contact_name, emergency_contact_phone, medicaid_number, mco_number, updated_at')
       .eq('client_id', clientId)
       .order('updated_at', { ascending: false })
       .limit(1),
@@ -58,6 +58,8 @@ export async function loadClientFacts(clientId: string): Promise<ClientFacts> {
 
   const intake = ((intakeRes.data ?? []) as Record<string, string | null>[])[0];
   if (intake) {
+    if (blank(facts.medicaid_id)) facts.medicaid_id = intake.medicaid_number;
+    if (blank(facts.member_id)) facts.member_id = intake.mco_number;
     if (blank(facts.emergency_contact_name)) facts.emergency_contact_name = intake.emergency_contact_name;
     if (blank(facts.emergency_contact_phone)) facts.emergency_contact_phone = intake.emergency_contact_phone;
     if (facts.household_size == null) {
@@ -69,7 +71,30 @@ export async function loadClientFacts(clientId: string): Promise<ClientFacts> {
       if (count) facts.household_size = count + 1;
     }
   }
+  // Still missing: the numbers typed on the client's newest intake form, a
+  // draft included, so the IAT and LON carry what the intake says.
+  if (blank(facts.medicaid_id) || blank(facts.member_id)) {
+    const intakeForm = docs
+      .filter((d) => d.form_type === 'Client Intake' && d.file_path)
+      .sort((a, b) => String(b.updated_at ?? b.created_at).localeCompare(String(a.updated_at ?? a.created_at)))[0];
+    if (intakeForm) {
+      const values = await readIntakeIds(String(intakeForm.file_path));
+      if (blank(facts.medicaid_id) && values.medicaid_number) facts.medicaid_id = values.medicaid_number;
+      if (blank(facts.member_id) && values.mco_number) facts.member_id = values.mco_number;
+    }
+  }
   return facts;
+}
+
+async function readIntakeIds(path: string): Promise<Record<string, string>> {
+  try {
+    const { data } = await supabase.storage.from('client-files').download(path);
+    if (!data) return {};
+    const values = await extractPdfFieldValues(await data.arrayBuffer());
+    return { medicaid_number: (values.medicaid_number ?? '').trim(), mco_number: (values.mco_number ?? '').trim() };
+  } catch {
+    return {};
+  }
 }
 
 /**
