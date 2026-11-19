@@ -5,6 +5,7 @@
 // replies come back here, with a dot on the button when there is a new one.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { FocusScope } from '@radix-ui/react-focus-scope';
 import { format } from 'date-fns';
 import {
   ArrowLeft,
@@ -98,6 +99,14 @@ export const SupportButton: React.FC = () => {
     window.addEventListener('open-support', show);
     return () => window.removeEventListener('open-support', show);
   }, []);
+
+  // Support can be used on top of an open form. While it is (the panel, or a
+  // screenshot being taken or marked up), say so, so Escape there does not
+  // close the form.
+  const inUse = open || capturing || !!markup;
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('support-in-use', { detail: inUse }));
+  }, [inUse]);
 
   // Look for replies on load, the moment support replies or changes a request
   // (the database pushes it), and every minute in case that push is missed.
@@ -206,6 +215,13 @@ export const SupportButton: React.FC = () => {
         height: window.innerHeight,
         logging: false,
         useCORS: true,
+        // The copy would replay open windows' fade-in from its first frame,
+        // drawing an open form faded and out of place.
+        onclone: (copy) => {
+          const still = copy.createElement('style');
+          still.textContent = '*, *::before, *::after { animation: none !important; transition: none !important; }';
+          copy.head.appendChild(still);
+        },
       });
       setMarkup(canvas);
     } catch (e) {
@@ -398,6 +414,7 @@ export const SupportButton: React.FC = () => {
       )}
 
       {markup && (
+        <FocusScope onMountAutoFocus={(e) => e.preventDefault()}>
         <ScreenshotMarkup
           image={markup}
           onCancel={() => {
@@ -410,6 +427,7 @@ export const SupportButton: React.FC = () => {
             setOpen(true);
           }}
         />
+        </FocusScope>
       )}
 
       {/* Nothing attached: a screenshot or file usually shows the problem
@@ -438,9 +456,15 @@ export const SupportButton: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Under an open window (z-50), never over its buttons. */}
-      <div data-support-widget className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
+      {/* Under an open window (z-50), never over its buttons, until it is
+          opened: then above it, and clickable over the window's backdrop. */}
+      <div
+        data-support-widget
+        className={`pointer-events-auto fixed bottom-4 right-4 flex flex-col items-end gap-2 ${open ? 'z-[90]' : 'z-40'}`}
+      >
+        {/* Its own focus scope pauses an open window's, so the panel can be typed in. */}
         {open && (
+          <FocusScope onMountAutoFocus={(e) => e.preventDefault()}>
           <div className="flex max-h-[min(640px,calc(100vh-6rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border bg-background shadow-2xl">
             <div className="flex items-center justify-between border-b px-4 py-3">
               {viewing ? (
@@ -592,6 +616,7 @@ export const SupportButton: React.FC = () => {
               )}
             </div>
           </div>
+          </FocusScope>
         )}
 
         {recording ? (

@@ -47,7 +47,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTaskActivity } from '@/hooks/useStaffActivity';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useViewAs } from '@/components/ViewAsProvider';
-import { CloudAlert, CloudUpload, Download, Maximize2, Minimize2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { CloudAlert, CloudUpload, Download, LifeBuoy, Maximize2, Minimize2, X, ZoomIn, ZoomOut } from 'lucide-react';
 
 /** A cloud with a check mark: the form is saved. Drawn like the other icons. */
 const CloudCheck: React.FC<{ className?: string; 'aria-hidden'?: boolean }> = (props) => (
@@ -262,6 +262,13 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const autosaveFileRef = useRef<string | null>(null);
   const lastSaveTimeRef = useRef(Date.now());
   const [confirmClose, setConfirmClose] = useState(false);
+  /** Support is open over the form: Escape there closes support, not the form. */
+  const [supportInUse, setSupportInUse] = useState(false);
+  useEffect(() => {
+    const onSupport = (e: Event) => setSupportInUse(!!(e as CustomEvent<boolean>).detail);
+    window.addEventListener('support-in-use', onSupport);
+    return () => window.removeEventListener('support-in-use', onSupport);
+  }, []);
   /** Anything saved without the window closing, so the list is refreshed on close. */
   const autosavedRef = useRef(false);
   /** The file the latest autosave wrote, not yet kept as a version. */
@@ -1309,7 +1316,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => {
           e.preventDefault();
-          requestClose();
+          if (!supportInUse) requestClose();
         }}
         className={
           expanded
@@ -1668,6 +1675,11 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             <Button variant="outline" size="sm" onClick={handleDownloadCopy} disabled={!numPages}>
               <Download className="h-4 w-4 mr-1" />
               Download copy
+            </Button>
+            {/* The Support button sits under this window, so the window has its own. */}
+            <Button variant="outline" size="sm" onClick={() => window.dispatchEvent(new Event('open-support'))}>
+              <LifeBuoy className="h-4 w-4 mr-1" />
+              Support
             </Button>
             {canAutosave && (autosaveState !== 'idle' || lastSavedAt) && (
               <span
