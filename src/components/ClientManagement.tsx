@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { isTestAccount, showTestAccounts } from '@/lib/testAccounts';
-import { ClientCard } from '@/components/ClientCard';
+import { ClientRow, ClientTableHeader } from '@/components/ClientRow';
 import { RestartAuthorizationDialog } from '@/components/RestartAuthorizationDialog';
 import { ClientDetails } from '@/components/ClientDetails';
 import { Button } from '@/components/ui/button';
@@ -492,7 +492,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   }
 
   return (
-    <div className="p-3 md:p-6 space-y-4 md:space-y-6">
+    <div className="mx-auto max-w-[1280px] space-y-5 p-4 md:px-9 md:py-8">
       <TouchpointReminderPopup
         key={reminderRound}
         employeeId={myProfileId}
@@ -503,7 +503,14 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       />
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary truncate">Clients</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground md:text-[32px]">Clients</h1>
+            {!loading && (
+              <span key={countPhrase} className="animate-pop rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                {countPhrase}
+              </span>
+            )}
+          </div>
         </div>
         {!selectionMode && (
           <div className="flex items-center gap-2 shrink-0">
@@ -659,56 +666,58 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
       </div>
 
 
-      <div className="flex items-center gap-3">
-        <div className="inline-flex items-center gap-2 bg-secondary/40 border rounded-full px-4 py-1.5 text-sm font-medium">
-          <Users className="h-4 w-4 text-primary" />
-          <span>{countPhrase}</span>
-        </div>
-        {filteredClients.length === 0 && !loading && (
-          <span className="text-xs text-muted-foreground">Adjust your filters or search to see results</span>
-        )}
-      </div>
-
       {loading ? (
-        <div className="text-center py-8">Loading clients...</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
-          {filteredClients.map((client) => (
-            <ClientCard
-              key={client.id}
-              client={client}
-              onSelect={(c) => { setSelectedClient(c); onOpenClientChange?.(c?.id ?? null); }}
-              selectionMode={selectionMode}
-              selected={selectedIds.has(client.id)}
-              onToggleSelect={toggleSelect}
-              showManager={isAdmin}
-              documentCount={documentCounts.get(client.id) ?? 0}
-              onCloseCase={setClosingClient}
-              // Closed cases only appear on an administrator's own filter, and
-              // reopening one is an administrator's update, so the button is
-              // never offered to somebody who could not carry it out.
-              onReopenCase={isAdmin ? setReopeningClient : undefined}
-              onRestart={isAdmin ? setRestartingClient : undefined}
-              acknowledgedEnds={acknowledgedEnds}
-              onAcknowledgeEnd={acknowledgeEnd}
-              assignedManagerName={
-                client.assigned_employee_id
-                  ? managerMap.get(client.assigned_employee_id) ?? null
-                  : null
-              }
-            />
-          ))}
-          {filteredClients.length === 0 && (
-            <div className="col-span-full text-center py-8 text-muted-foreground">
-              {isAdmin && noneFilterSelected
-                ? 'Select at least one case manager to view results.'
-                : noStatusSelected
-                ? 'Nothing chosen. Pick at least one to see clients.'
-                : searchTerm
-                ? 'No results match your search.'
-                : 'No clients found matching the selected filters.'}
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex items-center gap-6 border-b border-border px-6 py-5 last:border-0">
+              <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-20 animate-pulse rounded bg-muted" />
             </div>
-          )}
+          ))}
+        </div>
+      ) : filteredClients.length === 0 ? (
+        <div className="animate-rise rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
+          <Search className="mx-auto mb-3 h-8 w-8 animate-float text-muted-foreground/60" strokeWidth={1.5} />
+          <p className="text-sm text-muted-foreground">
+            {isAdmin && noneFilterSelected
+              ? 'Select at least one case manager to view results.'
+              : noStatusSelected
+              ? 'Nothing chosen. Pick at least one to see clients.'
+              : searchTerm
+              ? 'No results match your search.'
+              : 'No clients found matching the selected filters.'}
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <ClientTableHeader showManager={isAdmin} selectionMode={selectionMode} />
+          <div className="stagger divide-y divide-border/70">
+            {filteredClients.map((client) => (
+              <ClientRow
+                key={client.id}
+                client={client}
+                onSelect={(c) => { setSelectedClient(c); onOpenClientChange?.(c?.id ?? null); }}
+                selectionMode={selectionMode}
+                selected={selectedIds.has(client.id)}
+                onToggleSelect={toggleSelect}
+                showManager={isAdmin}
+                onCloseCase={setClosingClient}
+                // Closed cases only appear on an administrator's own filter, and
+                // reopening one is an administrator's update, so the item is
+                // never offered to somebody who could not carry it out.
+                onReopenCase={isAdmin ? setReopeningClient : undefined}
+                onRestart={isAdmin ? setRestartingClient : undefined}
+                acknowledgedEnds={acknowledgedEnds}
+                onAcknowledgeEnd={acknowledgeEnd}
+                assignedManagerName={
+                  client.assigned_employee_id
+                    ? managerMap.get(client.assigned_employee_id) ?? null
+                    : null
+                }
+              />
+            ))}
+          </div>
         </div>
       )}
 

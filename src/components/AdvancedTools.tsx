@@ -226,8 +226,8 @@ export const AdvancedTools: React.FC = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" className="w-full justify-start gap-3 h-11 rounded-xl text-[15px] text-primary hover:bg-white/60">
-          <Settings2 className="h-4 w-4" />
+        <Button variant="ghost" className="group relative z-10 h-10 w-full justify-start gap-3 rounded-lg px-3 text-[14.5px] font-normal text-foreground/75 hover:bg-muted hover:text-foreground [&_svg]:size-[18px]">
+          <Settings2 className="wiggle-on-hover" strokeWidth={1.75} />
           Advanced Tools
         </Button>
       </PopoverTrigger>

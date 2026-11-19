@@ -1,16 +1,16 @@
 import { Button } from "@/components/ui/button";
-import { 
-  Users, 
-  LogOut, 
-  Shield, 
-  ClipboardList,
+import {
+  Users,
+  LogOut,
+  LayoutGrid,
+  UserCheck,
   Calendar,
   BookOpen,
   Menu,
   X,
   DollarSign,
+  FileText,
   FileSpreadsheet,
-  FilePlus2,
   NotebookPen,
   UserCircle,
   Activity,
@@ -19,7 +19,7 @@ import {
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useIsSuperadmin } from '@/hooks/useIsSuperadmin';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -37,14 +37,52 @@ interface SidebarProps {
 
 /** Marks a feature still being tried out. Hidden from screen readers so the item keeps its name. */
 const BetaBadge = () => (
-  <span aria-hidden className="ml-auto rounded-full bg-violet-100 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-violet-700">
-    Beta
+  <span aria-hidden className="text-[13px] font-normal text-muted-foreground" title="Beta">
+    β
   </span>
 );
 
-/** A menu item: tall and rounded; the current page is the dark pill. */
-const NAV_ITEM =
-  'w-full justify-start gap-3 h-11 rounded-xl px-3 text-[15px] font-normal text-primary [&.bg-primary]:font-medium [&.bg-primary]:text-primary-foreground [&:not(.bg-primary)]:hover:bg-white/60 [&_svg]:size-[18px]';
+/** A small grey heading over a group of menu items. */
+const NavGroup: React.FC<{ label?: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div className="space-y-0.5">
+    {label && (
+      <div className="px-3 pb-1.5 pt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/85">
+        {label}
+      </div>
+    )}
+    {children}
+  </div>
+);
+
+/**
+ * A menu item. The current page carries data-active; the light blue highlight
+ * behind it is drawn once by the sidebar and slides from item to item.
+ */
+const NavItem: React.FC<{
+  icon: React.ElementType;
+  label: React.ReactNode;
+  active?: boolean;
+  onClick: () => void;
+  badge?: React.ReactNode;
+  tutorial?: string;
+}> = ({ icon: Icon, label, active, onClick, badge, tutorial }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    data-active={active ? 'true' : undefined}
+    data-tutorial={tutorial}
+    aria-current={active ? 'page' : undefined}
+    className={cn(
+      'group relative z-10 flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[14.5px] transition-colors',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      active ? 'font-semibold text-primary' : 'text-foreground/75 hover:bg-muted hover:text-foreground',
+    )}
+  >
+    <Icon className="wiggle-on-hover h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
+    <span className="flex min-w-0 flex-1 items-center gap-2 truncate">{label}</span>
+    {badge}
+  </button>
+);
 
 /** Supportive Care Management's logo. */
 export const BrandMark: React.FC<{ className?: string }> = ({ className }) => (
@@ -64,9 +102,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   // Highlighting reads the real location so a page can never light up the
   // wrong entry, and view highlights only apply while "/" is showing.
   const onRoot = location.pathname === '/';
-  const viewVariant = (view: SidebarProps['activeView']) =>
-    onRoot && activeView === view ? 'default' : 'ghost';
-  const routeVariant = (path: string) => (location.pathname === path ? 'default' : 'ghost');
   const { signOut } = useAuth();
   const [accountOpen, setAccountOpen] = useState(false);
   // Follows a preview: shows the previewed person's menu.
@@ -141,182 +176,131 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
     />
   );
 
+  const onPath = (path: string) => location.pathname === path;
+  const onView = (view: SidebarProps['activeView']) => onRoot && activeView === view;
+
+  // The highlight behind the current item, measured from that item so it can
+  // slide when the page changes.
+  const navRef = useRef<HTMLDivElement>(null);
+  const [highlight, setHighlight] = useState<{ top: number; height: number } | null>(null);
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    const item = nav?.querySelector<HTMLElement>('[data-active="true"]');
+    if (!nav || !item) { setHighlight(null); return; }
+    const a = nav.getBoundingClientRect();
+    const b = item.getBoundingClientRect();
+    setHighlight({ top: b.top - a.top + nav.scrollTop, height: b.height });
+  }, [location.pathname, activeView, menuReady, isAdmin, isSuperadmin, canViewActivity]);
+
   return (
     <>
       <AccountDialog open={accountOpen} onOpenChange={setAccountOpen} />
       <MobileToolbar />
       <Overlay />
       <div className={cn(
-        // A soft blue panel that floats beside the page.
-        "bg-gradient-to-b from-sky-200 via-sky-100 to-white p-3 md:p-5 space-y-3 md:space-y-6 flex flex-col overflow-y-auto",
-        "border-r border-sky-100 md:border md:border-white/70 md:rounded-2xl md:shadow-sm md:m-3",
-        "fixed md:sticky md:top-3 inset-y-0 left-0 z-40",
-        "w-[85vw] max-w-72 md:w-72 md:max-w-none md:shrink-0",
-        "transform transition-transform duration-300 ease-in-out",
-        isMobile && !isOpen ? "-translate-x-full" : "translate-x-0",
-        isMobile ? "top-14" : "top-0", // Account for mobile toolbar
-        "md:h-[calc(100vh-1.5rem)]"
+        'flex flex-col overflow-y-auto bg-card px-4 pb-5 pt-6',
+        'border-r border-border',
+        'fixed md:sticky inset-y-0 left-0 z-40',
+        'w-[85vw] max-w-72 md:w-[228px] md:max-w-none md:shrink-0',
+        'transform transition-transform duration-300 ease-out',
+        isMobile && !isOpen ? '-translate-x-full' : 'translate-x-0',
+        isMobile ? 'top-14' : 'top-0', // Account for mobile toolbar
+        'md:h-screen'
       )}>
-        {/* Header - hidden on mobile since toolbar shows it */}
-        <div className="space-y-3 md:pt-0">
-          <div className="hidden md:flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleViewChange('clients')}
-              className="flex flex-1 min-w-0 items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer text-left"
-            >
-              <BrandMark className="max-w-[200px]" />
-            </button>
-            {/* Your own account: your signatures and your password. At the top
-                where a profile belongs, rather than at the foot of the
-                navigation under everything else. */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0 h-10 w-10 text-primary hover:bg-white/60"
-              onClick={() => setAccountOpen(true)}
-              title="Your account"
-              aria-label="Your account"
-            >
-              <UserCircle className="h-6 w-6" />
-            </Button>
-          </div>
-            
-        </div>
+        <button
+          type="button"
+          onClick={() => handleViewChange('clients')}
+          className="mb-6 hidden w-full px-0 text-left transition-opacity hover:opacity-80 md:block"
+          aria-label="Clients"
+        >
+          <BrandMark className="max-w-[196px]" />
+        </button>
 
-        {/* Navigation */}
-        <div className={cn('space-y-1 transition-opacity', menuReady ? 'opacity-100' : 'pointer-events-none opacity-0')} aria-busy={!menuReady}>
-          {isAdmin && (
-            <Button
-              variant={routeVariant('/admin')}
-              className={NAV_ITEM}
-              onClick={() => handleNavigate('/admin')}
-              data-tutorial="admin-nav"
-            >
-              <Shield className="h-4 w-4" />
-              Admin Dashboard
-            </Button>
+        <div
+          ref={navRef}
+          className={cn('relative flex flex-1 flex-col transition-opacity duration-300', menuReady ? 'opacity-100' : 'pointer-events-none opacity-0')}
+          aria-busy={!menuReady}
+        >
+          {highlight && (
+            <div
+              aria-hidden
+              className="absolute inset-x-0 z-0 rounded-lg bg-accent transition-[transform,height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+              style={{ transform: `translateY(${highlight.top}px)`, height: highlight.height, top: 0 }}
+            />
           )}
-          <Button
-            variant={viewVariant('clients')}
-            className={NAV_ITEM}
-            onClick={() => handleViewChange('clients')}
-            data-tutorial="clients-nav"
-          >
-            <Users className="h-4 w-4" />
-            Clients
-          </Button>
-          <Button
-            variant={viewVariant('forms')}
-            className={NAV_ITEM}
-            onClick={() => handleViewChange('forms')}
-            data-tutorial="forms-nav"
-          >
-            <FilePlus2 className="h-4 w-4" />
-            Blank forms
-          </Button>
-          <Button
-            variant={routeVariant('/clinical-notes')}
-            className={NAV_ITEM}
-            onClick={() => handleNavigate('/clinical-notes')}
-          >
-            <NotebookPen className="h-4 w-4" />
-            Generate Notes
-            <BetaBadge />
-          </Button>
-          {isAdmin && (
-            <Button
-              variant={routeVariant('/workbook')}
-              className={NAV_ITEM}
-              onClick={() => handleNavigate('/workbook')}
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              Workbook
-              <BetaBadge />
-            </Button>
-          )}
-          <Button
-            data-tutorial="touchpoints-nav"
-            variant={viewVariant('compliance')}
-            className={NAV_ITEM}
-            onClick={() => handleViewChange('compliance')}
-          >
-            <ClipboardList className="h-4 w-4" />
-            {/* Named for whose work it is. "Touchpoints" alone collided with
-                the Touchpoints section inside a client's record, and staff
-                could not tell which one anybody meant. */}
-            {isAdmin ? 'Team touchpoints' : 'My touchpoints'}
-          </Button>
 
-          {isAdmin && (
-            <Button
-              data-tutorial="billing-nav"
-              variant={routeVariant('/billing')}
-              className={NAV_ITEM}
-              onClick={() => handleNavigate('/billing')}
-            >
-              <DollarSign className="h-4 w-4" />
-              Billing
-            </Button>
-          )}
-          <Button
-            variant={viewVariant('calendar')}
-            className={NAV_ITEM}
-            onClick={() => handleViewChange('calendar')}
-            data-tutorial="calendar-nav"
-          >
-            <Calendar className="h-4 w-4" />
-            Calendar
-          </Button>
-          <Button
-            variant={routeVariant('/onboarding')}
-            className={NAV_ITEM}
-            onClick={() => handleNavigate('/onboarding')}
-            data-tutorial="onboarding-nav"
-          >
-            <BookOpen className="h-4 w-4" />
-            Help guide
-          </Button>
-          {canViewActivity && (
-            <Button
-              variant={routeVariant('/staff-activity')}
-              className={NAV_ITEM}
-              onClick={() => handleNavigate('/staff-activity')}
-            >
-              <Activity className="h-4 w-4" />
-              Staff activity
-            </Button>
-          )}
-          {isSuperadmin && !isViewingAs && (
-            <Button
-              variant={routeVariant('/support-tickets')}
-              className={NAV_ITEM}
-              onClick={() => handleNavigate('/support-tickets')}
-            >
-              <LifeBuoy className="h-4 w-4" />
-              Support tickets
-              {openTickets > 0 && (
-                <span className="ml-auto rounded-full bg-red-600 px-2 text-xs text-white">{openTickets}</span>
+          <div className="space-y-5">
+            <NavGroup label="Workspace">
+              {isAdmin && (
+                <NavItem icon={LayoutGrid} label="Admin Dashboard" active={onPath('/admin')} onClick={() => handleNavigate('/admin')} tutorial="admin-nav" />
               )}
-            </Button>
-          )}
-        </div>
+              <NavItem icon={Users} label="Clients" active={onView('clients')} onClick={() => handleViewChange('clients')} tutorial="clients-nav" />
+              <NavItem icon={FileText} label="Blank forms" active={onView('forms')} onClick={() => handleViewChange('forms')} tutorial="forms-nav" />
+              <NavItem icon={NotebookPen} label={<>Generate Notes <BetaBadge /></>} active={onPath('/clinical-notes')} onClick={() => handleNavigate('/clinical-notes')} />
+              {isAdmin && (
+                <NavItem icon={FileSpreadsheet} label={<>Workbook <BetaBadge /></>} active={onPath('/workbook')} onClick={() => handleNavigate('/workbook')} />
+              )}
+              {/* Named for whose work it is. "Touchpoints" alone collided with
+                  the Touchpoints section inside a client's record. Admins see
+                  it under Team & operations. */}
+              {!isAdmin && (
+                <NavItem icon={UserCheck} label="My touchpoints" active={onView('compliance')} onClick={() => handleViewChange('compliance')} tutorial="touchpoints-nav" />
+              )}
+              <NavItem icon={Calendar} label="Calendar" active={onView('calendar')} onClick={() => handleViewChange('calendar')} tutorial="calendar-nav" />
+            </NavGroup>
 
-        {/* Advanced Tools (superadmin only) - pinned to bottom */}
-        <div className="!mt-auto space-y-2">
-          <AdvancedTools />
-          {/* Logout Button */}
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-3 h-11 rounded-xl text-[15px] text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={async () => {
-              await signOut();
-              navigate('/auth');
-            }}
-          >
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
+            {(isAdmin || canViewActivity) && (
+              <NavGroup label="Team & operations">
+                {isAdmin && (
+                  <NavItem icon={UserCheck} label="Team touchpoints" active={onView('compliance')} onClick={() => handleViewChange('compliance')} tutorial="touchpoints-nav" />
+                )}
+                {isAdmin && (
+                  <NavItem icon={DollarSign} label="Billing" active={onPath('/billing')} onClick={() => handleNavigate('/billing')} tutorial="billing-nav" />
+                )}
+                {canViewActivity && (
+                  <NavItem icon={Activity} label="Staff activity" active={onPath('/staff-activity')} onClick={() => handleNavigate('/staff-activity')} />
+                )}
+              </NavGroup>
+            )}
+          </div>
+
+          <div className="mt-auto space-y-0.5 pt-6">
+            <NavItem icon={BookOpen} label="Help guide" active={onPath('/onboarding')} onClick={() => handleNavigate('/onboarding')} tutorial="onboarding-nav" />
+            {isSuperadmin && !isViewingAs && (
+              <NavItem
+                icon={LifeBuoy}
+                label="Support tickets"
+                active={onPath('/support-tickets')}
+                onClick={() => handleNavigate('/support-tickets')}
+                badge={openTickets > 0 ? (
+                  <span key={openTickets} className="animate-pop rounded-full bg-danger px-1.5 text-[11px] font-semibold leading-[18px] text-white">{openTickets}</span>
+                ) : undefined}
+              />
+            )}
+            <AdvancedTools />
+            <div className="!mt-4 space-y-0.5 border-t border-border pt-3">
+              <button
+                type="button"
+                onClick={() => setAccountOpen(true)}
+                aria-label="Your account"
+                className="flex h-9 w-full items-center gap-3 rounded-lg px-3 text-left text-[13.5px] text-foreground/75 transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <UserCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                Your account
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut();
+                  navigate('/auth');
+                }}
+                className="group flex h-9 w-full items-center gap-3 rounded-lg px-3 text-left text-[13.5px] text-foreground/75 transition-colors hover:bg-destructive/5 hover:text-destructive"
+              >
+                <LogOut className="nudge h-[18px] w-[18px]" strokeWidth={1.75} />
+                Log out
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </>

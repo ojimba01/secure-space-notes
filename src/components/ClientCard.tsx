@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, FileText, Phone, Mail, MapPin, AlertTriangle, Paperclip, RotateCcw, Trash2 } from 'lucide-react';
 import { displayStage, isCaseClosed, isSetupComplete, missingSetupShort } from '@/lib/workflow';
 
-interface Client {
+export interface Client {
   id: string;
   first_name: string;
   last_name: string;
@@ -51,9 +51,11 @@ const today = () => {
   return t;
 };
 
-type MilestoneStatus = {
+export type MilestoneStatus = {
   label: string;
   className: string;
+  /** How urgent it is, for lists that colour text rather than badges. */
+  tone?: 'danger' | 'attention' | 'muted' | 'done';
 };
 
 const milestoneStatus = (dueDate: Date): MilestoneStatus => {
@@ -62,22 +64,64 @@ const milestoneStatus = (dueDate: Date): MilestoneStatus => {
     return {
       label: `Overdue by ${Math.abs(diff)} day${Math.abs(diff) === 1 ? '' : 's'}`,
       className: 'bg-destructive text-destructive-foreground',
+      tone: 'danger',
     };
   }
   if (diff === 0) {
-    return { label: 'Due today', className: 'bg-destructive text-destructive-foreground' };
+    return { label: 'Due today', className: 'bg-destructive text-destructive-foreground', tone: 'danger' };
   }
   if (diff <= 14) {
     return {
       label: `Due in ${diff} day${diff === 1 ? '' : 's'}`,
       className: 'bg-amber-500 text-white dark:bg-amber-600',
+      tone: 'attention',
     };
   }
   return {
     label: `Due in ${diff} days`,
     className: 'bg-muted text-muted-foreground',
+    tone: 'muted',
   };
 };
+
+/**
+ * What the client list shows about one client: its authorization milestones,
+ * whether it waits on approval or a restart, and whether its latest
+ * authorization has ended without this person acknowledging it.
+ */
+export function clientListFacts(client: Client, acknowledgedEnds?: Set<string>) {
+  const restartPending = !!client.restart_pending_at;
+  const pendingNext = (() => {
+    if (!client.hsp_180_date) return false;
+    const due = new Date(client.hsp_180_date);
+    due.setDate(due.getDate() + 180);
+    return today() >= due;
+  })();
+  const milestones = [
+    { label: '30-day', start: client.iat_date, offset: 30, finished: !!client.hsp_150_date },
+    { label: '150-day', start: client.hsp_150_date, offset: 150, finished: !!client.hsp_180_date },
+    { label: '180-day', start: client.hsp_180_date, offset: 180, finished: false },
+  ]
+    .filter((m) => !!m.start)
+    .map((m) => {
+      const due = addDays(m.start as string, m.offset);
+      const status: MilestoneStatus = m.finished
+        ? { label: 'Complete', className: 'bg-green-600 text-white dark:bg-green-700', tone: 'done' }
+        : milestoneStatus(due);
+      return { label: m.label, due, status, finished: m.finished };
+    });
+  const pendingApproval = !isCaseClosed(client) && displayStage(client) === 'initial_auth_pending';
+  const latestEnd = [client.auth_30_end, client.auth_180_end, client.auth_150_end]
+    .filter((d): d is string => !!d)
+    .sort()
+    .pop();
+  const authEnded =
+    !isCaseClosed(client) &&
+    !!latestEnd &&
+    new Date(`${latestEnd}T00:00:00`) < today() &&
+    !acknowledgedEnds?.has(`${client.id}:${latestEnd}`);
+  return { restartPending, pendingNext, milestones, pendingApproval, latestEnd, authEnded };
+}
 
 interface ClientCardProps {
   client: Client;
