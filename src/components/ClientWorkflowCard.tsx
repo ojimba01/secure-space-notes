@@ -16,7 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { useViewAs } from '@/components/ViewAsProvider';
-import { CheckCircle2, ClipboardList, FileText } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FileText, Clock } from 'lucide-react';
 import {
   INTAKE_STATUS_LABEL,
   STAGE_CLASS,
@@ -352,8 +352,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: f
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <ClipboardList className="h-5 w-5 text-muted-foreground" />
+          <CardTitle className="flex items-center gap-2 text-[17px]">
             Forms
             {formsRibbon && <NewRibbon inline />}
           </CardTitle>
@@ -369,11 +368,18 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: f
             appears when there is a step, and gets out of the way when there
             is not. */}
         {action.kind !== 'none' && (
-          <div className="rounded-md border bg-muted/30 p-3">
-            <p className="text-xs font-medium uppercase text-muted-foreground">Next step</p>
-            <p className="font-medium">{action.label}</p>
-            <p className="text-sm text-muted-foreground">{action.detail}</p>
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap [&>button]:h-11 [&>button]:w-full sm:[&>button]:h-10 sm:[&>button]:w-auto">{actionButton()}</div>
+          <div className="flex animate-rise flex-col gap-4 rounded-xl border border-attention-border/60 bg-attention-soft p-5 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 items-start gap-4">
+              <div aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-attention-tile text-attention">
+                <Clock className="h-5 w-5 animate-[wiggle_600ms_ease-in-out_400ms_1]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-attention">Next step</p>
+                <p className="mt-0.5 text-[17px] font-semibold text-foreground">{action.label}</p>
+                <p className="mt-0.5 text-sm text-foreground/70">{action.detail}</p>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end [&>button]:h-11 [&>button]:w-full sm:[&>button]:h-10 sm:[&>button]:w-auto">{actionButton()}</div>
           </div>
         )}
 

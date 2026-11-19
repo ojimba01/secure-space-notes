@@ -5,6 +5,7 @@
 // moved. Now the row stays exactly where it is and its value becomes the
 // control for that value — a box for a name, a date picker for a date, a list
 // for a county. Nothing reflows, so nothing has to be found twice.
+import { StatusPill, statusWord } from '@/components/StatusPill';
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -121,10 +122,10 @@ const Row: React.FC<{
   suggestion?: React.ReactNode;
 }> = ({ label, children, hint, wide, suggestion }) => (
   <div className={wide ? 'sm:col-span-2 lg:col-span-3' : ''}>
-    <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+    <dt className="text-xs text-muted-foreground">
       {label}
     </dt>
-    <dd className="mt-0.5 min-w-0 text-sm font-medium [overflow-wrap:anywhere]">
+    <dd className="mt-1 min-w-0 text-[15px] text-foreground [overflow-wrap:anywhere]">
       {children || <span className="font-normal text-muted-foreground/40">—</span>}
       {hint && <p className="mt-0.5 text-xs font-normal text-muted-foreground">{hint}</p>}
       {suggestion}
@@ -179,14 +180,12 @@ const Block: React.FC<{ title: string; children: React.ReactNode; wide?: boolean
   title, children, wide = false, threeColumns = false,
 }) => (
   <Card className={wide ? 'lg:col-span-2' : ''}>
-    <CardContent className="pt-5">
-      {/* The heading carries a rule so a block reads as one thing; the fields
-          inside it do not need one each. */}
-      <h3 className="mb-3 border-b pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <CardContent className="p-6">
+      <h3 className="mb-5 text-[17px] font-semibold text-foreground">
         {title}
       </h3>
       <dl
-        className={`grid gap-x-6 gap-y-4 ${threeColumns ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} ${wide ? 'lg:grid-cols-3' : ''}`}
+        className={`grid gap-x-6 gap-y-5 ${threeColumns ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} ${wide ? 'lg:grid-cols-3' : ''}`}
       >
         {children}
       </dl>
@@ -510,10 +509,10 @@ export const ClientOverview: React.FC<{
         </div>
       )}
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className="stagger grid items-start gap-5 lg:grid-cols-2">
         {/* Contact on the left; Case and Authorizations stacked beside it, so
             the space beside the tall Contact block is used. */}
-        <Block title="Contact">
+        <Block title="Contact details">
           <Row label="First name" hint={editing && !isAdmin ? 'Only admins can edit names' : undefined}>
             {text('first_name', client.first_name, !isAdmin)}
           </Row>
@@ -530,7 +529,7 @@ export const ClientOverview: React.FC<{
           <Row label="County">{choice('county', NJ_COUNTIES, client.county)}</Row>
         </Block>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
         <Block title="Case">
           {/* Active or Closed — not "inactive", which was a third word for a
               state the rest of the app does not have. Choosing Closed opens
@@ -556,9 +555,9 @@ export const ClientOverview: React.FC<{
                 </SelectContent>
               </Select>
             ) : (
-              <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
-                {client.status}
-              </Badge>
+              <StatusPill tone={client.status === 'active' ? 'active' : 'closed'}>
+                {statusWord(client.status)}
+              </StatusPill>
             )}
           </Row>
           <Row label="Intake date">{date('intake_date')}</Row>
