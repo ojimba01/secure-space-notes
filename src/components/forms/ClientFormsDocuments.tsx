@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { DrawnCheck } from '@/components/motion/DrawnCheck';
 import { Check, ChevronDown, ChevronRight, FileText, MoreHorizontal, Upload, X } from 'lucide-react';
 import {
   DropdownMenu,
@@ -94,9 +95,9 @@ interface Props {
 
 /** Whether the client has a form: the label on its checklist row. */
 const CHECKLIST_STATUS = {
-  none: { label: 'Not started', className: 'bg-muted text-muted-foreground' },
-  draft: { label: 'Draft started', className: 'bg-amber-100 text-amber-900' },
-  done: { label: 'Completed', className: 'bg-green-100 text-green-800' },
+  none: { label: 'Not started', className: 'text-muted-foreground' },
+  draft: { label: 'Draft started', className: 'text-attention' },
+  done: { label: 'Completed', className: 'text-success font-medium' },
 } as const;
 
 /**
@@ -107,7 +108,7 @@ const CHECKLIST_STATUS = {
  * The list switches by its own width, not the screen's (src/index.css): with
  * the side panel open a laptop screen leaves it too narrow for the grid.
  */
-const ROW_GRID = 'forms-row-wide grid-cols-[96px_minmax(0,1fr)_124px_168px_36px_36px] items-center gap-x-3';
+const ROW_GRID = 'forms-row-wide grid-cols-[minmax(0,1fr)_110px_124px_168px_36px_36px] items-center gap-x-3';
 const ROW_STACK = 'forms-row-narrow';
 
 type ActionStyle = 'filled' | 'link' | 'green' | 'draft';
@@ -145,7 +146,9 @@ interface RowSpec {
 }
 
 const StatusLabel: React.FC<{ status: { label: string; className: string } }> = ({ status }) => (
-  <span className={`w-24 shrink-0 rounded-md px-2 py-0.5 text-center text-xs ${status.className}`}>
+  <span className={`inline-flex w-24 shrink-0 items-center gap-1.5 text-xs ${status.className}`}>
+    {status.label === 'Completed' && <DrawnCheck className="h-3.5 w-3.5" />}
+    {status.label === 'Draft started' && <span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-attention" />}
     {status.label}
   </span>
 );
@@ -703,12 +706,12 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       );
     return (
       <div key={form.id}>
-        <div className={`${ROW_GRID} p-2 pl-2.5`}>
-          <span />
+        <div className={`${ROW_GRID} py-2 pl-12 pr-2.5`}>
           <div className="min-w-0">
             {name(true)}
             {historyLink}
           </div>
+          <span />
           {statusLabel}
           {button('justify-self-center px-5')}
           <span />
@@ -742,9 +745,10 @@ export const ClientFormsDocuments: React.FC<Props> = ({
         onClick={() => toggleOpen(row.id)}
         aria-expanded={has ? isOpen : undefined}
         title={row.name}
-        className={`min-w-0 text-left text-sm font-medium disabled:cursor-default ${has ? 'hover:underline' : ''} ${className}`}
+        className={`flex min-w-0 items-center gap-3 text-left text-[15px] text-foreground disabled:cursor-default ${has ? 'hover:text-primary' : ''} ${className}`}
       >
-        {row.name}
+        <FileText aria-hidden className="h-[18px] w-[18px] shrink-0 text-muted-foreground" strokeWidth={1.6} />
+        <span className="truncate">{row.name}</span>
       </button>
     );
     const documents = (className: string) => (
@@ -795,13 +799,13 @@ export const ClientFormsDocuments: React.FC<Props> = ({
       </button>
     ) : null;
     return (
-      <div key={row.id} className="rounded-md border">
-        <div className={`${ROW_GRID} p-2 pl-2.5`}>
-          {row.status ? <StatusLabel status={row.status} /> : <span />}
+      <div key={row.id} className="transition-colors hover:bg-muted/40">
+        <div className={`${ROW_GRID} px-5 py-2.5`}>
           <div className="flex min-w-0 items-center gap-3">
             {name('truncate')}
             {editLink}
           </div>
+          {row.status ? <StatusLabel status={row.status} /> : <span />}
           {documents('h-9 w-full')}
           {action('justify-self-center px-4') ?? <span />}
           {upload('h-9 w-9') ?? <span />}
@@ -898,7 +902,7 @@ export const ClientFormsDocuments: React.FC<Props> = ({
           <p className="text-sm text-muted-foreground">Loading documents...</p>
         ) : (
           <>
-            <div className="forms-list space-y-2">
+            <div className="forms-list stagger divide-y divide-border/70 overflow-hidden rounded-xl border border-border bg-card">
               {CHECKLIST_TYPES.map((type) => {
                 const items = byType.get(type) ?? [];
                 const hasDocument = items.length > 0;
