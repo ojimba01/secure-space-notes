@@ -193,7 +193,7 @@ const Admin = () => {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Admin dashboard</h1>
+            <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">Admin dashboard</h1>
           </div>
         </div>
 

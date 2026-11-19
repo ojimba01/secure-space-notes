@@ -416,7 +416,7 @@ export default function StaffActivity() {
               </Button>
             )}
             <div>
-              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">{person ? staffName(person) : 'Staff activity'}</h1>
+              <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">{person ? staffName(person) : 'Staff activity'}</h1>
             </div>
           </div>
           <div className="flex flex-wrap items-start gap-2">

@@ -68,7 +68,7 @@ export default function HelpGuide() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex items-center gap-3">
             <div>
-              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Help guide</h1>
+              <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">Help guide</h1>
             </div>
           </div>
           <div className="relative w-full max-w-sm">

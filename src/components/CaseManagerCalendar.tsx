@@ -541,7 +541,7 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Calendar</h1>
+          <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">Calendar</h1>
         </div>
         <div className="flex items-center gap-2">
           {showsScope && (
