@@ -10,7 +10,7 @@ import type { PDFDocumentProxy } from 'pdfjs-dist';
 export const LON_TOTAL_FIELD = 'Please add up all the scores and provide the total score below TOTAL SCORE';
 const isScoreField = (name: string) => /^Score_\d+$/.test(name);
 
-type FieldObject = { id: string; value?: unknown };
+type FieldObject = { id: string; value?: unknown; type?: string };
 type Storage = {
   getValue: (id: string, fallback: { value: unknown }) => { value: unknown };
   setValue: (id: string, value: { value: string }) => void;
@@ -33,7 +33,8 @@ export async function updateLonTotal(doc: PDFDocumentProxy | null): Promise<numb
   let total = 0;
   for (const [name, objects] of Object.entries(fields)) {
     if (!isScoreField(name)) continue;
-    for (const o of objects) total += asNumber(storage.getValue(o.id, { value: o.value }).value);
+    // Only the boxes, not an empty container listed with them (Score_14).
+    for (const o of objects.filter((x) => x.type)) total += asNumber(storage.getValue(o.id, { value: o.value }).value);
   }
 
   const text = String(total);

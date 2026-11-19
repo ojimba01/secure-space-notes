@@ -69,3 +69,22 @@ for (const [name, schema, file] of FORMS) {
     }
   });
 }
+
+// The web form reads boxes as the browser's PDF reader (pdf.js) lists them.
+// Some boxes are listed with an empty container first (the LON's Score_14 was
+// left with no choices); WebFormView skips those, and this checks every
+// dropdown then has its choices and every question has a box with a type.
+const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+for (const [name, schema, file] of FORMS) {
+  test(`${name}: the browser's PDF reader finds every box and dropdown choice`, async () => {
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(`public/form-templates/${file}`)), verbosity: 0 }).promise;
+    const all = (await doc.getFieldObjects()) ?? {};
+    const boxes = (field) => (all[field] ?? []).filter((o) => o.type);
+    for (const field of schemaFields(schema)) assert.ok(boxes(field).length, `${field} has no box the reader can fill`);
+    for (const section of schema) {
+      for (const item of section.items) {
+        if (item.kind === 'select') assert.ok(boxes(item.field)[0]?.items?.length, `${item.field} has no choices`);
+      }
+    }
+  });
+}
