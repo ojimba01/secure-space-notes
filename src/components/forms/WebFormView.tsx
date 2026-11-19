@@ -67,6 +67,13 @@ export const WebFormView: React.FC<{
     void doc.getFieldObjects().then((objs) => {
       if (cancelled) return;
       const all = (objs ?? {}) as Record<string, FieldObject[]>;
+      // A box can be listed with an empty entry first: its container in the
+      // PDF, with no type and no choices (the LON's Score_14). Keep only the
+      // boxes themselves, so that box's choices show and its answer is read.
+      for (const [name, list] of Object.entries(all)) {
+        const boxes = list.filter((o) => o.type);
+        if (boxes.length && boxes.length < list.length) all[name] = boxes;
+      }
       setFields(all);
       setValues(readAll(all));
     });
