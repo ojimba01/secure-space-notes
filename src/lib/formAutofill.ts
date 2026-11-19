@@ -73,6 +73,7 @@ export function templateFieldValues(
         // Medicaid number is not known; the documents are filling it in.
         '5 Medicaid ID': client.medicaid_id ?? '',
         '6 Managed Care Organization MCO': client.insurance ?? '',
+        '7 MCO Member ID optional': client.member_id ?? '',
         '8 Location county': client.county ?? '',
       });
     // The intake template's field names are the client_intakes column names,
@@ -92,7 +93,11 @@ export function templateFieldValues(
       return prune({
         '1 Name not scored': fullName(client),
         '2 Date of Birth 1 point if age is less than 18 or more than 60': mmddyyyy(client.date_of_birth),
+        // The Medicaid number and the MCO's member ID are different numbers,
+        // each in its own box, as on the intake.
         '3 Medicaid ID not scored but Medicaid and MCO enrollment required for eligibility':
+          client.medicaid_id ?? '',
+        '4 MCO Member ID not scored but Medicaid and MCO enrollment required for eligibility':
           client.member_id ?? '',
         'Name of case manager who completed assessment': cm?.name ?? '',
         'Provider organization name': cm?.organization ?? '',
@@ -100,7 +105,7 @@ export function templateFieldValues(
     case 'Housing Stabilization Plan (HSP)':
       return prune({
         'Member Name': fullName(client),
-        'Medicaid ID': client.member_id ?? '',
+        'Medicaid ID': client.medicaid_id ?? '',
         'NJ HMIS ID': client.njhmis_id ?? '',
         'Housing Supports Provider': cm?.organization ?? '',
         'Provider Case Manager Name': cm?.name ?? '',
@@ -173,13 +178,55 @@ export function templateFieldValues(
 }
 
 const prune = (values: Record<string, string>): Record<string, string> =>
-  Object.fromEntries(Object.entries(values).filter(([, v]) => v !== ''));
+  // Trimmed: some records carry a stray space after the number.
+  Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v !== ''));
 
 /**
  * Fill the known identity fields of an official template. Returns new PDF
  * bytes with the same pages, structure, and remaining blank fields — the
  * user keeps editing everything in the viewer as before.
  */
+/** The boxes on each form that hold the Medicaid number and the MCO member ID. */
+const ID_FIELDS: Record<string, string[]> = {
+  'Initial Assessment (IAT)': ['5 Medicaid ID', '7 MCO Member ID optional'],
+  'Level of Need (LON)': [
+    '3 Medicaid ID not scored but Medicaid and MCO enrollment required for eligibility',
+    '4 MCO Member ID not scored but Medicaid and MCO enrollment required for eligibility',
+  ],
+  'Housing Stabilization Plan (HSP)': ['Medicaid ID'],
+};
+
+/**
+ * A form started before the client's numbers were known: fill its Medicaid
+ * number and MCO member ID boxes where they are still blank. Never changes a
+ * box that has something in it. Returns null when nothing was filled.
+ */
+export async function fillBlankIds(
+  bytes: ArrayBuffer | Uint8Array,
+  formType: string,
+  client: AutofillClient,
+): Promise<Uint8Array | null> {
+  const names = ID_FIELDS[formType];
+  if (!names) return null;
+  const values = templateFieldValues(formType, client);
+  const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+  const form = doc.getForm();
+  let filled = 0;
+  for (const name of names) {
+    if (!values[name]) continue;
+    try {
+      const field = form.getField(name);
+      if (field instanceof PDFTextField && !(field.getText() ?? '').trim()) {
+        field.setText(values[name]);
+        filled++;
+      }
+    } catch {
+      // Not on this copy of the form.
+    }
+  }
+  return filled ? doc.save() : null;
+}
+
 export async function prefillTemplate(
   templateBytes: ArrayBuffer | Uint8Array,
   formType: string,

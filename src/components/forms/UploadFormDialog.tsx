@@ -212,9 +212,11 @@ export const UploadFormDialog: React.FC<UploadFormDialogProps> = ({
       if (wanted) {
         const { data } = await supabase
           .from('clients')
-          .select('id, first_name, last_name, member_id')
+          .select('id, first_name, last_name, member_id, medicaid_id')
           .is('deleted_at', null);
-        const hit = (data ?? []).find((c) => normId(c.member_id) === wanted);
+        // The IAT, LON and HSP carry the Medicaid number, other forms the MCO
+        // member ID, so either one on the record is a match.
+        const hit = (data ?? []).find((c) => normId(c.member_id) === wanted || normId(c.medicaid_id) === wanted);
         if (hit) {
           setClientId(hit.id);
           clientName = `${hit.last_name}, ${hit.first_name}`;

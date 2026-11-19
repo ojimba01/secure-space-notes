@@ -71,6 +71,7 @@ import {
   extractPdfFieldValues,
   formDownloadName,
   prefillTemplate,
+  fillBlankIds,
   type AutofillClient,
 } from '@/lib/formAutofill';
 import {
@@ -331,11 +332,21 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       // carry the cap; lift it on the way in so reopening one is not a step
       // backwards.
       const relaxed = await relaxPdfFormFields(await data.arrayBuffer());
+// An IAT, LON or HSP started before the client's numbers were known:
+      // its blank Medicaid number and MCO member ID boxes are filled from the
+      // client record (or their intake). A box with anything in it stays.
+      let bytes: Uint8Array = relaxed;
+      if (existing?.client_id) {
+        const facts = await loadClientFacts(existing.client_id).catch(() => null);
+        const filled = facts ? await fillBlankIds(relaxed, existing.form_type, facts).catch(() => null) : null;
+        if (filled) bytes = filled;
+      }
       // The answers as they were, to tell the person who filled the form
       // which ones a supervisor changed. Read from a copy: the viewer takes
-      // the bytes it is given.
-      baseValuesRef.current = await extractPdfFieldValues(relaxed.slice().buffer).catch(() => null);
-      setExistingBytes(relaxed);
+      // the bytes it is given. Taken after the ID boxes are filled, so those
+      // are not reported as a supervisor's change.
+      baseValuesRef.current = await extractPdfFieldValues(bytes.slice().buffer).catch(() => null);
+      setExistingBytes(bytes);
     })();
   }, [existing?.file_path]);
 
@@ -705,6 +716,24 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       // on the client record (src/lib/lonToRecord.ts).
       if (!asDraft && formType === 'Level of Need (LON)') {
         await fillFromLon(clientId, { overwrite: true }).catch(() => null);
+      }
+
+      // The Medicaid number and MCO member ID typed on an intake go on the
+      // client record as soon as it is saved, a draft included, wherever the
+      // record has none, so the IAT and LON carry them.
+      if ((asDraft || silent) && formType === 'Client Intake') {
+        try {
+          const values = await extractPdfFieldValues(await blob.arrayBuffer());
+          const { draft } = intakeDraftFromPdfFields(values);
+          const { data: clientRow } = await supabase
+            .from('clients')
+            .select('date_of_birth, member_id, medicaid_id, phone')
+            .eq('id', clientId)
+            .maybeSingle();
+          await applyWriteThrough(clientId, writeThroughPlan(draft, clientRow ?? {}, values.client_phone).fill);
+        } catch {
+          // The form is saved; the record catches up when it is completed.
+        }
       }
 
       if (!asDraft && formType === 'Client Intake') {
