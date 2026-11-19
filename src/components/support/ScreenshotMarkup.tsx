@@ -95,7 +95,7 @@ export const ScreenshotMarkup: React.FC<Props> = ({ image, onCancel, onSave, hin
   };
 
   return (
-    <div data-support-widget className="fixed inset-0 z-[100] flex flex-col bg-slate-900/90">
+    <div data-support-widget className="pointer-events-auto fixed inset-0 z-[100] flex flex-col bg-slate-900/90">
       <div className="flex flex-wrap items-center justify-between gap-2 bg-white px-4 py-2 shadow">
         <p className="text-sm">
           <strong>Mark up the screenshot.</strong> {hint ?? 'Draw around the problem, then select Attach.'}
