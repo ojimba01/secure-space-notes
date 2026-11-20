@@ -368,7 +368,9 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: f
             place the eye goes to first and spending it on an absence. It
             appears when there is a step, and gets out of the way when there
             is not. */}
-        {action.kind !== 'none' && (
+        {/* A client awaiting their intake call has the call bar above
+            instead: no form can be filled in until they are reached. */}
+        {action.kind !== 'none' && (client as { intake_call_status?: string | null }).intake_call_status !== 'awaiting' && (
           <div className="rounded-md border bg-muted/30 p-3">
             <p className="text-xs font-medium uppercase text-muted-foreground">Next step</p>
             <p className="font-medium">{action.label}</p>

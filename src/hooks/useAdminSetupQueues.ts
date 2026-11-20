@@ -94,7 +94,7 @@ export function useAdminSetupQueues(): AdminSetupQueues {
           supabase
             .from('clients')
             .select(
-              'id, first_name, last_name, assigned_employee_id, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, auth_180_start, hsp_150_date, insurance, restart_pending_at',
+              'id, first_name, last_name, assigned_employee_id, level_of_need, hsp_submitted, auth_150_number, auth_180_number, auth_30_start, auth_150_start, auth_180_start, hsp_150_date, insurance, restart_pending_at, intake_call_status',
             )
             .eq('status', 'active')
             .or(OPEN_CASE_STAGE_FILTER)
@@ -106,7 +106,7 @@ export function useAdminSetupQueues(): AdminSetupQueues {
         ]);
       if (cErr) throw cErr;
 
-      const rows = (clients ?? []) as ClientRow[];
+      const rows = (clients ?? []) as unknown as ClientRow[];
       const staffName = new Map<string, string>();
       for (const p of profiles ?? []) {
         staffName.set(p.id, `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || 'Unnamed');
@@ -139,6 +139,12 @@ export function useAdminSetupQueues(): AdminSetupQueues {
         // Anything that is not one of the two real tiers is missing, including
         // a value someone typed by hand that the rate table cannot price.
         // Blank is Low Level by default; only a value that is neither is missing.
+        // A client awaiting their intake call has not been reached, so no
+        // LON, start date or plan is expected yet; they are not missing one.
+        if ((c as { intake_call_status?: string | null }).intake_call_status === 'awaiting') {
+          if (held) blocked.add(c.id);
+          continue;
+        }
         if (!effectiveLevel(c.level_of_need)) {
           next.noLevelOfNeed.push(base(c));
           held = true;
