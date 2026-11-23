@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { Bell, MessageSquareWarning, PencilLine } from 'lucide-react';
+import { Bell, MessageSquareWarning, PencilLine, PhoneCall } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
@@ -41,7 +41,9 @@ export const NotificationBell: React.FC<{ className?: string }> = ({ className }
   const openItem = (n: AppNotification) => {
     setOpen(false);
     void markNotificationsRead([n.id]).then(load);
-    if (n.client_id) navigate('/', { state: { view: 'clients', clientId: n.client_id } });
+    // An intake call sent to them opens their Intake calls page; anything else, the client.
+    if (n.kind === 'intake_assigned') navigate('/', { state: { view: 'intakes' } });
+    else if (n.client_id) navigate('/', { state: { view: 'clients', clientId: n.client_id } });
   };
 
   return (
@@ -74,7 +76,7 @@ export const NotificationBell: React.FC<{ className?: string }> = ({ className }
             <p className="p-6 text-center text-sm text-muted-foreground">No notifications.</p>
           ) : (
             items.map((n) => {
-              const Icon = n.kind === 'form_corrected' ? PencilLine : MessageSquareWarning;
+              const Icon = n.kind === 'form_corrected' ? PencilLine : n.kind === 'intake_assigned' ? PhoneCall : MessageSquareWarning;
               return (
                 <button
                   key={n.id}

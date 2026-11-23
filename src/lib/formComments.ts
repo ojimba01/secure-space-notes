@@ -41,7 +41,7 @@ export interface FormRef {
 
 export interface AppNotification {
   id: string;
-  kind: 'form_comment' | 'form_corrected';
+  kind: 'form_comment' | 'form_corrected' | 'intake_assigned';
   title: string;
   body: string | null;
   client_id: string | null;

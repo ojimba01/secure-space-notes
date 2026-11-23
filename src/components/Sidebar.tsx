@@ -30,6 +30,7 @@ import { useViewAs } from '@/components/ViewAsProvider';
 import { AdvancedTools } from '@/components/AdvancedTools';
 import { AccountDialog } from '@/components/AccountDialog';
 import { cn } from '@/lib/utils';
+import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
 
 interface SidebarProps {
   /** Which in-page view is showing. Only meaningful on "/". */
@@ -59,6 +60,7 @@ export const BrandMark: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
+  const intakesRibbon = useNewRibbon('intake-calls-page');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -213,6 +215,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           <Button variant={viewVariant('intakes')} className={NAV_ITEM} onClick={() => handleViewChange('intakes')}>
             <PhoneCall className="h-4 w-4" />
             Intake calls
+            {intakesRibbon && <NewRibbon inline />}
           </Button>
           <Button
             variant={viewVariant('forms')}

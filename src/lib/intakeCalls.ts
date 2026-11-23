@@ -304,6 +304,94 @@ export async function assignIntakeCall(clientId: string, managerId: string): Pro
   if (error) throw new Error(error.message);
 }
 
+/**
+ * A new client (a referral) put straight on the intake calls list, with what
+ * the call needs: name, phone and insurance, and the staff member to call.
+ */
+export async function addIntakeClient(input: {
+  first_name: string;
+  last_name: string;
+  phone: string;
+  insurance: string;
+  member_id?: string;
+  medicaid_id?: string;
+  /** MM/DD/YYYY. */
+  date_of_birth?: string;
+  address?: string;
+  managerId: string | null;
+}): Promise<{ id: string; name: string }> {
+  const dob = (input.date_of_birth ?? '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const { data, error } = await supabase
+    .from('clients')
+    .insert({
+      first_name: input.first_name.trim(),
+      last_name: input.last_name.trim(),
+      phone: input.phone.trim(),
+      insurance: input.insurance || null,
+      member_id: input.member_id?.trim() || null,
+      medicaid_id: input.medicaid_id?.trim() || null,
+      date_of_birth: dob ? `${dob[3]}-${dob[1]}-${dob[2]}` : null,
+      address: input.address?.trim() || null,
+      assigned_employee_id: input.managerId,
+      status: 'active',
+      intake_call_status: 'awaiting',
+      intake_call_assigned_at: new Date().toISOString(),
+    } as never)
+    .select('id, first_name, last_name')
+    .single();
+  if (error) throw new Error(error.message);
+  const row = data as { id: string; first_name: string; last_name: string };
+  return { id: row.id, name: `${row.first_name} ${row.last_name}` };
+}
+
+/**
+ * Send an intake call to a staff member: they become the case manager, and
+ * the bell tells them. How long the client has waited stays.
+ */
+export async function sendIntakeToStaff(
+  client: { id: string; name: string },
+  managerId: string,
+  actorId: string,
+  actorName: string,
+): Promise<void> {
+  await reassignIntakeCall(client.id, managerId);
+  if (managerId === actorId) return;
+  await fromTable('notifications').insert({
+    recipient_id: managerId,
+    kind: 'intake_assigned',
+    title: `${actorName || 'Your supervisor'} sent you an intake call`,
+    body: client.name,
+    client_id: client.id,
+    actor_id: actorId,
+  });
+}
+
+/** Keep the referral with the new client, in their Forms under Referral. */
+export async function fileReferral(clientId: string, file: File, profileId: string, signerName: string): Promise<void> {
+  const ext = (file.name.match(/\.[a-z0-9]+$/i)?.[0] ?? '.pdf').toLowerCase();
+  const path = `forms/${clientId}/${crypto.randomUUID()}/referral${ext}`;
+  const { error: up } = await supabase.storage
+    .from('client-files')
+    .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+  if (up) throw new Error(up.message);
+  const { error } = await supabase.from('client_forms').insert({
+    client_id: clientId,
+    employee_id: profileId,
+    form_type: 'Referral',
+    title: 'Referral',
+    file_path: path,
+    original_file_path: path,
+    file_size: file.size,
+    status: 'submitted',
+    source: 'manual_upload',
+    source_filename: file.name,
+    signature_name: signerName,
+    signed_by: profileId,
+    signed_at: new Date().toISOString(),
+  } as never);
+  if (error) throw new Error(error.message);
+}
+
 /** Hand a call already on the list to another staff member; how long it has waited stays. */
 export async function reassignIntakeCall(clientId: string, managerId: string): Promise<void> {
   const { error } = await supabase.from('clients').update({ assigned_employee_id: managerId }).eq('id', clientId);
