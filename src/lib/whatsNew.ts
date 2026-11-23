@@ -42,8 +42,8 @@ export const FEATURES: Feature[] = [
     audience: 'everyone',
     announceUntil: '2026-12-03',
     popup: {
-      title: 'No new client slips through!',
-      body: 'You can now let your supervisor know when a new client does not answer your intake call. Intake call tracking has been enabled on your account.',
+      title: 'Client didn’t pick up? Let the team know!',
+      body: 'You can now report a missed intake call in one click. Intake call tracking has been enabled on your account.',
       illustration: 'intakeCalls',
     },
   },
