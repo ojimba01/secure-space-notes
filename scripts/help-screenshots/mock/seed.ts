@@ -186,8 +186,20 @@ export function seed(): Tables {
     { id: 'ic-2', client_id: 'c-aw1', called_by: 'p-staff', called_at: at(-1, 19), outcome: 'voicemail' },
   ];
 
+  // A supervisor's comment and correction on the case manager's forms (src/lib/formComments.ts).
+  const formComments = [
+    { id: 'fc-1', client_form_id: 'f-0', client_id: 'c-1', field: 'emergency_contact_phone', field_label: 'Phone', preset: 'missing', body: 'This answer is missing', author_id: 'p-admin', recipient_id: 'p-staff', created_at: at(-1, 16), resolved_at: null, resolved_by: null },
+    { id: 'fc-2', client_form_id: 'f-0', client_id: 'c-1', field: 'race', field_label: '7. Race', preset: 'update', body: 'Please update this answer. Use the wording from the IAT', author_id: 'p-admin', recipient_id: 'p-staff', created_at: at(-1, 16), resolved_at: null, resolved_by: null },
+  ];
+  const notifications = [
+    { id: 'n-1', recipient_id: 'p-staff', kind: 'form_comment', title: 'Jordan Price left a comment on your Client Intake', body: 'Dana Whitfield, Phone: This answer is missing', client_id: 'c-1', client_form_id: 'f-0', actor_id: 'p-admin', created_at: at(-1, 16), read_at: null },
+    { id: 'n-2', recipient_id: 'p-staff', kind: 'form_corrected', title: 'Jordan Price corrected your Initial Assessment (IAT)', body: 'Dana Whitfield: changed 2 answers: 5. Medicaid ID, 8. Location (county)', client_id: 'c-1', client_form_id: 'f-1', actor_id: 'p-admin', created_at: at(-2, 11), read_at: null },
+  ];
+
   return {
     intake_calls: intakeCalls,
+    form_comments: formComments,
+    notifications,
     profiles: staff.map(({ role: _r, ...p }) => ({ active: true, ...p, created_at: at(-400), touchpoint_tutorial_acknowledged_at: at(-300), touchpoint_go_live_date: day(-300) })),
     user_roles: staff.map((s) => ({ id: `r-${s.id}`, user_id: s.user_id, role: s.role })),
     clients,
