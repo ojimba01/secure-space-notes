@@ -230,6 +230,13 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const [saving, setSaving] = useState(false);
   // Resubmit mode only:
   const [existingBytes, setExistingBytes] = useState<Uint8Array | null>(null);
+  /**
+   * A copy of a reopened form's file, kept for measuring where a signature
+   * goes. The viewer takes the bytes it is given for its own worker, leaving
+   * existingBytes empty ("detached"), which made Add signature fail with
+   * "Cannot perform Construct on a detached ArrayBuffer".
+   */
+  const existingCopyRef = useRef<Uint8Array | null>(null);
   const [hasFields, setHasFields] = useState<boolean | null>(null);
   const [replacementFile, setReplacementFile] = useState<File | null>(null);
   // New-form mode: template pre-filled with the client's identity fields.
@@ -323,6 +330,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         const filled = facts ? await fillBlankIds(relaxed, existing.form_type, facts).catch(() => null) : null;
         if (filled) bytes = filled;
       }
+      existingCopyRef.current = (bytes as Uint8Array).slice();
       setExistingBytes(bytes as typeof relaxed);
     })();
   }, [existing?.file_path]);
@@ -818,8 +826,8 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       let geometry: ArrayBuffer | Uint8Array | null = null;
       if (template) {
         geometry = await loadBlankTemplate(template.formType, template.mco, template.file);
-      } else if (existingBytes) {
-        geometry = new Uint8Array(existingBytes);
+      } else if (existingCopyRef.current) {
+        geometry = existingCopyRef.current.slice();
       }
       if (!geometry) {
         toast({ title: 'The form has not loaded yet', variant: 'destructive' });
