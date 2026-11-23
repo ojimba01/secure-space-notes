@@ -117,7 +117,7 @@ export default function SupportTickets() {
 
   return (
     <PageShell>
-      <div className="mx-auto max-w-[1300px] space-y-5 p-4 md:p-8">
+      <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:px-9 md:py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div>
@@ -141,12 +141,12 @@ export default function SupportTickets() {
         {problem && <Card className="border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">{problem}</Card>}
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-          <Card className={`divide-y ${selected ? 'hidden lg:block' : ''}`}>
+          <div className={`stagger space-y-2 ${selected ? 'hidden lg:block' : ''}`}>
             {tickets === null ? (
-              <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+              <p className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Loading…</p>
             ) : shown.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted-foreground">
-                <Inbox className="h-6 w-6" />
+              <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
+                <Inbox className="h-7 w-7 animate-float" strokeWidth={1.5} />
                 No tickets in this view.
               </div>
             ) : (
@@ -154,33 +154,37 @@ export default function SupportTickets() {
                 <button
                   key={t.id}
                   onClick={() => select(t.id)}
-                  className={`block w-full p-3 text-left hover:bg-muted/40 ${t.id === selectedId ? 'bg-muted/60' : ''}`}
+                  className={`block w-full rounded-xl border p-4 text-left transition-all active:scale-[0.99] ${
+                    t.id === selectedId
+                      ? 'border-primary bg-accent shadow-[inset_0_0_0_0.5px_hsl(var(--primary))]'
+                      : 'border-border bg-card hover:border-primary/30 hover:bg-muted/40'
+                  }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-medium">{ticketTitle(t)}</span>
-                    <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs ${STATUS_CLASS[t.status]}`}>
+                    <span className={`truncate text-[15px] font-semibold ${t.id === selectedId ? 'text-primary' : 'text-foreground'}`}>{ticketTitle(t)}</span>
+                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASS[t.status]}`}>
                       {STATUS_LABEL[t.status]}
                     </span>
                   </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
+                  <div className="mt-1 text-[13px] text-muted-foreground">
                     {names[t.created_by] ?? 'Staff member'} · {format(new Date(t.created_at), "MMM d 'at' h:mm a")}
                     {t.attachments.length > 0 && ` · ${t.attachments.length} attachment${t.attachments.length === 1 ? '' : 's'}`}
                   </div>
                 </button>
               ))
             )}
-          </Card>
+          </div>
 
           {selected ? (
-            <Card className="space-y-4 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            <Card key={selected.id} className="animate-rise space-y-5 p-5 md:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-5">
                 <div>
                   <Button variant="ghost" size="sm" className="-ml-2 lg:hidden" onClick={() => select(null)}>
                     <ArrowLeft className="mr-1 h-4 w-4" />
                     All tickets
                   </Button>
-                  <div className="font-semibold">{ticketTitle(selected)}</div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xl font-semibold text-foreground">{ticketTitle(selected)}</div>
+                  <div className="mt-0.5 text-[13px] text-muted-foreground">
                     {names[selected.created_by] ?? 'Staff member'} · Sent {format(new Date(selected.created_at), "MMM d, yyyy 'at' h:mm a")}
                   </div>
                   {selected.page_url && (
@@ -211,7 +215,7 @@ export default function SupportTickets() {
               />
             </Card>
           ) : (
-            <Card className="hidden place-items-center p-10 text-sm text-muted-foreground lg:grid">
+            <Card className="hidden place-items-center border-dashed p-10 text-sm text-muted-foreground lg:grid">
               Select a ticket to read it and reply.
             </Card>
           )}

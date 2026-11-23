@@ -4,8 +4,8 @@ import { useAuth } from '@/components/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { DrawnCheck } from '@/components/motion/DrawnCheck';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { returnTo } from '@/lib/returnTo';
@@ -25,6 +25,7 @@ const Auth = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [tab, setTab] = useState<'signin' | 'signup'>('signin');
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
@@ -132,23 +133,47 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-200 via-sky-100 to-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        <Link to="/" className="mx-auto block w-fit transition-opacity hover:opacity-80">
-          <BrandMark className="w-64" />
+    <div className="flex min-h-screen bg-background">
+      {/* The agency's panel: beside the form on a wide screen, gone on a phone. */}
+      <aside className="relative hidden w-[44%] max-w-[620px] flex-col justify-between overflow-hidden bg-gradient-to-br from-[hsl(203_72%_24%)] to-[hsl(200_60%_36%)] p-14 text-white lg:flex">
+        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 animate-float rounded-full bg-white/[0.06]" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-white/[0.05] [animation:float_5s_ease-in-out_infinite]" />
+        <Link to="/" className="relative w-fit rounded-xl bg-white px-4 py-3 shadow-sm transition-transform hover:-translate-y-0.5">
+          <BrandMark className="w-48" />
+        </Link>
+        <div className="relative max-w-md space-y-6">
+          <h2 className="animate-rise text-[34px] font-semibold leading-[1.25]">Every client, every visit, every note in one place.</h2>
+          <ul className="stagger space-y-3">
+            {['Clients, forms and authorizations', 'Touchpoints and the calendar', 'Notes written from your selections'].map((t) => (
+              <li key={t} className="flex items-center gap-3 text-[15px] font-medium text-white/85">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15">
+                  <DrawnCheck className="h-3.5 w-3.5" delay={300} />
+                </span>
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="relative text-xs text-white/60">Supportive Care Management LLC</p>
+      </aside>
+
+      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="w-full max-w-[400px] animate-rise space-y-6">
+        <Link to="/" className="mx-auto block w-fit transition-opacity hover:opacity-80 lg:hidden">
+          <BrandMark className="w-56" />
         </Link>
 
-        <Card className="w-full rounded-2xl border-white/70 shadow-lg">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-semibold tracking-tight text-primary">Clinical Notes</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <div className="w-full">
+        <div className="mb-6 space-y-1">
+          <p className="text-[13px] font-semibold text-primary">Clinical Notes</p>
+          <h1 className="text-[30px] font-semibold tracking-tight text-foreground">
+            {showForgotPassword ? 'Reset password' : tab === 'signin' ? 'Sign in' : 'Create account'}
+          </h1>
+        </div>
+        <div>
           {showForgotPassword ? (
             <div className="space-y-6">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold">Reset password</h3>
-                <p className="text-muted-foreground">Enter your email to receive reset instructions</p>
-              </div>
+              <p className="text-sm text-muted-foreground">Enter your email to receive reset instructions.</p>
               <form onSubmit={handleForgotPassword} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="reset-email">Email address</Label>
@@ -176,12 +201,8 @@ const Auth = () => {
               </form>
             </div>
           ) : (
-            <Tabs defaultValue="signin" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign in</TabsTrigger>
-                <TabsTrigger value="signup">Create account</TabsTrigger>
-              </TabsList>
-              
+            <Tabs value={tab} onValueChange={(v) => setTab(v as 'signin' | 'signup')} className="space-y-6">
+
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
@@ -204,17 +225,24 @@ const Auth = () => {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      className="text-[13px] font-semibold text-primary underline-offset-2 hover:underline"
+                      onClick={() => setShowForgotPassword(true)}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                  <Button type="submit" className="h-11 w-full" disabled={isSubmitting}>
                     {isSubmitting ? 'Signing in...' : 'Sign in'}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full"
-                    onClick={() => setShowForgotPassword(true)}
-                  >
-                    Forgot password?
-                  </Button>
+                  <p className="text-center text-[13px] text-muted-foreground">
+                    New to the agency?{' '}
+                    <button type="button" className="font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setTab('signup')}>
+                      Create account
+                    </button>
+                  </p>
                 </form>
               </TabsContent>
             
@@ -261,15 +289,22 @@ const Auth = () => {
                     minLength={6}
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <Button type="submit" className="h-11 w-full" disabled={isSubmitting}>
                   {isSubmitting ? 'Creating account...' : 'Create account'}
                 </Button>
+                <p className="text-center text-[13px] text-muted-foreground">
+                  Already have an account?{' '}
+                  <button type="button" className="font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setTab('signin')}>
+                    Sign in
+                  </button>
+                </p>
               </form>
             </TabsContent>
           </Tabs>
           )}
-        </CardContent>
-        </Card>
+        </div>
+        </div>
+      </div>
       </div>
     </div>
   );
