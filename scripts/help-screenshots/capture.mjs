@@ -64,7 +64,7 @@ async function closedClient(p) {
   await wait(p, 400);
   await p.getByRole('option', { name: 'Closed' }).click();
   await wait(p, 800);
-  await btn(p, 'View Details').click();
+  await p.locator('[aria-label^="Open "]').first().click();
   await wait(p, 1500);
 }
 
@@ -79,14 +79,27 @@ async function openUhc(p) {
   await wait(p, 2500);
 }
 
-const card = (p, name) => p.locator('[class*="hover:shadow-md"]', { hasText: name }).first();
+/** A client's row on the Clients list. */
+const card = (p, name) => p.locator(`[aria-label="Open ${name}"]`).first();
+/** An item in the … menu on a client's row. */
+async function rowMenu(p, name, item) {
+  await p.getByRole('button', { name: `More for ${name}`, exact: true }).click();
+  await wait(p, 400);
+  return p.getByRole('menuitem', { name: item, exact: true });
+}
+/** An item in the … menu at the top right of a client's record. */
+async function recordMenu(p, item) {
+  await p.getByRole('button', { name: 'More actions', exact: true }).click();
+  await wait(p, 400);
+  return p.getByRole('menuitem', { name: item, exact: true });
+}
 async function clientsList(p) {
   await p.goto(`${BASE}/?view=clients`);
   await wait(p, 2500);
 }
 async function openRestart(p) {
   await clientsList(p);
-  await card(p, 'Helen Brooks').getByRole('button', { name: 'Restart Authorization', exact: true }).click();
+  await (await rowMenu(p, 'Helen Brooks', 'Restart authorization')).click();
   await wait(p, 800);
 }
 /** Restart Helen with no type or date yet. */
@@ -100,7 +113,7 @@ async function markPending(p) {
 }
 async function completePending(p) {
   await markPending(p);
-  await card(p, 'Helen Brooks').getByRole('button', { name: 'Add start date', exact: true }).click();
+  await (await rowMenu(p, 'Helen Brooks', 'Add start date')).click();
   await wait(p, 800);
   await fillRestart(p);
 }
@@ -111,7 +124,7 @@ async function restarted(p, tabName) {
   await dialog(p).getByRole('button', { name: 'Submit', exact: true }).click();
   await wait(p, 2000);
   if (tabName) {
-    await card(p, 'Helen Brooks').getByRole('button', { name: 'View Details', exact: true }).click();
+    await card(p, 'Helen Brooks').click();
     await wait(p, 1500);
     await tab(p, tabName).click();
     await wait(p, 1200);
@@ -286,12 +299,12 @@ const SHOTS = {
   'find-client': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=compliance`), target: (p) => nav(p, 'Clients'), label: 'Clients' },
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await p.getByPlaceholder(/Search by name/).fill('Dana'); }, target: (p) => p.getByPlaceholder(/Search by name/), label: 'Search' },
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await p.getByPlaceholder(/Search by name/).fill('Dana'); }, target: (p) => btn(p, 'View Details'), label: 'View Details' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await p.getByPlaceholder(/Search by name/).fill('Dana'); }, target: (p) => card(p, 'Dana Whitfield'), label: 'Dana Whitfield' },
   ],
   'edit-client': [
-    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'View Details'), label: 'View Details' },
-    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Edit', true), label: 'Edit' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p); }, target: (p) => btn(p, 'Update client'), label: 'Update client' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => card(p, 'Dana Whitfield'), label: 'Dana Whitfield' },
+    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Edit client', true), label: 'Edit client' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit client', true).click(); await wait(p); }, target: (p) => btn(p, 'Update client'), label: 'Update client' },
   ],
   'document-edits': [
     { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Update the record to 51277').locator('xpath=ancestor::div[contains(@class,"border-amber-300")][1]'), label: 'Update to …?' },
@@ -307,9 +320,9 @@ const SHOTS = {
     { as: 'admin', go: (p) => openClient(p, 'c-1', 'History'), target: (p) => text(p, 'Case history').locator('xpath=ancestor::div[contains(@class,"rounded")][1]'), label: 'Every change, with who and when' },
   ],
   'close-case': [
-    { as: 'staff', go: (p) => openClient(p, 'c-2'), target: (p) => btn(p, 'Close case', true), label: 'Close case' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await btn(p, 'Close case', true).click(); await wait(p); }, target: (p) => dialog(p).getByRole('combobox').first(), label: 'Select a reason' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await btn(p, 'Close case', true).click(); await wait(p); }, target: (p) => dialog(p).getByRole('button', { name: 'Close case', exact: true }), label: 'Close case' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await p.getByRole('button', { name: 'More actions', exact: true }).click(); await wait(p, 400); }, target: (p) => p.getByRole('menuitem', { name: 'Close case', exact: true }), label: 'Close case' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await (await recordMenu(p, 'Close case')).click(); await wait(p); }, target: (p) => dialog(p).getByRole('combobox').first(), label: 'Select a reason' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await (await recordMenu(p, 'Close case')).click(); await wait(p); }, target: (p) => dialog(p).getByRole('button', { name: 'Close case', exact: true }), label: 'Close case' },
   ],
   'reopen-case': [
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await text(p, 'All case stages').click(); await wait(p, 500); }, target: (p) => p.getByRole('option', { name: 'Closed' }), label: 'Closed' },
@@ -435,8 +448,8 @@ const SHOTS = {
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 3000); await p.keyboard.press('Escape'); await wait(p, 1200); }, target: (p) => p.getByRole('button', { name: 'Refresh', exact: true }), label: 'Refresh' },
   ],
   'add-event': [
-    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=calendar`), target: (p) => btn(p, 'Add Event'), label: 'Add Event' },
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=calendar`); await wait(p, 2000); await btn(p, 'Add Event').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: 'Add Event' }), label: 'Add Event' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=calendar`), target: (p) => btn(p, 'Add event'), label: 'Add event' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=calendar`); await wait(p, 2000); await btn(p, 'Add event').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: /Add event/i }), label: 'Add event' },
   ],
   'calendar-link': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=calendar`), target: (p) => p.locator('[aria-label="Your account"]').last(), label: 'Your account' },
@@ -545,28 +558,28 @@ const SHOTS = {
     { as: 'admin', go: async (p) => { await openWorkbook(p); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); }, target: (p) => btn(p, 'Restart authorization', true), label: 'Restart authorization' },
   ],
   'restart-authorization': [
-    { as: 'admin', go: clientsList, target: (p) => card(p, 'Helen Brooks').getByRole('button', { name: 'Restart Authorization', exact: true }), label: 'Restart Authorization' },
+    { as: 'admin', go: async (p) => { await clientsList(p); await p.getByRole('button', { name: 'More for Helen Brooks', exact: true }).click(); await wait(p, 400); }, target: (p) => p.getByRole('menuitem', { name: 'Restart authorization', exact: true }), label: 'Restart authorization' },
     { as: 'admin', go: openRestart, target: (p) => dialog(p).getByRole('button', { name: '150-day', exact: true }), label: 'What the MCO approved' },
     { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByLabel('Start date'), label: 'Start date' },
     { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByRole('button', { name: 'Submit', exact: true }), label: 'Submit' },
     { as: 'admin', go: (p) => restarted(p, 'Overview'), target: (p) => text(p, 'Needed for the restart on 10/12/2026').locator('xpath=..'), label: 'Forms to file' },
   ],
   'complete-restart': [
-    { as: 'admin', go: markPending, target: (p) => card(p, 'Helen Brooks').getByRole('button', { name: 'Add start date', exact: true }), label: 'Add start date' },
+    { as: 'admin', go: async (p) => { await markPending(p); await p.getByRole('button', { name: 'More for Helen Brooks', exact: true }).click(); await wait(p, 400); }, target: (p) => p.getByRole('menuitem', { name: 'Add start date', exact: true }), label: 'Add start date' },
     { as: 'admin', go: completePending, target: (p) => dialog(p).getByLabel('Start date'), label: 'Start date' },
     { as: 'admin', go: completePending, target: (p) => dialog(p).getByRole('button', { name: 'Submit', exact: true }), label: 'Submit' },
   ],
   'remove-authorization-date': [
-    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p, 800); }, target: (p) => p.locator('input[type="date"]').nth(3), label: '150-day date' },
-    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p, 800); await p.locator('input[type="date"]').nth(3).fill(''); }, target: (p) => p.getByRole('button', { name: /^Update/ }).first(), label: 'Update client' },
-    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p, 800); await p.locator('input[type="date"]').nth(3).fill(''); await p.getByRole('button', { name: /^Update/ }).first().click(); await wait(p, 800); }, target: (p) => p.getByRole('alertdialog').getByRole('button', { name: 'Remove authorization', exact: true }), label: 'Remove authorization' },
+    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit client', true).click(); await wait(p, 800); }, target: (p) => p.locator('input[type="date"]').nth(3), label: '150-day date' },
+    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit client', true).click(); await wait(p, 800); await p.locator('input[type="date"]').nth(3).fill(''); }, target: (p) => p.getByRole('button', { name: /^Update/ }).first(), label: 'Update client' },
+    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit client', true).click(); await wait(p, 800); await p.locator('input[type="date"]').nth(3).fill(''); await p.getByRole('button', { name: /^Update/ }).first().click(); await wait(p, 800); }, target: (p) => p.getByRole('alertdialog').getByRole('button', { name: 'Remove authorization', exact: true }), label: 'Remove authorization' },
   ],
   'undo-restart': [
     { as: 'admin', go: (p) => restarted(p, 'Authorizations'), target: (p) => btn(p, 'Undo restart', true), label: 'Undo restart' },
     { as: 'admin', go: async (p) => { await restarted(p, 'Authorizations'); await btn(p, 'Undo restart', true).click(); await wait(p, 800); }, target: (p) => p.getByRole('alertdialog').getByRole('button', { name: 'Undo restart', exact: true }), label: 'Undo restart' },
   ],
   'earlier-rounds': [
-    { as: 'admin', go: (p) => restarted(p), target: (p) => card(p, 'Helen Brooks').getByText('Round 2', { exact: true }), label: 'Round 2' },
+    { as: 'admin', go: (p) => restarted(p), target: (p) => card(p, 'Helen Brooks').getByText(/Round 2/), label: 'Round 2' },
     { as: 'admin', go: (p) => restarted(p, 'Authorizations'), target: (p) => p.getByRole('button', { name: /^Show earlier rounds/ }).first(), label: 'Show earlier rounds' },
     { as: 'admin', go: (p) => restarted(p, 'History'), target: (p) => p.getByText(/^Authorization restarted/).first().locator('xpath=ancestor::li[1]'), label: 'Restart in Case history' },
   ],
