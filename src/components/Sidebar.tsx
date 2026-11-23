@@ -15,6 +15,7 @@ import {
   UserCircle,
   Activity,
   LifeBuoy,
+  PhoneCall,
 } from "lucide-react";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,8 +32,8 @@ import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   /** Which in-page view is showing. Only meaningful on "/". */
-  activeView?: 'compliance' | 'clients' | 'calendar' | 'forms';
-  onViewChange: (view: 'compliance' | 'clients' | 'calendar' | 'forms') => void;
+  activeView?: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes';
+  onViewChange: (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes') => void;
 }
 
 /** Marks a feature still being tried out. Hidden from screen readers so the item keeps its name. */
@@ -92,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   const { isViewingAs } = useViewAs();
 
   // Close sidebar when view changes on mobile
-  const handleViewChange = (view: 'compliance' | 'clients' | 'calendar' | 'forms') => {
+  const handleViewChange = (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes') => {
     onViewChange(view);
     if (isMobile) setIsOpen(false);
   };
@@ -205,6 +206,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           >
             <Users className="h-4 w-4" />
             Clients
+          </Button>
+          <Button variant={viewVariant('intakes')} className={NAV_ITEM} onClick={() => handleViewChange('intakes')}>
+            <PhoneCall className="h-4 w-4" />
+            Intake calls
           </Button>
           <Button
             variant={viewVariant('forms')}

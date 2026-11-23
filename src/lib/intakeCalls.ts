@@ -96,6 +96,7 @@ export async function addUnreachedClient(
       email: input.email?.trim() || null,
       assigned_employee_id: input.assigned_employee_id,
       intake_call_status: 'awaiting',
+      intake_call_assigned_at: new Date().toISOString(),
     } as never)
     .select('id, first_name, last_name')
     .single();
@@ -108,4 +109,142 @@ export async function addUnreachedClient(
 /** "Assigned 2 days ago" and the like, from a timestamp. */
 export function daysSince(iso: string, now = Date.now()): number {
   return Math.max(0, Math.floor((now - new Date(iso).getTime()) / 86_400_000));
+}
+
+// ---------------------------------------------------------------------------
+// The intake list: every client whose intake is still to be done, and those
+// done in the last two weeks, with where each stands. Read by the Intake calls
+// page and the admin dashboard, so both show the same thing.
+// ---------------------------------------------------------------------------
+
+export type IntakeStatus = 'not_called' | 'waiting' | 'done';
+
+export const INTAKE_STATUS_LABEL: Record<IntakeStatus, string> = {
+  not_called: 'Not called yet',
+  waiting: 'Waiting to hear back from client',
+  done: 'Done',
+};
+
+export interface IntakeListRow {
+  clientId: string;
+  name: string;
+  phone: string | null;
+  managerId: string | null;
+  /** When the client was put on the list (added, or added to the list). */
+  since: string;
+  status: IntakeStatus;
+  /** Calls nobody answered, newest first. */
+  calls: IntakeCall[];
+  /** The intake was started (call answered) but not completed. */
+  intakeStarted: boolean;
+  /** When the Client Intake was completed, for Done. */
+  doneAt: string | null;
+}
+
+/** A Client Intake counts as done once it is no longer a draft. */
+const OPEN_FORM = new Set(['draft', 'changes_requested']);
+const DONE_SHOWN_DAYS = 14;
+
+export async function loadIntakeList(): Promise<IntakeListRow[]> {
+  const { data: clientData, error } = await supabase
+    .from('clients')
+    .select('id, first_name, last_name, phone, assigned_employee_id, created_at, intake_call_status, intake_call_assigned_at')
+    .in('intake_call_status' as never, ['awaiting', 'reached'] as never)
+    .eq('status', 'active')
+    .is('deleted_at', null);
+  if (error) throw new Error(error.message);
+  const clients = (clientData ?? []) as unknown as {
+    id: string;
+    first_name: string;
+    last_name: string;
+    phone: string | null;
+    assigned_employee_id: string | null;
+    created_at: string;
+    intake_call_status: 'awaiting' | 'reached';
+    intake_call_assigned_at: string | null;
+  }[];
+  if (!clients.length) return [];
+  const ids = clients.map((c) => c.id);
+
+  const [calls, formsRes] = await Promise.all([
+    loadIntakeCalls(ids).catch(() => new Map<string, IntakeCall[]>()),
+    supabase
+      .from('client_forms')
+      .select('client_id, status, signed_at, updated_at')
+      .eq('form_type', 'Client Intake')
+      .in('client_id', ids),
+  ]);
+  const doneAt = new Map<string, string>();
+  for (const f of (formsRes.data ?? []) as { client_id: string; status: string; signed_at: string | null; updated_at: string }[]) {
+    if (OPEN_FORM.has(f.status)) continue;
+    const at = f.signed_at ?? f.updated_at;
+    if (!doneAt.has(f.client_id) || at > doneAt.get(f.client_id)!) doneAt.set(f.client_id, at);
+  }
+
+  const rows: IntakeListRow[] = [];
+  for (const c of clients) {
+    const all = calls.get(c.id) ?? [];
+    const unanswered = all.filter((x) => x.outcome !== 'answered');
+    const done = doneAt.get(c.id) ?? null;
+    if (done && daysSince(done) > DONE_SHOWN_DAYS) continue;
+    const status: IntakeStatus = done ? 'done' : unanswered.length || c.intake_call_status === 'reached' ? 'waiting' : 'not_called';
+    rows.push({
+      clientId: c.id,
+      name: `${c.first_name} ${c.last_name}`.trim(),
+      phone: c.phone,
+      managerId: c.assigned_employee_id,
+      since: c.intake_call_assigned_at ?? c.created_at,
+      status,
+      calls: unanswered,
+      intakeStarted: !done && c.intake_call_status === 'reached',
+      doneAt: done,
+    });
+  }
+  const order: Record<IntakeStatus, number> = { not_called: 0, waiting: 1, done: 2 };
+  rows.sort((a, b) => order[a.status] - order[b.status] || a.since.localeCompare(b.since));
+  return rows;
+}
+
+/**
+ * An admin puts a client on the intake list and assigns the call: the staff
+ * member becomes the client's case manager, and the client waits for their
+ * intake call.
+ */
+export async function assignIntakeCall(clientId: string, managerId: string): Promise<void> {
+  const { error } = await supabase
+    .from('clients')
+    .update({ assigned_employee_id: managerId, intake_call_status: 'awaiting', intake_call_assigned_at: new Date().toISOString() } as never)
+    .eq('id', clientId);
+  if (error) throw new Error(error.message);
+}
+
+/** Hand a call already on the list to another staff member; how long it has waited stays. */
+export async function reassignIntakeCall(clientId: string, managerId: string): Promise<void> {
+  const { error } = await supabase.from('clients').update({ assigned_employee_id: managerId }).eq('id', clientId);
+  if (error) throw new Error(error.message);
+}
+
+/** Active clients with no completed Client Intake who are not on the list yet. */
+export async function clientsWithoutIntake(): Promise<{ id: string; name: string; managerId: string | null }[]> {
+  const { data: clientData, error } = await supabase
+    .from('clients')
+    .select('id, first_name, last_name, assigned_employee_id, intake_call_status')
+    .eq('status', 'active')
+    .is('deleted_at', null)
+    .order('last_name');
+  if (error) throw new Error(error.message);
+  const clients = ((clientData ?? []) as unknown as {
+    id: string;
+    first_name: string;
+    last_name: string;
+    assigned_employee_id: string | null;
+    intake_call_status: string | null;
+  }[]).filter((c) => c.intake_call_status !== 'awaiting');
+  const { data: forms } = await supabase.from('client_forms').select('client_id, status').eq('form_type', 'Client Intake');
+  const done = new Set(
+    ((forms ?? []) as { client_id: string; status: string }[]).filter((f) => !OPEN_FORM.has(f.status)).map((f) => f.client_id),
+  );
+  return clients
+    .filter((c) => !done.has(c.id))
+    .map((c) => ({ id: c.id, name: `${c.last_name}, ${c.first_name}`, managerId: c.assigned_employee_id }));
 }

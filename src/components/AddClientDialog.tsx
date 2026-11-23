@@ -314,6 +314,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         assigned_employee_id: assignedId,
         // Waiting for the intake call, or reached on this one.
         intake_call_status: callAnswered ? 'reached' : 'awaiting',
+        intake_call_assigned_at: callAnswered ? null : new Date().toISOString(),
         ...(isUnited ? { mco_housing_manager: data.mco_housing_manager || null } : {}),
         // Place the record in the lifecycle from the authorizations entered.
         workflow_stage: data.auth_150_start
