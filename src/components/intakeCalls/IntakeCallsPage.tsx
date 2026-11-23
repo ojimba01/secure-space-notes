@@ -176,9 +176,9 @@ export const IntakeCallsPage: React.FC<{ onOpenClient: (clientId: string) => voi
   if (adminLoading) return null;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8">
+    <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:px-9 md:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary md:text-3xl">Intake calls</h1>
+        <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">Intake calls</h1>
         {isAdmin && (
           <Button onClick={() => setAdding(true)}>
             <Plus className="mr-2 h-4 w-4" />
