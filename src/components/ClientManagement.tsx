@@ -27,6 +27,7 @@ import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useMyCompliance } from '@/hooks/useMyCompliance';
 import { useViewAs } from '@/components/ViewAsProvider';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
+import { PDF_TEMPLATES, TemplateFillDialog } from '@/components/forms/TemplateFillDialog';
 import { TouchpointReminderPopup } from '@/components/TouchpointReminderPopup';
 
 interface Client {
@@ -139,6 +140,18 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
     { id: string; name: string; levelOfNeed: string | null } | null
   >(null);
   const myProfileId = useEffectiveProfileId();
+  /** A Client Intake opened with Start intake: the client it is for. */
+  const [intakeFor, setIntakeFor] = useState<{ id: string; name: string } | null>(null);
+  const [myName, setMyName] = useState('');
+  useEffect(() => {
+    if (!myProfileId) return;
+    void supabase
+      .from('profiles')
+      .select('first_name, last_name')
+      .eq('id', myProfileId)
+      .maybeSingle()
+      .then(({ data }) => setMyName(`${data?.first_name ?? ''} ${data?.last_name ?? ''}`.trim()));
+  }, [myProfileId]);
   /** An unanswered intake call being reported: for a new client, or one already waiting. */
   const [reportFor, setReportFor] = useState<ReportCallFor | null>(null);
   const [callsKey, setCallsKey] = useState(0);
@@ -720,11 +733,29 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
               toast({ title: 'Could not start the intake', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
               return;
             }
-            await fetchClients();
-            // The record's Forms tab, where the Client Intake is the first row.
-            setSelectedClientTab('forms');
-            setPendingOpenId(c.id);
+            // Straight into the Client Intake for this person.
+            setIntakeFor({ id: c.id, name: `${c.first_name} ${c.last_name}` });
           }}
+        />
+      )}
+
+      {intakeFor && myProfileId && (
+        <TemplateFillDialog
+          template={PDF_TEMPLATES.find((t) => t.formType === 'Client Intake' && !t.mco) ?? null}
+          profileId={myProfileId}
+          signerName={myName || 'Staff'}
+          lockedClientId={intakeFor.id}
+          lockedClientName={intakeFor.name}
+          onClose={() => {
+            const id = intakeFor.id;
+            setIntakeFor(null);
+            // Back to the client's record, on its Forms tab.
+            void fetchClients().then(() => {
+              setSelectedClientTab('forms');
+              setPendingOpenId(id);
+            });
+          }}
+          onSubmitted={() => void fetchClients()}
         />
       )}
 

@@ -30,9 +30,11 @@ export const NotificationBell: React.FC<{ className?: string }> = ({ className }
     const timer = window.setInterval(() => void load(), 60_000);
     const onFocus = () => void load();
     window.addEventListener('focus', onFocus);
+    window.addEventListener('notifications-changed', onFocus);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener('focus', onFocus);
+      window.removeEventListener('notifications-changed', onFocus);
     };
   }, [load]);
 
@@ -40,10 +42,12 @@ export const NotificationBell: React.FC<{ className?: string }> = ({ className }
 
   const openItem = (n: AppNotification) => {
     setOpen(false);
-    void markNotificationsRead([n.id]).then(load);
-    // An intake call sent to them opens their Intake calls page; anything else, the client.
-    if (n.kind === 'intake_assigned') navigate('/', { state: { view: 'intakes' } });
-    else if (n.client_id) navigate('/', { state: { view: 'clients', clientId: n.client_id } });
+    void markNotificationsRead([n.id]).then(() => {
+      window.dispatchEvent(new Event('notifications-changed'));
+      void load();
+    });
+    // The message in full, with its form, in the Inbox.
+    navigate('/', { state: { view: 'inbox', notificationId: n.id } });
   };
 
   return (

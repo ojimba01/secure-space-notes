@@ -16,7 +16,7 @@ import {
   UserCircle,
   Activity,
   LifeBuoy,
-  PhoneCall,
+  Inbox,
 } from "lucide-react";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,11 +31,12 @@ import { AdvancedTools } from '@/components/AdvancedTools';
 import { AccountDialog } from '@/components/AccountDialog';
 import { cn } from '@/lib/utils';
 import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
+import { useUnreadCount } from '@/hooks/useUnreadCount';
 
 interface SidebarProps {
   /** Which in-page view is showing. Only meaningful on "/". */
-  activeView?: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes';
-  onViewChange: (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes') => void;
+  activeView?: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes' | 'inbox';
+  onViewChange: (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes' | 'inbox') => void;
 }
 
 /** Marks a feature still being tried out. Hidden from screen readers so the item keeps its name. */
@@ -60,7 +61,8 @@ export const BrandMark: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
-  const intakesRibbon = useNewRibbon('intake-calls-page');
+  const inboxRibbon = useNewRibbon('inbox');
+  const unreadCount = useUnreadCount();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -96,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   const { isViewingAs } = useViewAs();
 
   // Close sidebar when view changes on mobile
-  const handleViewChange = (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes') => {
+  const handleViewChange = (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes' | 'inbox') => {
     onViewChange(view);
     if (isMobile) setIsOpen(false);
   };
@@ -212,10 +214,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             <Users className="h-4 w-4" />
             Clients
           </Button>
-          <Button variant={viewVariant('intakes')} className={NAV_ITEM} onClick={() => handleViewChange('intakes')}>
-            <PhoneCall className="h-4 w-4" />
-            Intake calls
-            {intakesRibbon && <NewRibbon inline />}
+          <Button variant={viewVariant('inbox')} className={NAV_ITEM} onClick={() => handleViewChange('inbox')}>
+            <Inbox className="h-4 w-4" />
+            Inbox
+            {inboxRibbon && <NewRibbon inline />}
+            {unreadCount > 0 && (
+              <span className="ml-auto rounded-full bg-red-600 px-2 text-xs text-white">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            )}
           </Button>
           <Button
             variant={viewVariant('forms')}

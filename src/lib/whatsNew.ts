@@ -43,18 +43,18 @@ export const FEATURES: Feature[] = [
     announceUntil: '2026-12-07',
     popup: {
       title: 'Review every intake in one place!',
-      body: 'The new Intake calls page shows each new member’s calls, forms and review status. It has been enabled on your account.',
+      body: 'Intake calls on your admin dashboard shows each new member’s calls, forms and review status. It has been enabled on your account.',
       illustration: 'intakePackage',
     },
   },
   {
-    key: 'form-comments',
-    message: 'Your supervisor can now comment on your forms.',
+    key: 'inbox',
+    message: 'Your Inbox shows comments and changes on your forms.',
     audience: 'everyone',
     announceUntil: '2026-12-07',
     popup: {
-      title: 'Get it right the first time!',
-      body: 'Your supervisor can now comment on a form, and you are notified right away. Notifications have been enabled on your account.',
+      title: 'Never miss feedback again!',
+      body: 'Your new Inbox shows every comment and change made to your forms. It has been enabled on your account.',
       illustration: 'formComments',
     },
   },
