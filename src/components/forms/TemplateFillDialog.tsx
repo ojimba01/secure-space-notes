@@ -1342,6 +1342,22 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   );
   const openComments = comments.filter((c) => !c.resolved_at);
 
+  // On the whole page the PDF fills the width it has; in a window it opens
+  // at its normal size. Zoom still changes it either way.
+  useEffect(() => {
+    const box = scrollBox.current;
+    if (!box) return;
+    if (!expanded) {
+      setScale(1);
+      return;
+    }
+    const fit = () => setScale(Math.max(1, Math.min(2.4, +((box.clientWidth - 48) / BASE_PAGE_WIDTH).toFixed(2))));
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [expanded]);
+
   const toggleExpanded = () =>
     setExpanded((wide) => {
       try {
@@ -1370,10 +1386,55 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       >
         <DialogHeader>
           {/* Clear of the dialog's own close button, at the top right. */}
-          <div className="flex items-center justify-between gap-3 pr-8">
-            <DialogTitle>
-              {existing ? `Edit & resubmit — ${formType}` : formType}
-            </DialogTitle>
+          {/* One line: the form and client, the view and zoom, and Full page. */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+              <DialogTitle>
+                {existing ? `Edit & resubmit — ${formType}` : formType}
+              </DialogTitle>
+              {(existing || lockedClientId) && clientName && (
+                <span className="truncate text-sm text-muted-foreground">{clientName}</span>
+              )}
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-2">
+              {webSchema && hasFields !== false && (
+                <div className="flex rounded-lg border bg-muted/40 p-0.5 text-sm" role="tablist" aria-label="View">
+                  {(['form', 'pdf'] as const).map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      role="tab"
+                      aria-selected={view === v}
+                      onClick={() => {
+                        if (v === 'pdf' && view !== 'pdf') setPagesKey((k) => k + 1);
+                        setView(v);
+                      }}
+                      className={`rounded-md px-3 py-1 ${view === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground'}`}
+                    >
+                      {v === 'form' ? 'Form' : 'PDF'}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {view === 'pdf' && (<>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setScale((s) => Math.max(0.6, +(s - 0.1).toFixed(2)))}
+              >
+                <ZoomOut className="h-4 w-4" />
+              </Button>
+              <span className="text-sm w-12 text-center">{Math.round(scale * 100)}%</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setScale((s) => Math.min(2.4, +(s + 0.1).toFixed(2)))}
+              >
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+              </>)}
+            </div>
             <Button
               type="button"
               variant="ghost"
@@ -1388,6 +1449,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
               )}
               {expanded ? 'Exit full page' : 'Full page'}
             </Button>
+            </div>
           </div>
         </DialogHeader>
 
@@ -1424,13 +1486,9 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           </div>
         )}
 
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          {existing || lockedClientId ? (
-            <div className="space-y-1.5">
-              <Label>Client</Label>
-              <div className="text-sm font-medium">{clientName ?? '—'}</div>
-            </div>
-          ) : (
+        {/* Choosing the client, for a blank form opened without one. */}
+        {!(existing || lockedClientId) && (
+          <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1.5 min-w-[240px]">
               <Label>Client</Label>
               <ClientPicker
@@ -1445,46 +1503,8 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                 </p>
               )}
             </div>
-          )}
-          <div className="flex items-center gap-2">
-            {webSchema && hasFields !== false && (
-              <div className="flex rounded-lg border bg-muted/40 p-0.5 text-sm" role="tablist" aria-label="View">
-                {(['form', 'pdf'] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    role="tab"
-                    aria-selected={view === v}
-                    onClick={() => {
-                      if (v === 'pdf' && view !== 'pdf') setPagesKey((k) => k + 1);
-                      setView(v);
-                    }}
-                    className={`rounded-md px-3 py-1 ${view === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground'}`}
-                  >
-                    {v === 'form' ? 'Form' : 'PDF'}
-                  </button>
-                ))}
-              </div>
-            )}
-            {view === 'pdf' && (<>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setScale((s) => Math.max(0.6, +(s - 0.1).toFixed(2)))}
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <span className="text-sm w-12 text-center">{Math.round(scale * 100)}%</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setScale((s) => Math.min(1.6, +(s + 0.1).toFixed(2)))}
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-            </>)}
           </div>
-        </div>
+        )}
 
         {showReplacementPicker ? (
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
@@ -1534,6 +1554,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                 <WebFormView
                   doc={docRef.current}
                   schema={webSchema}
+                  wide={expanded}
                   renderExtras={existing ? renderExtras : undefined}
                   // The LON's total adds itself up from its scores.
                   afterChange={
@@ -1704,16 +1725,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           )}
         </div>
 
-        <label className="flex items-start gap-2 text-sm">
-          <Checkbox
-            checked={attested}
-            onCheckedChange={(v) => setAttested(v === true)}
-            className="mt-0.5"
-          />
-          <span>I attest this form is complete and accurate.</span>
-        </label>
-
-        <DialogFooter className="gap-2 sm:justify-between">
+        <DialogFooter className="flex-wrap gap-2 sm:justify-between">
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" onClick={handleDownloadCopy} disabled={!numPages}>
               <Download className="h-4 w-4 mr-1" />
@@ -1744,7 +1756,13 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
               </span>
             )}
           </div>
-          <div className="flex gap-2">
+          {/* Right-aligned even when it wraps under the left group; the footer's
+              own spacing would otherwise override a margin class. */}
+          <div className="flex flex-wrap items-center justify-end gap-2" style={{ marginLeft: 'auto' }}>
+            <label className="mr-2 flex items-center gap-2 text-sm">
+              <Checkbox checked={attested} onCheckedChange={(v) => setAttested(v === true)} />
+              <span>I attest this form is complete and accurate.</span>
+            </label>
             <Button variant="outline" onClick={requestClose} disabled={saving}>
               Close
             </Button>

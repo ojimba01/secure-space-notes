@@ -39,7 +39,11 @@ export const WebFormView: React.FC<{
   afterChange?: () => Promise<void>;
   /** Shown under a question: its comments, and a way to add one. */
   renderExtras?: (field: string, label: string) => React.ReactNode;
-}> = ({ doc, schema, onChange, afterChange, renderExtras }) => {
+  /** On the whole page: as wide as the screen, up to three questions across. */
+  wide?: boolean;
+}> = ({ doc, schema, onChange, afterChange, renderExtras, wide = false }) => {
+  /** Across the whole row: every column on a wide page. */
+  const full = wide ? 'sm:col-span-2 xl:col-span-3' : 'sm:col-span-2';
   const storage = (doc as unknown as { annotationStorage: Storage }).annotationStorage;
   const [fields, setFields] = useState<Record<string, FieldObject[]> | null>(null);
   const [values, setValues] = useState<Record<string, string | boolean>>({});
@@ -143,7 +147,7 @@ export const WebFormView: React.FC<{
   if (!fields) return <p className="p-8 text-center text-sm text-muted-foreground">Loading form...</p>;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className={wide ? 'mx-auto max-w-[1600px] space-y-4' : 'mx-auto max-w-3xl space-y-4'}>
       {missing.length > 0 && (
         <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
           Some questions are not on this copy of the form: {missing.join(', ')}. Select PDF to fill it in directly.
@@ -154,11 +158,11 @@ export const WebFormView: React.FC<{
           <h3 className="rounded-t-lg bg-primary px-4 py-2 text-sm font-semibold uppercase tracking-wide text-primary-foreground">
             {section.title}
           </h3>
-          <div className="grid gap-x-4 gap-y-4 p-4 sm:grid-cols-2">
+          <div className={`grid gap-x-4 gap-y-4 p-4 sm:grid-cols-2 ${wide ? 'xl:grid-cols-3' : ''}`}>
             {section.items.filter(shown).map((item, i) => {
               if (item.kind === 'heading') {
                 return (
-                  <p key={`h${i}`} className="pt-1 text-sm font-semibold sm:col-span-2">
+                  <p key={`h${i}`} className={`pt-1 text-sm font-semibold ${full}`}>
                     {item.label}
                   </p>
                 );
@@ -166,7 +170,7 @@ export const WebFormView: React.FC<{
               if (item.kind === 'text') {
                 const id = `wf-${item.field}`;
                 return (
-                  <div key={item.field} className={`space-y-1.5 ${item.wide || item.multiline ? 'sm:col-span-2' : ''}`}>
+                  <div key={item.field} className={`space-y-1.5 ${item.multiline ? full : item.wide ? 'sm:col-span-2' : ''}`}>
                     <label htmlFor={id} className="text-sm font-medium">
                       {item.label}
                     </label>
@@ -210,7 +214,7 @@ export const WebFormView: React.FC<{
               }
               if (item.kind === 'choice') {
                 return (
-                  <div key={item.field} className="space-y-1.5 sm:col-span-2">
+                  <div key={item.field} className={`space-y-1.5 ${full}`}>
                     <p className="text-sm font-medium">{item.label}</p>
                     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={item.label}>
                       {item.options.map((o) => {
@@ -236,7 +240,7 @@ export const WebFormView: React.FC<{
                 );
               }
               return (
-                <div key={`c${i}`} className="space-y-1.5 sm:col-span-2">
+                <div key={`c${i}`} className={`space-y-1.5 ${full}`}>
                   <p className="text-sm font-medium">{item.label}</p>
                   <div className="flex flex-wrap gap-x-5 gap-y-2">
                     {item.options.map((o) => (
