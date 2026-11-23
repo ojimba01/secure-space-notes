@@ -170,12 +170,12 @@ async function signForm(p) {
   await wait(p, 1200);
   await dialog(p).getByRole('button', { name: /Taylor Brooks/ }).first().click();
   await wait(p, 2500);
+  // A web form shows the signature on its PDF view.
+  const pdf = p.getByRole('dialog').last().getByRole('tab', { name: 'PDF', exact: true }).or(p.getByRole('dialog').last().getByRole('button', { name: 'PDF', exact: true })).first();
+  if (await pdf.count()) { await pdf.click(); await wait(p, 2500); }
   await p.locator('[title^="Drag to move it"]').first().scrollIntoViewIfNeeded();
 }
 
-function inStep(p, title, name) {
-  return dialog(p).locator('section', { hasText: title }).getByRole('button', { name, exact: true }).first();
-}
 async function openNoteBuilder(p) {
   await openClient(p, 'c-2', 'Touchpoints');
   await btn(p, 'Clinical note', true).click();
@@ -183,45 +183,56 @@ async function openNoteBuilder(p) {
 }
 // Step titles, matched in part (they say "visit" or "contact" by contact method).
 const T = {
-  activities: 'housing support activities took place',
-  why: 'housing goal did this',
-  housing: 'current housing status',
-  details: 'What did you discuss?',
-  actions: 'What actions did CM complete',
-  result: 'What was the result of CM',
-  barriers: 'Were any barriers identified?',
+  activities: 'cover?',
+  details: 'What specifically happened?',
+  goals: 'housing goal did this',
+  prompts: 'What prompted this',
+  housing: 'housing status?',
+  actions: 'What did CM do?',
+  result: 'overall result?',
   response: 'respond?',
-  next: 'What are the next steps?',
+  barriers: 'barriers were identified?',
+  next: 'What happens next?',
 };
+/** The question's card, inside the builder (a dialog, or the Generate Notes page). */
+const stepIn = (root, title) => root.locator('section', { hasText: title }).first();
+/** Give a question its first answer; skip it if that answer opens a further question. */
+async function answerStep(root, title) {
+  const sec = stepIn(root, title);
+  await sec.waitFor({ timeout: 6000 });
+  const answers = sec.getByRole('button').filter({ hasNotText: /^Skip$/ });
+  await answers.first().click();
+  await root.page().waitForTimeout(250);
+  const skip = sec.getByRole('button', { name: 'Skip', exact: true });
+  if (await skip.count()) await skip.click();
+  await root.page().waitForTimeout(250);
+}
+/** Topic and what happened: Housing assistance, Shared housing listings. */
+async function pickTopic(root) {
+  await stepIn(root, T.activities).getByRole('button', { name: /Housing assistance/ }).first().click();
+  await root.page().waitForTimeout(300);
+  await stepIn(root, T.details).getByRole('button', { name: /Shared housing listings/ }).first().click();
+  await root.page().waitForTimeout(300);
+  const skip = stepIn(root, T.details).getByRole('button', { name: 'Skip', exact: true });
+  if (await skip.count()) await skip.click();
+  await root.page().waitForTimeout(300);
+}
+/** Every question after the topic, one answer each. */
+async function answerRest(root) {
+  for (const t of [T.goals, T.prompts, T.housing, T.actions, T.result, T.response, T.barriers, T.next]) await answerStep(root, t);
+}
 async function noteTopic(p) {
-  await inStep(p, T.activities, 'Benefits assistance').click();
-  await wait(p, 300);
-  await inStep(p, T.why, 'Continue').click();
-  await inStep(p, T.housing, 'At risk of losing housing').click();
-  await inStep(p, T.housing, 'No').click();
-  await wait(p, 300);
-  await inStep(p, T.details, 'SNAP').click();
-  await inStep(p, T.details, 'Benefits change').click();
-  await wait(p, 300);
+  await pickTopic(dialog(p));
 }
 async function noteRest(p) {
-  await inStep(p, T.details, 'Interrupted').click();
-  await inStep(p, T.actions, 'Assisted with').click();
-  await inStep(p, T.actions, 'Phone call').click();
-  await inStep(p, T.result, 'Pending').click();
-  await inStep(p, T.barriers, 'Yes').click();
-  await inStep(p, T.barriers, 'Waiting for a third-party response').click();
-  await inStep(p, T.response, 'Requested assistance').click();
-  await inStep(p, T.next, 'Add a step').click();
-  await inStep(p, T.next, 'CM').click();
-  await inStep(p, T.next, 'Follow up').click();
-  await inStep(p, T.next, 'In 1 week').click();
+  await answerRest(dialog(p));
   await wait(p, 400);
 }
+const manualEntry = (p) => p.getByRole('button', { name: /^Manual entry/ }).first();
 async function manualOpen(p) {
   await p.goto(`${BASE}/clinical-notes`);
   await wait(p, 2500);
-  await btn(p, 'Manual entry', true).click();
+  await manualEntry(p).click();
   await wait(p, 300);
 }
 const oldVisit = (p) => p.getByRole('button', { name: /^Old visit/ }).first();
@@ -232,24 +243,11 @@ async function recentReady(p) {
   await btn(p, 'Phone', true).click();
   await wait(p, 300);
 }
-/** Make the selections for a short landlord note, generate it and tick the review box. */
+/** Make the selections for a short note, generate it and tick the review box. */
 async function fillNote(p) {
-  const step = (title, name) => p.locator('section', { hasText: title }).getByRole('button', { name, exact: true }).first();
-  await step(T.activities, 'Landlord communication').click();
-  await step(T.why, 'Continue').click();
-  await step(T.housing, 'Stably housed').click();
-  await step(T.housing, 'No').click();
-  await step(T.details, 'Maintenance').click();
-  await step(T.details, 'Reported').click();
-  await step(T.actions, 'Contacted').click();
-  await step(T.actions, 'Landlord').click();
-  await step(T.result, 'Pending').click();
-  await step(T.barriers, 'No').click();
-  await step(T.response, 'Agreed with the plan').click();
-  await step(T.next, 'Add a step').click();
-  await step(T.next, 'CM').click();
-  await step(T.next, 'Follow up').click();
-  await step(T.next, 'In 1 week').click();
+  const root = p.locator('main');
+  await pickTopic(root);
+  await answerRest(root);
   await p.getByRole('button', { name: /Generate note/ }).click();
   await wait(p, 800);
   await p.getByRole('checkbox').last().click();
@@ -335,8 +333,9 @@ const SHOTS = {
   ],
   'add-client': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'Add new client'), label: 'Add new client' },
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: 'Enter manually' }), label: 'Enter manually' },
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); await dialog(p).getByRole('button', { name: 'Enter manually' }).click(); await wait(p, 700); await dialog(p).getByLabel('First Name *').fill('Jordan'); await dialog(p).getByLabel('Last Name *').fill('Ellis'); }, target: (p) => dialog(p).getByRole('button', { name: 'Add Client', exact: true }), label: 'Add Client' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: 'Yes', exact: true }), label: 'Yes' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); await dialog(p).getByRole('button', { name: 'Yes', exact: true }).click(); await wait(p, 700); }, target: (p) => dialog(p).getByRole('button', { name: 'Enter manually' }), label: 'Enter manually' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); await dialog(p).getByRole('button', { name: 'Yes', exact: true }).click(); await wait(p, 700); await dialog(p).getByRole('button', { name: 'Enter manually' }).click(); await wait(p, 700); await dialog(p).getByLabel('First Name *').fill('Jordan'); await dialog(p).getByLabel('Last Name *').fill('Ellis'); }, target: (p) => dialog(p).getByRole('button', { name: 'Add Client', exact: true }), label: 'Add Client' },
   ],
 
   upload: [
@@ -403,16 +402,16 @@ const SHOTS = {
   ],
   'clinical-note': [
     { as: 'staff', go: (p) => openClient(p, 'c-2', 'Touchpoints'), target: (p) => btn(p, 'Clinical note', true), label: 'Clinical note' },
-    { as: 'staff', go: openNoteBuilder, target: (p) => inStep(p, T.activities, 'Benefits assistance'), label: 'Choose the activities' },
-    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); }, target: (p) => dialog(p).locator('section', { hasText: T.details }).locator('.rounded-lg').first(), label: 'One choice at a time' },
-    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); }, target: (p) => dialog(p).locator('section', { hasText: T.next }), label: 'Next steps' },
+    { as: 'staff', go: openNoteBuilder, target: (p) => stepIn(dialog(p), T.activities).getByRole('button', { name: /Housing assistance/ }).first(), label: 'Choose the activities' },
+    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); }, target: (p) => stepIn(dialog(p), T.details).locator('.border-l-2').first(), label: 'One choice at a time' },
+    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); }, target: (p) => stepIn(dialog(p), T.next), label: 'Next steps' },
     { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); }, target: (p) => dialog(p).locator('section').filter({ has: p.locator('h3', { hasText: /^Note$/ }) }).first(), label: 'Your note' },
     { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); await dialog(p).getByRole('checkbox').last().click(); await wait(p, 300); }, target: (p) => btn(p, 'Use this note', true), label: 'Use this note' },
   ],
   'draft-note': [
-    { as: 'staff', go: (p) => p.goto(`${BASE}/clinical-notes`).then(() => wait(p, 2500)), target: (p) => btn(p, 'Manual entry', true), label: 'Manual entry' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/clinical-notes`).then(() => wait(p, 2500)), target: (p) => manualEntry(p), label: 'Manual entry' },
     { as: 'staff', go: manualOpen, target: (p) => btn(p, 'Recent visit', true), label: 'Recent visit' },
-    { as: 'staff', go: recentReady, target: (p) => p.locator('section', { hasText: T.activities }), label: 'Make your selections' },
+    { as: 'staff', go: recentReady, target: (p) => stepIn(p.locator('main'), T.activities), label: 'Make your selections' },
     { as: 'staff', go: draftNoteReady, target: (p) => btn(p, 'Save note', true), label: 'Copy note or Save note' },
     { as: 'staff', go: async (p) => { await draftNoteReady(p); await btn(p, 'Save note', true).click(); await wait(p, 1500); }, target: (p) => p.getByRole('tab', { name: /Generated notes/ }), label: 'Generated notes' },
   ],

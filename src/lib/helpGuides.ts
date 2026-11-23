@@ -118,6 +118,7 @@ export const GUIDES: Guide[] = [
     id: 'add-client', section: 'Clients', title: 'Add a client', audience: 'everyone', minutes: 3,
     steps: [
       s('Select Add new client', 'On Clients, select Add new client.'),
+      s('Answer the call question', 'Select Yes if the client answered your call. Select No to record an unanswered call instead; the client then waits under Awaiting intake call.'),
       s('Add the details', 'Choose the client’s intake file to fill in their details, or select Enter manually.'),
       s('Select Add Client', 'A client you add is assigned to you. Admins choose the case manager under Assigned Staff, and can reassign a client later.'),
     ],
@@ -155,7 +156,7 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Select Add signature', 'With the form open, select Add signature below it.'),
       s('Choose a signature', 'Select one of your saved signatures or initials. To make a new one, select New signature.'),
-      s('Move it into place', 'Drag the signature onto the signature line. Pull a corner to resize it, or select the X to remove it.'),
+      s('Move it into place', 'On a web form, select PDF to see the signature. Drag it onto the signature line. Pull a corner to resize it, or select the X to remove it.'),
       s('Sign again if needed', 'Select Add another signature for each line that needs a signature or initials, then select Complete form.'),
     ],
   },
@@ -220,9 +221,9 @@ export const GUIDES: Guide[] = [
     id: 'clinical-note', section: 'Touchpoints', title: 'Write a clinical note', audience: 'everyone', minutes: 3,
     steps: [
       s('Select Clinical note', 'Open the client, select the Touchpoints tab, then select Clinical note.'),
-      s('Choose the activities', 'Select the housing support activities that took place. Each one opens its own questions. Then add the housing goal and what prompted the contact, and the member’s housing status.'),
-      s('Answer the details', 'Answer each activity’s questions, one choice at a time. Select a chosen answer to change it. Add a section such as Voucher or Legal when it applies.'),
-      s('Add the next steps', 'Select what CM did, the result, any barriers and how the member responded. With more than one activity, choose Applies to all, or Different for each to answer for each activity separately. Then add each next step separately, with who is responsible, what they will do and when. Select Skip for anything that does not apply.'),
+      s('Choose what it covered', 'Select what the contact covered, such as Housing assistance. You can select more than one. Each opens its own questions.'),
+      s('Answer what happened', 'Under each topic, select what specifically happened. A selected answer shows a check; select it again to remove it. A question you have finished shows a green check, and the next question opens.'),
+      s('Add the rest', 'Answer the housing goal, what prompted the contact, the member’s housing status, what CM did, the result, how the member responded, any barriers and what happens next. With more than one topic, choose Applies to all, or Different for each. Select Skip for anything that does not apply.'),
       s('Generate the note', 'Select Generate note in the Note draft panel. It uses only your selections. The note appears under the questions. Select Regenerate wording for different phrasing, or Edit note to change it.'),
       s('Review and save', 'Tick the confirmation, select Use this note, then select Save touchpoint.'),
     ],
