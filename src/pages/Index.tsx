@@ -7,14 +7,15 @@ import { Sidebar } from "@/components/Sidebar";
 import { ClientManagement } from "@/components/ClientManagement";
 import { CaseManagerCalendar } from "@/components/CaseManagerCalendar";
 import { StaffTouchpoints } from "@/components/StaffTouchpoints";
+import { IntakeCallsPage } from '@/components/intakeCalls/IntakeCallsPage';
 import { FormsHub } from "@/components/forms/FormsHub";
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { SuperadminTouchpoints } from '@/components/SuperadminTouchpoints';
 import { useViewAs } from '@/components/ViewAsProvider';
 
-type View = 'compliance' | 'clients' | 'calendar' | 'forms';
+type View = 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes';
 
-const VIEWS: View[] = ['compliance', 'clients', 'calendar', 'forms'];
+const VIEWS: View[] = ['compliance', 'clients', 'calendar', 'forms', 'intakes'];
 const isView = (v: string | null): v is View => !!v && (VIEWS as string[]).includes(v);
 
 /**
@@ -208,6 +209,8 @@ const Index = () => {
             />
           ) : activeView === 'forms' ? (
             <FormsHub />
+          ) : activeView === 'intakes' ? (
+            <IntakeCallsPage onOpenClient={handleOpenClient} />
           ) : (
             <CaseManagerCalendar onOpenClient={handleOpenClient} />
           )}

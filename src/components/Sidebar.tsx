@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import {
   Users,
   LogOut,
@@ -15,6 +16,7 @@ import {
   UserCircle,
   Activity,
   LifeBuoy,
+  PhoneCall,
 } from "lucide-react";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,11 +30,12 @@ import { useViewAs } from '@/components/ViewAsProvider';
 import { AdvancedTools } from '@/components/AdvancedTools';
 import { AccountDialog } from '@/components/AccountDialog';
 import { cn } from '@/lib/utils';
+import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
 
 interface SidebarProps {
   /** Which in-page view is showing. Only meaningful on "/". */
-  activeView?: 'compliance' | 'clients' | 'calendar' | 'forms';
-  onViewChange: (view: 'compliance' | 'clients' | 'calendar' | 'forms') => void;
+  activeView?: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes';
+  onViewChange: (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes') => void;
 }
 
 /** Marks a feature still being tried out. Hidden from screen readers so the item keeps its name. */
@@ -98,6 +101,7 @@ export const BrandMark: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
+  const intakesRibbon = useNewRibbon('intake-calls-page');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -130,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   const { isViewingAs } = useViewAs();
 
   // Close sidebar when view changes on mobile
-  const handleViewChange = (view: 'compliance' | 'clients' | 'calendar' | 'forms') => {
+  const handleViewChange = (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes') => {
     onViewChange(view);
     if (isMobile) setIsOpen(false);
   };
@@ -155,6 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
       <div className="flex flex-1 items-center gap-2 min-w-0">
         <BrandMark className="max-h-9 w-auto" />
       </div>
+      <NotificationBell className="h-10 w-10 shrink-0" />
       <Button
         variant="ghost"
         size="icon"
@@ -216,14 +221,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         isMobile ? 'top-14' : 'top-0', // Account for mobile toolbar
         'md:h-screen'
       )}>
-        <button
-          type="button"
-          onClick={() => handleViewChange('clients')}
-          className="mb-6 hidden w-full px-0 text-left transition-opacity hover:opacity-80 md:block"
-          aria-label="Clients"
-        >
-          <BrandMark className="max-w-[196px]" />
-        </button>
+        <div className="mb-6 hidden items-center gap-1 md:flex">
+          <button
+            type="button"
+            onClick={() => handleViewChange('clients')}
+            className="min-w-0 flex-1 text-left transition-opacity hover:opacity-80"
+            aria-label="Clients"
+          >
+            <BrandMark className="max-w-[160px]" />
+          </button>
+          <NotificationBell className="h-9 w-9 shrink-0 text-foreground/75 hover:bg-muted" />
+        </div>
 
         <div
           ref={navRef}
@@ -249,6 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
                 <NavItem icon={LayoutGrid} label="Admin Dashboard" active={onPath('/admin')} onClick={() => handleNavigate('/admin')} tutorial="admin-nav" />
               )}
               <NavItem icon={Users} label="Clients" active={onView('clients')} onClick={() => handleViewChange('clients')} tutorial="clients-nav" />
+              <NavItem icon={PhoneCall} label={<>Intake calls {intakesRibbon && <NewRibbon inline />}</>} active={onView('intakes')} onClick={() => handleViewChange('intakes')} />
               <NavItem icon={FileText} label="Blank forms" active={onView('forms')} onClick={() => handleViewChange('forms')} tutorial="forms-nav" />
               <NavItem icon={NotebookPen} label={<>Generate Notes <BetaBadge /></>} active={onPath('/clinical-notes')} onClick={() => handleNavigate('/clinical-notes')} />
               {isAdmin && (

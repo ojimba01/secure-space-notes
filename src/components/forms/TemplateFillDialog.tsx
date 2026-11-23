@@ -29,6 +29,16 @@ import { SignOnForm } from '@/components/forms/SignOnForm';
 import { WebFormView } from '@/components/forms/WebFormView';
 import { WEB_FORMS, webFormFor } from '@/lib/webForms';
 import type { WebFormSchema } from '@/lib/webForms/types';
+import { CommentComposer, OpenComments } from '@/components/forms/FormComments';
+import {
+  addFormComment,
+  changedFields,
+  loadFormComments,
+  notifyCorrections,
+  resolveFormComment,
+  type FormComment,
+  type FormRef,
+} from '@/lib/formComments';
 import {
   defaultPlacement,
   stampSignature,
@@ -285,6 +295,14 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   const [view, setView] = useState<'form' | 'pdf'>(webCandidates.length ? 'form' : 'pdf');
   /** Bumped on the way into the PDF view, so its boxes show the web form's answers. */
   const [pagesKey, setPagesKey] = useState(0);
+
+  // Comments and corrections (src/lib/formComments.ts).
+  const baseValuesRef = useRef<Record<string, string> | null>(null);
+  const savedValuesRef = useRef<Record<string, string> | null>(null);
+  const correctionsReported = useRef(false);
+  const [comments, setComments] = useState<FormComment[]>([]);
+  const [composing, setComposing] = useState<string | null>(null);
+  const [people, setPeople] = useState<Record<string, string>>({});
   const clientName = existing?.clients
     ? `${existing.clients.last_name}, ${existing.clients.first_name}`
     : lockedClientName ?? null;
@@ -328,16 +346,21 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       // carry the cap; lift it on the way in so reopening one is not a step
       // backwards.
       const relaxed = await relaxPdfFormFields(await data.arrayBuffer());
-      // An IAT, LON or HSP started before the client's numbers were known:
+// An IAT, LON or HSP started before the client's numbers were known:
       // its blank Medicaid number and MCO member ID boxes are filled from the
       // client record (or their intake). A box with anything in it stays.
-      let bytes: Uint8Array | ArrayBuffer = relaxed;
+      let bytes: Uint8Array = relaxed;
       if (existing?.client_id) {
         const facts = await loadClientFacts(existing.client_id).catch(() => null);
         const filled = facts ? await fillBlankIds(relaxed, existing.form_type, facts).catch(() => null) : null;
         if (filled) bytes = filled;
       }
       existingCopyRef.current = (bytes as Uint8Array).slice();
+      // The answers as they were, to tell the person who filled the form
+      // which ones a supervisor changed. Read from a copy: the viewer takes
+      // the bytes it is given. Taken after the ID boxes are filled, so those
+      // are not reported as a supervisor's change.
+      baseValuesRef.current = await extractPdfFieldValues((bytes as Uint8Array).slice().buffer).catch(() => null);
       setExistingBytes(bytes as typeof relaxed);
     })();
   }, [existing?.file_path]);
@@ -674,6 +697,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
       lastSaveTimeRef.current = Date.now();
 
       unrecordedFileRef.current = silent ? { path: filePath, hash: fileHash, size: blob.size } : null;
+      if (canComment) savedValuesRef.current = await extractPdfFieldValues(await blob.arrayBuffer()).catch(() => null);
       if (silent) {
         autosavedRef.current = true;
         setLastSavedAt(new Date());
@@ -772,6 +796,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           ? 'Saved to the client record as a draft. Open it again to finish it.'
           : 'Saved to the client record. To change it later, select Edit on it under Forms.',
       });
+      reportCorrections();
       finishTask(asDraft ? 'draft' : 'completed');
       onSubmitted();
       onClose();
@@ -1154,6 +1179,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
 
   /** Close, letting the list know about a draft autosave made. */
   const closeNow = () => {
+    reportCorrections();
     // What autosave wrote is kept as a version, so Edit history shows who
     // made these changes rather than the next person to save.
     const last = unrecordedFileRef.current;
@@ -1210,6 +1236,112 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     }
     await saveForm(true, false);
   };
+
+  // ---- Comments and corrections -------------------------------------------
+  /** The form as comments and notices refer to it. */
+  const formRef: FormRef | null = existing
+    ? {
+        id: existing.id,
+        client_id: existing.client_id,
+        employee_id: existing.employee_id,
+        form_type: existing.form_type,
+        clientName: clientName ?? 'Client',
+      }
+    : null;
+  /** A supervisor reviewing someone else's form. */
+  const canComment = isAdmin && !!existing && existing.employee_id !== profileId;
+
+  const reloadComments = async () => {
+    if (!existing?.id) return;
+    try {
+      const list = await loadFormComments(existing.id);
+      setComments(list);
+      const ids = [...new Set(list.map((c) => c.author_id).filter(Boolean))] as string[];
+      if (ids.length) {
+        const { data } = await supabase.from('profiles').select('id, first_name, last_name').in('id', ids);
+        setPeople(Object.fromEntries((data ?? []).map((p) => [p.id, `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim()])));
+      }
+    } catch {
+      setComments([]);
+    }
+  };
+  useEffect(() => {
+    void reloadComments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existing?.id]);
+
+  /** A question's name as people read it: the web form's wording, else the PDF's. */
+  const questionLabel = (field: string) => {
+    for (const section of webSchema ?? []) {
+      for (const item of section.items) {
+        if ((item.kind === 'text' || item.kind === 'choice' || item.kind === 'select') && item.field === field) return item.label;
+        if (item.kind === 'checks') {
+          const o = item.options.find((x) => x.field === field);
+          if (o) return `${item.label}: ${o.label}`;
+        }
+      }
+    }
+    return field.replace(/_/g, ' ');
+  };
+
+  const sendComment = async (field: string | null, label: string | null, preset: string | null, note: string) => {
+    if (!formRef || !profileId) return;
+    try {
+      await addFormComment({ form: formRef, field, fieldLabel: label, preset, note, authorId: profileId });
+      setComposing(null);
+      await reloadComments();
+      toast({ title: 'Comment sent' });
+    } catch (e) {
+      toast({ title: 'Could not send the comment', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    }
+  };
+
+  const resolve = async (id: string) => {
+    if (!profileId) return;
+    try {
+      await resolveFormComment(id, profileId);
+      await reloadComments();
+    } catch (e) {
+      toast({ title: 'Could not mark it done', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    }
+  };
+
+  /** Once per editing session: tell the person who filled the form which answers were changed. */
+  const reportCorrections = () => {
+    if (correctionsReported.current || !canComment || !formRef || !profileId) return;
+    const before = baseValuesRef.current;
+    const after = savedValuesRef.current;
+    if (!before || !after) return;
+    const changed = changedFields(before, after).map(questionLabel);
+    if (!changed.length) return;
+    correctionsReported.current = true;
+    void notifyCorrections(formRef, changed, profileId).catch(() => {});
+  };
+
+  const renderExtras = (field: string, label: string) => (
+    <>
+      <OpenComments
+        comments={comments.filter((c) => c.field === field)}
+        authorName={(id) => (id && people[id]) || 'Supervisor'}
+        canResolve={isAdmin || existing?.employee_id === profileId}
+        onResolve={(id) => void resolve(id)}
+      />
+      {canComment &&
+        (composing === field ? (
+          <CommentComposer onSend={(preset, note) => sendComment(field, label, preset, note)} onCancel={() => setComposing(null)} />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setComposing(field)}
+            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            Comment
+          </button>
+        ))}
+    </>
+  );
+  const openComments = comments.filter((c) => !c.resolved_at);
+
   const toggleExpanded = () =>
     setExpanded((wide) => {
       try {
@@ -1258,6 +1390,32 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
             </Button>
           </div>
         </DialogHeader>
+
+        {(openComments.length > 0 || canComment) && (
+          <div className="space-y-2">
+            {openComments.length > 0 && (
+              <div className="space-y-1.5 rounded-md border border-amber-300 bg-amber-50/60 p-3">
+                <p className="text-sm font-semibold text-amber-950">
+                  {openComments.length} {openComments.length === 1 ? 'comment' : 'comments'} to fix
+                </p>
+                <OpenComments
+                  comments={openComments.map((c) => ({ ...c, field: null, field_label: c.field_label ?? 'Whole form' }))}
+                  authorName={(id) => (id && people[id]) || 'Supervisor'}
+                  canResolve={isAdmin || existing?.employee_id === profileId}
+                  onResolve={(id) => void resolve(id)}
+                />
+              </div>
+            )}
+            {canComment &&
+              (composing === '__form__' ? (
+                <CommentComposer onSend={(preset, note) => sendComment(null, null, preset, note)} onCancel={() => setComposing(null)} />
+              ) : (
+                <Button size="sm" variant="outline" onClick={() => setComposing('__form__')}>
+                  Comment on this form
+                </Button>
+              ))}
+          </div>
+        )}
 
         {existing?.status === 'changes_requested' && existing.review_note && (
           <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
@@ -1376,6 +1534,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                 <WebFormView
                   doc={docRef.current}
                   schema={webSchema}
+                  renderExtras={existing ? renderExtras : undefined}
                   // The LON's total adds itself up from its scores.
                   afterChange={
                     formType === 'Level of Need (LON)'

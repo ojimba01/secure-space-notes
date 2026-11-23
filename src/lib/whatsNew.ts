@@ -30,12 +30,34 @@ export interface Feature {
     /** One short paragraph, for an announcement with a picture. */
     body?: string;
     /** A picture across the top, with a NEW ribbon on the corner. */
-    illustration?: 'autosave' | 'editHistory' | 'webIntake' | 'intakeCalls';
+    illustration?: 'autosave' | 'editHistory' | 'webIntake' | 'intakeCalls' | 'formComments' | 'intakePackage';
     goTo?: { label: string; path: string; state?: unknown };
   };
 }
 
 export const FEATURES: Feature[] = [
+  {
+    key: 'intake-calls-page',
+    message: 'Intake calls now has its own page.',
+    audience: 'admins',
+    announceUntil: '2026-12-07',
+    popup: {
+      title: 'Review every intake in one place!',
+      body: 'The new Intake calls page shows each new member’s calls, forms and review status. It has been enabled on your account.',
+      illustration: 'intakePackage',
+    },
+  },
+  {
+    key: 'form-comments',
+    message: 'Your supervisor can now comment on your forms.',
+    audience: 'everyone',
+    announceUntil: '2026-12-07',
+    popup: {
+      title: 'Get it right the first time!',
+      body: 'Your supervisor can now comment on a form, and you are notified right away. Notifications have been enabled on your account.',
+      illustration: 'formComments',
+    },
+  },
   {
     key: 'intake-calls',
     message: 'You can now report when a new client does not answer.',
