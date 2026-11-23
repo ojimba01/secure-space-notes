@@ -361,6 +361,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
   const awaitingClients = clients.filter(
     (c) =>
       c.intake_call_status === 'awaiting' &&
+      !isCaseClosed(c) &&
       `${c.first_name} ${c.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
@@ -717,6 +718,7 @@ export const ClientManagement: React.FC<ClientManagementProps> = ({ initialClien
           clients={awaitingClients}
           refreshKey={callsKey}
           managerName={isAdmin ? (id) => (id ? managerMap.get(id) ?? null : null) : undefined}
+          onClosedOut={() => void fetchClients()}
           onOpen={(c) => {
             setSelectedClient(clients.find((x) => x.id === c.id) ?? null);
             onOpenClientChange?.(c.id);
