@@ -36,7 +36,7 @@ const TouchpointViews: React.FC<{ onOpenClient: (id: string) => void }> = ({ onO
 
   return (
     <div>
-      <div className="px-4 pt-6 md:px-8">
+      <div className="mx-auto max-w-[1280px] px-4 pt-6 md:px-9 md:pt-8">
         <div
           role="tablist"
           aria-label="Whose cases"
@@ -44,7 +44,7 @@ const TouchpointViews: React.FC<{ onOpenClient: (id: string) => void }> = ({ onO
         >
           <span
             aria-hidden
-            className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-primary shadow-sm transition-transform duration-300 ease-out ${
+            className={`absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-card shadow-sm transition-transform duration-300 ease-out ${
               mine ? 'translate-x-full' : 'translate-x-0'
             }`}
           />
@@ -55,7 +55,7 @@ const TouchpointViews: React.FC<{ onOpenClient: (id: string) => void }> = ({ onO
               aria-selected={view === o.id}
               onClick={() => setView(o.id)}
               className={`relative z-10 w-32 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-300 ${
-                view === o.id ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                view === o.id ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {o.label}

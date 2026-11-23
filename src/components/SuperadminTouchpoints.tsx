@@ -5,6 +5,7 @@
 // behind and how their month is going, and "11 overdue" names nobody. So the
 // case managers are the page now, the totals are a strip above them, and
 // pressing a name opens that person's weekly HMIS Case Log.
+import { CountUp } from '@/components/motion/CountUp';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -57,10 +58,10 @@ const MODALITY: Record<string, string> = {
 const Stat: React.FC<{ icon: React.ReactNode; label: string; value: number; hint: string; tone?: 'danger' }> = ({
   icon, label, value, hint, tone,
 }) => (
-  <div className={`rounded-lg border p-3 ${tone === 'danger' && value > 0 ? 'border-red-200 bg-red-50' : ''}`}>
-    <div className="flex items-center gap-2 text-muted-foreground">{icon}<span className="text-xs">{label}</span></div>
-    <div className="mt-0.5 text-xl font-bold">{value}</div>
-    <div className="text-[11px] text-muted-foreground">{hint}</div>
+  <div className={`lift rounded-xl border bg-card p-5 ${tone === 'danger' && value > 0 ? 'border-danger/25 bg-danger/5' : 'border-border'}`}>
+    <div className={`flex items-center gap-2 ${tone === 'danger' && value > 0 ? 'text-danger' : 'text-muted-foreground'}`}>{icon}<span className="text-[13px] font-medium">{label}</span></div>
+    <CountUp value={value} className={`mt-2 block text-[28px] font-semibold leading-none tabular-nums ${tone === 'danger' && value > 0 ? 'text-danger' : 'text-foreground'}`} />
+    <div className="mt-2 text-xs text-muted-foreground">{hint}</div>
   </div>
 );
 
@@ -124,7 +125,7 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
   );
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
+    <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:px-9 md:pb-8 md:pt-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">Team touchpoints</h1>
@@ -135,7 +136,7 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="stagger grid grid-cols-2 gap-4 md:grid-cols-4">
         <Stat icon={<AlertTriangle className="h-4 w-4" />} label="Overdue" value={data.overdueRows.length} tone="danger" hint="Across all staff" />
         <Stat icon={<CheckCircle2 className="h-4 w-4" />} label="Completed" value={data.completedThisWeek} hint="Logged this week" />
         <Stat icon={<CalendarClock className="h-4 w-4" />} label="Scheduled" value={data.scheduledThisWeek} hint="For this week" />
@@ -161,12 +162,12 @@ export const SuperadminTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
             const overdue = overdueByStaffId[m.id] ?? 0;
             return (
               <button key={m.id} onClick={() => setOpen(m)}
-                className="flex w-full items-center justify-between gap-3 rounded-md border p-3 text-left transition-colors hover:border-primary/50 hover:bg-muted/40">
+                className="group flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3.5 text-left transition-colors hover:border-primary/30 hover:bg-muted/40">
                 <div className="min-w-0">
                   <div className="truncate font-medium">{m.name}</div>
                   <div className="mt-0.5 text-xs text-muted-foreground">
                     {m.clients} {m.clients === 1 ? 'client' : 'clients'}
-                    {overdue > 0 && <span className="text-red-700"> · {overdue} overdue</span>}
+                    {overdue > 0 && <span className="text-danger"> · {overdue} overdue</span>}
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
