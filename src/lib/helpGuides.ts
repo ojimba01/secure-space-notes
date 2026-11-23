@@ -124,6 +124,32 @@ export const GUIDES: Guide[] = [
     ],
   },
 
+  {
+    id: 'intake-calls', section: 'Clients', title: 'Make an intake call', audience: 'everyone', minutes: 2,
+    steps: [
+      s('Find who to call', 'On Clients, Awaiting intake call lists your new clients who have not had their intake yet, with their phone number and past calls.'),
+      s('No answer', 'If the client does not answer, select No answer and choose what happened. The call is added to their list of calls.'),
+      s('Start intake', 'When you reach the client, select Start intake. Their Client Intake opens, ready to fill in.'),
+      s('Close it out', 'If the client will not be called, select … on their row, then Close case. Choose a reason and the date. The client leaves Intake calls.'),
+    ],
+  },
+  {
+    id: 'inbox', section: 'Clients', title: 'Read your Inbox', audience: 'everyone', minutes: 1,
+    steps: [
+      s('Open Inbox', 'Select Inbox in the left panel. The red number is how many messages you have not read.'),
+      s('Read the changes', 'Select a message. When an admin changed your form, each changed answer shows its question, the answer before (crossed out) and the answer after.'),
+      s('Fix a comment', 'For a comment, select Open and the form name. Fix the answer, then select Done on the comment.'),
+    ],
+  },
+  {
+    id: 'review-intakes', section: 'Managing the team', title: 'Follow intake calls', audience: 'admins', minutes: 2,
+    steps: [
+      s('Open Intake calls', 'Intake calls is at the top of the Admin dashboard.'),
+      s('Choose a list', 'Select Calls to make, Not called yet, Waiting on client, Ready for review or Reviewed. In Calls to make, select Send to staff to give a call to a case manager.'),
+      s('Mark reviewed', 'In Ready for review, open each form to check it and comment on any wrong answer. Then select Mark reviewed.'),
+    ],
+  },
+
   // ---- Forms and documents
   {
     id: 'upload', section: 'Forms and documents', title: 'Upload a document', audience: 'everyone', minutes: 2,
@@ -464,7 +490,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'complete-restart', section: 'Billing', title: 'Add the start date to a pending restart', audience: 'admins', minutes: 1,
     steps: [
-      s('Find the pending restart', 'A client waiting for a start date shows Restart pending. Select the … button on the client’s row, then Add start date, or Complete restart on the Authorizations tab. Superadmins also see them under Priorities on the Admin dashboard.'),
+      s('Find the pending restart', 'A client waiting for a start date shows Restart pending. Select the … button on the client’s row, then Add start date, or Complete restart on the Authorizations tab.'),
       s('Enter the dates', 'Choose the type if it was not set, then enter the start date and the authorization number.'),
       s('Submit', 'Select Submit. Billing and touchpoints start from the new date.'),
     ],

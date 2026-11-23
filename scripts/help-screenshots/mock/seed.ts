@@ -268,7 +268,7 @@ export function seed(): Tables {
       ...staff.map((p) => ({ user_id: p.user_id, feature: 'client-forms-moved', notified_at: at(-30), first_seen_at: at(-30) })),
       ...staff.map((p) => ({ user_id: p.user_id, feature: 'forms-update-nov-17', notified_at: at(-30), first_seen_at: at(-30) })),
       // Every popup announcement, already seen, so none covers a screenshot.
-      ...['intake-calls', 'web-client-intake', 'form-edit-history', 'forms-autosave'].flatMap((feature) =>
+      ...['form-comments', 'form-edit-history', 'forms-autosave', 'intake-calls', 'intake-calls-page', 'web-client-intake'].flatMap((feature) =>
         staff.map((p) => ({ user_id: p.user_id, feature, notified_at: at(-30), first_seen_at: at(-30) })),
       ),
     ],

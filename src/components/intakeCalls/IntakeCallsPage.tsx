@@ -11,7 +11,9 @@
 // log and statuses the Clients page and the client record use.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Check, FileUp, MessageSquare, PhoneCall, PhoneMissed, Plus, Send } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { CloseCaseDialog } from '@/components/CloseCaseDialog';
+import { Archive, Check, FileText, FileUp, MoreHorizontal, MessageSquare, PhoneCall, PhoneMissed, Plus, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -47,11 +49,14 @@ import {
 import { ReportCallDialog, type ReportCallFor } from './ReportCallDialog';
 
 export const STATUS_CLASS: Record<IntakeStatus, string> = {
-  not_called: 'bg-destructive/15 text-destructive',
-  waiting: 'bg-amber-100 text-amber-900',
-  review: 'bg-blue-100 text-blue-900',
-  reviewed: 'bg-green-100 text-green-800',
+  not_called: 'border-transparent bg-danger/10 text-danger hover:bg-danger/10',
+  waiting: 'border-transparent bg-attention-soft text-attention hover:bg-attention-soft',
+  review: 'border-transparent bg-accent text-primary hover:bg-accent',
+  reviewed: 'border-transparent bg-success-soft text-success hover:bg-success-soft',
 };
+
+/** The four columns every row shares: client, status, case manager, actions. */
+const ROW_COLUMNS = 'md:grid-cols-[minmax(0,1fr)_180px_200px_312px]';
 
 type Filter = IntakeStatus | 'calls';
 const FILTERS: { id: Filter; label: string }[] = [
@@ -99,6 +104,8 @@ export const IntakeCallsPage: React.FC<{
   const [filter, setFilter] = useState<Filter | null>(null);
   const [reportFor, setReportFor] = useState<ReportCallFor | null>(null);
   const [adding, setAdding] = useState(false);
+  /** A client nobody will call: closed out of Intake calls with a reason. */
+  const [closing, setClosing] = useState<{ clientId: string; name: string } | null>(null);
   const [opening, setOpening] = useState<PackageForm | null>(null);
   /** A Client Intake started from a row: the client it is for. */
   const [intakeFor, setIntakeFor] = useState<IntakeListRow | null>(null);
@@ -203,11 +210,11 @@ export const IntakeCallsPage: React.FC<{
             role="tab"
             aria-selected={active === f.id}
             onClick={() => setFilter(f.id)}
-            className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-              active === f.id ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+            className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[13px] transition-all active:scale-[0.97] ${
+              active === f.id ? 'border-primary bg-accent font-semibold text-primary' : 'border-input bg-card font-medium text-foreground hover:border-primary/40'
             }`}
           >
-            {f.label} <span className="ml-1 opacity-80">{count(f.id)}</span>
+            {f.label} <span className={`text-xs font-semibold tabular-nums ${active === f.id ? 'text-primary' : 'text-muted-foreground'}`}>{count(f.id)}</span>
           </button>
         ))}
       </div>
@@ -223,15 +230,24 @@ export const IntakeCallsPage: React.FC<{
               : 'No intake calls to make.'}
         </p>
       ) : (
-        <div className="divide-y rounded-lg border bg-background">
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          {/* Every row shares these four columns, so status, case manager and
+              buttons line up whatever the name or the buttons are. */}
+          <div className={`hidden border-b border-border bg-muted/50 px-5 py-2.5 text-xs font-medium text-muted-foreground md:grid md:gap-4 ${ROW_COLUMNS}`}>
+            <span>Client</span>
+            <span>Status</span>
+            <span>Case manager</span>
+            <span className="text-right">Actions</span>
+          </div>
+          <div className="stagger divide-y divide-border/70">
           {shown.map((r) => {
             const inReview = r.status === 'review' || r.status === 'reviewed';
             const toReview = r.forms.filter((f) => f.state === 'completed');
             return (
-              <div key={r.clientId} className="space-y-3 p-3">
-                <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,1fr)_auto] md:items-center">
+              <div key={r.clientId} className="space-y-3 px-5 py-3.5 transition-colors hover:bg-muted/30">
+                <div className={`grid gap-3 md:items-center md:gap-4 ${ROW_COLUMNS}`}>
                   <div className="min-w-0">
-                    <button type="button" onClick={() => onOpenClient(r.clientId)} className="font-medium hover:underline">
+                    <button type="button" onClick={() => onOpenClient(r.clientId)} title={r.name} className="block max-w-full truncate text-left text-[15px] font-semibold text-foreground hover:underline">
                       {r.name}
                     </button>
                     {r.phone && (
@@ -252,7 +268,7 @@ export const IntakeCallsPage: React.FC<{
                         value={picked[r.clientId] ?? r.managerId ?? undefined}
                         onValueChange={(v) => setPicked((p) => ({ ...p, [r.clientId]: v }))}
                       >
-                        <SelectTrigger className="h-9" aria-label={`Assign the call for ${r.name}`}>
+                        <SelectTrigger className="h-9 w-full bg-card" aria-label={`Assign the call for ${r.name}`}>
                           <SelectValue placeholder="Assign" />
                         </SelectTrigger>
                         <SelectContent>
@@ -267,9 +283,9 @@ export const IntakeCallsPage: React.FC<{
                       <span className="text-muted-foreground">{(r.managerId && staffName.get(r.managerId)) || 'Unassigned'}</span>
                     )}
                   </div>
-                  <div className="flex gap-2 md:justify-end">
+                  <div className="flex flex-wrap gap-2 md:flex-nowrap md:justify-end [&>button]:shrink-0">
                     {isAdmin && !inReview && picked[r.clientId] && picked[r.clientId] !== r.managerId ? (
-                      <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => void send(r, picked[r.clientId])}>
+                      <Button size="sm" className="animate-pop" onClick={() => void send(r, picked[r.clientId])}>
                         <Send className="mr-1.5 h-4 w-4" />
                         Send to staff
                       </Button>
@@ -279,20 +295,39 @@ export const IntakeCallsPage: React.FC<{
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-amber-400"
+                          className="group"
                           onClick={() => setReportFor({ kind: 'existing', clientId: r.clientId, clientName: r.name })}
                         >
-                          <PhoneMissed className="mr-1.5 h-4 w-4" />
+                          <PhoneMissed className="ring-on-hover mr-1.5 h-4 w-4 text-attention" />
                           No answer
                         </Button>
-                        <Button size="sm" onClick={() => void start(r)}>
-                          <PhoneCall className="mr-1.5 h-4 w-4" />
+                        <Button size="sm" className="group" onClick={() => void start(r)}>
+                          <PhoneCall className="ring-on-hover mr-1.5 h-4 w-4" />
                           Start intake
                         </Button>
                       </>
                     ))}
+                    {!inReview && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="ghost" className="h-9 w-9 p-0 text-muted-foreground" aria-label={`More for ${r.name}`}>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onSelect={() => setClosing({ clientId: r.clientId, name: r.name })}
+                          >
+                            <Archive className="mr-2 h-4 w-4" />
+                            Close case
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                     {r.intakeStarted && (
                       <Button size="sm" variant="outline" onClick={() => openIntake(r)}>
+                        <FileText className="mr-1.5 h-4 w-4" />
                         Open intake
                       </Button>
                     )}
@@ -335,10 +370,21 @@ export const IntakeCallsPage: React.FC<{
               </div>
             );
           })}
+          </div>
         </div>
       )}
 
       <ReportCallDialog target={reportFor} onClose={() => setReportFor(null)} onSaved={load} />
+      <CloseCaseDialog
+        open={!!closing}
+        onOpenChange={(o) => !o && setClosing(null)}
+        clientId={closing?.clientId ?? ''}
+        clientName={closing?.name ?? ''}
+        onClosed={() => {
+          setClosing(null);
+          void load();
+        }}
+      />
       {adding && (
         <AddClientDialog staff={staff} signerName={signerName} onClose={() => setAdding(false)} onAdded={load} />
       )}

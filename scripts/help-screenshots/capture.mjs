@@ -338,6 +338,22 @@ const SHOTS = {
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); await dialog(p).getByRole('button', { name: 'Yes', exact: true }).click(); await wait(p, 700); await dialog(p).getByRole('button', { name: 'Enter manually' }).click(); await wait(p, 700); await dialog(p).getByLabel('First Name *').fill('Jordan'); await dialog(p).getByLabel('Last Name *').fill('Ellis'); }, target: (p) => dialog(p).getByRole('button', { name: 'Add Client', exact: true }), label: 'Add Client' },
   ],
 
+  'intake-calls': [
+    { as: 'staff', go: clientsList, target: (p) => text(p, 'Awaiting intake call'), label: 'Awaiting intake call' },
+    { as: 'staff', go: clientsList, target: (p) => btn(p, 'No answer', true), label: 'No answer' },
+    { as: 'staff', go: clientsList, target: (p) => btn(p, 'Start intake', true), label: 'Start intake' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/admin`); await wait(p, 2500); await p.getByRole('tab', { name: /^Calls to make/ }).first().click(); await wait(p, 600); await p.getByRole('button', { name: /^More for / }).first().click(); await wait(p, 500); }, target: (p) => p.getByRole('menuitem', { name: 'Close case', exact: true }), label: 'Close case' },
+  ],
+  inbox: [
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=inbox`), target: (p) => p.getByRole('button', { name: /^Inbox/ }).first(), label: 'Inbox' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=inbox`); await wait(p, 2000); await p.getByText(/made changes/).first().click(); await wait(p, 800); }, target: (p) => p.locator('table').first(), label: 'Before and after' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=inbox`); await wait(p, 2000); await p.getByText(/left a comment/).first().click(); await wait(p, 800); }, target: (p) => p.getByRole('button', { name: /^Open / }).first(), label: 'Open the form' },
+  ],
+  'review-intakes': [
+    { as: 'admin', go: (p) => p.goto(`${BASE}/admin`), target: (p) => p.getByRole('heading', { name: 'Intake calls' }).first(), label: 'Intake calls' },
+    { as: 'admin', go: (p) => p.goto(`${BASE}/admin`), target: (p) => p.getByRole('tab', { name: /^Calls to make/ }).first(), label: 'Calls to make' },
+    { as: 'admin', go: (p) => p.goto(`${BASE}/admin`), target: (p) => btn(p, 'Mark reviewed'), label: 'Mark reviewed' },
+  ],
   upload: [
     { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => text(p, 'Forms and documents'), label: 'Forms' },
     { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Upload documents'), label: 'Upload documents' },
