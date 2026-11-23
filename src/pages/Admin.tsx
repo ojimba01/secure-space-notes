@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { SetupQueues } from '@/components/admin/SetupQueues';
 import { FeatureWalkthrough } from '@/components/FeatureWalkthrough';
 import { ShadeDashboard } from '@/components/admin/ShadeDashboard';
 import { TutorialProvider } from '@/components/TutorialProvider';
@@ -196,8 +195,6 @@ const Admin = () => {
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Admin dashboard</h1>
           </div>
         </div>
-
-        <SetupQueues />
 
         <ShadeDashboard
           onOpenClient={(id) => navigate('/', { state: { view: 'clients', clientId: id } })}
