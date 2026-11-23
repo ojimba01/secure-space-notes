@@ -20,10 +20,10 @@ export const STATUS_LABEL: Record<TicketStatus, string> = {
 };
 
 export const STATUS_CLASS: Record<TicketStatus, string> = {
-  open: 'bg-amber-100 text-amber-900',
-  in_progress: 'bg-sky-100 text-sky-800',
-  action_required: 'bg-orange-100 text-orange-900',
-  resolved: 'bg-green-100 text-green-800',
+  open: 'bg-attention-soft text-attention',
+  in_progress: 'bg-accent text-primary',
+  action_required: 'bg-danger/10 text-danger',
+  resolved: 'bg-success-soft text-success',
   closed: 'bg-muted text-muted-foreground',
 };
 

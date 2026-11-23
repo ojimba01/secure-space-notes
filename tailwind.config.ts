@@ -137,6 +137,11 @@ export default {
           "0%": { boxShadow: "0 0 0 0 hsl(var(--pulse-color, 27 63% 36%) / 0.35)" },
           "100%": { boxShadow: "0 0 0 10px hsl(var(--pulse-color, 27 63% 36%) / 0)" },
         },
+        /* A bar filling to its length. */
+        grow: {
+          from: { transform: "scaleX(0)" },
+          to: { transform: "scaleX(1)" },
+        },
         /* Gentle bobbing for small drawings in empty states. */
         float: {
           "0%, 100%": { transform: "translateY(0)" },
