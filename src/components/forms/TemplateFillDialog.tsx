@@ -27,7 +27,8 @@ import { ClientPicker } from '@/components/ClientPicker';
 import { loadCaseManagerFacts, loadClientFacts } from '@/lib/clientFacts';
 import { SignOnForm } from '@/components/forms/SignOnForm';
 import { WebFormView } from '@/components/forms/WebFormView';
-import { WEB_FORMS } from '@/lib/webForms';
+import { WEB_FORMS, webFormFor } from '@/lib/webForms';
+import type { WebFormSchema } from '@/lib/webForms/types';
 import {
   defaultPlacement,
   stampSignature,
@@ -274,8 +275,14 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
 
   const formType = existing ? existing.form_type : template?.formType ?? '';
   /** Forms with a web version open on it; the PDF view is one press away. */
-  const webSchema = WEB_FORMS[formType] ?? null;
-  const [view, setView] = useState<'form' | 'pdf'>(webSchema ? 'form' : 'pdf');
+  const webCandidates = WEB_FORMS[formType] ?? [];
+  /**
+   * The web form for the PDF opened: picked from its boxes once it loads,
+   * since one form type can be several MCOs' forms. Undefined until then.
+   */
+  const [matchedSchema, setMatchedSchema] = useState<WebFormSchema | null | undefined>(undefined);
+  const webSchema = matchedSchema ?? null;
+  const [view, setView] = useState<'form' | 'pdf'>(webCandidates.length ? 'form' : 'pdf');
   /** Bumped on the way into the PDF view, so its boxes show the web form's answers. */
   const [pagesKey, setPagesKey] = useState(0);
   const clientName = existing?.clients
@@ -1355,6 +1362,11 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                 try {
                   const fields = await doc.getFieldObjects();
                   setHasFields(!!fields && Object.keys(fields).length > 0);
+                  if (webCandidates.length) {
+                    const match = webFormFor(formType, Object.keys(fields ?? {}));
+                    setMatchedSchema(match);
+                    if (!match) setView('pdf');
+                  }
                 } catch {
                   setHasFields(true);
                 }
@@ -1388,7 +1400,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                 />
               )}
               {/* Kept loaded behind the web form: it is the document saved. */}
-              <div className={`flex flex-col items-center gap-4 ${view === 'form' && webSchema ? 'hidden' : ''}`} ref={pagesRef}>
+              <div
+                className={`flex flex-col items-center gap-4 ${view === 'form' && webCandidates.length && matchedSchema !== null ? 'hidden' : ''}`}
+                ref={pagesRef}
+              >
                 {Array.from({ length: numPages }, (_, i) => (
                   <div
                     key={`${i}-${pagesKey}`}
