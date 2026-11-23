@@ -29,7 +29,16 @@ const ALWAYS_ALLOWED = new Set([
   'support_ticket_messages',
 ]);
 /** Database functions that only read. */
-const READ_ONLY_FUNCTIONS = new Set(['filed_claim_phase']);
+const READ_ONLY_FUNCTIONS = new Set([
+  'filed_claim_phase',
+  'can_view_staff_activity',
+  'staff_activity_changes',
+  'staff_activity_client_names',
+  'staff_activity_people',
+  // The person's own activity, like the tour: not the agency's work.
+  'start_staff_activity',
+  'touch_staff_activity',
+]);
 const WRITES = new Set(['insert', 'update', 'upsert', 'delete']);
 const STORAGE_WRITES = new Set(['upload', 'update', 'remove', 'move', 'copy']);
 
