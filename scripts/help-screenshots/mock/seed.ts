@@ -239,6 +239,10 @@ export function seed(): Tables {
       { user_id: 'u-admin', feature: 'staff-activity-60-days', notified_at: at(-30), first_seen_at: at(-30) },
       ...staff.map((p) => ({ user_id: p.user_id, feature: 'client-forms-moved', notified_at: at(-30), first_seen_at: at(-30) })),
       ...staff.map((p) => ({ user_id: p.user_id, feature: 'forms-update-nov-17', notified_at: at(-30), first_seen_at: at(-30) })),
+      // Every popup announcement, already seen, so none covers a screenshot.
+      ...['intake-calls', 'web-client-intake', 'form-edit-history', 'forms-autosave'].flatMap((feature) =>
+        staff.map((p) => ({ user_id: p.user_id, feature, notified_at: at(-30), first_seen_at: at(-30) })),
+      ),
     ],
     staff_activity: [
       { id: 'sa-1', user_id: 'u-staff', kind: 'task', area: 'form', label: 'Progress note', client_id: 'c-1', started_at: at(-1, 14), last_seen_at: at(-1, 14), active_seconds: 1260, outcome: 'completed' },

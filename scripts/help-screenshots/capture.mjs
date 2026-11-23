@@ -406,7 +406,7 @@ const SHOTS = {
     { as: 'staff', go: openNoteBuilder, target: (p) => inStep(p, T.activities, 'Benefits assistance'), label: 'Choose the activities' },
     { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); }, target: (p) => dialog(p).locator('section', { hasText: T.details }).locator('.rounded-lg').first(), label: 'One choice at a time' },
     { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); }, target: (p) => dialog(p).locator('section', { hasText: T.next }), label: 'Next steps' },
-    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); }, target: (p) => dialog(p).locator('aside section').last(), label: 'Your note' },
+    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); }, target: (p) => dialog(p).locator('section').filter({ has: p.locator('h3', { hasText: /^Note$/ }) }).first(), label: 'Your note' },
     { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); await dialog(p).getByRole('checkbox').last().click(); await wait(p, 300); }, target: (p) => btn(p, 'Use this note', true), label: 'Use this note' },
   ],
   'draft-note': [
