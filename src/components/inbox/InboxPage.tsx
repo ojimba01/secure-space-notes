@@ -239,6 +239,8 @@ export const InboxPage: React.FC<{ onOpenClient: (clientId: string) => void }> =
           signerName={signerName || 'Staff'}
           onClose={() => setOpening(false)}
           onSubmitted={() => void load()}
+          // A comment or a change made to their form: open on the changes.
+          initialView={selected && (selected.kind === 'form_corrected' || selected.kind === 'form_comment') ? 'changes' : undefined}
         />
       )}
     </div>

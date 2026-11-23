@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { WebFormItem, WebFormSchema } from '@/lib/webForms/types';
+import type { FormComment, TrackedChange } from '@/lib/formComments';
+import { Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface FieldObject {
   id: string;
@@ -41,7 +44,15 @@ export const WebFormView: React.FC<{
   renderExtras?: (field: string, label: string) => React.ReactNode;
   /** On the whole page: as wide as the screen, up to three questions across. */
   wide?: boolean;
-}> = ({ doc, schema, onChange, afterChange, renderExtras, wide = false }) => {
+  /** In the margin beside a question's label: a supervisor's comment icon. */
+  renderMargin?: (field: string, label: string) => React.ReactNode;
+  /**
+   * The person who filled the form reading a supervisor's review, as in Word:
+   * every answer, the changes made (old struck through, new underlined) and
+   * the comments in the right margin. Nothing can be edited here.
+   */
+  review?: ReviewMarks;
+}> = ({ doc, schema, onChange, afterChange, renderExtras, wide = false, renderMargin, review }) => {
   /** Across the whole row: every column on a wide page. */
   const full = wide ? 'sm:col-span-2 xl:col-span-3' : 'sm:col-span-2';
   const storage = (doc as unknown as { annotationStorage: Storage }).annotationStorage;
@@ -146,6 +157,8 @@ export const WebFormView: React.FC<{
 
   if (!fields) return <p className="p-8 text-center text-sm text-muted-foreground">Loading form...</p>;
 
+  if (review) return <ReviewDocument schema={schema} values={values} review={review} shown={shown} wide={wide} />;
+
   return (
     <div className={wide ? 'mx-auto max-w-[1600px] space-y-4' : 'mx-auto max-w-3xl space-y-4'}>
       {missing.length > 0 && (
@@ -171,9 +184,12 @@ export const WebFormView: React.FC<{
                 const id = `wf-${item.field}`;
                 return (
                   <div key={item.field} className={`space-y-1.5 ${item.multiline ? full : item.wide ? 'sm:col-span-2' : ''}`}>
-                    <label htmlFor={id} className="text-sm font-medium">
-                      {item.label}
-                    </label>
+                    <div className="flex items-start justify-between gap-2">
+                      <label htmlFor={id} className="text-sm font-medium">
+                        {item.label}
+                      </label>
+                      {renderMargin?.(item.field, item.label)}
+                    </div>
                     {item.multiline ? (
                       <Textarea
                         id={id}
@@ -192,9 +208,12 @@ export const WebFormView: React.FC<{
                 const options = fields[item.field]?.[0]?.items ?? [];
                 return (
                   <div key={item.field} className="space-y-1.5">
-                    <label htmlFor={`wf-${item.field}`} className="text-sm font-medium">
-                      {item.label}
-                    </label>
+                    <div className="flex items-start justify-between gap-2">
+                      <label htmlFor={`wf-${item.field}`} className="text-sm font-medium">
+                        {item.label}
+                      </label>
+                      {renderMargin?.(item.field, item.label)}
+                    </div>
                     <select
                       id={`wf-${item.field}`}
                       value={String(values[item.field] ?? '')}
@@ -215,7 +234,10 @@ export const WebFormView: React.FC<{
               if (item.kind === 'choice') {
                 return (
                   <div key={item.field} className={`space-y-1.5 ${full}`}>
-                    <p className="text-sm font-medium">{item.label}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium">{item.label}</p>
+                      {renderMargin?.(item.field, item.label)}
+                    </div>
                     <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={item.label}>
                       {item.options.map((o) => {
                         const on = same(values[item.field], o.value);
@@ -241,7 +263,10 @@ export const WebFormView: React.FC<{
               }
               return (
                 <div key={`c${i}`} className={`space-y-1.5 ${full}`}>
-                  <p className="text-sm font-medium">{item.label}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium">{item.label}</p>
+                    {renderMargin?.(item.options[0]?.field ?? item.label, item.label)}
+                  </div>
                   <div className="flex flex-wrap gap-x-5 gap-y-2">
                     {item.options.map((o) => (
                       <label key={o.field} className="flex items-center gap-2 text-sm">
@@ -251,6 +276,144 @@ export const WebFormView: React.FC<{
                     ))}
                   </div>
                   {renderExtras?.(item.options[0]?.field ?? item.label, item.label)}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+};
+
+export interface ReviewMarks {
+  /** The latest change to each answer, by the PDF box's name. */
+  changes: Map<string, TrackedChange>;
+  /** Comments on the form, on a question (field) or on the whole form. */
+  comments: FormComment[];
+  authorName: (id: string | null) => string;
+  /** Marks a comment done; absent when the reader cannot. */
+  onResolve?: (id: string) => void;
+}
+
+const yes = (v: unknown) => v === true || /^(yes|on|true)$/i.test(String(v ?? ''));
+
+/** An answer as written: deleted text struck through in red, inserted text underlined in green. */
+const Tracked: React.FC<{ before: string; after: string }> = ({ before, after }) => (
+  <span className="space-x-1.5">
+    {before && <del className="rounded-sm bg-red-50 px-0.5 text-red-700 decoration-red-600">{before}</del>}
+    {after && <ins className="rounded-sm bg-green-50 px-0.5 text-green-800 underline decoration-green-600 underline-offset-2">{after}</ins>}
+  </span>
+);
+
+/** One comment, as a Word margin balloon. */
+const Balloon: React.FC<{ c: FormComment; authorName: (id: string | null) => string; onResolve?: (id: string) => void }> = ({ c, authorName, onResolve }) => (
+  <div className={`rounded-md border-l-4 p-2.5 text-sm shadow-sm ${c.resolved_at ? 'border-l-muted bg-muted/40 text-muted-foreground' : 'border-l-amber-500 bg-amber-50'}`}>
+    <p className="text-xs font-semibold">{authorName(c.author_id)}</p>
+    {c.quote && (
+      <p className="mt-0.5 text-xs">
+        On <mark className="rounded-sm bg-yellow-200 px-0.5">{c.quote}</mark>
+      </p>
+    )}
+    <p className="mt-0.5">{c.body}</p>
+    {!c.resolved_at && onResolve && (
+      <Button size="sm" variant="outline" className="mt-1.5 h-7 bg-white" onClick={() => onResolve(c.id)}>
+        <Check className="mr-1 h-3.5 w-3.5" />
+        Done
+      </Button>
+    )}
+  </div>
+);
+
+const ReviewDocument: React.FC<{
+  schema: WebFormSchema;
+  values: Record<string, string | boolean>;
+  review: ReviewMarks;
+  shown: (item: WebFormItem) => boolean;
+  wide: boolean;
+}> = ({ schema, values, review, shown, wide }) => {
+  const { changes, comments, authorName, onResolve } = review;
+  const formComments = comments.filter((c) => !c.field);
+  const commentsFor = (fields: string[]) => comments.filter((c) => c.field && fields.includes(c.field));
+  const blank = <span className="text-muted-foreground">Blank</span>;
+
+  const answer = (item: WebFormItem): React.ReactNode => {
+    if (item.kind === 'heading') return null;
+    if (item.kind === 'checks') {
+      const ticked = item.options.filter((o) => yes(values[o.field]) || changes.has(o.field));
+      if (!ticked.length) return blank;
+      return (
+        <span className="flex flex-wrap gap-x-4 gap-y-1">
+          {ticked.map((o) => {
+            const ch = changes.get(o.field);
+            if (!ch) return <span key={o.field}>☑ {o.label}</span>;
+            return yes(ch.after) ? (
+              <Tracked key={o.field} before="" after={`☑ ${o.label}`} />
+            ) : (
+              <Tracked key={o.field} before={`☑ ${o.label}`} after="" />
+            );
+          })}
+        </span>
+      );
+    }
+    const label = (v: string) =>
+      item.kind === 'choice' ? item.options.find((o) => o.value.replace(/[^a-z0-9]/gi, '').toLowerCase() === v.replace(/[^a-z0-9]/gi, '').toLowerCase())?.label ?? v : v;
+    const ch = changes.get(item.field);
+    if (ch) return <Tracked before={label(ch.before)} after={label(ch.after)} />;
+    const now = String(values[item.field] ?? '').trim();
+    return now ? label(now) : blank;
+  };
+
+  return (
+    <div className={wide ? 'mx-auto max-w-[1600px] space-y-4' : 'mx-auto max-w-4xl space-y-4'}>
+      <div className="flex flex-wrap items-center gap-4 rounded-md border bg-background px-4 py-2 text-sm">
+        <span>
+          <span className="font-semibold">{changes.size}</span> {changes.size === 1 ? 'change' : 'changes'}
+        </span>
+        <span>
+          <span className="font-semibold">{comments.filter((c) => !c.resolved_at).length}</span> open comments
+        </span>
+        <span className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+          <del className="text-red-700">Removed</del>
+          <ins className="text-green-800 underline">Added</ins>
+          <mark className="bg-yellow-200 px-0.5">Commented</mark>
+        </span>
+      </div>
+      {formComments.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {formComments.map((c) => (
+            <Balloon key={c.id} c={c} authorName={authorName} onResolve={onResolve} />
+          ))}
+        </div>
+      )}
+      {schema.map((section) => (
+        <section key={section.title} className="rounded-lg border bg-background">
+          <h3 className="rounded-t-lg bg-primary px-4 py-2 text-sm font-semibold uppercase tracking-wide text-primary-foreground">
+            {section.title}
+          </h3>
+          <div className="divide-y">
+            {section.items.filter(shown).map((item, i) => {
+              if (item.kind === 'heading') {
+                return (
+                  <p key={`h${i}`} className="px-4 pb-1 pt-3 text-sm font-semibold">
+                    {item.label}
+                  </p>
+                );
+              }
+              const fields = item.kind === 'checks' ? item.options.map((o) => o.field) : [item.field];
+              const balloons = commentsFor(fields);
+              const changed = fields.some((f) => changes.has(f));
+              return (
+                <div key={fields[0] ?? i} className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(0,1fr)_280px]">
+                  <div className={`min-w-0 ${changed ? 'border-l-2 border-l-red-500 pl-3' : ''}`}>
+                    <p className="text-sm text-muted-foreground">{item.label}</p>
+                    <div className="mt-0.5 text-sm [overflow-wrap:anywhere]">{answer(item)}</div>
+                  </div>
+                  <div className="space-y-2">
+                    {balloons.map((c) => (
+                      <Balloon key={c.id} c={c} authorName={authorName} onResolve={onResolve} />
+                    ))}
+                  </div>
                 </div>
               );
             })}

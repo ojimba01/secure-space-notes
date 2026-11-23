@@ -3,7 +3,8 @@
 // comments for a supervisor (src/lib/formComments.ts).
 import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Check, MessageSquareWarning } from 'lucide-react';
+import { Check, MessageSquarePlus, MessageSquareWarning } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { COMMENT_PRESETS, type FormComment } from '@/lib/formComments';
@@ -23,6 +24,11 @@ export const OpenComments: React.FC<{
         <div key={c.id} className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2.5 text-sm">
           <MessageSquareWarning className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
           <div className="min-w-0 flex-1">
+            {c.quote && (
+              <p className="mb-0.5 text-xs text-amber-950/80">
+                On <mark className="rounded-sm bg-yellow-200 px-0.5 text-amber-950">{c.quote}</mark>
+              </p>
+            )}
             <p className="font-medium text-amber-950">{c.body}</p>
             <p className="text-xs text-amber-900/80">
               {c.field_label && !c.field ? `${c.field_label} · ` : ''}
@@ -86,5 +92,65 @@ export const CommentComposer: React.FC<{
         </Button>
       </div>
     </div>
+  );
+};
+
+/**
+ * The comment icon in the margin of a question, as in Word. Highlight words
+ * in the answer first to comment on just those; the comment keeps them.
+ */
+export const MarginComment: React.FC<{
+  field: string;
+  label: string;
+  onSend: (preset: string | null, note: string, quote: string | null) => Promise<void>;
+}> = ({ field, label, onSend }) => {
+  const [open, setOpen] = useState(false);
+  const [quote, setQuote] = useState<string | null>(null);
+
+  /** The words highlighted in this question's answer box, if any. */
+  const readSelection = () => {
+    const box = document.getElementById(`wf-${field}`) as HTMLInputElement | HTMLTextAreaElement | null;
+    if (box && typeof box.selectionStart === 'number' && box.selectionEnd !== box.selectionStart) {
+      return box.value.slice(box.selectionStart ?? 0, box.selectionEnd ?? 0).trim() || null;
+    }
+    const text = window.getSelection()?.toString().trim();
+    return text ? text.slice(0, 200) : null;
+  };
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        if (o) setQuote(readSelection());
+        setOpen(o);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          // Keeps the highlight in the answer box while the icon is pressed.
+          onMouseDown={(e) => e.preventDefault()}
+          title={`Comment on ${label}`}
+          aria-label={`Comment on ${label}`}
+          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:bg-amber-100 hover:text-amber-800"
+        >
+          <MessageSquarePlus className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0">
+        {quote && (
+          <p className="border-b px-3 py-2 text-xs text-muted-foreground">
+            On <mark className="rounded-sm bg-yellow-200 px-0.5 text-foreground">{quote}</mark>
+          </p>
+        )}
+        <CommentComposer
+          onSend={async (preset, note) => {
+            await onSend(preset, note, quote);
+            setOpen(false);
+          }}
+          onCancel={() => setOpen(false)}
+        />
+      </PopoverContent>
+    </Popover>
   );
 };

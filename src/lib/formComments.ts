@@ -29,6 +29,8 @@ export interface FormComment {
   recipient_id: string | null;
   created_at: string;
   resolved_at: string | null;
+  /** The words highlighted in the answer, when the comment is on part of it. */
+  quote?: string | null;
 }
 
 export interface FormRef {
@@ -96,6 +98,8 @@ export async function addFormComment(input: {
   preset: string | null;
   note: string;
   authorId: string;
+  /** The words highlighted in the answer. */
+  quote?: string | null;
 }): Promise<void> {
   const presetLabel = COMMENT_PRESETS.find((p) => p.key === input.preset)?.label ?? '';
   const body = [presetLabel, input.note.trim()].filter(Boolean).join('. ');
@@ -107,6 +111,7 @@ export async function addFormComment(input: {
     field_label: input.fieldLabel,
     preset: input.preset,
     body,
+    quote: input.quote?.trim() || null,
     author_id: input.authorId,
     recipient_id: input.form.employee_id,
   });
@@ -163,6 +168,26 @@ export async function notifyCorrections(form: FormRef, changes: TrackedChange[],
     actor_id: actorId,
     details: { changes },
   });
+}
+
+/** The latest change an admin made to each answer of a form, for its tracked changes. */
+export async function loadCorrections(formId: string): Promise<Map<string, TrackedChange>> {
+  const { data } = await table('form_corrections')
+    .select('field, field_label, before_value, after_value, created_at')
+    .eq('client_form_id', formId)
+    .order('created_at', { ascending: true });
+  const out = new Map<string, TrackedChange>();
+  for (const r of (data ?? []) as { field: string; field_label: string | null; before_value: string | null; after_value: string | null }[]) {
+    // The earliest "before" and the latest "after": what the person wrote, and what it is now.
+    const prior = out.get(r.field);
+    out.set(r.field, {
+      field: r.field,
+      label: r.field_label ?? r.field,
+      before: prior ? prior.before : r.before_value ?? '',
+      after: r.after_value ?? '',
+    });
+  }
+  return out;
 }
 
 /** Answers that differ between two readings of a form's boxes. */

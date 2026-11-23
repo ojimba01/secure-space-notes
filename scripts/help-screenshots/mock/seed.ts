@@ -201,6 +201,7 @@ export function seed(): Tables {
   const formComments = [
     { id: 'fc-1', client_form_id: 'f-0', client_id: 'c-1', field: 'emergency_contact_phone', field_label: 'Phone', preset: 'missing', body: 'This answer is missing', author_id: 'p-admin', recipient_id: 'p-staff', created_at: at(-1, 16), resolved_at: null, resolved_by: null },
     { id: 'fc-2', client_form_id: 'f-0', client_id: 'c-1', field: 'race', field_label: '7. Race', preset: 'update', body: 'Please update this answer. Use the wording from the IAT', author_id: 'p-admin', recipient_id: 'p-staff', created_at: at(-1, 16), resolved_at: null, resolved_by: null },
+    { id: 'fc-3', client_form_id: 'f-1', client_id: 'c-1', field: '1 Name as written on Medicaid ID', field_label: '1. Name (as written on Medicaid ID)', preset: 'mismatch', body: "This doesn't match the client record", quote: 'Dana', author_id: 'p-admin', recipient_id: 'p-staff', created_at: at(-1, 10), resolved_at: null, resolved_by: null },
   ];
   const notifications = [
     { id: 'n-1', recipient_id: 'p-staff', kind: 'form_comment', title: 'Jordan Price left a comment on your Client Intake', body: 'Dana Whitfield, Phone: This answer is missing', client_id: 'c-1', client_form_id: 'f-0', actor_id: 'p-admin', created_at: at(-1, 16), read_at: null },
@@ -215,6 +216,11 @@ export function seed(): Tables {
   return {
     intake_calls: intakeCalls,
     form_comments: formComments,
+    // A supervisor's changes to the case manager's IAT (tracked changes).
+    form_corrections: [
+      { id: 'cr-1', client_form_id: 'f-1', client_id: 'c-1', form_type: 'Initial Assessment (IAT)', field: '5 Medicaid ID', field_label: '5. Medicaid ID', before_value: '70114238', after_value: '777000144229', corrected_by: 'p-admin', recipient_id: 'p-staff', created_at: at(-2, 11) },
+      { id: 'cr-2', client_form_id: 'f-1', client_id: 'c-1', form_type: 'Initial Assessment (IAT)', field: '8 Location county', field_label: '8. Location (county)', before_value: 'Camdem', after_value: 'Camden', corrected_by: 'p-admin', recipient_id: 'p-staff', created_at: at(-2, 11) },
+    ],
     notifications,
     profiles: staff.map(({ role: _r, ...p }) => ({ active: true, ...p, created_at: at(-400), touchpoint_tutorial_acknowledged_at: at(-300), touchpoint_go_live_date: day(-300) })),
     user_roles: staff.map((s) => ({ id: `r-${s.id}`, user_id: s.user_id, role: s.role })),

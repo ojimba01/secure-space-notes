@@ -29,10 +29,12 @@ import { SignOnForm } from '@/components/forms/SignOnForm';
 import { WebFormView } from '@/components/forms/WebFormView';
 import { WEB_FORMS, webFormFor } from '@/lib/webForms';
 import type { WebFormSchema } from '@/lib/webForms/types';
-import { CommentComposer, OpenComments } from '@/components/forms/FormComments';
+import { CommentComposer, MarginComment, OpenComments } from '@/components/forms/FormComments';
 import {
   addFormComment,
   trackedChanges,
+  loadCorrections,
+  type TrackedChange,
   loadFormComments,
   notifyCorrections,
   resolveFormComment,
@@ -208,6 +210,8 @@ interface TemplateFillDialogProps {
   authorizationId?: string | null;
   onClose: () => void;
   onSubmitted: () => void;
+  /** Open on the Changes view: a supervisor's changes and comments (from the Inbox). */
+  initialView?: 'changes';
 }
 
 export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
@@ -221,6 +225,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
   authorizationId,
   onClose,
   onSubmitted,
+  initialView,
 }) => {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
@@ -292,7 +297,9 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
    */
   const [matchedSchema, setMatchedSchema] = useState<WebFormSchema | null | undefined>(undefined);
   const webSchema = matchedSchema ?? null;
-  const [view, setView] = useState<'form' | 'pdf'>(webCandidates.length ? 'form' : 'pdf');
+  const [view, setView] = useState<'form' | 'pdf' | 'changes'>(
+    initialView === 'changes' && webCandidates.length ? 'changes' : webCandidates.length ? 'form' : 'pdf',
+  );
   /** Bumped on the way into the PDF view, so its boxes show the web form's answers. */
   const [pagesKey, setPagesKey] = useState(0);
 
@@ -1250,9 +1257,14 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     : null;
   /** A supervisor reviewing someone else's form. */
   const canComment = isAdmin && !!existing && existing.employee_id !== profileId;
+  /** The changes a supervisor made to this form, answer by answer. */
+  const [corrections, setCorrections] = useState<Map<string, TrackedChange>>(new Map());
+  /** The person who filled the form, with a supervisor's changes or comments to read. */
+  const hasReview = !!existing && !canComment && (corrections.size > 0 || comments.length > 0);
 
   const reloadComments = async () => {
     if (!existing?.id) return;
+    void loadCorrections(existing.id).then(setCorrections).catch(() => setCorrections(new Map()));
     try {
       const list = await loadFormComments(existing.id);
       setComments(list);
@@ -1284,10 +1296,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     return field.replace(/_/g, ' ');
   };
 
-  const sendComment = async (field: string | null, label: string | null, preset: string | null, note: string) => {
+  const sendComment = async (field: string | null, label: string | null, preset: string | null, note: string, quote: string | null = null) => {
     if (!formRef || !profileId) return;
     try {
-      await addFormComment({ form: formRef, field, fieldLabel: label, preset, note, authorId: profileId });
+      await addFormComment({ form: formRef, field, fieldLabel: label, preset, note, authorId: profileId, quote });
       setComposing(null);
       await reloadComments();
       toast({ title: 'Comment sent' });
@@ -1326,18 +1338,6 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
         canResolve={isAdmin || existing?.employee_id === profileId}
         onResolve={(id) => void resolve(id)}
       />
-      {canComment &&
-        (composing === field ? (
-          <CommentComposer onSend={(preset, note) => sendComment(field, label, preset, note)} onCancel={() => setComposing(null)} />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setComposing(field)}
-            className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-          >
-            Comment
-          </button>
-        ))}
     </>
   );
   const openComments = comments.filter((c) => !c.resolved_at);
@@ -1400,7 +1400,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           <div className="flex items-center gap-2">
               {webSchema && hasFields !== false && (
                 <div className="flex rounded-lg border bg-muted/40 p-0.5 text-sm" role="tablist" aria-label="View">
-                  {(['form', 'pdf'] as const).map((v) => (
+                  {(hasReview ? (['changes', 'form', 'pdf'] as const) : (['form', 'pdf'] as const)).map((v) => (
                     <button
                       key={v}
                       type="button"
@@ -1412,7 +1412,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                       }}
                       className={`rounded-md px-3 py-1 ${view === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground'}`}
                     >
-                      {v === 'form' ? 'Form' : 'PDF'}
+                      {v === 'form' ? 'Form' : v === 'pdf' ? 'PDF' : `Changes${corrections.size + comments.filter((c) => !c.resolved_at).length ? ` (${corrections.size + comments.filter((c) => !c.resolved_at).length})` : ''}`}
                     </button>
                   ))}
                 </div>
@@ -1453,7 +1453,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
           </div>
         </DialogHeader>
 
-        {(openComments.length > 0 || canComment) && (
+        {view !== 'changes' && (openComments.length > 0 || canComment) && (
           <div className="space-y-2">
             {openComments.length > 0 && (
               <div className="space-y-1.5 rounded-md border border-amber-300 bg-amber-50/60 p-3">
@@ -1550,12 +1550,33 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
                 </div>
               }
             >
+              {view === 'changes' && webSchema && numPages > 0 && docRef.current && (
+                <WebFormView
+                  doc={docRef.current}
+                  schema={webSchema}
+                  wide={expanded}
+                  onChange={() => {}}
+                  review={{
+                    changes: corrections,
+                    comments,
+                    authorName: (id) => (id && people[id]) || 'Supervisor',
+                    onResolve: existing?.employee_id === profileId ? (id) => void resolve(id) : undefined,
+                  }}
+                />
+              )}
               {view === 'form' && webSchema && numPages > 0 && docRef.current && (
                 <WebFormView
                   doc={docRef.current}
                   schema={webSchema}
                   wide={expanded}
                   renderExtras={existing ? renderExtras : undefined}
+                  renderMargin={
+                    canComment
+                      ? (field, label) => (
+                          <MarginComment field={field} label={label} onSend={(preset, note, quote) => sendComment(field, label, preset, note, quote)} />
+                        )
+                      : undefined
+                  }
                   // The LON's total adds itself up from its scores.
                   afterChange={
                     formType === 'Level of Need (LON)'
@@ -1572,7 +1593,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
               )}
               {/* Kept loaded behind the web form: it is the document saved. */}
               <div
-                className={`flex flex-col items-center gap-4 ${view === 'form' && webCandidates.length && matchedSchema !== null ? 'hidden' : ''}`}
+                className={`flex flex-col items-center gap-4 ${view !== 'pdf' && webCandidates.length && matchedSchema !== null ? 'hidden' : ''}`}
                 ref={pagesRef}
               >
                 {Array.from({ length: numPages }, (_, i) => (
