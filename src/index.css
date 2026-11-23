@@ -181,6 +181,17 @@ All colors MUST be HSL.
   .group:hover .wiggle-on-hover { animation: wiggle 500ms ease-in-out; }
 }
 
+/* The walkthrough's red ring breathing, and its hand tapping. */
+@keyframes walk-ring {
+  0% { box-shadow: 0 0 0 0 rgb(217 72 59 / 0.45); }
+  100% { box-shadow: 0 0 0 12px rgb(217 72 59 / 0); }
+}
+@keyframes walk-tap {
+  0%, 60%, 100% { transform: translate(0, 0) scale(1); }
+  70% { transform: translate(-3px, -6px) scale(0.94); }
+  80% { transform: translate(0, 0) scale(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 1ms !important;

@@ -30,6 +30,7 @@ import { useViewAs } from '@/components/ViewAsProvider';
 import { AdvancedTools } from '@/components/AdvancedTools';
 import { AccountDialog } from '@/components/AccountDialog';
 import { cn } from '@/lib/utils';
+import { openHelp } from '@/components/help/HelpCenter';
 import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
 import { useUnreadCount } from '@/hooks/useUnreadCount';
 
@@ -300,7 +301,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           </div>
 
           <div className="mt-auto space-y-0.5 pt-6">
-            <NavItem icon={BookOpen} label="Help guide" active={onPath('/onboarding')} onClick={() => handleNavigate('/onboarding')} tutorial="onboarding-nav" />
+            <NavItem
+              icon={BookOpen}
+              label="Help guide"
+              active={false}
+              onClick={() => {
+                // The Help guide is now Help: ask, or pick a task, and be shown.
+                openHelp();
+                if (isMobile) setIsOpen(false);
+              }}
+              tutorial="onboarding-nav"
+            />
             {isSuperadmin && !isViewingAs && (
               <NavItem
                 icon={LifeBuoy}

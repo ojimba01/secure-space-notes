@@ -525,7 +525,7 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Use the left panel', 'Clients, Blank forms, My touchpoints and Calendar hold your day-to-day work. Help guide is always here.'),
       s('Open your account', 'Select Your account at the bottom of the left panel to change your password, add a signature or link your calendar.'),
-      s('Find help', 'Select Help guide for step-by-step instructions. To contact support, select Support in the bottom-right corner.'),
+      s('Find help', 'Select Help in the bottom-right corner, or Help guide in the left panel. Ask how to do something, or pick a task, and select Show me. To contact support, select Contact support in Help.'),
     ],
   },
   {
@@ -545,7 +545,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'support', section: 'Getting started', title: 'Get help from support', audience: 'everyone', minutes: 2,
     steps: [
-      s('Select Support', 'The Support button is in the bottom-right corner of every page.'),
+      s('Open Help', 'Select Help in the bottom-right corner of any page, then Contact support.'),
       s('Describe the problem', 'Enter a short title, then describe what you were trying to do and what happened.'),
       s('Show the problem', 'Select Screenshot to circle the problem on the page, Record screen to record up to 3 minutes, or Attach file.'),
       s('Send it', 'Select Send to support. Your requests are listed by title under My requests, where replies also appear.'),
@@ -554,7 +554,7 @@ export const GUIDES: Guide[] = [
   },  {
     id: 'support-reply', section: 'Getting started', title: 'Read a reply from support', audience: 'everyone', minutes: 1,
     steps: [
-      s('Read the message', 'When support replies, the message appears in the middle of the screen. Select the X when you have read it. To reply, select Support, then My requests.'),
+      s('Read the message', 'When support replies, the message appears in the middle of the screen. Select the X when you have read it. To reply, select Help, then Contact support, then My requests.'),
       s('Answer a follow-up question', 'If support needs more information, the request shows Action required. Select Respond to follow-up, type your answer and select Send reply.'),
       s('Refresh when resolved', 'When your request is resolved, a green banner appears at the top. Select Refresh so the page shows the latest version.'),
     ],

@@ -22,6 +22,7 @@ import { lazy, Suspense } from "react";
 import { PageShell } from "@/components/PageShell";
 import { usePageActivity } from "@/hooks/useStaffActivity";
 import { SupportButton } from "@/components/support/SupportButton";
+import { HelpCenter } from "@/components/help/HelpCenter";
 import { AppUpdate } from "@/components/AppUpdate";
 import { WhatsNew } from "@/components/WhatsNew";
 
@@ -75,6 +76,7 @@ const App = () => (
             <TextScale />
             <PageActivityTracker />
             <SupportButton />
+            <HelpCenter />
             <AppUpdate />
             <WhatsNew />
             <ErrorBoundary>
