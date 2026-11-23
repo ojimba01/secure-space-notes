@@ -39,15 +39,25 @@ export interface FormRef {
   clientName: string;
 }
 
+/** One answer an admin changed: what it was, and what it is now. */
+export interface TrackedChange {
+  field: string;
+  label: string;
+  before: string;
+  after: string;
+}
+
 export interface AppNotification {
   id: string;
-  kind: 'form_comment' | 'form_corrected' | 'intake_assigned';
+  kind: 'form_comment' | 'form_corrected' | 'intake_assigned' | 'form_submitted';
   title: string;
   body: string | null;
   client_id: string | null;
   client_form_id: string | null;
   created_at: string;
   read_at: string | null;
+  /** For form_corrected: every answer changed, before and after. */
+  details: { changes?: TrackedChange[] } | null;
 }
 
 // Newer than the generated types.
@@ -120,19 +130,38 @@ export async function resolveFormComment(id: string, by: string): Promise<void> 
   if (error) throw new Error(error.message);
 }
 
-/** Tell the person who filled a form which answers a supervisor changed. */
-export async function notifyCorrections(form: FormRef, changedLabels: string[], actorId: string): Promise<void> {
-  if (!changedLabels.length || form.employee_id === actorId) return;
+/**
+ * Tell the person who filled a form what a supervisor changed: each answer,
+ * before and after (tracked changes). Each change is also kept as a
+ * form_corrections row, the record of what gets corrected most.
+ */
+export async function notifyCorrections(form: FormRef, changes: TrackedChange[], actorId: string): Promise<void> {
+  if (!changes.length || form.employee_id === actorId) return;
   const actor = await nameOf(actorId);
-  const shown = changedLabels.slice(0, 5).join(', ') + (changedLabels.length > 5 ? ` and ${changedLabels.length - 5} more` : '');
+  const labels = changes.map((c) => c.label);
+  const shown = labels.slice(0, 5).join(', ') + (labels.length > 5 ? ` and ${labels.length - 5} more` : '');
+  await table('form_corrections').insert(
+    changes.map((c) => ({
+      client_form_id: form.id,
+      client_id: form.client_id,
+      form_type: form.form_type,
+      field: c.field,
+      field_label: c.label,
+      before_value: c.before,
+      after_value: c.after,
+      corrected_by: actorId,
+      recipient_id: form.employee_id,
+    })),
+  );
   await table('notifications').insert({
     recipient_id: form.employee_id,
     kind: 'form_corrected',
-    title: `${actor} corrected your ${form.form_type}`,
-    body: `${form.clientName}: ${changedLabels.length === 1 ? 'changed' : `changed ${changedLabels.length} answers:`} ${shown}`,
+    title: `${actor} made changes to your ${form.form_type}`,
+    body: `${form.clientName}: ${labels.length === 1 ? 'changed' : `changed ${labels.length} answers:`} ${shown}`,
     client_id: form.client_id,
     client_form_id: form.id,
     actor_id: actorId,
+    details: { changes },
   });
 }
 
@@ -142,9 +171,23 @@ export function changedFields(before: Record<string, string>, after: Record<stri
   return [...keys].filter((k) => (before[k] ?? '').trim() !== (after[k] ?? '').trim());
 }
 
+/** Each changed answer, before and after, with the question as people read it. */
+export function trackedChanges(
+  before: Record<string, string>,
+  after: Record<string, string>,
+  label: (field: string) => string,
+): TrackedChange[] {
+  return changedFields(before, after).map((field) => ({
+    field,
+    label: label(field),
+    before: (before[field] ?? '').trim(),
+    after: (after[field] ?? '').trim(),
+  }));
+}
+
 export async function loadNotifications(profileId: string, limit = 30): Promise<AppNotification[]> {
   const { data, error } = await table('notifications')
-    .select('id, kind, title, body, client_id, client_form_id, created_at, read_at')
+    .select('id, kind, title, body, client_id, client_form_id, created_at, read_at, details')
     .eq('recipient_id', profileId)
     .order('created_at', { ascending: false })
     .limit(limit);

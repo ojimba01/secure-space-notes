@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { SetupQueues } from '@/components/admin/SetupQueues';
 import { FeatureWalkthrough } from '@/components/FeatureWalkthrough';
 import { ShadeDashboard } from '@/components/admin/ShadeDashboard';
 import { TutorialProvider } from '@/components/TutorialProvider';
@@ -199,8 +198,6 @@ const Admin = () => {
             <ArrowRight className="nudge h-4 w-4" />
           </Button>
         </div>
-
-        <SetupQueues />
 
         <ShadeDashboard
           onOpenClient={(id) => navigate('/', { state: { view: 'clients', clientId: id } })}

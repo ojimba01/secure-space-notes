@@ -32,7 +32,7 @@ import type { WebFormSchema } from '@/lib/webForms/types';
 import { CommentComposer, OpenComments } from '@/components/forms/FormComments';
 import {
   addFormComment,
-  changedFields,
+  trackedChanges,
   loadFormComments,
   notifyCorrections,
   resolveFormComment,
@@ -1312,10 +1312,10 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
     const before = baseValuesRef.current;
     const after = savedValuesRef.current;
     if (!before || !after) return;
-    const changed = changedFields(before, after).map(questionLabel);
-    if (!changed.length) return;
+    const changes = trackedChanges(before, after, questionLabel);
+    if (!changes.length) return;
     correctionsReported.current = true;
-    void notifyCorrections(formRef, changed, profileId).catch(() => {});
+    void notifyCorrections(formRef, changes, profileId).catch(() => {});
   };
 
   const renderExtras = (field: string, label: string) => (

@@ -86,7 +86,11 @@ const FORM_CHIP: Record<PackageForm['state'], { cls: string; label: string }> = 
   reviewed: { cls: 'border-green-300 bg-green-50 text-green-800', label: 'Reviewed' },
 };
 
-export const IntakeCallsPage: React.FC<{ onOpenClient: (clientId: string) => void }> = ({ onOpenClient }) => {
+export const IntakeCallsPage: React.FC<{
+  onOpenClient: (clientId: string) => void;
+  /** Inside the admin dashboard: a section, not a page. */
+  embedded?: boolean;
+}> = ({ onOpenClient, embedded = false }) => {
   const { toast } = useToast();
   const { isAdmin, loading: adminLoading } = useIsAdmin();
   const profileId = useEffectiveProfileId();
@@ -176,9 +180,13 @@ export const IntakeCallsPage: React.FC<{ onOpenClient: (clientId: string) => voi
   if (adminLoading) return null;
 
   return (
-    <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:px-9 md:py-8">
+    <div className={embedded ? 'space-y-4 rounded-xl border bg-card p-4 md:p-6' : 'mx-auto max-w-[1280px] space-y-6 p-4 md:px-9 md:py-8'}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">Intake calls</h1>
+        {embedded ? (
+          <h2 className="text-[17px] font-semibold text-foreground">Intake calls</h2>
+        ) : (
+          <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">Intake calls</h1>
+        )}
         {isAdmin && (
           <Button onClick={() => setAdding(true)}>
             <Plus className="mr-2 h-4 w-4" />

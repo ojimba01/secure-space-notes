@@ -35,6 +35,10 @@ export interface Feature {
   };
 }
 
+// Held until the owner says staff are ready (Nov 23): the Inbox announcement.
+//   key 'inbox', audience everyone, illustration formComments
+//   title: 'Never miss feedback again!'
+//   body:  'Your new Inbox shows every comment and change made to your forms. It has been enabled on your account.'
 export const FEATURES: Feature[] = [
   {
     key: 'intake-calls-page',
@@ -43,7 +47,7 @@ export const FEATURES: Feature[] = [
     announceUntil: '2026-12-07',
     popup: {
       title: 'Review every intake in one place!',
-      body: 'The new Intake calls page shows each new member’s calls, forms and review status. It has been enabled on your account.',
+      body: 'Intake calls on your admin dashboard shows each new member’s calls, forms and review status. It has been enabled on your account.',
       illustration: 'intakePackage',
     },
   },

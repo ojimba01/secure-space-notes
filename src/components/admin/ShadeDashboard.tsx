@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { FormsToReview } from '@/components/admin/FormsToReview';
-import { IntakeCallsCard } from '@/components/admin/IntakeCallsCard';
+import { IntakeCallsPage } from '@/components/intakeCalls/IntakeCallsPage';
 import { useSuperadminCompliance } from '@/hooks/useSuperadminCompliance';
 import { todayAgency } from '@/lib/compliance';
 import {
@@ -117,10 +117,11 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
           </Button>
         </div>
       )}
+      {/* Intake calls across the top: from referral to reviewed package. */}
+      <IntakeCallsPage embedded onOpenClient={onOpenClient} />
       {/* Forms to review beside the two short lists; the wide Touchpoints table below. */}
       <div className="grid items-start gap-4 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
-        <IntakeCallsCard onOpenClient={onOpenClient} />
         <FormsToReview onOpenClient={onOpenClient} />
       </div>
       <div className="space-y-4">

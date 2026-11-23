@@ -204,7 +204,12 @@ export function seed(): Tables {
   ];
   const notifications = [
     { id: 'n-1', recipient_id: 'p-staff', kind: 'form_comment', title: 'Jordan Price left a comment on your Client Intake', body: 'Dana Whitfield, Phone: This answer is missing', client_id: 'c-1', client_form_id: 'f-0', actor_id: 'p-admin', created_at: at(-1, 16), read_at: null },
-    { id: 'n-2', recipient_id: 'p-staff', kind: 'form_corrected', title: 'Jordan Price corrected your Initial Assessment (IAT)', body: 'Dana Whitfield: changed 2 answers: 5. Medicaid ID, 8. Location (county)', client_id: 'c-1', client_form_id: 'f-1', actor_id: 'p-admin', created_at: at(-2, 11), read_at: null },
+    { id: 'n-2', recipient_id: 'p-staff', kind: 'form_corrected', title: 'Jordan Price made changes to your Initial Assessment (IAT)', body: 'Dana Whitfield: changed 2 answers: 5. Medicaid ID, 8. Location (county)', client_id: 'c-1', client_form_id: 'f-1', actor_id: 'p-admin', created_at: at(-2, 11), read_at: null,
+      details: { changes: [
+        { field: '5 Medicaid ID', label: '5. Medicaid ID', before: '70114238', after: '777000144229' },
+        { field: '8 Location county', label: '8. Location (county)', before: 'Camdem', after: 'Camden' },
+      ] } },
+    { id: 'n-3', recipient_id: 'p-admin', kind: 'form_submitted', title: 'Taylor Brooks submitted the Initial Assessment (IAT)', body: 'Tobias Reed', client_id: 'c-rv1', client_form_id: 'f-10', actor_id: 'p-staff', created_at: at(-1, 9), read_at: null, details: null },
   ];
 
   return {

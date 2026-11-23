@@ -16,7 +16,7 @@ import {
   UserCircle,
   Activity,
   LifeBuoy,
-  PhoneCall,
+  Inbox,
 } from "lucide-react";
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,11 +31,12 @@ import { AdvancedTools } from '@/components/AdvancedTools';
 import { AccountDialog } from '@/components/AccountDialog';
 import { cn } from '@/lib/utils';
 import { NewRibbon, useNewRibbon } from '@/components/WhatsNew';
+import { useUnreadCount } from '@/hooks/useUnreadCount';
 
 interface SidebarProps {
   /** Which in-page view is showing. Only meaningful on "/". */
-  activeView?: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes';
-  onViewChange: (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes') => void;
+  activeView?: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes' | 'inbox';
+  onViewChange: (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes' | 'inbox') => void;
 }
 
 /** Marks a feature still being tried out. Hidden from screen readers so the item keeps its name. */
@@ -101,7 +102,8 @@ export const BrandMark: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
-  const intakesRibbon = useNewRibbon('intake-calls-page');
+  const inboxRibbon = useNewRibbon('inbox');
+  const unreadCount = useUnreadCount();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -134,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   const { isViewingAs } = useViewAs();
 
   // Close sidebar when view changes on mobile
-  const handleViewChange = (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes') => {
+  const handleViewChange = (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes' | 'inbox') => {
     onViewChange(view);
     if (isMobile) setIsOpen(false);
   };
@@ -257,7 +259,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
                 <NavItem icon={LayoutGrid} label="Admin Dashboard" active={onPath('/admin')} onClick={() => handleNavigate('/admin')} tutorial="admin-nav" />
               )}
               <NavItem icon={Users} label="Clients" active={onView('clients')} onClick={() => handleViewChange('clients')} tutorial="clients-nav" />
-              <NavItem icon={PhoneCall} label={<>Intake calls {intakesRibbon && <NewRibbon inline />}</>} active={onView('intakes')} onClick={() => handleViewChange('intakes')} />
+              <NavItem
+                icon={Inbox}
+                label={<>Inbox {inboxRibbon && <NewRibbon inline />}</>}
+                active={onView('inbox')}
+                onClick={() => handleViewChange('inbox')}
+                badge={unreadCount > 0 ? (
+                  <span key={unreadCount} className="animate-pop rounded-full bg-danger px-1.5 text-[11px] font-semibold leading-[18px] text-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                ) : undefined}
+              />
               <NavItem icon={FileText} label="Blank forms" active={onView('forms')} onClick={() => handleViewChange('forms')} tutorial="forms-nav" />
               <NavItem icon={NotebookPen} label={<>Generate Notes <BetaBadge /></>} active={onPath('/clinical-notes')} onClick={() => handleNavigate('/clinical-notes')} />
               {isAdmin && (
