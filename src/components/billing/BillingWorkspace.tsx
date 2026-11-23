@@ -82,18 +82,19 @@ const ProfileIconButton = ({ onClick, tour }: { onClick:()=>void; tour?:boolean 
 const StepButton = ({ step, label, count, active, onClick, tour }: {
   step: number; label: string; count?: number; active: boolean; onClick: () => void; tour?: string;
 }) => (
-  <Button
+  <button
+    type="button"
     data-tour={tour}
-    variant={active ? 'default' : 'ghost'}
-    className="gap-2"
+    aria-pressed={active}
+    className={`inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-sm transition-all ${active ? 'bg-card font-semibold text-foreground shadow-sm' : 'font-medium text-muted-foreground hover:text-foreground'}`}
     onClick={onClick}
   >
-    <span className={`grid h-5 w-5 place-items-center rounded-full text-xs font-semibold ${active ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'}`}>{step}</span>
+    <span className={`grid h-5 w-5 place-items-center rounded-full text-[11px] font-semibold transition-colors ${active ? 'bg-primary text-primary-foreground' : 'bg-input text-muted-foreground'}`}>{step}</span>
     {label}
     {count !== undefined && count > 0 && (
-      <span className={`rounded-full px-1.5 text-xs font-semibold ${active ? 'bg-white/25' : 'bg-slate-200 text-slate-700'}`}>{count}</span>
+      <span className="rounded-full bg-muted px-1.5 text-xs font-semibold text-muted-foreground">{count}</span>
     )}
-  </Button>
+  </button>
 );
 
 
@@ -286,7 +287,7 @@ export function BillingWorkspace() {
     />
 
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-white p-1" data-tour="sections">
+      <div className="flex flex-wrap items-center gap-1 rounded-lg bg-muted p-1" data-tour="sections">
         <StepButton step={1} label="To bill" active={section==='bill'} onClick={()=>setSection('bill')} tour="section-bill"/>
         <StepButton step={2} label="Filed claims" active={section==='submitted'} onClick={()=>setSection('submitted')} tour="section-submitted"/>
         {isSuperadmin && <StepButton step={3} label="Revenue" active={section==='revenue'} onClick={()=>setSection('revenue')} tour="section-revenue"/>}
@@ -300,7 +301,7 @@ export function BillingWorkspace() {
       {/* Filing a claim and the Availity boxes are the same job, so they are one
           step: the clients whose window closes this month, then the form. */}
       <div className="flex justify-end">
-        <Button variant="ghost" size="sm" onClick={()=>setAgencyOpen(v=>!v)}>
+        <Button variant="outline" size="sm" onClick={()=>setAgencyOpen(v=>!v)}>
           <Pencil className="mr-2 h-4 w-4"/>{agencyOpen?'Hide agency details':'Edit agency details'}
         </Button>
       </div>
@@ -311,8 +312,8 @@ export function BillingWorkspace() {
           <b>{filedToday} submitted today</b>
           <span className="text-muted-foreground"> · {urgent.length} remaining this month</span>
         </div>
-        <div className="h-2 w-40 overflow-hidden rounded-full bg-slate-200">
-          <div className="h-full rounded-full bg-emerald-500" style={{width:`${Math.round((filedToday/Math.max(filedToday+urgent.length,1))*100)}%`}}/>
+        <div className="h-2 w-40 overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-success transition-[width] duration-700" style={{width:`${Math.round((filedToday/Math.max(filedToday+urgent.length,1))*100)}%`}}/>
         </div>
       </Card>}
 

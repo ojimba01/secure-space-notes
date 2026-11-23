@@ -5,6 +5,7 @@
 // still running, or its six-month window has closed. Each row says when the
 // cycle ends and the last day it can be billed; pressing it shows the
 // client's whole run of cycles and which of them have been billed.
+import { CountUp } from '@/components/motion/CountUp';
 import React, { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ChevronDown, ChevronLeft, ChevronRight, FileSpreadsheet, Search, X } from 'lucide-react';
@@ -344,21 +345,21 @@ export const ToBillSections: React.FC<Props> = ({ clients, cycles, onOpenClaim }
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="stagger grid grid-cols-2 gap-4 md:grid-cols-4">
         {tiles.map((t) => {
           const s = SECTIONS.find((x) => x.key === t.key)!;
           return (
             <button
               key={t.key}
               onClick={() => jump(t.key)}
-              className="grid gap-0.5 rounded-lg border bg-white p-3 text-left hover:border-primary"
+              className={`lift group grid gap-1 rounded-xl border p-5 text-left ${t.key === 'deadline' && t.value > 0 ? 'border-attention-border bg-attention-soft' : 'border-border bg-card hover:border-primary/30'}`}
             >
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
                 <span className={`h-2 w-2 rounded-full ${s.dot}`} />
                 {s.title}
               </span>
-              <span className="text-2xl font-bold tabular-nums">{t.value}</span>
-              <span className="text-xs tabular-nums text-muted-foreground">{t.note}</span>
+              <span className="mt-1 text-[28px] font-semibold leading-none tabular-nums text-foreground"><CountUp value={t.value} /></span>
+              <span className="mt-1 text-xs tabular-nums text-muted-foreground">{t.note}</span>
             </button>
           );
         })}

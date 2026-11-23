@@ -64,7 +64,7 @@ export default function HelpGuide() {
 
   return (
     <PageShell>
-      <div className="mx-auto max-w-[1200px] space-y-4 p-4 md:p-8">
+      <div className="mx-auto max-w-[1280px] space-y-5 p-4 md:px-9 md:py-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex items-center gap-3">
             <div>
@@ -91,28 +91,31 @@ export default function HelpGuide() {
               ['admins', 'Admins'],
               ['superadmins', 'Superadmins'],
             ] as const).map(([value, label]) => (
-              <Button
+              <button
                 key={value}
-                size="sm"
-                variant={filter === value ? 'default' : 'outline'}
-                className="rounded-full"
+                type="button"
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[13px] transition-all active:scale-[0.96] ${
+                  filter === value
+                    ? 'border-primary bg-accent font-semibold text-primary'
+                    : 'border-input bg-card font-medium text-foreground hover:border-primary/40'
+                }`}
                 aria-pressed={filter === value}
                 onClick={() => setFilter(value)}
               >
                 {label}
-              </Button>
+              </button>
             ))}
           </div>
         )}
 
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
-          <Card className="overflow-hidden lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+          <Card className="overflow-hidden p-2 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
             {SECTIONS.map((section) => {
               const guides = shown.filter((g) => g.section === section);
               if (!guides.length) return null;
               return (
-                <div key={section} className="border-t first:border-t-0">
-                  <h2 className="px-4 pb-1.5 pt-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div key={section} className="pb-1">
+                  <h2 className="px-3 pb-1.5 pt-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                     {section}
                   </h2>
                   {guides.map((g) => (
@@ -120,13 +123,13 @@ export default function HelpGuide() {
                       key={g.id}
                       onClick={() => open(g.id)}
                       aria-current={g.id === current?.id}
-                      className={`flex w-full items-start gap-2 px-4 py-2 text-left text-sm hover:bg-muted/50 ${
-                        g.id === current?.id ? 'bg-primary/10 font-semibold text-primary' : ''
+                      className={`flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                        g.id === current?.id ? 'bg-accent font-semibold text-primary' : 'text-foreground/85 hover:bg-muted'
                       }`}
                     >
                       <span className="flex-1">{g.title}</span>
                       {g.audience !== 'everyone' && (
-                        <span className="rounded border px-1.5 text-[11px] font-semibold text-muted-foreground">
+                        <span className="rounded-full bg-muted px-2 py-px text-[11px] font-medium text-muted-foreground">
                           {g.audience === 'admins' ? 'Admin' : 'Superadmin'}
                         </span>
                       )}
@@ -139,10 +142,10 @@ export default function HelpGuide() {
           </Card>
 
           {current && (
-            <Card className="min-w-0">
+            <Card key={current.id} className="min-w-0 animate-rise">
               <header className="space-y-1.5 border-b px-5 py-5 md:px-6">
                 <p className="text-sm text-muted-foreground">{current.section}</p>
-                <h2 className="text-2xl font-bold">{current.title}</h2>
+                <h2 className="text-[26px] font-semibold tracking-tight text-foreground">{current.title}</h2>
                 <p className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
                   <span className="font-semibold text-foreground">{current.audience === 'admins' ? 'For admins' : current.audience === 'superadmins' ? 'For superadmins' : 'For everyone'}</span>
                   <span>{current.steps.length} steps</span>
@@ -150,15 +153,15 @@ export default function HelpGuide() {
                 </p>
               </header>
 
-              <ol className="divide-y px-5 md:px-6">
+              <ol className="stagger divide-y divide-border/70 px-5 md:px-6">
                 {current.steps.map((step, i) => (
                   <li key={i} className="space-y-3 py-5">
                     <div className="flex gap-3">
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary text-[13px] font-semibold text-primary-foreground">
                         {i + 1}
                       </span>
                       <div>
-                        <h3 className="font-semibold">{step.title}</h3>
+                        <h3 className="text-[17px] font-semibold text-foreground">{step.title}</h3>
                         <p className="text-sm text-muted-foreground">{step.text}</p>
                       </div>
                     </div>

@@ -570,7 +570,7 @@ export const AvailityPanel: React.FC<Props> = ({ clients, cycles, updateCycle, i
       <Card className="p-4">
         <div className="space-y-3">
           {!!missingProvider.length && (
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="flex animate-rise items-center gap-3 rounded-lg border border-attention-border bg-attention-soft px-4 py-3 text-sm font-medium text-attention">
               {missingProvider.length} of the agency's own details have not been entered, so those
               boxes will be blank. Press <b>Edit agency details</b> to complete them.
             </div>
