@@ -100,7 +100,7 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
                 <button
                   key={c.id}
                   onClick={() => { setEditing(c); setOpen(true); }}
-                  className={`min-w-[160px] shrink-0 rounded-lg border p-3 text-left transition-colors hover:bg-accent ${pastDue ? 'border-red-500 border-2' : ''} ${c.cycle_number === cur ? 'ring-2 ring-primary' : ''}`}
+                  className={`min-w-[160px] shrink-0 lift rounded-xl border p-3.5 text-left hover:bg-muted/40 ${pastDue ? 'border-danger/40 bg-danger/[0.03]' : 'border-border'} ${c.cycle_number === cur ? 'ring-2 ring-primary/40' : ''}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">
@@ -123,7 +123,7 @@ export const ClientBillingTimeline: React.FC<Props> = ({ clientId }) => {
                       Billed based on documents
                     </div>
                   )}
-                  {pastDue && <div className="text-[10px] text-red-600 font-semibold mt-1">Past due</div>}
+                  {pastDue && <div className="mt-1.5 text-[11px] font-semibold text-danger">Past due</div>}
                 </button>
               );
             })}
