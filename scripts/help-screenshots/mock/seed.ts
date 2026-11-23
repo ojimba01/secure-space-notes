@@ -160,6 +160,10 @@ export function seed(): Tables {
     { client: 'c-3', type: 'Client Intake', status: 'submitted', d: -1, by: 'p-riley', src: 'created_in_app' },
     { client: 'c-4', type: 'Client Intake', status: 'submitted', d: -3, by: 'p-staff', src: 'created_in_app' },
     { client: 'c-4', type: 'Level of Need (LON)', status: 'submitted', d: -2, by: 'p-staff', src: 'created_in_app' },
+    // A new member's package, ready for review (Intake calls page).
+    { client: 'c-rv1', type: 'Client Intake', status: 'submitted', d: -2, by: 'p-staff', src: 'created_in_app' },
+    { client: 'c-rv1', type: 'Initial Assessment (IAT)', status: 'submitted', d: -1, by: 'p-staff', src: 'created_in_app' },
+    { client: 'c-rv1', type: 'Level of Need (LON)', status: 'draft', d: 0, by: 'p-staff', src: 'created_in_app' },
   ].map((f, i) => ({
     id: `f-${i}`, client_id: f.client, employee_id: f.by, form_type: f.type, title: f.title ?? f.type, status: f.status,
     file_path: `forms/${f.client}/f-${i}/form.pdf`, original_file_path: null, external_status: f.ext ?? 'not_sent',
@@ -181,9 +185,16 @@ export function seed(): Tables {
     updated_at: c.created_at, intake_call_status: 'awaiting',
   }));
   clients.push(...(awaiting as never[]));
+  // Reached, with their intake completed: their package is ready for review.
+  clients.push({
+    ...(awaiting[0] as object), id: 'c-rv1', first_name: 'Tobias', last_name: 'Reed', phone: '(609) 555-0147',
+    created_at: at(-4, 10), updated_at: at(-2, 11), intake_call_status: 'reached', intake_status: 'completed',
+  } as never);
   const intakeCalls = [
     { id: 'ic-1', client_id: 'c-aw1', called_by: 'p-staff', called_at: at(-2, 15), outcome: 'no_answer' },
     { id: 'ic-2', client_id: 'c-aw1', called_by: 'p-staff', called_at: at(-1, 19), outcome: 'voicemail' },
+    { id: 'ic-3', client_id: 'c-rv1', called_by: 'p-staff', called_at: at(-3, 10), outcome: 'no_answer' },
+    { id: 'ic-4', client_id: 'c-rv1', called_by: 'p-staff', called_at: at(-2, 9), outcome: 'answered' },
   ];
 
   // A supervisor's comment and correction on the case manager's forms (src/lib/formComments.ts).

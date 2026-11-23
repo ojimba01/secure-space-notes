@@ -117,33 +117,70 @@ export function daysSince(iso: string, now = Date.now()): number {
 // page and the admin dashboard, so both show the same thing.
 // ---------------------------------------------------------------------------
 
-export type IntakeStatus = 'not_called' | 'waiting' | 'done';
+export type IntakeStatus = 'not_called' | 'waiting' | 'review' | 'reviewed';
 
 export const INTAKE_STATUS_LABEL: Record<IntakeStatus, string> = {
   not_called: 'Not called yet',
   waiting: 'Waiting to hear back from client',
-  done: 'Done',
+  review: 'Ready for review',
+  reviewed: 'Reviewed',
 };
+
+/** The short label, where space is tight. */
+export const INTAKE_STATUS_SHORT: Record<IntakeStatus, string> = {
+  not_called: 'Not called yet',
+  waiting: 'Waiting on client',
+  review: 'Ready for review',
+  reviewed: 'Reviewed',
+};
+
+/** The forms a new member's package holds, which an admin reviews. */
+export const PACKAGE_FORMS = [
+  { type: 'Client Intake', short: 'Intake' },
+  { type: 'Initial Assessment (IAT)', short: 'IAT' },
+  { type: 'Level of Need (LON)', short: 'LON' },
+  { type: 'Housing Stabilization Plan (HSP)', short: 'HSP' },
+] as const;
+
+export type PackageFormState = 'not_started' | 'draft' | 'completed' | 'reviewed';
+
+/** The newest form of one type in a member's package, as the form window opens it. */
+export interface PackageForm {
+  type: string;
+  short: string;
+  state: PackageFormState;
+  /** Comments not yet marked done. */
+  openComments: number;
+  /** The form's row, to open it; null when not started. */
+  row: Record<string, unknown> | null;
+}
 
 export interface IntakeListRow {
   clientId: string;
   name: string;
   phone: string | null;
   managerId: string | null;
-  /** When the client was put on the list (added, or added to the list). */
+  /** When the client was put on the list. */
   since: string;
   status: IntakeStatus;
   /** Calls nobody answered, newest first. */
   calls: IntakeCall[];
-  /** The intake was started (call answered) but not completed. */
+  /** The call was answered and the intake started, not yet completed. */
   intakeStarted: boolean;
-  /** When the Client Intake was completed, for Done. */
+  /** When the Client Intake was completed. */
   doneAt: string | null;
+  /** The four package forms, in order. */
+  forms: PackageForm[];
 }
 
-/** A Client Intake counts as done once it is no longer a draft. */
+/** A form counts as completed once it is no longer a draft. */
 const OPEN_FORM = new Set(['draft', 'changes_requested']);
-const DONE_SHOWN_DAYS = 14;
+const REVIEWED_SHOWN_DAYS = 14;
+const FORM_COLUMNS =
+  'id, client_id, employee_id, form_type, title, file_path, original_file_path, status, signature_name, signed_at, approved_at, review_note, created_at, updated_at, form_data, clients(first_name, last_name)';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const fromTable = (t: string) => (supabase.from as any)(t);
 
 export async function loadIntakeList(): Promise<IntakeListRow[]> {
   const { data: clientData, error } = await supabase
@@ -170,24 +207,62 @@ export async function loadIntakeList(): Promise<IntakeListRow[]> {
     loadIntakeCalls(ids).catch(() => new Map<string, IntakeCall[]>()),
     supabase
       .from('client_forms')
-      .select('client_id, status, signed_at, updated_at')
-      .eq('form_type', 'Client Intake')
-      .in('client_id', ids),
+      .select(FORM_COLUMNS)
+      .in('form_type', PACKAGE_FORMS.map((f) => f.type))
+      .in('client_id', ids)
+      .order('created_at', { ascending: false }),
   ]);
-  const doneAt = new Map<string, string>();
-  for (const f of (formsRes.data ?? []) as { client_id: string; status: string; signed_at: string | null; updated_at: string }[]) {
-    if (OPEN_FORM.has(f.status)) continue;
-    const at = f.signed_at ?? f.updated_at;
-    if (!doneAt.has(f.client_id) || at > doneAt.get(f.client_id)!) doneAt.set(f.client_id, at);
+  type FormRowData = { id: string; client_id: string; form_type: string; status: string; signed_at: string | null; updated_at: string };
+  const forms = (formsRes.data ?? []) as unknown as FormRowData[];
+  // The newest form of each type for each client.
+  const newest = new Map<string, FormRowData>();
+  for (const f of forms) {
+    const key = `${f.client_id}|${f.form_type}`;
+    if (!newest.has(key)) newest.set(key, f);
+  }
+  const formIds = [...newest.values()].map((f) => f.id);
+  const reviewedAt = new Map<string, string>();
+  const openComments = new Map<string, number>();
+  for (let i = 0; i < formIds.length; i += 200) {
+    const slice = formIds.slice(i, i + 200);
+    const [r, c] = await Promise.all([
+      fromTable('form_reviews').select('client_form_id, reviewed_at').in('client_form_id', slice),
+      fromTable('form_comments').select('client_form_id').is('resolved_at', null).in('client_form_id', slice),
+    ]);
+    for (const x of (r.data ?? []) as { client_form_id: string; reviewed_at: string }[]) reviewedAt.set(x.client_form_id, x.reviewed_at);
+    for (const x of (c.data ?? []) as { client_form_id: string }[]) openComments.set(x.client_form_id, (openComments.get(x.client_form_id) ?? 0) + 1);
   }
 
   const rows: IntakeListRow[] = [];
   for (const c of clients) {
+    const packageForms: PackageForm[] = PACKAGE_FORMS.map((p) => {
+      const f = newest.get(`${c.id}|${p.type}`);
+      if (!f) return { type: p.type, short: p.short, state: 'not_started', openComments: 0, row: null };
+      const reviewed = reviewedAt.get(f.id);
+      // Reviewed, unless it was completed again since.
+      const state: PackageFormState = OPEN_FORM.has(f.status)
+        ? 'draft'
+        : reviewed && (!f.signed_at || f.signed_at <= reviewed)
+          ? 'reviewed'
+          : 'completed';
+      return { type: p.type, short: p.short, state, openComments: openComments.get(f.id) ?? 0, row: f as unknown as Record<string, unknown> };
+    });
+    const intake = newest.get(`${c.id}|Client Intake`);
+    const doneAt = intake && !OPEN_FORM.has(intake.status) ? intake.signed_at ?? intake.updated_at : null;
+    const allReviewed = packageForms.every((f) => f.state === 'reviewed');
+    if (allReviewed) {
+      const last = packageForms.map((f) => reviewedAt.get(String(f.row?.id)) ?? '').sort().pop() ?? '';
+      if (last && daysSince(last) > REVIEWED_SHOWN_DAYS) continue;
+    }
     const all = calls.get(c.id) ?? [];
     const unanswered = all.filter((x) => x.outcome !== 'answered');
-    const done = doneAt.get(c.id) ?? null;
-    if (done && daysSince(done) > DONE_SHOWN_DAYS) continue;
-    const status: IntakeStatus = done ? 'done' : unanswered.length || c.intake_call_status === 'reached' ? 'waiting' : 'not_called';
+    const status: IntakeStatus = allReviewed
+      ? 'reviewed'
+      : doneAt
+        ? 'review'
+        : unanswered.length || c.intake_call_status === 'reached'
+          ? 'waiting'
+          : 'not_called';
     rows.push({
       clientId: c.id,
       name: `${c.first_name} ${c.last_name}`.trim(),
@@ -196,13 +271,24 @@ export async function loadIntakeList(): Promise<IntakeListRow[]> {
       since: c.intake_call_assigned_at ?? c.created_at,
       status,
       calls: unanswered,
-      intakeStarted: !done && c.intake_call_status === 'reached',
-      doneAt: done,
+      intakeStarted: !doneAt && c.intake_call_status === 'reached',
+      doneAt,
+      forms: packageForms,
     });
   }
-  const order: Record<IntakeStatus, number> = { not_called: 0, waiting: 1, done: 2 };
+  const order: Record<IntakeStatus, number> = { not_called: 0, waiting: 1, review: 2, reviewed: 3 };
   rows.sort((a, b) => order[a.status] - order[b.status] || a.since.localeCompare(b.since));
   return rows;
+}
+
+/** An admin marks package forms reviewed. */
+export async function markFormsReviewed(formIds: string[], reviewedBy: string): Promise<void> {
+  if (!formIds.length) return;
+  const { error } = await fromTable('form_reviews').upsert(
+    formIds.map((id) => ({ client_form_id: id, reviewed_by: reviewedBy, reviewed_at: new Date().toISOString() })),
+    { onConflict: 'client_form_id' },
+  );
+  if (error) throw new Error(error.message);
 }
 
 /**

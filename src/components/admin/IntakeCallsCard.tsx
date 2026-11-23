@@ -7,14 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { INTAKE_STATUS_LABEL, loadIntakeList, type IntakeListRow, type IntakeStatus } from '@/lib/intakeCalls';
-import { statusDetail } from '@/components/intakeCalls/IntakeCallsPage';
-
-const STATUS_CLASS: Record<IntakeStatus, string> = {
-  not_called: 'bg-destructive/15 text-destructive',
-  waiting: 'bg-amber-100 text-amber-900',
-  done: 'bg-green-100 text-green-800',
-};
+import { INTAKE_STATUS_SHORT, loadIntakeList, type IntakeListRow, type IntakeStatus } from '@/lib/intakeCalls';
+import { STATUS_CLASS, statusDetail } from '@/components/intakeCalls/IntakeCallsPage';
 
 export const IntakeCallsCard: React.FC<{ onOpenClient: (clientId: string) => void }> = ({ onOpenClient }) => {
   const navigate = useNavigate();
@@ -30,7 +24,7 @@ export const IntakeCallsCard: React.FC<{ onOpenClient: (clientId: string) => voi
   }, []);
 
   const counts = useMemo(() => {
-    const c: Record<IntakeStatus, number> = { not_called: 0, waiting: 0, done: 0 };
+    const c: Record<IntakeStatus, number> = { not_called: 0, waiting: 0, review: 0, reviewed: 0 };
     for (const r of rows ?? []) c[r.status]++;
     return c;
   }, [rows]);
@@ -39,7 +33,7 @@ export const IntakeCallsCard: React.FC<{ onOpenClient: (clientId: string) => voi
   const byStaff = useMemo(() => {
     const m = new Map<string, { name: string; not_called: number; waiting: number }>();
     for (const r of rows ?? []) {
-      if (r.status === 'done') continue;
+      if (r.status !== 'not_called' && r.status !== 'waiting') continue;
       const key = r.managerId ?? '';
       const e = m.get(key) ?? { name: (r.managerId && names.get(r.managerId)) || 'Unassigned', not_called: 0, waiting: 0 };
       e[r.status]++;
@@ -48,7 +42,9 @@ export const IntakeCallsCard: React.FC<{ onOpenClient: (clientId: string) => voi
     return [...m.values()].sort((a, b) => b.not_called - a.not_called || b.waiting - a.waiting);
   }, [rows, names]);
 
-  const open = (rows ?? []).filter((r) => r.status !== 'done');
+  // Packages to review first, then calls not made, then those waiting on the client.
+  const rank: Record<IntakeStatus, number> = { review: 0, not_called: 1, waiting: 2, reviewed: 3 };
+  const open = (rows ?? []).filter((r) => r.status !== 'reviewed').sort((a, b) => rank[a.status] - rank[b.status]);
 
   return (
     <Card>
@@ -63,11 +59,11 @@ export const IntakeCallsCard: React.FC<{ onOpenClient: (clientId: string) => voi
           <p className="text-sm text-muted-foreground">Loading.</p>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2">
-              {(['not_called', 'waiting', 'done'] as IntakeStatus[]).map((s) => (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {(['not_called', 'waiting', 'review', 'reviewed'] as IntakeStatus[]).map((s) => (
                 <div key={s} className={`rounded-md p-2.5 ${STATUS_CLASS[s]}`}>
                   <div className="text-2xl font-semibold leading-none">{counts[s]}</div>
-                  <div className="mt-1 text-xs font-medium">{s === 'waiting' ? 'Waiting on client' : INTAKE_STATUS_LABEL[s]}</div>
+                  <div className="mt-1 text-xs font-medium">{INTAKE_STATUS_SHORT[s]}</div>
                 </div>
               ))}
             </div>
@@ -94,7 +90,7 @@ export const IntakeCallsCard: React.FC<{ onOpenClient: (clientId: string) => voi
             )}
 
             {open.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No intake calls to make.</p>
+              <p className="text-sm text-muted-foreground">No intake calls or packages to review.</p>
             ) : (
               <div className="divide-y rounded-md border">
                 {open.slice(0, 6).map((r) => (
@@ -111,7 +107,7 @@ export const IntakeCallsCard: React.FC<{ onOpenClient: (clientId: string) => voi
                       </span>
                     </span>
                     <Badge variant="secondary" className={STATUS_CLASS[r.status]}>
-                      {r.status === 'waiting' ? 'Waiting on client' : INTAKE_STATUS_LABEL[r.status]}
+                      {INTAKE_STATUS_SHORT[r.status]}
                     </Badge>
                   </button>
                 ))}
