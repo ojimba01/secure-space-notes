@@ -69,16 +69,47 @@ export const WALKTHROUGHS: Walkthrough[] = [
   {
     id: 'start-intake',
     title: 'Start an intake',
-    keywords: ['intake', 'start intake', 'new client call', 'called the client', 'reached'],
+    keywords: ['intake', 'start intake', 'new client call', 'called the client', 'reached', 'client intake'],
+    // Every way there is, one after another: the card of a client waiting on
+    // their call, Blank forms, and the client's record.
     steps: [
       {
-        say: 'Press Start intake on the client’s card.',
+        say: 'There are three ways to start an intake. Way 1: press Start intake on the card of a client awaiting their intake call.',
         route: '/?view=clients',
         target: () => byText('button', 'Start intake'),
+        advance: 'next',
+      },
+      {
+        say: 'Way 2: in Blank forms, press Client Intake, then choose the client.',
+        route: '/?view=forms',
+        target: () => first('[aria-label="Fill out the Client Intake"]'),
+        advance: 'next',
+      },
+      {
+        say: 'Way 3: from the client’s record. Open the client by pressing their row.',
+        route: '/?view=clients',
+        target: () => first('[aria-label^="Open "][role="button"]'),
         advance: 'click',
       },
       {
-        say: 'Fill in the Client Intake. It saves as you go.',
+        say: 'Press the Forms tab.',
+        target: () => byText('[role="tab"]', 'Forms'),
+        advance: 'click',
+      },
+      {
+        say: 'Press Begin on the Client Intake row.',
+        target: () => {
+          for (const row of Array.from(document.querySelectorAll('.forms-row-wide'))) {
+            if (!/Client Intake/.test(row.textContent ?? '')) continue;
+            const begin = byText('button', /^(Begin|Continue|Edit)$/, row);
+            if (begin) return begin;
+          }
+          return null;
+        },
+        advance: 'click',
+      },
+      {
+        say: 'Fill in the Client Intake. Nothing is saved while this walkthrough runs.',
         target: () => dialogTitled('Client Intake') ?? anyDialog(),
         advance: 'next',
       },

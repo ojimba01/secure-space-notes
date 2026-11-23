@@ -11,6 +11,7 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HandIcon } from '@/components/help/HandIcon';
 import type { Walkthrough as Walk } from '@/lib/help/walkthroughs';
+import { setPractice } from '@/lib/practiceMode';
 
 interface Box {
   top: number;
@@ -33,6 +34,13 @@ export const Walkthrough: React.FC<{ walk: Walk; onEnd: () => void }> = ({ walk,
   const bubbleRef = useRef<HTMLDivElement>(null);
   const step = walk.steps[index];
   const last = index === walk.steps.length - 1;
+
+  // The person presses the real controls, so nothing they do while it runs
+  // is saved (src/lib/practiceMode.ts).
+  useEffect(() => {
+    setPractice('walkthrough', true);
+    return () => setPractice('walkthrough', false);
+  }, []);
 
   const next = useCallback(() => {
     if (last) onEnd();

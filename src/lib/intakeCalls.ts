@@ -5,6 +5,7 @@
 // their supervisor knows who has been called. Starting the Client Intake marks
 // the client reached.
 import { supabase } from '@/integrations/supabase/client';
+import { isPracticing } from '@/lib/practiceMode';
 
 export type CallOutcome = 'no_answer' | 'voicemail' | 'wrong_number' | 'not_in_service' | 'answered';
 
@@ -58,6 +59,8 @@ export async function logIntakeCall(clientId: string, calledBy: string, outcome:
 
 /** The call was answered: record it, and take the client out of waiting. */
 export async function markIntakeCallReached(clientId: string, calledBy: string): Promise<void> {
+  // Practicing: the intake form still opens; nothing is recorded.
+  if (isPracticing()) return;
   await logIntakeCall(clientId, calledBy, 'answered');
   const { error } = await supabase
     .from('clients')

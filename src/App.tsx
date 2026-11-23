@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./components/AuthProvider";
+import { PracticeBar } from "./components/PracticeBar";
 import { ViewAsProvider, useViewAs } from "./components/ViewAsProvider";
 import { ViewAsBanner } from "./components/ViewAsBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -73,6 +74,7 @@ const App = () => (
         <BrowserRouter>
           <ViewAsProvider>
             <ViewAsBanner />
+            <PracticeBar />
             <TextScale />
             <PageActivityTracker />
             <SupportButton />
