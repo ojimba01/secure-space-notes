@@ -39,13 +39,6 @@ interface SidebarProps {
   onViewChange: (view: 'compliance' | 'clients' | 'calendar' | 'forms' | 'intakes' | 'inbox') => void;
 }
 
-/** Marks a feature still being tried out. Hidden from screen readers so the item keeps its name. */
-const BetaBadge = () => (
-  <span aria-hidden className="ml-auto rounded-full bg-violet-100 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-violet-700">
-    Beta
-  </span>
-);
-
 /** A menu item: tall and rounded; the current page is the dark pill. */
 const NAV_ITEM =
   'w-full justify-start gap-3 h-11 rounded-xl px-3 text-[15px] font-normal text-primary [&.bg-primary]:font-medium [&.bg-primary]:text-primary-foreground [&:not(.bg-primary)]:hover:bg-white/60 [&_svg]:size-[18px]';
@@ -238,7 +231,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           >
             <NotebookPen className="h-4 w-4" />
             Generate Notes
-            <BetaBadge />
+
           </Button>
           {isAdmin && (
             <Button
@@ -248,7 +241,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
             >
               <FileSpreadsheet className="h-4 w-4" />
               Workbook
-              <BetaBadge />
+
             </Button>
           )}
           <Button
