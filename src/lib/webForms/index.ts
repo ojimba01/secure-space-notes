@@ -3,6 +3,7 @@ import { INITIAL_ASSESSMENT_WEB_FORM } from './initialAssessment';
 import { LEVEL_OF_NEED_WEB_FORM } from './levelOfNeed';
 import { HOUSING_STABILIZATION_PLAN_WEB_FORM } from './housingStabilizationPlan';
 import { AETNA_PRIOR_AUTHORIZATION_WEB_FORM } from './aetnaPriorAuthorization';
+import { WELLPOINT_SUPPORT_SERVICES_WEB_FORM } from './wellpointSupportServices';
 import { schemaFields, type WebFormSchema } from './types';
 
 /**
@@ -15,7 +16,7 @@ export const WEB_FORMS: Record<string, WebFormSchema[]> = {
   'Initial Assessment (IAT)': [INITIAL_ASSESSMENT_WEB_FORM],
   'Level of Need (LON)': [LEVEL_OF_NEED_WEB_FORM],
   'Housing Stabilization Plan (HSP)': [HOUSING_STABILIZATION_PLAN_WEB_FORM],
-  'Prior Authorization Request': [AETNA_PRIOR_AUTHORIZATION_WEB_FORM],
+  'Prior Authorization Request': [AETNA_PRIOR_AUTHORIZATION_WEB_FORM, WELLPOINT_SUPPORT_SERVICES_WEB_FORM],
 };
 
 /**

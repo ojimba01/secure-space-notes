@@ -1340,16 +1340,7 @@ export const TemplateFillDialog: React.FC<TemplateFillDialogProps> = ({
               onChange={(e) => setReplacementFile(e.target.files?.[0] ?? null)}
             />
           </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Type directly into the form fields below — including typing names on the signature
-            lines. {existing && existing.status !== 'draft'
-              ? 'Your changes save 10 seconds after you stop typing.'
-              : 'Your answers save as a draft 10 seconds after you stop typing.'} If a handwritten
-            signature is required, use <span className="font-medium">Download copy</span> to
-            print and sign, then submit it via Upload Form instead.
-          </p>
-        )}
+        ) : null}
 
         <div ref={scrollBox} className="flex-1 overflow-auto rounded-md border bg-muted/30 p-3">
           {documentFile && activeKey ? (

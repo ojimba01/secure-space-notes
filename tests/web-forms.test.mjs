@@ -14,6 +14,7 @@ export { INITIAL_ASSESSMENT_WEB_FORM } from './src/lib/webForms/initialAssessmen
 export { LEVEL_OF_NEED_WEB_FORM } from './src/lib/webForms/levelOfNeed';
 export { HOUSING_STABILIZATION_PLAN_WEB_FORM } from './src/lib/webForms/housingStabilizationPlan';
 export { AETNA_PRIOR_AUTHORIZATION_WEB_FORM } from './src/lib/webForms/aetnaPriorAuthorization';
+export { WELLPOINT_SUPPORT_SERVICES_WEB_FORM } from './src/lib/webForms/wellpointSupportServices';
 export { webFormFor } from './src/lib/webForms';
 export { schemaFields } from './src/lib/webForms/types';`,
     resolveDir: process.cwd(),
@@ -32,6 +33,7 @@ const FORMS = [
   ['Level of Need (LON)', mod.LEVEL_OF_NEED_WEB_FORM, 'level-of-need-assessment-tool.pdf'],
   ['Housing Stabilization Plan (HSP)', mod.HOUSING_STABILIZATION_PLAN_WEB_FORM, 'housing-stabilization-plan.pdf'],
   ['Prior Authorization Request (Aetna)', mod.AETNA_PRIOR_AUTHORIZATION_WEB_FORM, 'aetna-prior-authorization.pdf'],
+  ['Prior Authorization Request (Wellpoint)', mod.WELLPOINT_SUPPORT_SERVICES_WEB_FORM, 'wellpoint-support-services-request.pdf'],
 ];
 
 const norm = (s) => String(s).replace(/[^a-z0-9]/gi, '').toLowerCase();
@@ -97,6 +99,7 @@ for (const [name, schema, file] of FORMS) {
 test('the web form is picked by the boxes on the PDF opened', async () => {
   const names = async (file) => (await load(file)).getFields().map((f) => f.getName());
   assert.equal(mod.webFormFor('Prior Authorization Request', await names('aetna-prior-authorization.pdf')), mod.AETNA_PRIOR_AUTHORIZATION_WEB_FORM);
-  assert.equal(mod.webFormFor('Prior Authorization Request', await names('wellpoint-support-services-request.pdf')), null);
+  assert.equal(mod.webFormFor('Prior Authorization Request', await names('wellpoint-support-services-request.pdf')), mod.WELLPOINT_SUPPORT_SERVICES_WEB_FORM);
+  assert.equal(mod.webFormFor('Move-In Supports Request', await names('move-in-supports-request.pdf')), null);
   assert.equal(mod.webFormFor('Level of Need (LON)', await names('level-of-need-assessment-tool.pdf')), mod.LEVEL_OF_NEED_WEB_FORM);
 });
