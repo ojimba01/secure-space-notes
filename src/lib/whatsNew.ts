@@ -39,11 +39,11 @@ export const FEATURES: Feature[] = [
   {
     key: 'intake-calls-page',
     message: 'Intake calls now has its own page.',
-    audience: 'everyone',
+    audience: 'admins',
     announceUntil: '2026-12-07',
     popup: {
-      title: 'Every new member, start to finish!',
-      body: 'Intake calls now has its own page, from the first call to a reviewed package. It has been enabled on your account.',
+      title: 'Review every intake in one place!',
+      body: 'The new Intake calls page shows each new member’s calls, forms and review status. It has been enabled on your account.',
       illustration: 'intakePackage',
     },
   },
