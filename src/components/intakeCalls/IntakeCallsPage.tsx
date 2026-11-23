@@ -129,14 +129,18 @@ export const IntakeCallsPage: React.FC<{ onOpenClient: (clientId: string) => voi
   const count = (f: Filter) => (rows ?? []).filter((r) => inFilter(r, f)).length;
   const shown = (rows ?? []).filter((r) => inFilter(r, active));
 
+  /** The Client Intake for this person: their draft, if one was started, or a new one. */
+  const openIntake = (r: IntakeListRow) => {
+    const draft = r.forms.find((f) => f.type === 'Client Intake' && f.state === 'draft' && f.row);
+    if (draft) setOpening(draft);
+    else setIntakeFor(r);
+  };
+
   const start = async (r: IntakeListRow) => {
     if (!profileId) return;
     try {
       await markIntakeCallReached(r.clientId, profileId);
-      // Straight into the Client Intake for this person: the draft, if one was started.
-      const draft = r.forms.find((f) => f.type === 'Client Intake' && f.state === 'draft' && f.row);
-      if (draft) setOpening(draft);
-      else setIntakeFor(r);
+      openIntake(r);
     } catch (e) {
       toast({ title: 'Could not start the intake', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
     }
@@ -280,7 +284,7 @@ export const IntakeCallsPage: React.FC<{ onOpenClient: (clientId: string) => voi
                       </>
                     ))}
                     {r.intakeStarted && (
-                      <Button size="sm" variant="outline" onClick={() => onOpenClient(r.clientId)}>
+                      <Button size="sm" variant="outline" onClick={() => openIntake(r)}>
                         Open intake
                       </Button>
                     )}
