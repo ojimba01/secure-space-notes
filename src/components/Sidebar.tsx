@@ -42,6 +42,9 @@ const BetaBadge = () => (
   </span>
 );
 
+/** Where the highlight last sat, kept across pages. */
+let lastHighlight: { top: number; height: number } | null = null;
+
 /** A small grey heading over a group of menu items. */
 const NavGroup: React.FC<{ label?: string; children: React.ReactNode }> = ({ label, children }) => (
   <div className="space-y-0.5">
@@ -182,14 +185,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
   // The highlight behind the current item, measured from that item so it can
   // slide when the page changes.
   const navRef = useRef<HTMLDivElement>(null);
-  const [highlight, setHighlight] = useState<{ top: number; height: number } | null>(null);
+  // Each page draws its own sidebar, so the highlight starts where the last
+  // page left it and slides to the new item instead of jumping.
+  const [highlight, setHighlight] = useState<{ top: number; height: number } | null>(lastHighlight);
   useLayoutEffect(() => {
     const nav = navRef.current;
     const item = nav?.querySelector<HTMLElement>('[data-active="true"]');
     if (!nav || !item) { setHighlight(null); return; }
     const a = nav.getBoundingClientRect();
     const b = item.getBoundingClientRect();
-    setHighlight({ top: b.top - a.top + nav.scrollTop, height: b.height });
+    const next = { top: b.top - a.top + nav.scrollTop, height: b.height };
+    lastHighlight = next;
+    // One frame at the old position first, so the move is animated.
+    const frame = requestAnimationFrame(() => setHighlight(next));
+    return () => cancelAnimationFrame(frame);
   }, [location.pathname, activeView, menuReady, isAdmin, isSuperadmin, canViewActivity]);
 
   return (
@@ -224,8 +233,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
           {highlight && (
             <div
               aria-hidden
-              className="absolute inset-x-0 z-0 rounded-lg bg-accent transition-[transform,height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
-              style={{ transform: `translateY(${highlight.top}px)`, height: highlight.height, top: 0 }}
+              className="absolute inset-x-0 z-0 rounded-lg bg-accent transition-[transform,height] duration-300"
+              style={{
+                transform: `translateY(${highlight.top}px)`,
+                height: highlight.height,
+                top: 0,
+                transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
+              }}
             />
           )}
 
