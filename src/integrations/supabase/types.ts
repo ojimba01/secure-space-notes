@@ -64,6 +64,35 @@ export type Database = {
           },
         ]
       }
+      authorization_end_acknowledgements: {
+        Row: {
+          acknowledged_at: string
+          client_id: string
+          end_date: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string
+          client_id: string
+          end_date: string
+          user_id?: string
+        }
+        Update: {
+          acknowledged_at?: string
+          client_id?: string
+          end_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authorization_end_acknowledgements_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_cycles: {
         Row: {
           approval_state: string | null
@@ -577,6 +606,8 @@ export type Database = {
           id: string
           is_signed: boolean | null
           signature_data: Json | null
+          sorted_as: string | null
+          sorted_at: string | null
           uploaded_by: string
         }
         Insert: {
@@ -589,6 +620,8 @@ export type Database = {
           id?: string
           is_signed?: boolean | null
           signature_data?: Json | null
+          sorted_as?: string | null
+          sorted_at?: string | null
           uploaded_by: string
         }
         Update: {
@@ -601,6 +634,8 @@ export type Database = {
           id?: string
           is_signed?: boolean | null
           signature_data?: Json | null
+          sorted_as?: string | null
+          sorted_at?: string | null
           uploaded_by?: string
         }
         Relationships: [
@@ -1538,6 +1573,8 @@ export type Database = {
           id: string
           initial_authorization_status: string | null
           insurance: string | null
+          intake_call_assigned_at: string | null
+          intake_call_status: string | null
           intake_completed_at: string | null
           intake_date: string | null
           intake_status: string
@@ -1617,6 +1654,8 @@ export type Database = {
           id?: string
           initial_authorization_status?: string | null
           insurance?: string | null
+          intake_call_assigned_at?: string | null
+          intake_call_status?: string | null
           intake_completed_at?: string | null
           intake_date?: string | null
           intake_status?: string
@@ -1696,6 +1735,8 @@ export type Database = {
           id?: string
           initial_authorization_status?: string | null
           insurance?: string | null
+          intake_call_assigned_at?: string | null
+          intake_call_status?: string | null
           intake_completed_at?: string | null
           intake_date?: string | null
           intake_status?: string
@@ -2132,6 +2173,241 @@ export type Database = {
           },
         ]
       }
+      document_suggestion_dismissals: {
+        Row: {
+          client_id: string
+          dismissed_at: string
+          dismissed_by: string | null
+          suggestion_key: string
+        }
+        Insert: {
+          client_id: string
+          dismissed_at?: string
+          dismissed_by?: string | null
+          suggestion_key: string
+        }
+        Update: {
+          client_id?: string
+          dismissed_at?: string
+          dismissed_by?: string | null
+          suggestion_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_suggestion_dismissals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feature_views: {
+        Row: {
+          feature: string
+          first_seen_at: string | null
+          notified_at: string | null
+          user_id: string
+        }
+        Insert: {
+          feature: string
+          first_seen_at?: string | null
+          notified_at?: string | null
+          user_id: string
+        }
+        Update: {
+          feature?: string
+          first_seen_at?: string | null
+          notified_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      form_comments: {
+        Row: {
+          author_id: string | null
+          body: string
+          client_form_id: string
+          client_id: string
+          created_at: string
+          field: string | null
+          field_label: string | null
+          id: string
+          preset: string | null
+          recipient_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          client_form_id: string
+          client_id: string
+          created_at?: string
+          field?: string | null
+          field_label?: string | null
+          id?: string
+          preset?: string | null
+          recipient_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          client_form_id?: string
+          client_id?: string
+          created_at?: string
+          field?: string | null
+          field_label?: string | null
+          id?: string
+          preset?: string | null
+          recipient_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_comments_client_form_id_fkey"
+            columns: ["client_form_id"]
+            isOneToOne: false
+            referencedRelation: "client_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_comments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_comments_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_comments_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_corrections: {
+        Row: {
+          after_value: string | null
+          before_value: string | null
+          client_form_id: string
+          client_id: string
+          corrected_by: string | null
+          created_at: string
+          field: string
+          field_label: string | null
+          form_type: string
+          id: string
+          recipient_id: string | null
+        }
+        Insert: {
+          after_value?: string | null
+          before_value?: string | null
+          client_form_id: string
+          client_id: string
+          corrected_by?: string | null
+          created_at?: string
+          field: string
+          field_label?: string | null
+          form_type: string
+          id?: string
+          recipient_id?: string | null
+        }
+        Update: {
+          after_value?: string | null
+          before_value?: string | null
+          client_form_id?: string
+          client_id?: string
+          corrected_by?: string | null
+          created_at?: string
+          field?: string
+          field_label?: string | null
+          form_type?: string
+          id?: string
+          recipient_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_corrections_client_form_id_fkey"
+            columns: ["client_form_id"]
+            isOneToOne: false
+            referencedRelation: "client_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_corrections_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_corrections_corrected_by_fkey"
+            columns: ["corrected_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_corrections_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_reviews: {
+        Row: {
+          client_form_id: string
+          reviewed_at: string
+          reviewed_by: string | null
+        }
+        Insert: {
+          client_form_id: string
+          reviewed_at?: string
+          reviewed_by?: string | null
+        }
+        Update: {
+          client_form_id?: string
+          reviewed_at?: string
+          reviewed_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_reviews_client_form_id_fkey"
+            columns: ["client_form_id"]
+            isOneToOne: true
+            referencedRelation: "client_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_reviews_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_template_registry: {
         Row: {
           active: boolean
@@ -2187,6 +2463,48 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_calls: {
+        Row: {
+          called_at: string
+          called_by: string | null
+          client_id: string
+          created_at: string
+          id: string
+          outcome: string
+        }
+        Insert: {
+          called_at?: string
+          called_by?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          outcome: string
+        }
+        Update: {
+          called_at?: string
+          called_by?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          outcome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_calls_called_by_fkey"
+            columns: ["called_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_calls_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
@@ -2271,6 +2589,77 @@ export type Database = {
           {
             foreignKeyName: "njhmis_progress_notes_entered_by_fkey"
             columns: ["entered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          actor_id: string | null
+          body: string | null
+          client_form_id: string | null
+          client_id: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          kind: string
+          read_at: string | null
+          recipient_id: string
+          title: string
+        }
+        Insert: {
+          actor_id?: string | null
+          body?: string | null
+          client_form_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          kind: string
+          read_at?: string | null
+          recipient_id: string
+          title: string
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string | null
+          client_form_id?: string | null
+          client_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          kind?: string
+          read_at?: string | null
+          recipient_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_client_form_id_fkey"
+            columns: ["client_form_id"]
+            isOneToOne: false
+            referencedRelation: "client_forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2470,6 +2859,7 @@ export type Database = {
           attachments: Json
           author: string
           body: string
+          body_rich: Json | null
           created_at: string
           from_support: boolean
           id: string
@@ -2479,6 +2869,7 @@ export type Database = {
           attachments?: Json
           author?: string
           body: string
+          body_rich?: Json | null
           created_at?: string
           from_support?: boolean
           id?: string
@@ -2488,6 +2879,7 @@ export type Database = {
           attachments?: Json
           author?: string
           body?: string
+          body_rich?: Json | null
           created_at?: string
           from_support?: boolean
           id?: string
@@ -2771,6 +3163,10 @@ export type Database = {
         Returns: undefined
       }
       deactivate_user: { Args: { _profile_id: string }; Returns: undefined }
+      file_client_file_as_form: {
+        Args: { _file_id: string; _form_type: string }
+        Returns: string
+      }
       filed_claim_phase: {
         Args: { p_client_id: string; p_phases: string[] }
         Returns: string

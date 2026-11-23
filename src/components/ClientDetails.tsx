@@ -4,7 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, FileUp, Edit, Trash2, UserCog } from 'lucide-react';
+import { ArrowLeft, FileUp, Edit, UserCog, MoreHorizontal, FileText, Archive, RotateCcw, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { StatusPill, statusWord } from '@/components/StatusPill';
+import { formatDay } from '@/lib/dates';
 import { useToast } from '@/hooks/use-toast';
 import { ClientOverview } from '@/components/ClientOverview';
 import { IntakeCallBanner } from '@/components/intakeCalls/IntakeCallBanner';
@@ -190,69 +193,90 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
   ];
 
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Clients
-        </Button>
-
-        <div className="flex flex-wrap gap-2">
-          {/* Edit turns Overview into its own form, so it also has to be the
-              section you are looking at. */}
-          <Button
-            variant="outline"
-            onClick={() => {
-              setActiveTab('overview');
-              setEditDialogOpen(true);
-            }}
+    <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:px-9 md:py-8">
+      <div className="space-y-4">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-[13px] text-muted-foreground">
+          <button
+            type="button"
+            onClick={onBack}
+            className="group inline-flex items-center gap-2 rounded px-1 -ml-1 transition-colors hover:text-foreground"
           >
-            <Edit className="h-4 w-4 mr-2" />
-            {editDialogOpen ? 'Editing' : 'Edit'}
-          </Button>
-          {client.workflow_stage !== 'closed' && (
-            <Button variant="outline" onClick={() => setCloseDialogOpen(true)}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Close case
-            </Button>
-          )}
-          {isAdmin && (
-            <Button variant="outline" onClick={() => setReassignDialogOpen(true)}>
-              <UserCog className="h-4 w-4 mr-2" />
-              Reassign
-            </Button>
-          )}
-        </div>
-      </div>
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+            Clients
+          </button>
+          <span aria-hidden>/</span>
+          <span className="text-muted-foreground/80">Client overview</span>
+        </nav>
 
-      {/* Whose record this is, above the bar and therefore on screen whichever
-          section is open. Three clicks into Billing is exactly where somebody
-          stops being sure. */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold leading-tight">
-            {client.first_name} {client.last_name}
-          </h2>
-          {client.member_id && (
-            <p className="text-sm text-muted-foreground">Member ID: {client.member_id}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {client.status === 'closed' && (
-            <Button size="sm" onClick={() => setReopenOpen(true)}>
-              Reopen case
+        {/* Whose record this is, above the bar and therefore on screen whichever
+            section is open. Three clicks into Billing is exactly where somebody
+            stops being sure. */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 animate-rise">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-[28px] font-semibold leading-tight tracking-tight text-foreground md:text-[32px]">
+                {client.first_name} {client.last_name}
+              </h2>
+              {client.restart_pending_at && client.status !== 'closed' ? (
+                <StatusPill tone="waiting">Restart pending</StatusPill>
+              ) : (
+                <StatusPill tone={client.status === 'active' ? 'active' : 'closed'}>{statusWord(client.status)}</StatusPill>
+              )}
+              {(client.billing_round ?? 1) > 1 && (
+                <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">Round {client.billing_round}</span>
+              )}
+            </div>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {[client.member_id && `Member ID: ${client.member_id}`, client.intake_date && `Client since ${formatDay(client.intake_date)}`]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {client.status === 'closed' && (
+              <Button onClick={() => setReopenOpen(true)}>
+                <RotateCcw className="h-4 w-4" />
+                Reopen case
+              </Button>
+            )}
+            {isAdmin && (
+              <Button variant="outline" onClick={() => setReassignDialogOpen(true)}>
+                <UserCog className="h-4 w-4" />
+                Reassign
+              </Button>
+            )}
+            {/* Edit turns Overview into its own form, so it also has to be the
+                section you are looking at. */}
+            <Button
+              onClick={() => {
+                setActiveTab('overview');
+                setEditDialogOpen(true);
+              }}
+            >
+              <Edit className="h-4 w-4" />
+              {editDialogOpen ? 'Editing' : 'Edit client'}
             </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={() => setHmisOpen(true)}>
-            HMIS
-          </Button>
-          {client.restart_pending_at && client.status !== 'closed' && (
-            <Badge className="border-transparent bg-amber-500 text-white hover:bg-amber-500">Restart pending</Badge>
-          )}
-          {(client.billing_round ?? 1) > 1 && <Badge variant="outline">Round {client.billing_round}</Badge>}
-          <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
-            {client.status}
-          </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="More actions">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onSelect={() => setHmisOpen(true)}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  HMIS
+                </DropdownMenuItem>
+                {client.workflow_stage !== 'closed' && (
+                  <DropdownMenuItem onSelect={() => setCloseDialogOpen(true)} className="text-destructive focus:text-destructive">
+                    <Archive className="mr-2 h-4 w-4" />
+                    Close case
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
@@ -268,12 +292,12 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-transparent p-0">
+        <TabsList className="h-auto w-full justify-start gap-6 overflow-x-auto rounded-none border-b border-border bg-transparent p-0">
           {sections.map((s) => (
             <TabsTrigger
               key={s.value}
               value={s.value}
-              className="rounded-none border-b-2 border-transparent px-3 py-2 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+              className="relative rounded-none px-0 pb-3 pt-1 text-sm font-normal text-muted-foreground transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none after:absolute after:inset-x-0 after:-bottom-px after:h-[3px] after:origin-left after:scale-x-0 after:rounded-full after:bg-primary after:transition-transform after:duration-300 data-[state=active]:after:scale-x-100"
             >
               {s.label}
             </TabsTrigger>

@@ -10,7 +10,8 @@ import { visibleProfiles } from '@/lib/testAccounts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { UserX, UserCheck } from 'lucide-react';
+import { UserX, UserCheck, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -188,12 +189,14 @@ const Admin = () => {
     <FeatureWalkthrough />
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar onViewChange={(view) => navigate('/', { state: { view } })} />
-      <div className="min-w-0 flex-1 space-y-6 p-6 pt-16 md:pt-6">
+      <div className="mx-auto w-full min-w-0 max-w-[1280px] flex-1 space-y-7 p-4 pt-16 md:px-9 md:py-8">
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Admin dashboard</h1>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">Admin dashboard</h1>
+          <Button className="group" onClick={() => navigate('/', { state: { view: 'clients' } })}>
+            View clients
+            <ArrowRight className="nudge h-4 w-4" />
+          </Button>
         </div>
 
         <ShadeDashboard

@@ -18,6 +18,13 @@ export default {
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
+        attention: {
+          DEFAULT: "hsl(var(--attention))",
+          soft: "hsl(var(--attention-soft))",
+          border: "hsl(var(--attention-border))",
+          tile: "hsl(var(--attention-tile))",
+        },
+        danger: "hsl(var(--danger))",
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
@@ -42,6 +49,7 @@ export default {
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
+          soft: "hsl(var(--success-soft))",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",
@@ -81,7 +89,64 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        sans: ['"Inter Variable"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       keyframes: {
+        /* Arrives from a little below. */
+        rise: {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        /* Grows into place with a small overshoot: badges, counts, check marks. */
+        pop: {
+          "0%": { opacity: "0", transform: "scale(0.6)" },
+          "60%": { opacity: "1", transform: "scale(1.08)" },
+          "100%": { transform: "scale(1)" },
+        },
+        /* A field or form that needs fixing. */
+        shake: {
+          "0%, 100%": { transform: "translateX(0)" },
+          "20%": { transform: "translateX(-6px)" },
+          "40%": { transform: "translateX(5px)" },
+          "60%": { transform: "translateX(-3px)" },
+          "80%": { transform: "translateX(2px)" },
+        },
+        /* A phone icon ringing. */
+        ring: {
+          "0%, 100%": { transform: "rotate(0)" },
+          "15%": { transform: "rotate(14deg)" },
+          "30%": { transform: "rotate(-12deg)" },
+          "45%": { transform: "rotate(9deg)" },
+          "60%": { transform: "rotate(-6deg)" },
+          "75%": { transform: "rotate(3deg)" },
+        },
+        wiggle: {
+          "0%, 100%": { transform: "rotate(0)" },
+          "25%": { transform: "rotate(-8deg)" },
+          "50%": { transform: "rotate(6deg)" },
+          "75%": { transform: "rotate(-3deg)" },
+        },
+        /* Draws an SVG line from start to end. */
+        draw: {
+          from: { strokeDashoffset: "var(--draw-length, 24)" },
+          to: { strokeDashoffset: "0" },
+        },
+        /* One soft ring spreading out, for something that just changed. */
+        "pulse-once": {
+          "0%": { boxShadow: "0 0 0 0 hsl(var(--pulse-color, 27 63% 36%) / 0.35)" },
+          "100%": { boxShadow: "0 0 0 10px hsl(var(--pulse-color, 27 63% 36%) / 0)" },
+        },
+        /* A bar filling to its length. */
+        grow: {
+          from: { transform: "scaleX(0)" },
+          to: { transform: "scaleX(1)" },
+        },
+        /* Gentle bobbing for small drawings in empty states. */
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-4px)" },
+        },
         "accordion-down": {
           from: {
             height: "0",
@@ -102,6 +167,14 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        rise: "rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both",
+        pop: "pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both",
+        shake: "shake 420ms ease-in-out",
+        ring: "ring 600ms ease-in-out",
+        wiggle: "wiggle 500ms ease-in-out",
+        draw: "draw 420ms cubic-bezier(0.65, 0, 0.35, 1) both",
+        "pulse-once": "pulse-once 900ms ease-out 2",
+        float: "float 3.2s ease-in-out infinite",
       },
     },
   },

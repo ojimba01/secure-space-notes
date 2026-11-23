@@ -43,14 +43,14 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Open Clients', 'Select Clients in the left panel.'),
       s('Search', 'Type a name or member ID in the search box.'),
-      s('Open the record', 'Select View Details on the client’s card.'),
+      s('Open the record', 'Select the client’s row in the list.'),
     ],
   },
   {
     id: 'edit-client', section: 'Clients', title: 'Update client details', audience: 'everyone', minutes: 2,
     steps: [
-      s('Open the client', 'Find the client and select View Details.'),
-      s('Select Edit', 'Edit is at the top right of the record.'),
+      s('Open the client', 'Find the client and select their row.'),
+      s('Select Edit client', 'Edit client is at the top right of the record.'),
       s('Save', 'Change the details and select Update client. The change is recorded in History.'),
     ],
   },
@@ -64,7 +64,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'remove-authorization-date', section: 'Clients', title: 'Remove an authorization date entered by mistake', audience: 'admins', minutes: 1,
     steps: [
-      s('Clear the date', 'Open the client, select Edit, and clear the 30, 150 or 180-day date.'),
+      s('Clear the date', 'Open the client, select Edit client, and clear the 30, 150 or 180-day date.'),
       s('Select Update client', 'A message asks whether to remove that authorization. A date with a filed claim cannot be removed.'),
       s('Remove authorization', 'Select Remove authorization. The date and authorization number are removed, with its billing cycles and touchpoints. It no longer shows on the client, and History keeps a record of it.'),
     ],
@@ -80,8 +80,8 @@ export const GUIDES: Guide[] = [
   {
     id: 'authorization-ended', section: 'Clients', title: 'See which authorizations have ended', audience: 'everyone', minutes: 1,
     steps: [
-      s('Look for the red outline', 'On Clients, a card with a red dotted outline is a client whose latest authorization has ended. The card shows the date it ended.'),
-      s('Select Acknowledge', 'Select Acknowledge on the card to remove the outline for you. It comes back if a later authorization ends.'),
+      s('Look for the red edge', 'On Clients, a row with a red edge on the left is a client whose latest authorization has ended. The Authorization column shows the date it ended.'),
+      s('Select Acknowledge', 'Select Acknowledge under the date to remove the red edge for you. It comes back if a later authorization ends.'),
     ],
   },
   {
@@ -94,7 +94,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'close-case', section: 'Clients', title: 'Close a case', audience: 'everyone', minutes: 1,
     steps: [
-      s('Select Close case', 'Open the client and select Close case.'),
+      s('Select Close case', 'Open the client, select the … button at the top right, then Close case. On Clients, the … button on the client’s row also has Close case.'),
       s('Enter the details', 'Select a reason and the date closed.'),
       s('Confirm', 'Select Close case. Select Undo in the message that appears if you closed it by mistake.'),
     ],
@@ -118,8 +118,35 @@ export const GUIDES: Guide[] = [
     id: 'add-client', section: 'Clients', title: 'Add a client', audience: 'everyone', minutes: 3,
     steps: [
       s('Select Add new client', 'On Clients, select Add new client.'),
+      s('Answer the call question', 'Select Yes if the client answered your call. Select No to record an unanswered call instead; the client then waits under Awaiting intake call.'),
       s('Add the details', 'Choose the client’s intake file to fill in their details, or select Enter manually.'),
       s('Select Add Client', 'A client you add is assigned to you. Admins choose the case manager under Assigned Staff, and can reassign a client later.'),
+    ],
+  },
+
+  {
+    id: 'intake-calls', section: 'Clients', title: 'Make an intake call', audience: 'everyone', minutes: 2,
+    steps: [
+      s('Find who to call', 'On Clients, Awaiting intake call lists your new clients who have not had their intake yet, with their phone number and past calls.'),
+      s('No answer', 'If the client does not answer, select No answer and choose what happened. The call is added to their list of calls.'),
+      s('Start intake', 'When you reach the client, select Start intake. Their Client Intake opens, ready to fill in.'),
+      s('Close it out', 'If the client will not be called, select … on their row, then Close case. Choose a reason and the date. The client leaves Intake calls.'),
+    ],
+  },
+  {
+    id: 'inbox', section: 'Clients', title: 'Read your Inbox', audience: 'everyone', minutes: 1,
+    steps: [
+      s('Open Inbox', 'Select Inbox in the left panel. The red number is how many messages you have not read.'),
+      s('Read the changes', 'Select a message. When an admin changed your form, each changed answer shows its question, the answer before (crossed out) and the answer after.'),
+      s('Fix a comment', 'For a comment, select Open and the form name. Fix the answer, then select Done on the comment.'),
+    ],
+  },
+  {
+    id: 'review-intakes', section: 'Managing the team', title: 'Follow intake calls', audience: 'admins', minutes: 2,
+    steps: [
+      s('Open Intake calls', 'Intake calls is at the top of the Admin dashboard.'),
+      s('Choose a list', 'Select Calls to make, Not called yet, Waiting on client, Ready for review or Reviewed. In Calls to make, select Send to staff to give a call to a case manager.'),
+      s('Mark reviewed', 'In Ready for review, open each form to check it and comment on any wrong answer. Then select Mark reviewed.'),
     ],
   },
 
@@ -143,7 +170,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'save-signature', section: 'Forms and documents', title: 'Save your signature', audience: 'everyone', minutes: 2,
     steps: [
-      s('Open your account', 'Select the person icon at the top of the left panel.'),
+      s('Open your account', 'Select Your account at the bottom of the left panel.'),
       s('Select Add a signature', 'Under Signature, select Add a signature. If you already have one, select Add or change.'),
       s('Type your signature', 'Type your full name for a signature, or your initials for initials, then select Add.'),
       s('Or draw or upload it', 'Select Upload or draw signature instead. Draw in the box and select Save, or select Upload a photo of the one you sign on paper.'),
@@ -155,7 +182,7 @@ export const GUIDES: Guide[] = [
     steps: [
       s('Select Add signature', 'With the form open, select Add signature below it.'),
       s('Choose a signature', 'Select one of your saved signatures or initials. To make a new one, select New signature.'),
-      s('Move it into place', 'Drag the signature onto the signature line. Pull a corner to resize it, or select the X to remove it.'),
+      s('Move it into place', 'On a web form, select PDF to see the signature. Drag it onto the signature line. Pull a corner to resize it, or select the X to remove it.'),
       s('Sign again if needed', 'Select Add another signature for each line that needs a signature or initials, then select Complete form.'),
     ],
   },
@@ -220,10 +247,10 @@ export const GUIDES: Guide[] = [
     id: 'clinical-note', section: 'Touchpoints', title: 'Write a clinical note', audience: 'everyone', minutes: 3,
     steps: [
       s('Select Clinical note', 'Open the client, select the Touchpoints tab, then select Clinical note.'),
-      s('Choose the activities', 'Select the housing support activities that took place. Each one opens its own questions. Then add the housing goal and what prompted the contact, and the member’s housing status.'),
-      s('Answer the details', 'Answer each activity’s questions, one choice at a time. Select a chosen answer to change it. Add a section such as Voucher or Legal when it applies.'),
-      s('Add the next steps', 'Select what CM did, the result, any barriers and how the member responded. With more than one activity, choose Applies to all, or Different for each to answer for each activity separately. Then add each next step separately, with who is responsible, what they will do and when. Select Skip for anything that does not apply.'),
-      s('Generate the note', 'Select Generate note. It uses only your selections. Select Regenerate wording for different phrasing, or Edit note to change it.'),
+      s('Choose what it covered', 'Select what the contact covered, such as Housing assistance. You can select more than one. Each opens its own questions.'),
+      s('Answer what happened', 'Under each topic, select what specifically happened. A selected answer shows a check; select it again to remove it. A question you have finished shows a green check, and the next question opens.'),
+      s('Add the rest', 'Answer the housing goal, what prompted the contact, the member’s housing status, what CM did, the result, how the member responded, any barriers and what happens next. With more than one topic, choose Applies to all, or Different for each. Select Skip for anything that does not apply.'),
+      s('Generate the note', 'Select Generate note in the Note draft panel. It uses only your selections. The note appears under the questions. Select Regenerate wording for different phrasing, or Edit note to change it.'),
       s('Review and save', 'Tick the confirmation, select Use this note, then select Save touchpoint.'),
     ],
   },
@@ -265,8 +292,8 @@ export const GUIDES: Guide[] = [
   {
     id: 'add-event', section: 'Calendar', title: 'Add an event', audience: 'everyone', minutes: 1,
     steps: [
-      s('Select Add Event', 'Open Calendar and select Add Event.'),
-      s('Enter the details', 'Add a title, type, client and time, then select Add Event.'),
+      s('Select Add event', 'Open Calendar and select Add event.'),
+      s('Enter the details', 'Add a title, type, client and time, then select Add event.'),
     ],
   },
   {
@@ -285,7 +312,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'calendar-link', section: 'Calendar', title: 'See your calendar on your phone', audience: 'everyone', minutes: 2,
     steps: [
-      s('Open your account', 'Select the person icon at the top of the left panel.'),
+      s('Open your account', 'Select Your account at the bottom of the left panel.'),
       s('Create your link', 'Select Create my calendar link and copy it into Google, Outlook or Apple Calendar.'),
     ],
   },
@@ -453,7 +480,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'restart-authorization', section: 'Billing', title: 'Restart an authorization after a gap', audience: 'admins', minutes: 2,
     steps: [
-      s('Select Restart Authorization', 'On Clients, select Restart Authorization on the client’s card, under View Details. It works for closed cases too and reopens them. It is also on the client’s Authorizations tab and the Workbook’s 2nd authorization tab.'),
+      s('Select Restart authorization', 'On Clients, select the … button on the client’s row, then Restart authorization. It works for closed cases too and reopens them. It is also on the client’s Authorizations tab and the Workbook’s 2nd authorization tab.'),
       s('Choose what the MCO approved', 'Select 30-day, 150-day or 180-day. If you do not know yet, select Not decided.'),
       s('Do you have the start date?', 'Select Yes and enter the start date. The end date fills in from the type; change it if the approval says otherwise. Add the authorization number if you have it. Select Not yet if the approval has not arrived.'),
       s('Check and submit', 'Read what will happen, then select Submit. Earlier authorizations and billing stay on record. Billing and touchpoints start over from the new date, and touchpoints from the gap are cleared. Without a date, the client shows Restart pending until you add one. To leave without changing anything, select Cancel.'),
@@ -463,7 +490,7 @@ export const GUIDES: Guide[] = [
   {
     id: 'complete-restart', section: 'Billing', title: 'Add the start date to a pending restart', audience: 'admins', minutes: 1,
     steps: [
-      s('Find the pending restart', 'A client waiting for a start date shows Restart pending. Select Add start date on the client’s card, or Complete restart on the Authorizations tab. Superadmins also see them under Priorities on the Admin dashboard.'),
+      s('Find the pending restart', 'A client waiting for a start date shows Restart pending. Select the … button on the client’s row, then Add start date, or Complete restart on the Authorizations tab.'),
       s('Enter the dates', 'Choose the type if it was not set, then enter the start date and the authorization number.'),
       s('Submit', 'Select Submit. Billing and touchpoints start from the new date.'),
     ],
@@ -497,28 +524,28 @@ export const GUIDES: Guide[] = [
     id: 'find-your-way', section: 'Getting started', title: 'Find your way around', audience: 'everyone', minutes: 1,
     steps: [
       s('Use the left panel', 'Clients, Blank forms, My touchpoints and Calendar hold your day-to-day work. Help guide is always here.'),
-      s('Open your account', 'Select the person icon at the top of the panel to change your password, add a signature or link your calendar.'),
-      s('Find help', 'Select Help guide for step-by-step instructions. To contact support, select Support in the bottom-right corner.'),
+      s('Open your account', 'Select Your account at the bottom of the left panel to change your password, add a signature or link your calendar.'),
+      s('Find help', 'Select Help in the bottom-right corner, or Help guide in the left panel. Ask how to do something, or pick a task, and select Show me. To contact support, select Contact support in Help.'),
     ],
   },
   {
     id: 'account', section: 'Getting started', title: 'Change your password', audience: 'everyone', minutes: 1,
     steps: [
-      s('Open your account', 'Select the person icon at the top of the left panel.'),
+      s('Open your account', 'Select Your account at the bottom of the left panel.'),
       s('Change your password', 'Enter a new password and select Change password.'),
     ],
   },
   {
     id: 'your-phone', section: 'Getting started', title: 'Add your phone number', audience: 'everyone', minutes: 1,
     steps: [
-      s('Open your account', 'Select the person icon at the top of the left panel.'),
+      s('Open your account', 'Select Your account at the bottom of the left panel.'),
       s('Enter your phone', 'Under Phone, enter your work number and select Save. Forms that ask for the case manager’s phone fill it in.'),
     ],
   },
   {
     id: 'support', section: 'Getting started', title: 'Get help from support', audience: 'everyone', minutes: 2,
     steps: [
-      s('Select Support', 'The Support button is in the bottom-right corner of every page.'),
+      s('Open Help', 'Select Help in the bottom-right corner of any page, then Contact support.'),
       s('Describe the problem', 'Enter a short title, then describe what you were trying to do and what happened.'),
       s('Show the problem', 'Select Screenshot to circle the problem on the page, Record screen to record up to 3 minutes, or Attach file.'),
       s('Send it', 'Select Send to support. Your requests are listed by title under My requests, where replies also appear.'),
@@ -527,7 +554,7 @@ export const GUIDES: Guide[] = [
   },  {
     id: 'support-reply', section: 'Getting started', title: 'Read a reply from support', audience: 'everyone', minutes: 1,
     steps: [
-      s('Read the message', 'When support replies, the message appears in the middle of the screen. Select the X when you have read it. To reply, select Support, then My requests.'),
+      s('Read the message', 'When support replies, the message appears in the middle of the screen. Select the X when you have read it. To reply, select Help, then Contact support, then My requests.'),
       s('Answer a follow-up question', 'If support needs more information, the request shows Action required. Select Respond to follow-up, type your answer and select Send reply.'),
       s('Refresh when resolved', 'When your request is resolved, a green banner appears at the top. Select Refresh so the page shows the latest version.'),
     ],

@@ -64,7 +64,7 @@ async function closedClient(p) {
   await wait(p, 400);
   await p.getByRole('option', { name: 'Closed' }).click();
   await wait(p, 800);
-  await btn(p, 'View Details').click();
+  await p.locator('[aria-label^="Open "]').first().click();
   await wait(p, 1500);
 }
 
@@ -79,14 +79,27 @@ async function openUhc(p) {
   await wait(p, 2500);
 }
 
-const card = (p, name) => p.locator('[class*="hover:shadow-md"]', { hasText: name }).first();
+/** A client's row on the Clients list. */
+const card = (p, name) => p.locator(`[aria-label="Open ${name}"]`).first();
+/** An item in the … menu on a client's row. */
+async function rowMenu(p, name, item) {
+  await p.getByRole('button', { name: `More for ${name}`, exact: true }).click();
+  await wait(p, 400);
+  return p.getByRole('menuitem', { name: item, exact: true });
+}
+/** An item in the … menu at the top right of a client's record. */
+async function recordMenu(p, item) {
+  await p.getByRole('button', { name: 'More actions', exact: true }).click();
+  await wait(p, 400);
+  return p.getByRole('menuitem', { name: item, exact: true });
+}
 async function clientsList(p) {
   await p.goto(`${BASE}/?view=clients`);
   await wait(p, 2500);
 }
 async function openRestart(p) {
   await clientsList(p);
-  await card(p, 'Helen Brooks').getByRole('button', { name: 'Restart Authorization', exact: true }).click();
+  await (await rowMenu(p, 'Helen Brooks', 'Restart authorization')).click();
   await wait(p, 800);
 }
 /** Restart Helen with no type or date yet. */
@@ -100,7 +113,7 @@ async function markPending(p) {
 }
 async function completePending(p) {
   await markPending(p);
-  await card(p, 'Helen Brooks').getByRole('button', { name: 'Add start date', exact: true }).click();
+  await (await rowMenu(p, 'Helen Brooks', 'Add start date')).click();
   await wait(p, 800);
   await fillRestart(p);
 }
@@ -111,7 +124,7 @@ async function restarted(p, tabName) {
   await dialog(p).getByRole('button', { name: 'Submit', exact: true }).click();
   await wait(p, 2000);
   if (tabName) {
-    await card(p, 'Helen Brooks').getByRole('button', { name: 'View Details', exact: true }).click();
+    await card(p, 'Helen Brooks').click();
     await wait(p, 1500);
     await tab(p, tabName).click();
     await wait(p, 1200);
@@ -157,12 +170,12 @@ async function signForm(p) {
   await wait(p, 1200);
   await dialog(p).getByRole('button', { name: /Taylor Brooks/ }).first().click();
   await wait(p, 2500);
+  // A web form shows the signature on its PDF view.
+  const pdf = p.getByRole('dialog').last().getByRole('tab', { name: 'PDF', exact: true }).or(p.getByRole('dialog').last().getByRole('button', { name: 'PDF', exact: true })).first();
+  if (await pdf.count()) { await pdf.click(); await wait(p, 2500); }
   await p.locator('[title^="Drag to move it"]').first().scrollIntoViewIfNeeded();
 }
 
-function inStep(p, title, name) {
-  return dialog(p).locator('section', { hasText: title }).getByRole('button', { name, exact: true }).first();
-}
 async function openNoteBuilder(p) {
   await openClient(p, 'c-2', 'Touchpoints');
   await btn(p, 'Clinical note', true).click();
@@ -170,45 +183,56 @@ async function openNoteBuilder(p) {
 }
 // Step titles, matched in part (they say "visit" or "contact" by contact method).
 const T = {
-  activities: 'housing support activities took place',
-  why: 'housing goal did this',
-  housing: 'current housing status',
-  details: 'What did you discuss?',
-  actions: 'What actions did CM complete',
-  result: 'What was the result of CM',
-  barriers: 'Were any barriers identified?',
+  activities: 'cover?',
+  details: 'What specifically happened?',
+  goals: 'housing goal did this',
+  prompts: 'What prompted this',
+  housing: 'housing status?',
+  actions: 'What did CM do?',
+  result: 'overall result?',
   response: 'respond?',
-  next: 'What are the next steps?',
+  barriers: 'barriers were identified?',
+  next: 'What happens next?',
 };
+/** The question's card, inside the builder (a dialog, or the Generate Notes page). */
+const stepIn = (root, title) => root.locator('section', { hasText: title }).first();
+/** Give a question its first answer; skip it if that answer opens a further question. */
+async function answerStep(root, title) {
+  const sec = stepIn(root, title);
+  await sec.waitFor({ timeout: 6000 });
+  const answers = sec.getByRole('button').filter({ hasNotText: /^Skip$/ });
+  await answers.first().click();
+  await root.page().waitForTimeout(250);
+  const skip = sec.getByRole('button', { name: 'Skip', exact: true });
+  if (await skip.count()) await skip.click();
+  await root.page().waitForTimeout(250);
+}
+/** Topic and what happened: Housing assistance, Shared housing listings. */
+async function pickTopic(root) {
+  await stepIn(root, T.activities).getByRole('button', { name: /Housing assistance/ }).first().click();
+  await root.page().waitForTimeout(300);
+  await stepIn(root, T.details).getByRole('button', { name: /Shared housing listings/ }).first().click();
+  await root.page().waitForTimeout(300);
+  const skip = stepIn(root, T.details).getByRole('button', { name: 'Skip', exact: true });
+  if (await skip.count()) await skip.click();
+  await root.page().waitForTimeout(300);
+}
+/** Every question after the topic, one answer each. */
+async function answerRest(root) {
+  for (const t of [T.goals, T.prompts, T.housing, T.actions, T.result, T.response, T.barriers, T.next]) await answerStep(root, t);
+}
 async function noteTopic(p) {
-  await inStep(p, T.activities, 'Benefits assistance').click();
-  await wait(p, 300);
-  await inStep(p, T.why, 'Continue').click();
-  await inStep(p, T.housing, 'At risk of losing housing').click();
-  await inStep(p, T.housing, 'No').click();
-  await wait(p, 300);
-  await inStep(p, T.details, 'SNAP').click();
-  await inStep(p, T.details, 'Benefits change').click();
-  await wait(p, 300);
+  await pickTopic(dialog(p));
 }
 async function noteRest(p) {
-  await inStep(p, T.details, 'Interrupted').click();
-  await inStep(p, T.actions, 'Assisted with').click();
-  await inStep(p, T.actions, 'Phone call').click();
-  await inStep(p, T.result, 'Pending').click();
-  await inStep(p, T.barriers, 'Yes').click();
-  await inStep(p, T.barriers, 'Waiting for a third-party response').click();
-  await inStep(p, T.response, 'Requested assistance').click();
-  await inStep(p, T.next, 'Add a step').click();
-  await inStep(p, T.next, 'CM').click();
-  await inStep(p, T.next, 'Follow up').click();
-  await inStep(p, T.next, 'In 1 week').click();
+  await answerRest(dialog(p));
   await wait(p, 400);
 }
+const manualEntry = (p) => p.getByRole('button', { name: /^Manual entry/ }).first();
 async function manualOpen(p) {
   await p.goto(`${BASE}/clinical-notes`);
   await wait(p, 2500);
-  await btn(p, 'Manual entry', true).click();
+  await manualEntry(p).click();
   await wait(p, 300);
 }
 const oldVisit = (p) => p.getByRole('button', { name: /^Old visit/ }).first();
@@ -219,24 +243,11 @@ async function recentReady(p) {
   await btn(p, 'Phone', true).click();
   await wait(p, 300);
 }
-/** Make the selections for a short landlord note, generate it and tick the review box. */
+/** Make the selections for a short note, generate it and tick the review box. */
 async function fillNote(p) {
-  const step = (title, name) => p.locator('section', { hasText: title }).getByRole('button', { name, exact: true }).first();
-  await step(T.activities, 'Landlord communication').click();
-  await step(T.why, 'Continue').click();
-  await step(T.housing, 'Stably housed').click();
-  await step(T.housing, 'No').click();
-  await step(T.details, 'Maintenance').click();
-  await step(T.details, 'Reported').click();
-  await step(T.actions, 'Contacted').click();
-  await step(T.actions, 'Landlord').click();
-  await step(T.result, 'Pending').click();
-  await step(T.barriers, 'No').click();
-  await step(T.response, 'Agreed with the plan').click();
-  await step(T.next, 'Add a step').click();
-  await step(T.next, 'CM').click();
-  await step(T.next, 'Follow up').click();
-  await step(T.next, 'In 1 week').click();
+  const root = p.locator('main');
+  await pickTopic(root);
+  await answerRest(root);
   await p.getByRole('button', { name: /Generate note/ }).click();
   await wait(p, 800);
   await p.getByRole('checkbox').last().click();
@@ -286,12 +297,12 @@ const SHOTS = {
   'find-client': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=compliance`), target: (p) => nav(p, 'Clients'), label: 'Clients' },
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await p.getByPlaceholder(/Search by name/).fill('Dana'); }, target: (p) => p.getByPlaceholder(/Search by name/), label: 'Search' },
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await p.getByPlaceholder(/Search by name/).fill('Dana'); }, target: (p) => btn(p, 'View Details'), label: 'View Details' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await p.getByPlaceholder(/Search by name/).fill('Dana'); }, target: (p) => card(p, 'Dana Whitfield'), label: 'Dana Whitfield' },
   ],
   'edit-client': [
-    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'View Details'), label: 'View Details' },
-    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Edit', true), label: 'Edit' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p); }, target: (p) => btn(p, 'Update client'), label: 'Update client' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => card(p, 'Dana Whitfield'), label: 'Dana Whitfield' },
+    { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Edit client', true), label: 'Edit client' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit client', true).click(); await wait(p); }, target: (p) => btn(p, 'Update client'), label: 'Update client' },
   ],
   'document-edits': [
     { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Update the record to 51277').locator('xpath=ancestor::div[contains(@class,"border-amber-300")][1]'), label: 'Update to …?' },
@@ -307,9 +318,9 @@ const SHOTS = {
     { as: 'admin', go: (p) => openClient(p, 'c-1', 'History'), target: (p) => text(p, 'Case history').locator('xpath=ancestor::div[contains(@class,"rounded")][1]'), label: 'Every change, with who and when' },
   ],
   'close-case': [
-    { as: 'staff', go: (p) => openClient(p, 'c-2'), target: (p) => btn(p, 'Close case', true), label: 'Close case' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await btn(p, 'Close case', true).click(); await wait(p); }, target: (p) => dialog(p).getByRole('combobox').first(), label: 'Select a reason' },
-    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await btn(p, 'Close case', true).click(); await wait(p); }, target: (p) => dialog(p).getByRole('button', { name: 'Close case', exact: true }), label: 'Close case' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await p.getByRole('button', { name: 'More actions', exact: true }).click(); await wait(p, 400); }, target: (p) => p.getByRole('menuitem', { name: 'Close case', exact: true }), label: 'Close case' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await (await recordMenu(p, 'Close case')).click(); await wait(p); }, target: (p) => dialog(p).getByRole('combobox').first(), label: 'Select a reason' },
+    { as: 'staff', go: async (p) => { await openClient(p, 'c-2'); await (await recordMenu(p, 'Close case')).click(); await wait(p); }, target: (p) => dialog(p).getByRole('button', { name: 'Close case', exact: true }), label: 'Close case' },
   ],
   'reopen-case': [
     { as: 'admin', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await text(p, 'All case stages').click(); await wait(p, 500); }, target: (p) => p.getByRole('option', { name: 'Closed' }), label: 'Closed' },
@@ -322,10 +333,27 @@ const SHOTS = {
   ],
   'add-client': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=clients`), target: (p) => btn(p, 'Add new client'), label: 'Add new client' },
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: 'Enter manually' }), label: 'Enter manually' },
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); await dialog(p).getByRole('button', { name: 'Enter manually' }).click(); await wait(p, 700); await dialog(p).getByLabel('First Name *').fill('Jordan'); await dialog(p).getByLabel('Last Name *').fill('Ellis'); }, target: (p) => dialog(p).getByRole('button', { name: 'Add Client', exact: true }), label: 'Add Client' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: 'Yes', exact: true }), label: 'Yes' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); await dialog(p).getByRole('button', { name: 'Yes', exact: true }).click(); await wait(p, 700); }, target: (p) => dialog(p).getByRole('button', { name: 'Enter manually' }), label: 'Enter manually' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 2000); await btn(p, 'Add new client').click(); await wait(p, 900); await dialog(p).getByRole('button', { name: 'Yes', exact: true }).click(); await wait(p, 700); await dialog(p).getByRole('button', { name: 'Enter manually' }).click(); await wait(p, 700); await dialog(p).getByLabel('First Name *').fill('Jordan'); await dialog(p).getByLabel('Last Name *').fill('Ellis'); }, target: (p) => dialog(p).getByRole('button', { name: 'Add Client', exact: true }), label: 'Add Client' },
   ],
 
+  'intake-calls': [
+    { as: 'staff', go: clientsList, target: (p) => text(p, 'Awaiting intake call'), label: 'Awaiting intake call' },
+    { as: 'staff', go: clientsList, target: (p) => btn(p, 'No answer', true), label: 'No answer' },
+    { as: 'staff', go: clientsList, target: (p) => btn(p, 'Start intake', true), label: 'Start intake' },
+    { as: 'admin', go: async (p) => { await p.goto(`${BASE}/admin`); await wait(p, 2500); await p.getByRole('tab', { name: /^Calls to make/ }).first().click(); await wait(p, 600); await p.getByRole('button', { name: /^More for / }).first().click(); await wait(p, 500); }, target: (p) => p.getByRole('menuitem', { name: 'Close case', exact: true }), label: 'Close case' },
+  ],
+  inbox: [
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=inbox`), target: (p) => p.getByRole('button', { name: /^Inbox/ }).first(), label: 'Inbox' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=inbox`); await wait(p, 2000); await p.getByText(/made changes/).first().click(); await wait(p, 800); }, target: (p) => p.locator('table').first(), label: 'Before and after' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=inbox`); await wait(p, 2000); await p.getByText(/left a comment/).first().click(); await wait(p, 800); }, target: (p) => p.getByRole('button', { name: /^Open / }).first(), label: 'Open the form' },
+  ],
+  'review-intakes': [
+    { as: 'admin', go: (p) => p.goto(`${BASE}/admin`), target: (p) => p.getByRole('heading', { name: 'Intake calls' }).first(), label: 'Intake calls' },
+    { as: 'admin', go: (p) => p.goto(`${BASE}/admin`), target: (p) => p.getByRole('tab', { name: /^Calls to make/ }).first(), label: 'Calls to make' },
+    { as: 'admin', go: (p) => p.goto(`${BASE}/admin`), target: (p) => btn(p, 'Mark reviewed'), label: 'Mark reviewed' },
+  ],
   upload: [
     { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => text(p, 'Forms and documents'), label: 'Forms' },
     { as: 'staff', go: (p) => openClient(p, 'c-1'), target: (p) => btn(p, 'Upload documents'), label: 'Upload documents' },
@@ -390,16 +418,16 @@ const SHOTS = {
   ],
   'clinical-note': [
     { as: 'staff', go: (p) => openClient(p, 'c-2', 'Touchpoints'), target: (p) => btn(p, 'Clinical note', true), label: 'Clinical note' },
-    { as: 'staff', go: openNoteBuilder, target: (p) => inStep(p, T.activities, 'Benefits assistance'), label: 'Choose the activities' },
-    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); }, target: (p) => dialog(p).locator('section', { hasText: T.details }).locator('.rounded-lg').first(), label: 'One choice at a time' },
-    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); }, target: (p) => dialog(p).locator('section', { hasText: T.next }), label: 'Next steps' },
-    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); }, target: (p) => dialog(p).locator('aside section').last(), label: 'Your note' },
+    { as: 'staff', go: openNoteBuilder, target: (p) => stepIn(dialog(p), T.activities).getByRole('button', { name: /Housing assistance/ }).first(), label: 'Choose the activities' },
+    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); }, target: (p) => stepIn(dialog(p), T.details).locator('.border-l-2').first(), label: 'One choice at a time' },
+    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); }, target: (p) => stepIn(dialog(p), T.next), label: 'Next steps' },
+    { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); }, target: (p) => dialog(p).locator('section').filter({ has: p.locator('h3', { hasText: /^Note$/ }) }).first(), label: 'Your note' },
     { as: 'staff', go: async (p) => { await openNoteBuilder(p); await noteTopic(p); await noteRest(p); await dialog(p).getByRole('button', { name: /Generate note/ }).click(); await wait(p, 800); await dialog(p).getByRole('checkbox').last().click(); await wait(p, 300); }, target: (p) => btn(p, 'Use this note', true), label: 'Use this note' },
   ],
   'draft-note': [
-    { as: 'staff', go: (p) => p.goto(`${BASE}/clinical-notes`).then(() => wait(p, 2500)), target: (p) => btn(p, 'Manual entry', true), label: 'Manual entry' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/clinical-notes`).then(() => wait(p, 2500)), target: (p) => manualEntry(p), label: 'Manual entry' },
     { as: 'staff', go: manualOpen, target: (p) => btn(p, 'Recent visit', true), label: 'Recent visit' },
-    { as: 'staff', go: recentReady, target: (p) => p.locator('section', { hasText: T.activities }), label: 'Make your selections' },
+    { as: 'staff', go: recentReady, target: (p) => stepIn(p.locator('main'), T.activities), label: 'Make your selections' },
     { as: 'staff', go: draftNoteReady, target: (p) => btn(p, 'Save note', true), label: 'Copy note or Save note' },
     { as: 'staff', go: async (p) => { await draftNoteReady(p); await btn(p, 'Save note', true).click(); await wait(p, 1500); }, target: (p) => p.getByRole('tab', { name: /Generated notes/ }), label: 'Generated notes' },
   ],
@@ -435,8 +463,8 @@ const SHOTS = {
     { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=clients`); await wait(p, 3000); await p.keyboard.press('Escape'); await wait(p, 1200); }, target: (p) => p.getByRole('button', { name: 'Refresh', exact: true }), label: 'Refresh' },
   ],
   'add-event': [
-    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=calendar`), target: (p) => btn(p, 'Add Event'), label: 'Add Event' },
-    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=calendar`); await wait(p, 2000); await btn(p, 'Add Event').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: 'Add Event' }), label: 'Add Event' },
+    { as: 'staff', go: (p) => p.goto(`${BASE}/?view=calendar`), target: (p) => btn(p, 'Add event'), label: 'Add event' },
+    { as: 'staff', go: async (p) => { await p.goto(`${BASE}/?view=calendar`); await wait(p, 2000); await btn(p, 'Add event').click(); await wait(p, 900); }, target: (p) => dialog(p).getByRole('button', { name: /Add event/i }), label: 'Add event' },
   ],
   'calendar-link': [
     { as: 'staff', go: (p) => p.goto(`${BASE}/?view=calendar`), target: (p) => p.locator('[aria-label="Your account"]').last(), label: 'Your account' },
@@ -545,28 +573,28 @@ const SHOTS = {
     { as: 'admin', go: async (p) => { await openWorkbook(p); await p.getByRole('tab', { name: /2nd authorization/ }).click(); await wait(p); }, target: (p) => btn(p, 'Restart authorization', true), label: 'Restart authorization' },
   ],
   'restart-authorization': [
-    { as: 'admin', go: clientsList, target: (p) => card(p, 'Helen Brooks').getByRole('button', { name: 'Restart Authorization', exact: true }), label: 'Restart Authorization' },
+    { as: 'admin', go: async (p) => { await clientsList(p); await p.getByRole('button', { name: 'More for Helen Brooks', exact: true }).click(); await wait(p, 400); }, target: (p) => p.getByRole('menuitem', { name: 'Restart authorization', exact: true }), label: 'Restart authorization' },
     { as: 'admin', go: openRestart, target: (p) => dialog(p).getByRole('button', { name: '150-day', exact: true }), label: 'What the MCO approved' },
     { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByLabel('Start date'), label: 'Start date' },
     { as: 'admin', go: async (p) => { await openRestart(p); await fillRestart(p); }, target: (p) => dialog(p).getByRole('button', { name: 'Submit', exact: true }), label: 'Submit' },
     { as: 'admin', go: (p) => restarted(p, 'Overview'), target: (p) => text(p, 'Needed for the restart on 10/12/2026').locator('xpath=..'), label: 'Forms to file' },
   ],
   'complete-restart': [
-    { as: 'admin', go: markPending, target: (p) => card(p, 'Helen Brooks').getByRole('button', { name: 'Add start date', exact: true }), label: 'Add start date' },
+    { as: 'admin', go: async (p) => { await markPending(p); await p.getByRole('button', { name: 'More for Helen Brooks', exact: true }).click(); await wait(p, 400); }, target: (p) => p.getByRole('menuitem', { name: 'Add start date', exact: true }), label: 'Add start date' },
     { as: 'admin', go: completePending, target: (p) => dialog(p).getByLabel('Start date'), label: 'Start date' },
     { as: 'admin', go: completePending, target: (p) => dialog(p).getByRole('button', { name: 'Submit', exact: true }), label: 'Submit' },
   ],
   'remove-authorization-date': [
-    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p, 800); }, target: (p) => p.locator('input[type="date"]').nth(3), label: '150-day date' },
-    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p, 800); await p.locator('input[type="date"]').nth(3).fill(''); }, target: (p) => p.getByRole('button', { name: /^Update/ }).first(), label: 'Update client' },
-    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit', true).click(); await wait(p, 800); await p.locator('input[type="date"]').nth(3).fill(''); await p.getByRole('button', { name: /^Update/ }).first().click(); await wait(p, 800); }, target: (p) => p.getByRole('alertdialog').getByRole('button', { name: 'Remove authorization', exact: true }), label: 'Remove authorization' },
+    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit client', true).click(); await wait(p, 800); }, target: (p) => p.locator('input[type="date"]').nth(3), label: '150-day date' },
+    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit client', true).click(); await wait(p, 800); await p.locator('input[type="date"]').nth(3).fill(''); }, target: (p) => p.getByRole('button', { name: /^Update/ }).first(), label: 'Update client' },
+    { as: 'admin', go: async (p) => { await openClient(p, 'c-1'); await btn(p, 'Edit client', true).click(); await wait(p, 800); await p.locator('input[type="date"]').nth(3).fill(''); await p.getByRole('button', { name: /^Update/ }).first().click(); await wait(p, 800); }, target: (p) => p.getByRole('alertdialog').getByRole('button', { name: 'Remove authorization', exact: true }), label: 'Remove authorization' },
   ],
   'undo-restart': [
     { as: 'admin', go: (p) => restarted(p, 'Authorizations'), target: (p) => btn(p, 'Undo restart', true), label: 'Undo restart' },
     { as: 'admin', go: async (p) => { await restarted(p, 'Authorizations'); await btn(p, 'Undo restart', true).click(); await wait(p, 800); }, target: (p) => p.getByRole('alertdialog').getByRole('button', { name: 'Undo restart', exact: true }), label: 'Undo restart' },
   ],
   'earlier-rounds': [
-    { as: 'admin', go: (p) => restarted(p), target: (p) => card(p, 'Helen Brooks').getByText('Round 2', { exact: true }), label: 'Round 2' },
+    { as: 'admin', go: (p) => restarted(p), target: (p) => card(p, 'Helen Brooks').getByText(/Round 2/), label: 'Round 2' },
     { as: 'admin', go: (p) => restarted(p, 'Authorizations'), target: (p) => p.getByRole('button', { name: /^Show earlier rounds/ }).first(), label: 'Show earlier rounds' },
     { as: 'admin', go: (p) => restarted(p, 'History'), target: (p) => p.getByText(/^Authorization restarted/).first().locator('xpath=ancestor::li[1]'), label: 'Restart in Case history' },
   ],

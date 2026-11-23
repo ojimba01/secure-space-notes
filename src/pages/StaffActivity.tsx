@@ -26,6 +26,7 @@ import {
   Users,
   UserX,
 } from 'lucide-react';
+import { CountUp } from '@/components/motion/CountUp';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -353,14 +354,21 @@ export default function StaffActivity() {
 
   const rangePicker = (
     <div className="flex flex-col items-start gap-1.5">
-      <div className="flex w-fit flex-wrap rounded-lg border bg-white p-1">
+      <div className="flex w-fit flex-wrap gap-0.5 rounded-lg bg-muted p-1">
         {(Object.keys(RANGE_LABEL) as Range[])
           .filter((r) => r !== 'custom')
           .map((r) => (
             <span key={r} className="relative">
-              <Button size="sm" variant={range === r ? 'default' : 'ghost'} onClick={() => setRange(r)}>
+              <button
+                type="button"
+                aria-pressed={range === r}
+                onClick={() => setRange(r)}
+                className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition-all ${
+                  range === r ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
                 {RANGE_LABEL[r]}
-              </Button>
+              </button>
               {r === 'twoMonths' && newRibbon && <NewRibbon />}
             </span>
           ))}
@@ -407,7 +415,7 @@ export default function StaffActivity() {
 
   return (
     <PageShell>
-      <div className="mx-auto max-w-[1300px] space-y-5 p-4 md:p-8">
+      <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:px-9 md:py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {person && (
@@ -416,7 +424,7 @@ export default function StaffActivity() {
               </Button>
             )}
             <div>
-              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">{person ? staffName(person) : 'Staff activity'}</h1>
+              <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">{person ? staffName(person) : 'Staff activity'}</h1>
             </div>
           </div>
           <div className="flex flex-wrap items-start gap-2">
@@ -473,10 +481,31 @@ export default function StaffActivity() {
 const TeamTable: React.FC<{
   team: ({ staff: Staff } & ReturnType<typeof summarize>)[];
   onSelect: (userId: string) => void;
-}> = ({ team, onSelect }) => (
+}> = ({ team, onSelect }) => {
+  const most = Math.max(1, ...team.map((r) => r.active || 0));
+  const sum = (k: 'active' | 'formsCompleted' | 'touchpoints') => team.reduce((n, r) => n + (r[k] || 0), 0);
+  const tiles: [string, React.ReactNode, React.ElementType][] = [
+    ['Active staff', `${team.filter((r) => r.active > 0).length} of ${team.length}`, Users],
+    ['Active time', sum('active') ? formatDuration(sum('active')) : '—', Clock],
+    ['Forms completed', <CountUp key="f" value={sum('formsCompleted')} />, FileText],
+    ['Touchpoints logged', <CountUp key="t" value={sum('touchpoints')} />, CheckCircle2],
+  ];
+  return (
+  <div className="space-y-6">
+  <div className="stagger grid grid-cols-2 gap-4 lg:grid-cols-4">
+    {tiles.map(([label, value, Icon]) => (
+      <div key={label} className="lift rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Icon className="h-4 w-4" />
+          <span className="text-[13px] font-medium">{label}</span>
+        </div>
+        <div className="mt-2 text-[28px] font-semibold leading-none tabular-nums text-foreground">{value}</div>
+      </div>
+    ))}
+  </div>
   <Card className="overflow-x-auto">
     <table className="w-full min-w-[820px] text-sm">
-      <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
+      <thead className="border-b bg-muted/50 text-left text-xs text-muted-foreground">
         <tr>
           <th className="px-4 py-2 font-medium">Staff member</th>
           <th className="px-4 py-2 font-medium">Last active</th>
@@ -488,33 +517,51 @@ const TeamTable: React.FC<{
           <th className="px-4 py-2" />
         </tr>
       </thead>
-      <tbody className="divide-y">
+      <tbody className="stagger divide-y divide-border/70">
         {team.map((row) => (
           <tr
             key={row.staff.user_id}
-            className="cursor-pointer hover:bg-muted/30"
+            className="group cursor-pointer transition-colors hover:bg-muted/40"
             onClick={() => onSelect(row.staff.user_id)}
           >
-            <td className="px-4 py-3 font-medium">{staffName(row.staff)}</td>
+            <td className="px-4 py-3.5">
+              <span className="flex items-center gap-3">
+                <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold text-primary">
+                  {staffName(row.staff).split(' ').map((w) => w[0]).slice(0, 2).join('')}
+                </span>
+                <span className="text-[15px] font-semibold text-foreground">{staffName(row.staff)}</span>
+              </span>
+            </td>
             <td className="px-4 py-3 text-muted-foreground">
               {row.inApp.last
                 ? `${new Date(row.inApp.last).toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${timeOf(row.inApp.last)}`
                 : 'No activity'}
             </td>
-            <td className="px-4 py-3">{row.active ? formatDuration(row.active) : '—'}</td>
+            <td className="px-4 py-3">
+              {row.active ? (
+                <span className="block w-36">
+                  <span className="text-foreground/80">{formatDuration(row.active)}</span>
+                  <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-muted">
+                    <span className="block h-full origin-left animate-[grow_700ms_cubic-bezier(0.22,1,0.36,1)_both] rounded-full bg-primary" style={{ width: `${(row.active / most) * 100}%` }} />
+                  </span>
+                </span>
+              ) : '—'}
+            </td>
             <td className="px-4 py-3">{row.formsCompleted || '—'}</td>
             <td className="px-4 py-3">{row.uploads || '—'}</td>
             <td className="px-4 py-3">{row.touchpoints || '—'}</td>
             <td className="px-4 py-3">{row.edits || '—'}</td>
             <td className="px-4 py-3 text-right">
-              <ChevronRight className="inline h-4 w-4 text-muted-foreground" />
+              <ChevronRight className="nudge inline h-4 w-4 text-muted-foreground" />
             </td>
           </tr>
         ))}
       </tbody>
     </table>
   </Card>
-);
+  </div>
+  );
+};
 
 const PersonDetail: React.FC<{
   visits: Visit[];

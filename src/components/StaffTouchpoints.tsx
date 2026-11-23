@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
-import { CalendarClock, CalendarSync, Plus } from 'lucide-react';
+import { CalendarClock, CalendarSync, ChevronRight, FileClock, Plus } from 'lucide-react';
 import {
   useMyCompliance, ScheduledTouchpoint,
 } from '@/hooks/useMyCompliance';
@@ -142,10 +142,10 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
     <div
       key={t.id}
       {...openOnClick(t.client_id)}
-      className="flex cursor-pointer items-center justify-between gap-2 rounded-md border p-3 transition-colors hover:border-primary/50 hover:bg-muted/40"
+      className="flex cursor-pointer flex-wrap items-center justify-between gap-2 px-6 py-3.5 transition-colors hover:bg-muted/50"
     >
       <div className="min-w-0">
-        <div className="font-medium truncate">{t.client_name}</div>
+        <div className="truncate text-[15px] font-semibold text-foreground">{t.client_name}</div>
         <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap mt-0.5">
           {lonBadge(t.level_of_need)}
           <span>{fmtDay(t.date)}</span>
@@ -172,10 +172,10 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
   );
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between gap-4">
+    <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:px-9 md:py-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">My touchpoints</h1>
+          <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">My touchpoints</h1>
         </div>
         <Button className="gap-2" onClick={() => openAdd(null)}>
           <Plus className="h-4 w-4" />
@@ -187,40 +187,43 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
           soonest and the one people miss: the authorization runs 30 days but
           the plan is due on the 25th. */}
       {data.hspDueSoon.length > 0 && (
-        <Card className="border-amber-400">
-          <CardHeader>
-            <CardTitle className="text-lg text-amber-900">
-              Housing Stabilization Plan due
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              The plan is due on the 25th day of the initial authorization, not its last day.
-              These have not been submitted yet.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-2">
+        <div className="animate-rise overflow-hidden rounded-xl border border-attention-border/70 bg-attention-soft">
+          <div className="flex items-start gap-4 p-5">
+            <div aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-attention-tile text-attention">
+              <FileClock className="h-5 w-5 animate-[wiggle_600ms_ease-in-out_400ms_1]" />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-semibold text-foreground">Housing Stabilization Plan due</h2>
+              <p className="mt-0.5 text-sm text-foreground/70">
+                The plan is due on the 25th day of the initial authorization, not its last day.
+              </p>
+            </div>
+          </div>
+          <div className="divide-y divide-attention-border/50 border-t border-attention-border/60 bg-card/60">
             {data.hspDueSoon.map((h) => (
               <div
                 key={h.clientId}
                 {...openOnClick(h.clientId)}
-                className="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 transition-colors hover:bg-amber-100"
+                className="group flex cursor-pointer flex-wrap items-center justify-between gap-2 px-5 py-3.5 transition-colors hover:bg-card"
               >
                 <div>
-                  <div className="font-medium">{h.clientName}</div>
-                  <div className="text-xs text-muted-foreground">Due {h.dueDate}</div>
+                  <div className="text-[15px] font-semibold text-foreground">{h.clientName}</div>
+                  <div className="text-xs text-muted-foreground">Due {fmtDay(h.dueDate)}</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={h.daysLeft < 0 ? 'destructive' : 'secondary'}>
+                  <Badge className={h.daysLeft < 0 ? CYCLE_STATUS_CLASS.overdue : CYCLE_STATUS_CLASS.due_soon}>
                     {h.daysLeft < 0
                       ? `${Math.abs(h.daysLeft)} day${Math.abs(h.daysLeft) === 1 ? '' : 's'} late`
                       : h.daysLeft === 0
                         ? 'Due today'
                         : `Due in ${h.daysLeft} day${h.daysLeft === 1 ? '' : 's'}`}
                   </Badge>
+                  <ChevronRight className="nudge h-4 w-4 text-muted-foreground" />
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* One queue, not three.
@@ -231,23 +234,24 @@ export const StaffTouchpoints: React.FC<Props> = ({ onOpenClient }) => {
           each row says everything the other two sections were saying. */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <CalendarClock className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="flex items-center gap-2">
             This month
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             {fmtShort(data.monthStart)}–{fmtShort(data.monthEnd)} · {data.completedThisWeek} logged this week
           </p>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="p-0">
           {data.loading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
+            <p className="px-6 pb-6 text-sm text-muted-foreground">Loading…</p>
           ) : data.upcomingThisMonth.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="px-6 pb-6 text-sm text-muted-foreground">
               Nothing scheduled this month. Touchpoints appear here once a client has
               an authorization start date.
             </p>
-          ) : data.upcomingThisMonth.map(tpRow)}
+          ) : (
+            <div className="stagger divide-y divide-border/70 border-t border-border">{data.upcomingThisMonth.map(tpRow)}</div>
+          )}
         </CardContent>
       </Card>
 

@@ -20,7 +20,6 @@ import {
   Columns3,
   Download,
   ExternalLink,
-  FileSpreadsheet,
   Filter,
   GripVertical,
   Loader2,
@@ -1010,14 +1009,12 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
   const master = !['tracker', 'second'].includes(sheet);
 
   return (
-    <div className={`flex flex-col bg-[#f9fbfd] text-[#202124] ${fullScreen ? 'fixed inset-0 z-50' : 'h-full'}`}>
+    <div className={`flex flex-col bg-background text-[#202124] ${fullScreen ? 'fixed inset-0 z-50' : 'h-full'}`}>
       {/* Toolbar */}
-      <div className="shrink-0 border-b border-[#e2e3e3] px-3 pb-2 pt-2.5">
-        <div className="mb-2 flex items-center gap-2.5 px-1">
-          <span className="grid h-8 w-8 place-items-center rounded-md bg-[#0f9d58] text-white">
-            <FileSpreadsheet className="h-5 w-5" />
-          </span>
-          <span className="text-lg text-[#1f1f1f]">Workbook</span>
+      <div className="shrink-0 border-b border-border px-4 pb-3 pt-4 md:px-9 md:pt-6">
+        <div className="mb-4 flex items-center gap-3">
+          <h1 className="animate-rise text-2xl font-semibold tracking-tight text-foreground md:text-[32px]">Workbook</h1>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Beta</span>
           <Button
             size="sm"
             variant="ghost"
@@ -1030,11 +1027,11 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
           </Button>
         </div>
         {/* One rounded toolbar, as in Google Sheets. */}
-        <div className="flex flex-wrap items-center gap-1 rounded-3xl bg-[#edf2fa] px-2 py-1">
+        <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-card px-2 py-1.5 shadow-[0_1px_2px_hsl(202_43%_19%/0.04)]">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
-            className="h-8 w-52 rounded-full border-0 bg-white pl-8 pr-3 text-sm outline-none focus:ring-2 focus:ring-[#1a73e8]"
+            className="h-8 w-52 rounded-lg border border-input bg-card pl-8 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             placeholder="Search all columns"
             aria-label="Search all columns"
             value={query}
@@ -1042,7 +1039,7 @@ export const BillingWorkbook: React.FC<Props> = ({ cycles, onChanged }) => {
           />
         </div>
         {master && (
-          <Button size="sm" className="h-8 rounded-full bg-emerald-600 px-3 text-white hover:bg-emerald-700" onClick={() => void addClient()}>
+          <Button size="sm" className="h-8 px-3" onClick={() => void addClient()}>
             <Plus className="mr-1.5 h-4 w-4" />
             Add row
           </Button>

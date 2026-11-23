@@ -16,7 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { useViewAs } from '@/components/ViewAsProvider';
-import { CheckCircle2, ClipboardList, FileText } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FileText, Clock, CalendarClock } from 'lucide-react';
 import {
   INTAKE_STATUS_LABEL,
   STAGE_CLASS,
@@ -352,8 +352,7 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: f
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <ClipboardList className="h-5 w-5 text-muted-foreground" />
+          <CardTitle className="flex items-center gap-2 text-[17px]">
             Forms
             {formsRibbon && <NewRibbon inline />}
           </CardTitle>
@@ -371,26 +370,40 @@ export const ClientWorkflowCard: React.FC<Props> = ({ client, onUpdate, forms: f
         {/* A client awaiting their intake call has the call bar above
             instead: no form can be filled in until they are reached. */}
         {action.kind !== 'none' && (client as { intake_call_status?: string | null }).intake_call_status !== 'awaiting' && (
-          <div className="rounded-md border bg-muted/30 p-3">
-            <p className="text-xs font-medium uppercase text-muted-foreground">Next step</p>
-            <p className="font-medium">{action.label}</p>
-            <p className="text-sm text-muted-foreground">{action.detail}</p>
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap [&>button]:h-11 [&>button]:w-full sm:[&>button]:h-10 sm:[&>button]:w-auto">{actionButton()}</div>
+          <div className="flex animate-rise flex-col gap-4 rounded-xl border border-attention-border/60 bg-attention-soft p-5 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 items-start gap-4">
+              <div aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-attention-tile text-attention">
+                <Clock className="h-5 w-5 animate-[wiggle_600ms_ease-in-out_400ms_1]" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-attention">Next step</p>
+                <p className="mt-0.5 text-[17px] font-semibold text-foreground">{action.label}</p>
+                <p className="mt-0.5 text-sm text-foreground/70">{action.detail}</p>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end [&>button]:h-11 [&>button]:w-full sm:[&>button]:h-10 sm:[&>button]:w-auto">{actionButton()}</div>
           </div>
         )}
 
         {reauthDue && (
           // Red once the end date has passed: the client is past their authorization.
-          <div className={`rounded-md border p-3 ${lapsed ? 'border-red-300 bg-red-50' : 'border-amber-300 bg-amber-50'}`}>
-            <p className={`text-sm font-medium ${lapsed ? 'text-red-800' : 'text-amber-900'}`}>
+          <div className={`flex animate-rise flex-col gap-4 rounded-xl border p-5 sm:flex-row sm:items-center ${lapsed ? 'border-danger/25 bg-danger/5' : 'border-attention-border/60 bg-attention-soft'}`}>
+            <div className="flex min-w-0 flex-1 items-start gap-4">
+            <div aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${lapsed ? 'bg-danger/10 text-danger' : 'bg-attention-tile text-attention'}`}>
+              <CalendarClock className={`h-5 w-5 ${lapsed ? 'animate-[shake_420ms_ease-in-out_400ms_1]' : ''}`} />
+            </div>
+            <div className="min-w-0">
+            <p className={`text-[15px] font-semibold ${lapsed ? 'text-danger' : 'text-foreground'}`}>
               {lapsed
                 ? `The current authorization ended ${formatAuthDate(current?.end_date)} (${-daysLeft!} day${daysLeft === -1 ? '' : 's'} ago).`
                 : `The current authorization ends ${formatAuthDate(current?.end_date)}${daysLeft !== null ? ` (${daysLeft === 0 ? 'today' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`})` : ''}.`}
             </p>
-            <p className={`text-sm ${lapsed ? 'text-red-800/80' : 'text-amber-900/80'}`}>
+            <p className="mt-0.5 text-sm text-foreground/70">
               Record the next 180-day period as soon as the MCO approves it.
             </p>
-            <Button size="sm" className="mt-3 h-11 w-full sm:h-9 sm:w-auto" onClick={() => openAuth('reauthorization')}>
+            </div>
+            </div>
+            <Button className="h-11 w-full shrink-0 sm:h-10 sm:w-auto" onClick={() => openAuth('reauthorization')}>
               Record new reauthorization
             </Button>
           </div>

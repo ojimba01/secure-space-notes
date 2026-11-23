@@ -182,11 +182,11 @@ export const ComplianceCard: React.FC<Props> = ({
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold">Monthly requirements</div>
               {!setupComplete ? (
-                <Badge className="bg-amber-500 text-white hover:bg-amber-500">Missing setup</Badge>
+                <Badge className="border-transparent bg-attention-soft text-attention ring-1 ring-inset ring-attention-border hover:bg-attention-soft">Missing setup</Badge>
               ) : winStatus === 'complete' ? (
-                <Badge className="bg-green-600 text-white hover:bg-green-600">Completed</Badge>
+                <Badge className="border-transparent bg-success-soft text-success hover:bg-success-soft">Completed</Badge>
               ) : winStatus === 'overdue' ? (
-                <Badge className="bg-red-600 text-white hover:bg-red-600">Overdue</Badge>
+                <Badge className="border-transparent bg-danger/10 text-danger hover:bg-danger/10">Overdue</Badge>
               ) : (
                 <Badge variant="secondary">On track</Badge>
               )}

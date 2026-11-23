@@ -677,10 +677,10 @@ export function cycleStatus(
 }
 
 export const CYCLE_STATUS_CLASS: Record<CycleStatus, string> = {
-  completed: 'bg-green-600 text-white hover:bg-green-600',
-  overdue: 'bg-red-600 text-white hover:bg-red-600',
-  due_soon: 'bg-amber-500 text-white hover:bg-amber-500',
-  incomplete: 'bg-muted text-muted-foreground hover:bg-muted',
+  completed: 'border-transparent bg-success-soft text-success hover:bg-success-soft',
+  overdue: 'border-transparent bg-danger/10 text-danger hover:bg-danger/10',
+  due_soon: 'border-transparent bg-attention-soft text-attention ring-1 ring-inset ring-attention-border hover:bg-attention-soft',
+  incomplete: 'border-transparent bg-muted text-muted-foreground hover:bg-muted',
 };
 
 // ---- rule-based suggested touchpoint type ---------------------------

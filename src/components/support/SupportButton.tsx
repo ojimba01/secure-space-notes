@@ -134,6 +134,15 @@ export const SupportButton: React.FC = () => {
    * opening it marks it read, and Later / the X remembers it was shown.
    */
   /** The unread replies on one request, newest last. */
+  // Contact support, from the Help panel.
+  useEffect(() => {
+    const show = () => {
+      setOpen(true);
+      void refresh();
+    };
+    window.addEventListener('support:open', show);
+    return () => window.removeEventListener('support:open', show);
+  }, [refresh]);
   const [replyNotice, setReplyNotice] = useState<{ ticket: Ticket; messages: string[] } | null>(null);
   // The latest copy, so a follow-up status that lands just after the reply still shows.
   const noticeTicket = replyNotice ? tickets.find((t) => t.id === replyNotice.ticket.id) ?? replyNotice.ticket : null;
@@ -626,15 +635,17 @@ export const SupportButton: React.FC = () => {
           </Button>
         ) : (
           <Button
-            className="relative gap-2 rounded-full shadow-lg"
+            className="relative gap-2 rounded-full shadow-lg transition-transform hover:-translate-y-0.5"
             onClick={() => {
-              setOpen((o) => !o);
-              if (!open) void refresh();
+              // One button for help: it opens Help, where Contact support is.
+              // While the support panel is open it closes it.
+              if (open) setOpen(false);
+              else window.dispatchEvent(new Event('help:toggle'));
             }}
-            aria-label="Support"
+            aria-label="Help"
           >
             <CircleHelp className="h-5 w-5" />
-            <span className="hidden sm:inline">Support</span>
+            <span className="hidden sm:inline">Help</span>
             {unread > 0 && (
               <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] text-white">
                 {unread}

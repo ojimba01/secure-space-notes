@@ -282,13 +282,13 @@ export function deadlineLabel(
 export function approvalBadgeClass(state: ApprovalState | null | undefined): string {
   switch (state) {
     case 'Approved':
-      return 'bg-green-600 text-white hover:bg-green-600';
+      return 'border-transparent bg-success-soft text-success hover:bg-success-soft';
     case 'Closed':
-      return 'bg-slate-600 text-white hover:bg-slate-600';
+      return 'border-transparent bg-slate-200 text-slate-700 hover:bg-slate-200';
     case 'Denied (will resubmit)':
-      return 'bg-red-600 text-white hover:bg-red-600';
+      return 'border-transparent bg-danger/10 text-danger hover:bg-danger/10';
     default:
-      return 'bg-gray-400 text-white hover:bg-gray-400';
+      return 'border-transparent bg-muted text-muted-foreground hover:bg-muted';
   }
 }
 
@@ -297,24 +297,24 @@ export function approvalBadgeClass(state: ApprovalState | null | undefined): str
 export function paymentBadgeClass(status: PaymentStatus): string {
   switch (status) {
     case 'Paid':
-      return 'bg-green-600 text-white hover:bg-green-600';
+      return 'border-transparent bg-success-soft text-success hover:bg-success-soft';
     case 'Partial':
-      return 'bg-amber-500 text-white hover:bg-amber-500';
+      return 'border-transparent bg-attention-soft text-attention ring-1 ring-inset ring-attention-border hover:bg-attention-soft';
     default:
-      return 'bg-gray-400 text-white hover:bg-gray-400';
+      return 'border-transparent bg-muted text-muted-foreground hover:bg-muted';
   }
 }
 
 export function billingBadgeClass(status: BillingStatus): string {
   switch (status) {
     case 'Submitted':
-      return 'bg-blue-600 text-white hover:bg-blue-600';
+      return 'border-transparent bg-accent text-primary hover:bg-accent';
     case 'Ready to Bill':
-      return 'bg-amber-500 text-white hover:bg-amber-500';
+      return 'border-transparent bg-attention-soft text-attention ring-1 ring-inset ring-attention-border hover:bg-attention-soft';
     case 'Denied':
-      return 'bg-red-600 text-white hover:bg-red-600';
+      return 'border-transparent bg-danger/10 text-danger hover:bg-danger/10';
     default:
-      return 'bg-gray-400 text-white hover:bg-gray-400';
+      return 'border-transparent bg-muted text-muted-foreground hover:bg-muted';
   }
 }
 

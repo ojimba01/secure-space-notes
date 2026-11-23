@@ -43,6 +43,7 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
   const [staff, setStaff] = useState<StaffTouchpointRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
+  const [hspPage, setHspPage] = useState(0);
   const [dismissed, setDismissed] = useState(false);
 
   const overdueByStaff = useMemo(() => {
@@ -104,6 +105,8 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
       Date.now() - new Date(r.acknowledgedAt).getTime() < 7 * 24 * 60 * 60 * 1000,
   );
 
+  const hspRows = [...(hsp?.overdue ?? []), ...(hsp?.dueSoon ?? [])];
+
   return (
     <div className="space-y-4">
       {justShown.length > 0 && !dismissed && (
@@ -120,11 +123,12 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
       {/* Intake calls across the top: from referral to reviewed package. */}
       <IntakeCallsPage embedded onOpenClient={onOpenClient} />
       {/* Forms to review beside the two short lists; the wide Touchpoints table below. */}
-      <div className="grid items-start gap-4 lg:grid-cols-3">
-      <div className="space-y-4 lg:col-span-2">
+      {/* Both columns stretch to the same height, so neither leaves a gap. */}
+      <div className="grid items-stretch gap-4 lg:grid-cols-3">
+      <div className="flex flex-col lg:col-span-2 [&>*]:flex-1">
         <FormsToReview onOpenClient={onOpenClient} />
       </div>
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4 [&>*:last-child]:flex-1">
 
       {/* ------------------------------------------------ claims ---------- */}
       <Card>
@@ -220,24 +224,40 @@ export const ShadeDashboard: React.FC<Props> = ({ onOpenClient }) => {
             </p>
           )}
 
-          {[...(hsp?.overdue ?? []), ...(hsp?.dueSoon ?? [])].length > 0 && (
-            <div className="divide-y rounded-md border">
-              {[...(hsp?.overdue ?? []), ...(hsp?.dueSoon ?? [])].slice(0, 15).map((r) => (
+          {hspRows.length > 0 && (
+            <div className="divide-y divide-border/70 overflow-hidden rounded-lg border border-border">
+              {hspRows.slice(hspPage * PAGE, hspPage * PAGE + PAGE).map((r) => (
                 <button
                   key={r.id}
                   type="button"
                   onClick={() => onOpenClient(r.id)}
-                  className="flex w-full flex-wrap items-center justify-between gap-2 p-2.5 text-left text-sm hover:bg-muted/50"
+                  className="group flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50"
                 >
                   <span className="truncate">{r.clientName}</span>
-                  <Badge
-                    variant="secondary"
-                    className={r.daysLate > 0 ? 'bg-destructive/15 text-destructive' : 'bg-amber-100 text-amber-900'}
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      r.daysLate > 0 ? 'bg-danger/10 text-danger' : 'bg-attention-soft text-attention'
+                    }`}
                   >
-                    {r.daysLate > 0 ? `${r.daysLate} days over` : `due ${r.dueDate}`}
-                  </Badge>
+                    {r.daysLate > 0
+                      ? `${r.daysLate} day${r.daysLate === 1 ? '' : 's'} over`
+                      : `Due ${new Date(`${r.dueDate}T12:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
+                  </span>
                 </button>
               ))}
+            </div>
+          )}
+          {hspRows.length > PAGE && (
+            <div className="flex items-center gap-2 text-sm">
+              <Button variant="outline" size="sm" disabled={hspPage === 0} onClick={() => setHspPage((p) => Math.max(0, p - 1))}>
+                Back
+              </Button>
+              <Button variant="outline" size="sm" disabled={(hspPage + 1) * PAGE >= hspRows.length} onClick={() => setHspPage((p) => p + 1)}>
+                Next
+              </Button>
+              <span className="text-muted-foreground">
+                {hspPage * PAGE + 1}–{Math.min((hspPage + 1) * PAGE, hspRows.length)} of {hspRows.length}
+              </span>
             </div>
           )}
         </CardContent>

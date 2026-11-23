@@ -8,46 +8,57 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 207 45% 97%;
-    --foreground: 207 45% 15%;
+    /* The redesign palette, taken from the Figma screens. */
+    --background: 200 18% 97%;
+    --foreground: 202 43% 19%;
 
     --card: 0 0% 100%;
-    --card-foreground: 207 45% 15%;
+    --card-foreground: 202 43% 19%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 207 45% 15%;
+    --popover-foreground: 202 43% 19%;
 
-    --primary: 207 78% 27%;
+    --primary: 203 72% 29%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 207 45% 94%;
-    --secondary-foreground: 207 78% 27%;
+    --secondary: 204 56% 95%;
+    --secondary-foreground: 203 72% 29%;
 
-    --muted: 207 35% 95%;
-    --muted-foreground: 205 15% 42%;
+    --muted: 200 21% 95%;
+    --muted-foreground: 204 14% 47%;
 
-    --accent: 207 80% 94%;
-    --accent-foreground: 207 78% 27%;
+    --accent: 204 56% 95%;
+    --accent-foreground: 203 72% 29%;
 
-    --success: 150 65% 45%;
+    --success: 154 37% 36%;
     --success-foreground: 0 0% 100%;
+    --success-soft: 152 30% 92%;
 
-    --destructive: 0 75% 55%;
+    /* Something that needs the person's attention: next steps, due dates. */
+    --attention: 27 63% 36%;
+    --attention-soft: 33 100% 96%;
+    --attention-border: 34 69% 81%;
+    --attention-tile: 32 86% 89%;
+
+    /* Overdue and missing, as text on a light background. */
+    --danger: 11 51% 46%;
+
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 207 30% 89%;
-    --input: 207 30% 89%;
-    --ring: 207 56% 41%;
+    --border: 204 21% 91%;
+    --input: 204 21% 89%;
+    --ring: 203 72% 29%;
 
-    --medical-blue: 210 65% 45%;
-    --medical-blue-light: 210 35% 85%;
-    --medical-green: 150 65% 45%;
-    --medical-green-light: 150 40% 85%;
+    --medical-blue: 203 72% 29%;
+    --medical-blue-light: 204 56% 90%;
+    --medical-green: 154 37% 36%;
+    --medical-green-light: 152 30% 88%;
     
     --editor-bg: 0 0% 100%;
-    --editor-border: 210 20% 92%;
-    --table-header: 210 25% 96%;
-    --table-border: 210 20% 88%;
+    --editor-border: 204 21% 91%;
+    --table-header: 200 21% 96%;
+    --table-border: 204 21% 89%;
 
     --radius: 0.75rem;
 
@@ -126,7 +137,67 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+}
+
+/*
+ * Motion. Every movement says that something happened: a card arriving, a
+ * save finishing, a field that needs fixing. Nothing moves while people read,
+ * and people who ask their device for less motion get none.
+ */
+@layer utilities {
+  /* Children rise in one after another. */
+  .stagger > * {
+    animation: rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger > *:nth-child(6) { animation-delay: 200ms; }
+  .stagger > *:nth-child(7) { animation-delay: 240ms; }
+  .stagger > *:nth-child(n + 8) { animation-delay: 280ms; }
+
+  /* A card or row that lifts a little under the pointer. */
+  .lift {
+    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease, border-color 180ms ease;
+  }
+  .lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px -8px hsl(202 43% 19% / 0.18);
+  }
+
+  /* An arrow that nudges toward where it leads. */
+  .group:hover .nudge, .nudge:hover {
+    transform: translateX(3px);
+  }
+  .nudge { transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1); }
+
+  /* An icon that rings, like a phone, when its control is hovered. */
+  .group:hover .ring-on-hover { animation: ring 600ms ease-in-out; }
+  /* An icon that wiggles once when its control is hovered. */
+  .group:hover .wiggle-on-hover { animation: wiggle 500ms ease-in-out; }
+}
+
+/* The walkthrough's red ring breathing, and its hand tapping. */
+@keyframes walk-ring {
+  0% { box-shadow: 0 0 0 0 rgb(217 72 59 / 0.45); }
+  100% { box-shadow: 0 0 0 12px rgb(217 72 59 / 0); }
+}
+@keyframes walk-tap {
+  0%, 60%, 100% { transform: translate(0, 0) scale(1); }
+  70% { transform: translate(-3px, -6px) scale(0.94); }
+  80% { transform: translate(0, 0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
   }
 }
 

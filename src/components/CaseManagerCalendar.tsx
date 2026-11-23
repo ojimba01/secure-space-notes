@@ -8,7 +8,7 @@ const TODAY_PAGE = 5;
 
 /** Set once somebody ticks "Don't ask again" on removing a touchpoint. */
 const SKIP_DELETE_ASK_KEY = 'calendar.skipTouchpointDeleteConfirm';
-import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Clock, Trash2, Search, CalendarCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -537,23 +537,23 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:px-9 md:py-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-primary">Calendar</h1>
+          <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">Calendar</h1>
         </div>
         <div className="flex items-center gap-2">
           {showsScope && (
-            <div className="flex rounded-lg border bg-background p-1" role="group" aria-label="Whose calendar">
+            <div className="flex rounded-lg bg-muted p-1" role="group" aria-label="Whose calendar">
               {(['mine', 'all'] as const).map((s) => (
                 <button
                   key={s}
                   type="button"
                   aria-pressed={scope === s}
                   onClick={() => setScope(s)}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                    scope === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
+                    scope === s ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {s === 'mine' ? 'My caseload' : 'All staff'}
@@ -563,7 +563,7 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
           )}
           <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
             <Plus className="w-4 h-4" />
-            Add Event
+            Add event
           </Button>
         </div>
       </div>
@@ -617,38 +617,38 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
       <div className="grid items-start gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
         {/* A day's events open over the calendar. */}
-        <Card className="p-6">
+        <Card className="p-5 md:p-6">
           {/* Calendar Controls */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 key={format(currentDate, 'yyyy-MM')} className="animate-rise text-[22px] font-semibold text-foreground">
+              {format(currentDate, 'MMMM yyyy')}
+            </h2>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={handlePreviousMonth}>
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handlePreviousMonth} aria-label="Previous month">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <h2 className="text-xl font-semibold min-w-[200px] text-center">
-                {format(currentDate, 'MMMM yyyy')}
-              </h2>
-              <Button variant="outline" size="icon" onClick={handleNextMonth}>
+              <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleNextMonth} aria-label="Next month">
                 <ChevronRight className="w-4 h-4" />
               </Button>
+              <Button variant="outline" size="sm" onClick={handleToday}>
+                Today
+              </Button>
             </div>
-            <Button variant="outline" onClick={handleToday}>
-              Today
-            </Button>
           </div>
 
           {/* Calendar Grid */}
           <div className="space-y-2">
             {/* Day Headers */}
-            <div className="grid grid-cols-7 gap-2 mb-2">
+            <div className="grid grid-cols-7">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+                <div key={day} className="py-2 text-center text-xs font-medium text-muted-foreground">
                   {day}
                 </div>
               ))}
             </div>
 
             {/* Calendar Days */}
-            <div className="grid grid-cols-7 gap-2">
+            <div key={format(currentDate, 'yyyy-MM')} className="grid animate-rise grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border">
               {days.map((day, idx) => {
                 const dayEvents = getEventsForDay(day);
                 const isCurrentMonth = isSameMonth(day, currentDate);
@@ -682,15 +682,16 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
                       if (id) rescheduleTouchpoint(id, day);
                     }}
                     className={`
-                      min-h-[5rem] sm:aspect-square p-1.5 rounded-lg border transition-all relative flex flex-col gap-1 text-left cursor-pointer
-                      ${isCurrentMonth ? 'bg-background' : 'bg-muted/30 text-muted-foreground'}
-                      ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border'}
-                      ${isTodayDate ? 'bg-primary/10 font-semibold' : ''}
-                      ${dragOverDay === format(day, 'yyyy-MM-dd') ? 'border-primary ring-2 ring-primary/40 bg-primary/5' : ''}
-                      hover:border-primary/50
+                      relative flex min-h-[5.5rem] cursor-pointer flex-col gap-1 p-2 text-left transition-colors sm:min-h-[6.5rem]
+                      ${isTodayDate ? 'bg-accent' : isCurrentMonth ? 'bg-card hover:bg-muted/50' : 'bg-muted/40 text-muted-foreground/70'}
+                      ${isSelected ? 'z-10 ring-2 ring-inset ring-primary' : ''}
+                      ${dragOverDay === format(day, 'yyyy-MM-dd') ? 'z-10 bg-primary/5 ring-2 ring-inset ring-primary/60' : ''}
                     `}
                   >
-                    <span className="text-sm">{format(day, 'd')}</span>
+                    <span className={`flex items-center justify-between text-sm ${isTodayDate ? 'font-semibold text-primary' : ''}`}>
+                      {format(day, 'd')}
+                      {isTodayDate && <span className="text-[10px] font-medium uppercase tracking-wide">Today</span>}
+                    </span>
                     <div className="flex flex-col gap-0.5 overflow-hidden">
                       {dayEvents.slice(0, 2).map((event) => (
                         <button
@@ -752,28 +753,33 @@ export const CaseManagerCalendar: React.FC<CaseManagerCalendarProps> = ({ onOpen
         </div>
         <div className="lg:sticky lg:top-4">
         {/* Today at a glance, without having to click today. */}
-        <Card className="p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <h3 className="font-semibold">Today's Schedule</h3>
+        <Card className="p-5">
+            <div className="mb-4">
+              <h3 className="text-[20px] font-semibold text-foreground">{format(new Date(), 'EEEE, MMM d')}</h3>
+              <p className="text-sm text-muted-foreground">
+                {todayEvents.length} {todayEvents.length === 1 ? 'appointment' : 'appointments'} today
+              </p>
             </div>
-            <div className="space-y-2">
+            <div className="stagger space-y-2">
               {todayEvents.length > 0 ? (
                 todayEvents.slice(todayPage * TODAY_PAGE, todayPage * TODAY_PAGE + TODAY_PAGE).map(event => (
                   <button
                     key={event.id}
                     onClick={() => openEvent(event)}
-                    className="w-full text-left p-2 rounded-lg bg-muted/50 space-y-1 hover:bg-muted transition-colors"
+                    className="lift group relative w-full overflow-hidden rounded-lg bg-muted/60 py-3 pl-4 pr-3 text-left hover:bg-muted"
                   >
-                    <div className={`w-2 h-2 rounded-full inline-block mr-2 ${dotColor(event)}`} />
-                    <span className="text-sm font-medium">{event.title}</span>
+                    <span aria-hidden className={`absolute inset-y-0 left-0 w-1 ${dotColor(event)}`} />
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(event.start_time), 'h:mm a')} - {format(new Date(event.end_time), 'h:mm a')}
+                      {format(new Date(event.start_time), 'h:mm a')} – {format(new Date(event.end_time), 'h:mm a')}
                     </p>
+                    <p className="mt-0.5 text-[15px] font-semibold text-foreground">{event.title}</p>
                   </button>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No events today.</p>
+                <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-8 text-sm text-muted-foreground">
+                  <CalendarCheck className="h-7 w-7 animate-float text-muted-foreground/60" strokeWidth={1.5} />
+                  No events today.
+                </div>
               )}
 
               {todayEvents.length > TODAY_PAGE && (
