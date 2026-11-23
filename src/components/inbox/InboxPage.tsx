@@ -105,9 +105,9 @@ export const InboxPage: React.FC<{ onOpenClient: (clientId: string) => void }> =
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 p-4 md:p-8">
+    <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:px-9 md:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight text-primary md:text-3xl">Inbox</h1>
+        <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">Inbox</h1>
         {unread > 0 && (
           <Button variant="outline" size="sm" onClick={() => void markAllRead()}>
             Mark all read
@@ -193,10 +193,10 @@ export const InboxPage: React.FC<{ onOpenClient: (clientId: string) => void }> =
                         <tr key={c.field} className="border-t">
                           <td className="px-3 py-2 text-muted-foreground [overflow-wrap:anywhere]">{c.label}</td>
                           <td className="px-3 py-2 [overflow-wrap:anywhere]">
-                            {c.before ? <span className="text-red-700 line-through">{c.before}</span> : <span className="text-muted-foreground">Blank</span>}
+                            {c.before ? <span className="rounded-md bg-danger/10 px-1.5 py-0.5 text-danger line-through">{c.before}</span> : <span className="text-muted-foreground">Blank</span>}
                           </td>
                           <td className="px-3 py-2 [overflow-wrap:anywhere]">
-                            {c.after ? <span className="text-green-700">{c.after}</span> : <span className="text-muted-foreground">Blank</span>}
+                            {c.after ? <span className="rounded-md bg-success-soft px-1.5 py-0.5 font-medium text-success">{c.after}</span> : <span className="text-muted-foreground">Blank</span>}
                           </td>
                         </tr>
                       ))}
