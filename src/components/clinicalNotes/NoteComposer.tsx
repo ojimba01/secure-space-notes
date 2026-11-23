@@ -15,6 +15,7 @@ import { AlertTriangle, Check, Loader2, Pencil, Plus, RefreshCw, Sparkles, X } f
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import { DrawnCheck } from '@/components/motion/DrawnCheck';
 import { cn } from '@/lib/utils';
 import { ACTIONS, TERMS, contactWord, joinList } from '@/lib/clinicalNotes/config';
 import {
@@ -83,14 +84,15 @@ export const Chip: React.FC<{
     onClick={onClick}
     aria-pressed={!!selected}
     className={cn(
-      'rounded-full border font-medium transition-colors',
-      size === 'md' ? 'px-4 py-2 text-sm' : 'px-3 py-1 text-xs',
+      'inline-flex items-center gap-1.5 rounded-full border font-medium transition-all duration-150 active:scale-[0.96]',
+      size === 'md' ? 'px-4 py-2 text-sm' : 'px-3 py-1.5 text-[13px]',
       selected
-        ? 'border-primary bg-primary text-primary-foreground'
-        : 'border-border bg-white text-foreground hover:border-primary/60 hover:bg-primary/5',
+        ? 'border-primary bg-accent font-semibold text-primary shadow-[inset_0_0_0_0.5px_hsl(var(--primary))]'
+        : 'border-input bg-card text-foreground hover:border-primary/40 hover:bg-accent/50',
       className,
     )}
   >
+    {selected && <DrawnCheck className={size === 'md' ? 'h-4 w-4' : 'h-3.5 w-3.5'} />}
     {children}
   </button>
 );
@@ -99,16 +101,24 @@ const Step: React.FC<{
   n: number;
   title: string;
   hint?: string;
+  /** Answered or skipped: the number becomes a green check. */
+  complete?: boolean;
   onSkip?: () => void;
   children: React.ReactNode;
-}> = ({ n, title, hint, onSkip, children }) => (
-  <section className="space-y-3 rounded-xl border bg-white p-4">
-    <div className="flex items-center gap-2.5">
-      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{n}</span>
-      <h3 className="font-semibold">{title}</h3>
-      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+}> = ({ n, title, hint, complete, onSkip, children }) => (
+  <section className="animate-rise space-y-4 rounded-xl border border-border bg-card p-5 md:p-6">
+    <div className="flex items-center gap-3">
+      {complete ? (
+        <span className="grid h-[26px] w-[26px] shrink-0 animate-pop place-items-center rounded-full bg-success-soft text-success">
+          <DrawnCheck className="h-3.5 w-3.5" delay={120} />
+        </span>
+      ) : (
+        <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full bg-primary text-[13px] font-semibold text-primary-foreground">{n}</span>
+      )}
+      <h3 className="text-[17px] font-semibold text-foreground">{title}</h3>
+      {hint && <span className="hidden text-[13px] text-muted-foreground sm:inline">{hint}</span>}
       {onSkip && (
-        <button type="button" onClick={onSkip} className="ml-auto text-xs text-muted-foreground underline-offset-2 hover:underline">
+        <button type="button" onClick={onSkip} className="ml-auto text-[13px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
           Skip
         </button>
       )}
@@ -119,8 +129,8 @@ const Step: React.FC<{
 
 /** A labelled question inside a step. */
 const Ask: React.FC<{ label: string; hint?: string; children: React.ReactNode }> = ({ label, hint, children }) => (
-  <div className="space-y-1.5">
-    <p className="text-sm font-medium">
+  <div className="space-y-2">
+    <p className="text-sm font-medium text-foreground">
       {label}
       {hint && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{hint}</span>}
     </p>
@@ -272,6 +282,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
     next: draft.noNextStep || draft.steps.some((s) => s.who && s.actions.length) || !!skipped.next,
   };
   const order = ['categories', 'details', 'goals', 'prompts', 'housing', 'actions', 'result', 'response', 'barriers', 'next'] as const;
+  const answeredCount = order.filter((k) => done[k]).length;
   /** A step shows once every step before it is done. */
   const shows = (k: (typeof order)[number]) => order.slice(0, order.indexOf(k)).every((x) => done[x]);
 
@@ -427,10 +438,10 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
   const notListed = tree.categories.includes('other_service') && (tree.picks.other_service ?? []).includes(NOT_LISTED);
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-      <div className="min-w-0 space-y-3">
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="min-w-0 space-y-4">
         {/* 1. Categories: they organize, they write nothing */}
-        <Step n={1} title={`What did this ${word} cover?`} hint="Select all that apply">
+        <Step n={1} complete={done.categories} title={`What did this ${word} cover?`} hint="Select all that apply">
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map((c) => (
               <Chip key={c.id} selected={tree.categories.includes(c.id)} onClick={() => toggleCategory(c.id)}>
@@ -442,15 +453,15 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 2. What specifically happened, under each category */}
         {shows('details') && (
-          <Step n={2} title="What specifically happened?" onSkip={done.details ? undefined : () => skip('details')}>
+          <Step n={2} complete={done.details} title="What specifically happened?" onSkip={done.details ? undefined : () => skip('details')}>
             <div className="space-y-4">
               {tree.categories.map((id) => {
                 const c = categoryById(id);
                 if (!c) return null;
                 const picks = tree.picks[id] ?? [];
                 return (
-                  <div key={id} className="space-y-3 rounded-lg border p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</p>
+                  <div key={id} className={cn('space-y-3 border-l-2 pl-4 transition-colors', categoryComplete(tree, id) ? 'border-primary' : 'border-border')}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{c.label}</p>
                     <Ask label={c.ask} hint="Select all that apply">
                       <div className="flex flex-wrap gap-2">
                         {c.items.map((i) => (
@@ -491,21 +502,21 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 3. Housing goal */}
         {shows('goals') && (
-          <Step n={3} title={`What housing goal did this ${word} support?`} hint="Select all that apply" onSkip={done.goals ? undefined : () => skip('goals')}>
+          <Step n={3} complete={done.goals} title={`What housing goal did this ${word} support?`} hint="Select all that apply" onSkip={done.goals ? undefined : () => skip('goals')}>
             <Choices options={Object.keys(GOALS)} size="md" value={draft.goals} multi onChange={(v) => update((d) => ({ ...d, goals: asList(v) }))} />
           </Step>
         )}
 
         {/* 4. What prompted it */}
         {shows('prompts') && (
-          <Step n={4} title={`What prompted this ${word}?`} hint="Select all that apply" onSkip={done.prompts ? undefined : () => skip('prompts')}>
+          <Step n={4} complete={done.prompts} title={`What prompted this ${word}?`} hint="Select all that apply" onSkip={done.prompts ? undefined : () => skip('prompts')}>
             <Choices options={Object.keys(PROMPTS)} size="md" value={draft.prompts} multi onChange={(v) => update((d) => ({ ...d, prompts: asList(v) }))} />
           </Step>
         )}
 
         {/* 5. Housing status */}
         {shows('housing') && (
-          <Step n={5} title={`What is the ${TERMS.client}’s housing status?`} hint="Select one" onSkip={done.housing ? undefined : () => skip('housing')}>
+          <Step n={5} complete={done.housing} title={`What is the ${TERMS.client}’s housing status?`} hint="Select one" onSkip={done.housing ? undefined : () => skip('housing')}>
             <Choices options={Object.keys(HOUSING)} size="md" value={h.status} onChange={(v) => update((d) => ({ ...d, housing: { ...d.housing, status: v as string | undefined } }))} />
             {h.status && (
               <Ask label="Has this changed since the last contact?">
@@ -517,7 +528,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 6. What CM did */}
         {shows('actions') && (
-          <Step n={6} title={`What did ${TERMS.cm} do?`} hint="Select all that apply" onSkip={done.actions ? undefined : () => skip('actions')}>
+          <Step n={6} complete={done.actions} title={`What did ${TERMS.cm} do?`} hint="Select all that apply" onSkip={done.actions ? undefined : () => skip('actions')}>
             {splitChoice('actions')}
             {eachPart('actions', actionsBody)}
           </Step>
@@ -525,7 +536,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 7. Result */}
         {shows('result') && (
-          <Step n={7} title="What was the overall result?" hint="Select one" onSkip={done.result ? undefined : () => skip('result')}>
+          <Step n={7} complete={done.result} title="What was the overall result?" hint="Select one" onSkip={done.result ? undefined : () => skip('result')}>
             {splitChoice('result')}
             {eachPart('result', resultBody)}
           </Step>
@@ -533,14 +544,14 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 8. Member response */}
         {shows('response') && (
-          <Step n={8} title={`How did the ${TERMS.client} respond?`} hint="Select all that apply" onSkip={done.response ? undefined : () => skip('response')}>
+          <Step n={8} complete={done.response} title={`How did the ${TERMS.client} respond?`} hint="Select all that apply" onSkip={done.response ? undefined : () => skip('response')}>
             <Choices options={Object.keys(RESPONSE)} size="md" value={draft.response} multi onChange={(v) => update((d) => ({ ...d, response: asList(v) }))} />
           </Step>
         )}
 
         {/* 9. Barriers */}
         {shows('barriers') && (
-          <Step n={9} title="What barriers were identified?" hint="Select all that apply" onSkip={done.barriers ? undefined : () => skip('barriers')}>
+          <Step n={9} complete={done.barriers} title="What barriers were identified?" hint="Select all that apply" onSkip={done.barriers ? undefined : () => skip('barriers')}>
             {splitChoice('barriers')}
             {eachPart('barriers', barriersBody)}
           </Step>
@@ -548,7 +559,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
 
         {/* 10. Next steps */}
         {shows('next') && (
-          <Step n={10} title="What happens next?" onSkip={done.next ? undefined : () => skip('next')}>
+          <Step n={10} complete={done.next} title="What happens next?" onSkip={done.next ? undefined : () => skip('next')}>
             {!draft.noNextStep &&
               draft.steps.map((s, i) => (
                 <div key={i} className="space-y-3 rounded-lg border bg-muted/20 p-3">
@@ -595,28 +606,21 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
           </Step>
         )}
 
-        {/* Generate, at the end */}
-        {done.categories && (
-          <section className="space-y-3 rounded-xl border bg-white p-4">
-            {notListed && <p className="text-xs text-amber-900">“Service not listed” is not written into the note.</p>}
-            <Button className="w-full bg-emerald-600 text-white hover:bg-emerald-700" disabled={!canGenerate(draft) || working} onClick={generate}>
-              {working ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-              {note && stale ? 'Generate again' : 'Generate note'}
-            </Button>
-
-            {note && (
+        {/* The note, once generated: review it here, under the questions. */}
+        {note && (
+          <section className="animate-rise space-y-3 rounded-xl border border-border bg-card p-5 md:p-6">
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold">Note</h3>
+                  <h3 className="text-[17px] font-semibold text-foreground">Note</h3>
                   <span className="text-[11px] text-muted-foreground">
                     {generator.includes('+') ? 'Reworded by AI from your selections' : 'Written from your selections'}
                   </span>
                 </div>
-                {stale && <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">Your selections changed. Generate the note again before using it.</p>}
+                {stale && <p className="rounded-lg bg-attention-soft px-3 py-2 text-xs text-attention">Your selections changed. Generate the note again before using it.</p>}
                 {editing ? (
                   <Textarea rows={8} value={note} onChange={(e) => { setNote(e.target.value); setReviewed(false); }} className="text-sm" />
                 ) : (
-                  <p className="whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-sm leading-relaxed">{note}</p>
+                  <p key={generated} className="animate-rise whitespace-pre-wrap rounded-lg bg-muted/50 p-4 text-[15px] leading-relaxed text-foreground">{note}</p>
                 )}
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline" onClick={regenerate} disabled={working || stale}>
@@ -628,7 +632,7 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
                     {editing ? 'Done editing' : 'Edit note'}
                   </Button>
                 </div>
-                <label className="flex items-start gap-2 rounded-md border p-2.5 text-sm">
+                <label className={cn('flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 text-sm transition-colors', reviewed ? 'border-success/40 bg-success-soft/60' : 'border-border')}>
                   <Checkbox checked={reviewed} disabled={stale} onCheckedChange={(c) => setReviewed(c === true)} className="mt-0.5" />
                   <span>I reviewed this note and confirm that it accurately reflects the contact.</span>
                 </label>
@@ -639,31 +643,50 @@ export const NoteComposer: React.FC<Props> = ({ method, initial, useLabel, onUse
                   {extraActions?.(composed)}
                 </div>
               </div>
-            )}
           </section>
         )}
       </div>
 
-      {/* What is selected so far */}
-      <aside className="space-y-3 lg:sticky lg:top-2">
-        <section className="rounded-xl border bg-white p-4">
-          <h3 className="mb-2 text-sm font-semibold">Selected</h3>
+      {/* The note draft: what is selected so far, how far along, and Generate note. */}
+      <aside className="space-y-3 lg:sticky lg:top-4">
+        <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[17px] font-semibold text-foreground">Note draft</h3>
+            <span className="text-[13px] font-medium tabular-nums text-muted-foreground">
+              {answeredCount} of {order.length}
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={order.length} aria-valuenow={answeredCount} aria-label="Questions answered">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-500"
+              style={{ width: `${(answeredCount / order.length) * 100}%`, transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)' }}
+            />
+          </div>
           {summary.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nothing yet.</p>
           ) : (
-            <div className="space-y-2 text-sm">
+            <div className="space-y-3 text-sm">
               {summary.map((s) => (
-                <div key={s.heading}>
-                  <p className="font-semibold">{s.heading}</p>
-                  <ul className="ml-1 space-y-0.5 text-muted-foreground">
+                <div key={s.heading} className="animate-rise">
+                  <p className="text-xs font-medium text-muted-foreground">{s.heading}</p>
+                  <ul className="mt-0.5 space-y-0.5 text-foreground">
                     {s.lines.map((l, i) => (
-                      <li key={`${l}-${i}`}>• {l}</li>
+                      <li key={`${l}-${i}`} className="animate-rise">{l}</li>
                     ))}
                   </ul>
                 </div>
               ))}
             </div>
           )}
+          {notListed && <p className="text-xs text-attention">“Service not listed” is not written into the note.</p>}
+          <Button
+            className={cn('w-full', canGenerate(draft) && !working && 'animate-pulse-once [--pulse-color:203_72%_29%]')}
+            disabled={!canGenerate(draft) || working}
+            onClick={generate}
+          >
+            {working ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            {note && stale ? 'Generate again' : 'Generate note'}
+          </Button>
         </section>
       </aside>
     </div>

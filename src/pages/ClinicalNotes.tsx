@@ -19,7 +19,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { setUnsavedWork } from '@/lib/appUpdate';
 import { Navigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ClipboardCopy, Hand, UserRound } from 'lucide-react';
+import { ClipboardCopy, PenLine, UserRound } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -244,21 +245,20 @@ export default function ClinicalNotes() {
 
   return (
     <PageShell>
-      <div className="mx-auto max-w-[1300px] space-y-5 p-4 md:p-8">
-        <div>
+      <div className="mx-auto max-w-[1280px] space-y-6 p-4 md:px-9 md:py-8">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <h1 className="animate-rise text-2xl md:text-[32px] font-semibold tracking-tight text-foreground">Generate Notes</h1>
+          <Tabs value={tab} onValueChange={(v) => setTab(v as 'new' | 'notes')}>
+            <TabsList>
+              <TabsTrigger value="new">New note</TabsTrigger>
+              <TabsTrigger value="notes">Generated notes ({drafts.length})</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-
-        <Tabs value={tab} onValueChange={(v) => setTab(v as 'new' | 'notes')}>
-          <TabsList>
-            <TabsTrigger value="new">New note</TabsTrigger>
-            <TabsTrigger value="notes">Generated notes ({drafts.length})</TabsTrigger>
-          </TabsList>
-        </Tabs>
 
         {tab === 'new' && (
           <>
-            <Card className="space-y-3 p-4">
+            <Card className="space-y-5 p-5 md:p-6">
               {cycleHeader && activeCycle ? (
                 <div className="flex flex-wrap items-center gap-3">
                   <div>
@@ -278,16 +278,34 @@ export default function ClinicalNotes() {
                 </div>
               ) : (
               <>
-              <h2 className="font-semibold">Create note for</h2>
-              <div className="flex flex-wrap gap-2">
-                <Chip selected={mode === 'client'} onClick={() => setMode('client')}>
-                  <UserRound className="mr-1.5 inline h-4 w-4" />
-                  Existing client
-                </Chip>
-                <Chip selected={mode === 'draft'} onClick={() => setMode('draft')}>
-                  <Hand className="mr-1.5 inline h-4 w-4" />
-                  Manual entry
-                </Chip>
+              <h2 className="text-[17px] font-semibold text-foreground">Create note for</h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {([
+                  ['client', 'Existing client', 'Saved as the client’s touchpoint', UserRound],
+                  ['draft', 'Manual entry', 'Type a name, assign it later', PenLine],
+                ] as const).map(([m, label, sub, Icon]) => {
+                  const on = mode === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setMode(m)}
+                      className={cn(
+                        'group flex items-center gap-3 rounded-xl border p-4 text-left transition-all active:scale-[0.99]',
+                        on ? 'border-primary bg-accent shadow-[inset_0_0_0_0.5px_hsl(var(--primary))]' : 'border-border bg-card hover:border-primary/40 hover:bg-accent/40',
+                      )}
+                    >
+                      <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors', on ? 'bg-card text-primary' : 'bg-muted text-muted-foreground')}>
+                        <Icon className="wiggle-on-hover h-[18px] w-[18px]" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className={cn('block text-[15px] font-semibold', on ? 'text-primary' : 'text-foreground')}>{label}</span>
+                        <span className="block text-[13px] text-muted-foreground">{sub}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {mode === 'client' && (
