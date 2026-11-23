@@ -17,7 +17,8 @@ import { regenerateTouchpointsForStaff } from '@/lib/touchpoints';
 import { MCO_OPTIONS, hspDueDateFor, addDays } from '@/lib/billing';
 import { useEffectiveProfileId } from '@/hooks/useEffectiveProfileId';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
-import { FileUp, Loader2 } from 'lucide-react';
+import { FileUp, Loader2, PhoneCall, PhoneMissed } from 'lucide-react';
+import { logIntakeCall } from '@/lib/intakeCalls';
 import {
   applyIntake,
   authorizationFromReadings,
@@ -87,6 +88,8 @@ interface AddClientDialogProps {
   ) => void;
   /** Called instead of onClientAdded when the touchpoint button was used. */
   onAddTouchpoint?: (created: { id: string; name: string; levelOfNeed: string | null }) => void;
+  /** The client did not answer the intake call: report it instead (src/lib/intakeCalls.ts). */
+  onNoAnswer?: () => void;
 }
 
 export const AddClientDialog: React.FC<AddClientDialogProps> = ({
@@ -94,6 +97,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
   onOpenChange,
   onClientAdded,
   onAddTouchpoint,
+  onNoAnswer,
 }) => {
   const { user } = useAuth();
   // Anyone can add a client; staff add to their own caseload, admins choose.
@@ -106,7 +110,12 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
    * Documents first, because the answers are usually already in a folder.
    * Typing a member ID that a PDF is holding is work nobody needs to do.
    */
-  const [step, setStep] = useState<'documents' | 'form'>('documents');
+  const [step, setStep] = useState<'answered' | 'documents' | 'form'>('answered');
+  /**
+   * The intake call, asked first: answered, or (for an administrator assigning
+   * a client) not made yet. Saved on the client (intake_call_status).
+   */
+  const [callAnswered, setCallAnswered] = useState<boolean>(true);
   const [ocrFor, setOcrFor] = useState<string | null>(null);
   const [readings, setReadings] = useState<DocumentReading[]>([]);
   const [reading, setReading] = useState('');
@@ -116,7 +125,8 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
   useEffect(() => {
     if (open) {
       fetchActiveCaseManagers().then(setCaseManagers).catch(() => setCaseManagers([]));
-      setStep('documents');
+      setStep('answered');
+      setCallAnswered(true);
       setReadings([]);
     }
   }, [open]);
@@ -302,6 +312,8 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         reason_closed: data.reason_closed || null,
         notes: data.notes || null,
         assigned_employee_id: assignedId,
+        // Waiting for the intake call, or reached on this one.
+        intake_call_status: callAnswered ? 'reached' : 'awaiting',
         ...(isUnited ? { mco_housing_manager: data.mco_housing_manager || null } : {}),
         // Place the record in the lifecycle from the authorizations entered.
         workflow_stage: data.auth_150_start
@@ -319,6 +331,11 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
         .single();
 
       if (error) throw error;
+
+      // The answered call is the first one on the client's record.
+      if (callAnswered && inserted?.id && profileId) {
+        await logIntakeCall(inserted.id, profileId, 'answered').catch(() => {});
+      }
 
       // Authorization dates entered here have to reach both places: the
       // history in client_authorizations, and the billing cycles and
@@ -409,7 +426,48 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
           }}
         />
 
-        {step === 'documents' ? (
+        {step === 'answered' ? (
+          <div className="space-y-4 py-2">
+            <p className="text-base font-medium">Did the client answer your call?</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                className="h-12"
+                onClick={() => {
+                  setCallAnswered(true);
+                  setStep('documents');
+                }}
+              >
+                <PhoneCall className="mr-2 h-4 w-4" />
+                Yes
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 border-amber-400"
+                onClick={() => {
+                  onOpenChange(false);
+                  onNoAnswer?.();
+                }}
+              >
+                <PhoneMissed className="mr-2 h-4 w-4 text-amber-600" />
+                No
+              </Button>
+            </div>
+            {isAdmin && (
+              <button
+                type="button"
+                className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                onClick={() => {
+                  setCallAnswered(false);
+                  setStep('documents');
+                }}
+              >
+                Not called yet: add the client for their case manager to call
+              </button>
+            )}
+          </div>
+        ) : step === 'documents' ? (
           <div className="space-y-4">
             {/* The drop zone stays. Documents pile up under it, so a folder
                 goes in one at a time without the screen changing underneath. */}
@@ -702,8 +760,7 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
             )} />
 
             {/* Each saves the client first, because none of these can happen
-                to a client who does not exist yet. In the order the work
-                actually happens. */}
+                to a client who does not exist yet. */}
             <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-3">
               <Button
                 type="button"
@@ -729,9 +786,6 @@ export const AddClientDialog: React.FC<AddClientDialogProps> = ({
               >
                 Add touchpoint
               </Button>
-              <span className="text-sm text-muted-foreground">
-                Each saves this client first.
-              </span>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">

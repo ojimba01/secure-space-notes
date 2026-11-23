@@ -10,6 +10,7 @@ import { StatusPill, statusWord } from '@/components/StatusPill';
 import { formatDay } from '@/lib/dates';
 import { useToast } from '@/hooks/use-toast';
 import { ClientOverview } from '@/components/ClientOverview';
+import { IntakeCallBanner } from '@/components/intakeCalls/IntakeCallBanner';
 import { ReassignClientDialog } from '@/components/ReassignClientDialog';
 import { CaseHistory } from '@/components/CaseHistory';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -278,6 +279,17 @@ export const ClientDetails: React.FC<ClientDetailsProps> = ({ client, onBack, on
           </div>
         </div>
       </div>
+
+      {(client as { intake_call_status?: string | null }).intake_call_status === 'awaiting' && client.status !== 'closed' && (
+        <IntakeCallBanner
+          clientId={client.id}
+          clientName={`${client.first_name} ${client.last_name}`}
+          onReached={async () => {
+            await onUpdate();
+            setActiveTab('forms');
+          }}
+        />
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="h-auto w-full justify-start gap-6 overflow-x-auto rounded-none border-b border-border bg-transparent p-0">

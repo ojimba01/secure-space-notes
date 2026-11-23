@@ -11,12 +11,14 @@ import { todayAgency } from '@/lib/billing';
 import { AutosaveIllustration } from '@/components/illustrations/AutosaveIllustration';
 import { EditHistoryIllustration } from '@/components/illustrations/EditHistoryIllustration';
 import { WebIntakeIllustration } from '@/components/illustrations/WebIntakeIllustration';
+import { IntakeCallsIllustration } from '@/components/illustrations/IntakeCallsIllustration';
 import { FEATURES, RIBBON_MS, loadViews, markNotified, markSeen, type Feature, type FeatureAudience } from '@/lib/whatsNew';
 
 const ILLUSTRATIONS = {
   autosave: AutosaveIllustration,
   editHistory: EditHistoryIllustration,
   webIntake: WebIntakeIllustration,
+  intakeCalls: IntakeCallsIllustration,
 } as const;
 
 /**

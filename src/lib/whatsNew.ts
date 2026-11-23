@@ -30,12 +30,23 @@ export interface Feature {
     /** One short paragraph, for an announcement with a picture. */
     body?: string;
     /** A picture across the top, with a NEW ribbon on the corner. */
-    illustration?: 'autosave' | 'editHistory' | 'webIntake';
+    illustration?: 'autosave' | 'editHistory' | 'webIntake' | 'intakeCalls';
     goTo?: { label: string; path: string; state?: unknown };
   };
 }
 
 export const FEATURES: Feature[] = [
+  {
+    key: 'intake-calls',
+    message: 'You can now report when a new client does not answer.',
+    audience: 'everyone',
+    announceUntil: '2026-12-03',
+    popup: {
+      title: 'Client didn’t pick up? Let the team know!',
+      body: 'You can now report a missed intake call in one click. Intake call tracking has been enabled on your account.',
+      illustration: 'intakeCalls',
+    },
+  },
   {
     key: 'web-client-intake',
     message: 'The Client Intake now opens as a web form.',
